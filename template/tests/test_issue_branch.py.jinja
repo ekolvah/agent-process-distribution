@@ -180,7 +180,7 @@ class TestDirectDelegation:
         assert calls == ["issue-254-add-commands"]
 
 
-class _Recorder:
+{% if github_project_enabled %}class _Recorder:
     """Doubles for both sibling modules, sharing one dispatch seam."""
 
     def __init__(self, *, status_fails: bool = False) -> None:
@@ -250,6 +250,8 @@ class TestStatusTransition:
         error = capsys.readouterr().err
         assert "warning: board status not updated" in error
         assert "revoked project access" in error
+
+{% endif %}
 
 
 class TestCli:

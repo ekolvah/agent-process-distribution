@@ -10,7 +10,7 @@ Tool failure must never look like a "no drift" verdict.
 
 Declaration belongs here, not documentation: its composition is mechanically checked
 against GitHub by this script and repository workflows by a matching guard test, so
-docs reference rather than repeat `REQUIRED_CONTEXTS`, as in `scripts/set_issue_priority.py`.
+docs reference rather than repeat `REQUIRED_CONTEXTS`, as in the optional GitHub Project adapter.
 
 This is a `.githooks/pre-push` developer script, not CI. `GITHUB_TOKEN` lacks
 `administration`, while reading `branches/*/protection` needs admin rights. CI would

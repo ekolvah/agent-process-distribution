@@ -6,8 +6,8 @@ Usage: python scripts/issue_branch.py <issue-number>
 Reads the issue title via `gh issue view`, derives a kebab-case ASCII
 slug, and delegates to `scripts/new_branch.py` to do the actual checkout
 (which itself guarantees branching from fresh origin/main HEAD). Once the
-branch exists, it moves the issue's Status on GitHub Project 1 to
-`In Progress` through `scripts/set_issue_status.py`.
+branch exists,{% if github_project_enabled %} it moves the issue's Status on GitHub Project {{ github_project_number }} to
+`In Progress` through `scripts/set_issue_status.py`.{% endif %}
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def _new_branch_module() -> ModuleType:
     return _sibling_module("new_branch")
 
 
-def _mark_in_progress(issue_number: int) -> None:
+{% if github_project_enabled %}def _mark_in_progress(issue_number: int) -> None:
     """Move the issue's board card to `In Progress`; never fail the branch over it.
 
     Called after the checkout on purpose: the branch is what «in progress» means, so the card
@@ -72,6 +72,7 @@ def _mark_in_progress(issue_number: int) -> None:
     except (RuntimeError, ValueError, OSError) as exc:
         print(f"warning: board status not updated: {exc}", file=sys.stderr)
 
+{% endif %}
 
 def build_branch_name(issue_number: int, title: str) -> str:
     return f"{_new_branch_module().BRANCH_PREFIX}{issue_number}-{slugify(title)}"
@@ -126,7 +127,8 @@ def main() -> None:
     title = _fetch_title(n)
     branch = build_branch_name(n, title)
     _new_branch_module().create_branch(branch)
-    _mark_in_progress(n)
+{% if github_project_enabled %}    _mark_in_progress(n)
+{% endif %}
 
 
 if __name__ == "__main__":

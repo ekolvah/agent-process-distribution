@@ -16,55 +16,70 @@ repo_name:
   help: Repository name used in process documentation and generated helpers.
   default: "my-project"
 
+github_project_enabled:
+  type: bool
+  help: Integrate the generated process with a GitHub Project board.
+  default: false
+
 github_project_number:
   type: str
   help: GitHub Project number containing the issue board.
   default: "1"
+  when: "{{ github_project_enabled }}"
 
 github_project_owner:
   type: str
   help: GitHub user or organisation that owns the Project.
   default: "my-org"
+  when: "{{ github_project_enabled }}"
 
 github_project_id:
   type: str
   help: GitHub Project node ID.
   default: "PVT_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 priority_field_id:
   type: str
   help: Priority single-select field node ID.
   default: "PVTSSF_PRIORITY_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 priority_option_high:
   type: str
   help: Priority option ID for High.
   default: "OPTION_HIGH_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 priority_option_medium:
   type: str
   help: Priority option ID for Medium.
   default: "OPTION_MEDIUM_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 priority_option_low:
   type: str
   help: Priority option ID for Low.
   default: "OPTION_LOW_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 status_field_id:
   type: str
   help: Status single-select field node ID.
   default: "PVTSSF_STATUS_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 status_option_planned:
   type: str
   help: Status option ID for Planned.
   default: "OPTION_PLANNED_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 status_option_in_progress:
   type: str
   help: Status option ID for In Progress.
   default: "OPTION_IN_PROGRESS_REPLACE_ME"
+  when: "{{ github_project_enabled }}"
 
 required_status_contexts:
   type: yaml

@@ -169,9 +169,12 @@ cannot distinguish a fabricated observation from an honest one.
 These steps belong to the `planner` role, not to an adapter; an adapter adds
 only its own interface.
 
-1. Run `python scripts/validate_issue_sections.py <N> --mark-planned`. A
-   passing issue is already planned — back-fill the board Status, report, and
+1. Run `python scripts/validate_issue_sections.py <N> --mark-planned`.
+{% if github_project_enabled %}   A passing issue is already planned — back-fill the board Status, report, and
    stop.
+{% else %}   A passing issue is already planned — report and stop. This repository has no
+   GitHub Project adapter, so validation does not update a board.
+{% endif %}
 2. Use all four sources of answers: read and search the repository first;
    ask at most three clarifying questions per session about priority or
    product intent; on a `bug` issue, obtain and record the `discovery`
@@ -251,14 +254,14 @@ medium, or low — wherever the reviewer is unsure of the finding itself:
 ## Deterministic delivery flow
 
 1. Before creating an issue, fetch `origin/main` and check recent closed
-   issues and merged PRs for semantic duplicates. Ask the user for priority,
-   then set it with `python scripts/set_issue_priority.py <N> <priority>`.
+   issues and merged PRs for semantic duplicates.{% if github_project_enabled %} Ask the user for priority,
+   then set it with `python scripts/set_issue_priority.py <N> <priority>`.{% endif %}
 2. The planner researches the repository, writes the issue contract, obtains
    the architect review, fills `Agent handoff`, and validates the result.
-3. The implementer validates the issue again, verifies its Project Priority
-   with `set_issue_priority.py <N> --check`, then creates the branch only
-   with `python scripts/issue_branch.py <N>` (also moves the board card to
-   `In Progress`). It writes and proves failing tests, commits RED before
+3. The implementer validates the issue again,{% if github_project_enabled %} verifies its Project Priority
+   with `set_issue_priority.py <N> --check`,{% endif %} then creates the branch only
+   with `python scripts/issue_branch.py <N>`{% if github_project_enabled %} (also moves the board card to
+   `In Progress`){% endif %}. It writes and proves failing tests, commits RED before
    production logic, implements the agreed outline, updates docs/ADRs, and
    runs the local CI gate once in the foreground.
 4. Create the PR only with `python scripts/open_pr.py --body-file <report>`;
@@ -316,7 +319,7 @@ the required context or treat the PR body as merge authority.
    `perf`/`security`/`enhancement` for user-visible work; otherwise
    `refactor`, `testing`, `ci`, `documentation`, or `chore` by changed area.
    The validator fails on zero or several type labels.
-4. Ask the user for issue priority, then set it with
+{% if github_project_enabled %}4. Ask the user for issue priority, then set it with
    `python scripts/set_issue_priority.py <N> <High|Medium|Low>`. Propose High
    for user-facing bugs and process work, Medium for agentic capability work
    outside the process, Low otherwise; name the rule used.
@@ -324,6 +327,7 @@ the required context or treat the PR body as merge authority.
    scripts a role already runs: `Planned` from `--mark-planned`, `In
    Progress` from `issue_branch.py`. `Todo` and `Done` belong to the
    built-in Project automations; `scripts/set_issue_status.py` rejects them.
+{% endif %}
 6. If a `requirements*.in` file changes, run `pip-compile` for its matching
    lockfile in the same commit.
 7. Trivial non-behavioural one-line changes may skip the issue workflow only

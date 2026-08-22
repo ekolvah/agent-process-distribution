@@ -21,5 +21,6 @@ Claude also adapts `implementer` and `fixer` through
 `/implement #N`, so one agent carries an issue from plan to PR.
 The role catalogue selects the default adapter and route for this project.
 
-When creating an issue, ask the user for priority and set the GitHub Project
+{% if github_project_enabled %}When creating an issue, ask the user for priority and set the GitHub Project
 field with `python scripts/set_issue_priority.py <N> <High|Medium|Low>`.
+{% endif %}

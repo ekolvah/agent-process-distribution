@@ -4,10 +4,10 @@
 Usage: python scripts/validate_issue_sections.py <issue-number> [--mark-planned]
        [--evidence-only [--body-file <path>]]
 
-`--mark-planned` is the planner's flag: on a passing validation *and only then* it moves
-the issue's Status on GitHub Project 1 to `Planned`. The unflagged call — the one the
-implementer makes before creating a branch — stays read-only, so re-validating an issue never
-moves its card back from `In Progress`.
+`--mark-planned` is the planner's flag.{% if github_project_enabled %} On a passing validation *and only then* it moves
+the issue's Status on GitHub Project {{ github_project_number }} to `Planned`.{% else %} In a repository without a
+GitHub Project adapter it records no board transition.{% endif %} The unflagged call — the one the
+implementer makes before creating a branch — stays read-only.
 
 `--evidence-only` is the `discovery` role's flag: it judges the `## Evidence` block alone,
 so the role terminates on an exit code while the planner's other sections do not exist yet.
@@ -42,9 +42,10 @@ from markdown_it import MarkdownIt
 check_orphan_scope = importlib.import_module(
     f"{__package__}.check_orphan_scope" if __package__ else "check_orphan_scope"
 )
-set_issue_status = importlib.import_module(
+{% if github_project_enabled %}set_issue_status = importlib.import_module(
     f"{__package__}.set_issue_status" if __package__ else "set_issue_status"
 )
+{% endif %}
 
 REQUIRED_SECTIONS: tuple[str, ...] = (
     "Context / Why",
@@ -606,7 +607,7 @@ def _read_candidate(path: str) -> str:
         sys.exit(2)
 
 
-def _mark_planned(issue_number: int) -> None:
+{% if github_project_enabled %}def _mark_planned(issue_number: int) -> None:
     """Move the issue's board card to `Planned`; never change this script's verdict.
 
     The transition rides the planner's passing validation instead of becoming another
@@ -618,6 +619,8 @@ def _mark_planned(issue_number: int) -> None:
         set_issue_status.set_status(issue_number, "planned")
     except (RuntimeError, ValueError) as exc:
         print(f"warning: board status not updated: {exc}", file=sys.stderr)
+
+{% endif %}
 
 
 def _parse_argv(raw: list[str]) -> tuple[int, bool, bool, str | None]:
@@ -704,8 +707,9 @@ def main() -> None:
             )
         for reminder in check_orphan_scope.format_reminders(n, body):
             print(reminder)
-        if mark_planned:
+{% if github_project_enabled %}        if mark_planned:
             _mark_planned(n)
+{% endif %}
         return
     print(f"error: issue #{n} is not ready:", file=sys.stderr)
     for g in gaps:
