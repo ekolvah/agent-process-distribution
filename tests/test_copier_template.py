@@ -58,6 +58,19 @@ def initialize_repository(destination: Path) -> None:
         assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
+def generated_tests_pass(destination: Path) -> None:
+    suite = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q"],
+        cwd=destination,
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    assert suite.returncode == 0, suite.stdout + suite.stderr
+
+
 def test_default_render_omits_the_github_project_adapter(tmp_path: Path) -> None:
     destination = render(tmp_path)
     initialize_repository(destination)
@@ -94,16 +107,7 @@ def test_default_render_omits_the_github_project_adapter(tmp_path: Path) -> None
     )
     assert compiled.returncode == 0, compiled.stdout + compiled.stderr
 
-    suite = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q"],
-        cwd=destination,
-        text=True,
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    assert suite.returncode == 0, suite.stdout + suite.stderr
+    generated_tests_pass(destination)
 
 
 def test_project_render_keeps_the_parameterized_adapter(tmp_path: Path) -> None:
@@ -152,3 +156,5 @@ def test_project_render_keeps_the_parameterized_adapter(tmp_path: Path) -> None:
     assert "set_issue_priority.py N --check" in (destination / "AGENTS.md").read_text(
         encoding="utf-8"
     )
+    initialize_repository(destination)
+    generated_tests_pass(destination)
