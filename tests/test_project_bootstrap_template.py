@@ -53,6 +53,24 @@ def bootstrap_module(destination: Path) -> ModuleType:
     return module
 
 
+def generated_suite_passes(destination: Path) -> None:
+    for command in (
+        ["git", "init"],
+        ["git", "add", "--all"],
+        [sys.executable, "-m", "pytest", "-q"],
+    ):
+        completed = subprocess.run(
+            command,
+            cwd=destination,
+            text=True,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
 def test_create_mode_requires_explicit_confirmation_and_no_placeholder_ids(
     tmp_path: Path,
 ) -> None:
@@ -77,6 +95,7 @@ def test_create_mode_requires_explicit_confirmation_and_no_placeholder_ids(
     )
     assert completed.returncode == 2
     assert "--confirm-create" in completed.stderr
+    generated_suite_passes(destination)
 
 
 def test_existing_mode_bakes_only_the_selected_project_number(tmp_path: Path) -> None:
