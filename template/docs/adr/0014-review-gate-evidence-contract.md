@@ -1,0 +1,42 @@
+---
+status: "accepted"
+date: 2026-08-23
+decision-makers: ekolvah
+---
+
+# A required review verdict needs inspectable structured evidence
+
+## Context and Problem Statement
+
+The required `agent-review` check previously accepted an outcome-only Claude
+payload. A payload such as `{"outcome":"blocking"}` made the check red without
+showing a finding or proving what the reviewer examined. That spent fixer rounds
+without an actionable defect.
+
+## Considered Options
+
+* Keep an outcome-only result and rely on optional review comments.
+* Require structured findings but publish no durable summary.
+* Validate conditional findings and publish the validated evidence in the check summary.
+
+## Decision Outcome
+
+Chosen: **validate conditional findings and publish them in the check summary**.
+`clean` explicitly has no findings. `rework` and `blocking` each require at
+least one finding with severity, confidence, and a human-readable summary. The
+summary includes the live reviewed head SHA, so an operator can relate the
+verdict to the exact diff.
+
+### Consequences
+
+* Good, because a merge-blocking result is inspectable from the required check.
+* Good, because malformed or incomplete Claude output becomes unavailable
+  evidence and permits the existing second carrier to be attempted.
+* Bad, because carrier output outside the schema deliberately leaves the check
+  red rather than guessing at a finding.
+
+### Confirmation
+
+`tests/test_agent_review_outcome.py` covers the conditional cardinality and
+summary output. `tests/test_reusable_workflows.py` checks the workflow schema
+and summary wiring.

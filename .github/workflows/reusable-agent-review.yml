@@ -76,7 +76,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.claude_code_oauth_token }}
           github_token: ${{ github.token }}
           claude_args: >-
-            --json-schema '{"type":"object","properties":{"outcome":{"type":"string","enum":["clean","rework","blocking"]}},"required":["outcome"],"additionalProperties":false}'
+            --json-schema '{"type":"object","properties":{"outcome":{"type":"string","enum":["clean","rework","blocking"]},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocking","should-fix","nice-to-have"]},"confidence":{"type":"string","enum":["high","medium","low"]},"summary":{"type":"string","minLength":1}},"required":["severity","confidence","summary"],"additionalProperties":false}}},"required":["outcome","findings"],"additionalProperties":false,"allOf":[{"if":{"properties":{"outcome":{"const":"clean"}}},"then":{"properties":{"findings":{"maxItems":0}}},"else":{"properties":{"findings":{"minItems":1}}}]}'
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ steps.pr-context.outputs.number }}
@@ -112,6 +112,15 @@ jobs:
           --pr "${{ steps.pr-context.outputs.number }}"
           --head-sha "${{ steps.pr-context.outputs.head_sha }}"
           --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
+      - name: Publish validated review evidence
+        if: ${{ always() && steps.pr-context.outcome == 'success' }}
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        env:
+          STRUCTURED_OUTCOME: ${{ steps.classify.outputs.valid == 'true' && steps.review.outputs.structured_output || steps.codex-review.outputs.payload }}
+          REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
+        run: >-
+          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
       - name: Enforce Claude review outcome
         if: ${{ always() && steps.classify.outputs.valid == 'true' }}
         working-directory: ${{ steps.review-source.outputs.working_directory }}
