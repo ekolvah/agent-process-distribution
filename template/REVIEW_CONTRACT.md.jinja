@@ -21,10 +21,10 @@ This is the authoritative contract for both automated PR-review carriers.
 - In the review body group findings by severity and state `Reviewed head SHA:`.
   If there are no findings, say so exactly in one line.
 - A merge-affecting structured result contains `outcome` and `findings`. `clean`
-  carries `findings: []`; `rework` and `blocking` each carry at least one finding
-  with `severity`, `confidence` (`high` / `medium` / `low`), and a non-empty
-  human-readable `summary`. The check publishes only validated evidence with its
-  reviewed head SHA.
+  carries `findings: []`; `rework` carries at least one non-blocking finding;
+  `blocking` carries at least one blocking finding. Every finding has `severity`,
+  `confidence` (`high` / `medium` / `low`), and a non-empty human-readable
+  `summary`. The check publishes only validated evidence with its reviewed head SHA.
 - A GitHub review carrier appends that JSON inside an exact
   `<!-- agent-review-evidence` block. Its `outcome` must match its GitHub review
   state: approved is `clean`, commented is `rework`, and changes requested is

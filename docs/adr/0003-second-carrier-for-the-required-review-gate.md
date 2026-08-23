@@ -84,11 +84,10 @@ two carriers could silently attribute a run to the wrong agent.
   default-branch copy from its isolated `trusted/` checkout; carrier 2 reaches the same file from
   `AGENTS.md`. The workflow carries only the invariant instruction to read that file, not a second
   copy of its content.
-* Bad, because carriers respond in different formats and to different bars: carrier 1 writes inline comments
-  and a structured outcome; carrier 2 leaves a normal GitHub review and GitHub publicly documents it as
-  surfacing P0/P1 findings, narrower than this coverage-first contract. Therefore a green check from carrier 2
-  is weaker than the same check from carrier 1; a target project records any
-  accepted limitation in its own coverage-gap ledger.
+* Superseded by ADR 0014: both carriers now publish the same validated
+  `outcome`/`findings` evidence. Carrier 2 still leaves its normal GitHub review,
+  but its adapter validates the appended evidence block and review-state mapping
+  before the required check accepts it.
 * Bad, because carrier 2’s verdict arrives asynchronously: the job waits in a bounded loop
   (`--timeout-seconds`), so `agent-review` takes minutes rather than seconds on the failover branch. The cost
   is accepted: that branch is reachable only when carrier 1 already did not reply.

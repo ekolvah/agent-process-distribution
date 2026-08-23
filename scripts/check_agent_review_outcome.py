@@ -114,7 +114,19 @@ def validated_evidence(payload: object) -> tuple[str, list[dict[str, str]]] | No
 
     if outcome == "clean":
         return (outcome, validated) if not validated else None
-    return (outcome, validated) if validated else None
+    if outcome == "rework":
+        return (
+            (outcome, validated)
+            if validated and all(finding["severity"] != "blocking" for finding in validated)
+            else None
+        )
+    if outcome == "blocking":
+        return (
+            (outcome, validated)
+            if any(finding["severity"] == "blocking" for finding in validated)
+            else None
+        )
+    return None
 
 
 def _report_validity(evidence: tuple[str, list[dict[str, str]]] | None) -> None:

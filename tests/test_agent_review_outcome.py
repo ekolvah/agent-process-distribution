@@ -22,6 +22,38 @@ def test_rework_without_findings_is_invalid(capsys: pytest.CaptureFixture[str]) 
     assert "valid=false" in _classify({"outcome": "rework"}, capsys)
 
 
+def test_rework_cannot_hide_a_blocking_finding(capsys: pytest.CaptureFixture[str]) -> None:
+    assert "valid=false" in _classify(
+        {
+            "outcome": "rework",
+            "findings": [
+                {
+                    "severity": "blocking",
+                    "confidence": "high",
+                    "summary": "A blocking finding must block the required check.",
+                }
+            ],
+        },
+        capsys,
+    )
+
+
+def test_blocking_requires_a_blocking_finding(capsys: pytest.CaptureFixture[str]) -> None:
+    assert "valid=false" in _classify(
+        {
+            "outcome": "blocking",
+            "findings": [
+                {
+                    "severity": "should-fix",
+                    "confidence": "high",
+                    "summary": "Lower-severity feedback cannot request changes.",
+                }
+            ],
+        },
+        capsys,
+    )
+
+
 def test_clean_requires_no_findings(capsys: pytest.CaptureFixture[str]) -> None:
     assert "valid=false" in _classify(
         {

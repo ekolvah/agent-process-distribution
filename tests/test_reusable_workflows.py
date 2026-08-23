@@ -146,10 +146,13 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "path": "trusted",
     }
     assert steps["Checkout reviewed PR head"]["with"] == {
-        "clean": False,
         "fetch-depth": 0,
         "ref": "${{ steps.pr-context.outputs.head_sha }}",
     }
+    names = list(steps)
+    assert names.index("Checkout reviewed PR head") < names.index(
+        "Checkout trusted review contract and enforcement source"
+    )
     assert "Extract caller review prompt" not in steps
     prompt = steps["Claude review"]["with"]["prompt"]
     assert "${{ steps.review-source.outputs.contract_path }}" in prompt
@@ -179,6 +182,7 @@ def test_agent_review_requires_structured_review_evidence() -> None:
         schema["properties"]["findings"]["items"]["properties"]
     )
     assert schema["required"] == ["outcome", "findings"]
+    assert len(schema["allOf"]) == 3
     assert "Publish validated review evidence" in steps
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
 

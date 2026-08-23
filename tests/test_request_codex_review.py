@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
+from scripts import request_codex_review
 from scripts.request_codex_review import find_verdict
 
 _HEAD = "a" * 40
@@ -63,3 +68,37 @@ def test_codex_evidence_outcome_must_match_its_review_state() -> None:
         )
         is None
     )
+
+
+def test_main_publishes_the_full_validated_codex_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    verdict = {
+        "outcome": "rework",
+        "findings": [
+            {
+                "severity": "should-fix",
+                "confidence": "high",
+                "summary": "The fallback must publish every finding.",
+            }
+        ],
+    }
+    published: list[str] = []
+    monkeypatch.setattr(request_codex_review, "poll_for_verdict", lambda *_args, **_kwargs: verdict)
+    monkeypatch.setattr(request_codex_review, "publish_step_output", published.append)
+
+    request_codex_review.main(["--repo", "owner/repo", "--pr", "14", "--head-sha", _HEAD])
+
+    assert published == [f"payload={json.dumps(verdict, separators=(',', ':'))}"]
+
+
+def test_main_publishes_an_empty_payload_when_codex_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    published: list[str] = []
+    monkeypatch.setattr(request_codex_review, "poll_for_verdict", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(request_codex_review, "publish_step_output", published.append)
+
+    request_codex_review.main(["--repo", "owner/repo", "--pr", "14", "--head-sha", _HEAD])
+
+    assert published == ["payload="]
