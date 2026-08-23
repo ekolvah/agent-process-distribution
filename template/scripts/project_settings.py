@@ -23,10 +23,12 @@ def require_configured() -> None:
         PRIORITY_FIELD_ID,
         STATUS_FIELD_ID,
     )
-    if not all(required) or set(PRIORITY_OPTION_IDS) != {"high", "medium", "low"} or set(
-        STATUS_OPTION_IDS
-    ) != {"planned", "in-progress"}:
+    if (
+        not all(required)
+        or set(PRIORITY_OPTION_IDS) != {"high", "medium", "low"}
+        or set(STATUS_OPTION_IDS) != {"planned", "in-progress"}
+    ):
         raise RuntimeError(
-            "GitHub Project bootstrap is incomplete; run "
+            "Agent process is installed but inactive: GitHub Project bootstrap is incomplete; run "
             "`python scripts/bootstrap_github_project.py` first"
         )

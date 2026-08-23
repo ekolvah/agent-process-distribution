@@ -59,6 +59,15 @@ def _new_branch_module() -> ModuleType:
     return _sibling_module("new_branch")
 
 
+def _require_project_bootstrap() -> None:
+    """Stop before creating a branch when the copied process is still inactive."""
+    try:
+        _sibling_module("project_settings").require_configured()
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(2)
+
+
 def _mark_in_progress(issue_number: int) -> None:
     """Move the issue's board card to `In Progress`; never fail the branch over it.
 
@@ -108,7 +117,8 @@ def _fetch_title(issue_number: int) -> str:
         sys.exit(2)
     if data.get("state") != "OPEN":
         print(
-            f"error: issue #{issue_number} is not OPEN (state={data.get('state')})", file=sys.stderr
+            f"error: issue #{issue_number} is not OPEN (state={data.get('state')})",
+            file=sys.stderr,
         )
         sys.exit(2)
     return data.get("title") or ""
@@ -123,6 +133,7 @@ def main() -> None:
     except ValueError:
         print(f"error: issue number must be int (got {sys.argv[1]!r})", file=sys.stderr)
         sys.exit(2)
+    _require_project_bootstrap()
     title = _fetch_title(n)
     branch = build_branch_name(n, title)
     _new_branch_module().create_branch(branch)

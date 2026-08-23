@@ -25,7 +25,9 @@ SETTINGS_PATH = Path(__file__).with_name("project_settings.py")
 
 
 def _checked(command: list[str]) -> str:
-    completed = subprocess.run(command, text=True, capture_output=True, encoding="utf-8")
+    completed = subprocess.run(
+        command, text=True, capture_output=True, encoding="utf-8"
+    )
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr.strip() or f"failed: {' '.join(command)}")
     return completed.stdout
@@ -39,7 +41,9 @@ def _run(command: list[str]) -> dict[str, Any]:
 
 
 def _fields(number: str) -> list[dict[str, Any]]:
-    data = _run(["gh", "project", "field-list", number, "--owner", OWNER, "--format", "json"])
+    data = _run(
+        ["gh", "project", "field-list", number, "--owner", OWNER, "--format", "json"]
+    )
     fields = data.get("fields")
     if not isinstance(fields, list):
         raise RuntimeError("`gh project field-list` returned no fields list")
@@ -58,7 +62,9 @@ def _field(
         }
         if field.get("name") in names and option_names == options and field.get("id"):
             return field
-    raise RuntimeError(f"Project lacks one of {names!r} with options {sorted(options)!r}")
+    raise RuntimeError(
+        f"Project lacks one of {names!r} with options {sorted(options)!r}"
+    )
 
 
 def _option_ids(field: dict[str, Any], expected: dict[str, str]) -> dict[str, str]:
@@ -92,7 +98,9 @@ def _write(number: str, project_id: str, fields: list[dict[str, Any]]) -> None:
             "",
         ]
     )
-    SETTINGS_PATH.write_text(source, encoding="utf-8")
+    temporary_path = SETTINGS_PATH.with_suffix(".py.tmp")
+    temporary_path.write_text(source, encoding="utf-8")
+    temporary_path.replace(SETTINGS_PATH)
 
 
 def _create() -> tuple[str, str]:
@@ -102,14 +110,64 @@ def _create() -> tuple[str, str]:
         repository = str(current.get("nameWithOwner", ""))
     if not repository:
         raise RuntimeError("cannot resolve github_repository from the current checkout")
-    created = _run(["gh", "project", "create", "--owner", OWNER, "--title", PROJECT_TITLE, "--format", "json"])
-    number, project_id = str(created.get("number", "")), str(created.get("id", ""))
-    if not number or not project_id:
-        raise RuntimeError("`gh project create` returned no number or id")
-    _checked(["gh", "project", "link", number, "--owner", OWNER, "--repo", repository])
-    for name, options in (("Priority", "High,Medium,Low"), ("Agent status", "Planned,In Progress")):
-        _run(["gh", "project", "field-create", number, "--owner", OWNER, "--name", name, "--data-type", "SINGLE_SELECT", "--single-select-options", options, "--format", "json"])
-    return number, project_id
+    _checked(["gh", "auth", "status"])
+    number = ""
+    try:
+        created = _run(
+            [
+                "gh",
+                "project",
+                "create",
+                "--owner",
+                OWNER,
+                "--title",
+                PROJECT_TITLE,
+                "--format",
+                "json",
+            ]
+        )
+        number, project_id = str(created.get("number", "")), str(created.get("id", ""))
+        if not number or not project_id:
+            raise RuntimeError("`gh project create` returned no number or id")
+        _checked(
+            ["gh", "project", "link", number, "--owner", OWNER, "--repo", repository]
+        )
+        for name, options in (
+            ("Priority", "High,Medium,Low"),
+            ("Agent status", "Planned,In Progress"),
+        ):
+            _run(
+                [
+                    "gh",
+                    "project",
+                    "field-create",
+                    number,
+                    "--owner",
+                    OWNER,
+                    "--name",
+                    name,
+                    "--data-type",
+                    "SINGLE_SELECT",
+                    "--single-select-options",
+                    options,
+                    "--format",
+                    "json",
+                ]
+            )
+        return number, project_id
+    except RuntimeError as exc:
+        if not number:
+            raise
+        try:
+            _checked(["gh", "project", "delete", number, "--owner", OWNER])
+        except RuntimeError as cleanup_exc:
+            raise RuntimeError(
+                f"{exc}; Project {number} was created but cleanup failed: {cleanup_exc}. "
+                f"Delete it with `gh project delete {number} --owner {OWNER}` before retrying"
+            ) from cleanup_exc
+        raise RuntimeError(
+            f"{exc}; Project {number} was deleted, and no configuration was written"
+        ) from exc
 
 
 def _already_configured() -> bool:
@@ -125,7 +183,11 @@ def _already_configured() -> bool:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--confirm-create", action="store_true", help="allow Project creation in create mode")
+    parser.add_argument(
+        "--confirm-create",
+        action="store_true",
+        help="allow Project creation in create mode",
+    )
     ns = parser.parse_args(argv)
     if _already_configured():
         print("ok: GitHub Project bootstrap is already configured")
@@ -138,13 +200,29 @@ def main(argv: list[str] | None = None) -> None:
         else:
             if not EXISTING_NUMBER:
                 raise RuntimeError("existing mode needs existing_github_project_number")
-            viewed = _run(["gh", "project", "view", EXISTING_NUMBER, "--owner", OWNER, "--format", "json"])
+            viewed = _run(
+                [
+                    "gh",
+                    "project",
+                    "view",
+                    EXISTING_NUMBER,
+                    "--owner",
+                    OWNER,
+                    "--format",
+                    "json",
+                ]
+            )
             number, project_id = EXISTING_NUMBER, str(viewed.get("id", ""))
             if not project_id:
                 raise RuntimeError("`gh project view` returned no id")
         _write(number, project_id, _fields(number))
     except RuntimeError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        print(
+            "error: GitHub Project bootstrap did not activate the agent process: "
+            f"{exc}. Fix the problem and rerun this command; "
+            f"{SETTINGS_PATH} is unchanged.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     print(f"ok: GitHub Project {number} is configured; commit {SETTINGS_PATH}")
 

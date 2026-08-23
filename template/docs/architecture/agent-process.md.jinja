@@ -254,7 +254,12 @@ medium, or low — wherever the reviewer is unsure of the finding itself:
    `python scripts/bootstrap_github_project.py`{% if github_project_mode == "create" %} with
    `--confirm-create`{% endif %}. It either validates the chosen existing
    Project or creates the selected new Project, then writes the real IDs to
-   `scripts/project_settings.py`. Commit that file before using the process.
+   `scripts/project_settings.py`. Copier has only copied an inactive payload
+   until this succeeds: it writes no IDs on failure, and `issue_branch.py`
+   refuses to create a branch. In create mode, a failure after Project creation
+   triggers deletion of that newly-created Project; if deletion also fails,
+   the command prints the exact manual cleanup command. Commit the settings
+   file before using the process.
 2. Before creating an issue, fetch `origin/main` and check recent closed
    issues and merged PRs for semantic duplicates. Ask the user for priority,
    then set it with `python scripts/set_issue_priority.py <N> <priority>`.

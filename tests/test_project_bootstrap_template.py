@@ -188,3 +188,37 @@ def test_create_mode_links_fields_and_persists_real_ids(
     call_count = len(calls)
     bootstrap.main([])
     assert len(calls) == call_count
+
+
+def test_create_mode_rolls_back_a_project_when_activation_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    destination = render(
+        tmp_path, "--data", "github_repository=example-org/example-repo"
+    )
+    bootstrap = bootstrap_module(destination)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str]) -> dict[str, object]:
+        calls.append(command)
+        if command[2] == "create":
+            return {"number": 7, "id": "project-7"}
+        if command[2] == "field-create":
+            raise RuntimeError("field creation denied")
+        return {}
+
+    monkeypatch.setattr(bootstrap, "_run", fake_run)
+    monkeypatch.setattr(
+        bootstrap, "_checked", lambda command: calls.append(command) or ""
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        bootstrap.main(["--confirm-create"])
+
+    assert exc.value.code == 1
+    assert ["gh", "project", "delete", "7", "--owner", "@me"] in calls
+    settings = (destination / "scripts" / "project_settings.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'PROJECT_ID = ""' in settings
+    assert "did not activate" in capsys.readouterr().err

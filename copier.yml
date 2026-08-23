@@ -6,7 +6,10 @@ _exclude:
   - "__pycache__"
   - "*.pyc"
 _message_after_copy: |
-  Installed the Layer 0 + Codex Layer 2 agent-process payload.
+  Copied the Layer 0 + Codex Layer 2 agent-process payload; it is inactive
+  until `python scripts/bootstrap_github_project.py` succeeds (add
+  `--confirm-create` for create mode). That command validates or creates the
+  required GitHub Project and writes its real IDs to project_settings.py.
   If this project also adopts the Claude adapter, install its plugin only after
   this copier payload: its hooks target scripts/hooks.py from Layer 0. See the
   source manifest's “Install order across layers” section before doing so.
