@@ -76,9 +76,7 @@ def item_id_from_add_json(output: str | None) -> str:
     try:
         data: dict[str, Any] = json.loads(output or "")
     except (json.JSONDecodeError, TypeError) as exc:
-        raise ValueError(
-            f"could not parse `gh project item-add` output: {output!r}"
-        ) from exc
+        raise ValueError(f"could not parse `gh project item-add` output: {output!r}") from exc
     item_id = data.get("id")
     if not item_id:
         raise ValueError(f"`gh project item-add` returned no item id: {output!r}")

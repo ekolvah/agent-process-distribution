@@ -95,9 +95,7 @@ _OPAQUE = "\x00"
 
 # See `test_doc_links.py`: a source repository can declare source-only documentation
 # prefixes without giving ordinary rendered projects a silent opt-out.
-_EXCLUDED_PREFIXES = (
-{% for prefix in doc_guard_excluded_prefixes %}    {{ prefix | tojson }},
-{% endfor %})
+_EXCLUDED_PREFIXES = tuple({{ doc_guard_excluded_prefixes | tojson }})
 
 # Non-issue uses of the sigil: rule number and board number. The dictionary is **closed**—the exact
 # condition for rejecting the date branch (ledger **AC**) and selecting this one. It does not live only in

@@ -62,9 +62,7 @@ def option_id_for_level(level: str) -> str:
         return OPTION_IDS[key]
     except KeyError:
         allowed = "/".join(name.capitalize() for name in OPTION_IDS)
-        raise ValueError(
-            f"unknown priority level {level!r}; expected {allowed}"
-        ) from None
+        raise ValueError(f"unknown priority level {level!r}; expected {allowed}") from None
 
 
 def item_id_from_add_json(output: str | None) -> str:
@@ -76,9 +74,7 @@ def item_id_from_add_json(output: str | None) -> str:
     try:
         data: dict[str, Any] = json.loads(output or "")
     except (json.JSONDecodeError, TypeError) as exc:
-        raise ValueError(
-            f"could not parse `gh project item-add` output: {output!r}"
-        ) from exc
+        raise ValueError(f"could not parse `gh project item-add` output: {output!r}") from exc
     item_id = data.get("id")
     if not item_id:
         raise ValueError(f"`gh project item-add` returned no item id: {output!r}")
@@ -90,17 +86,13 @@ def priority_from_project_json(output: str | None, issue_url: str) -> str | None
     try:
         data: Any = json.loads(output or "")
     except (json.JSONDecodeError, TypeError) as exc:
-        raise ValueError(
-            f"could not parse `gh project item-list` output: {output!r}"
-        ) from exc
+        raise ValueError(f"could not parse `gh project item-list` output: {output!r}") from exc
     if not isinstance(data, dict) or not isinstance(data.get("items"), list):
         raise ValueError(f"`gh project item-list` returned no items list: {output!r}")
 
     for item in data["items"]:
         if not isinstance(item, dict):
-            raise ValueError(
-                f"`gh project item-list` returned a malformed item: {item!r}"
-            )
+            raise ValueError(f"`gh project item-list` returned a malformed item: {item!r}")
         content = item.get("content")
         if not isinstance(content, dict) or content.get("url") != issue_url:
             continue
@@ -255,9 +247,7 @@ def main(argv: list[str] | None = None) -> None:
     url = _issue_url(ns.issue)
     item_id = _item_add(url)
     _item_edit(item_id, option_id)
-    print(
-        f"ok: issue #{ns.issue} priority set to {ns.level.capitalize()} (item {item_id})"
-    )
+    print(f"ok: issue #{ns.issue} priority set to {ns.level.capitalize()} (item {item_id})")
 
 
 if __name__ == "__main__":

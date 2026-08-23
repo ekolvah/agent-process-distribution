@@ -98,14 +98,10 @@ class TestAllowDrift:
         monkeypatch.setattr(
             guard,
             "fetch_protection",
-            lambda: {
-                "required_status_checks": {"checks": [{"context": c} for c in contexts]}
-            },
+            lambda: {"required_status_checks": {"checks": [{"context": c} for c in contexts]}},
         )
 
-    def test_drift_without_the_flag_still_exits_one(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_drift_without_the_flag_still_exits_one(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import scripts.check_branch_protection as guard
 
         self._patch_actual(monkeypatch, ["quality", "pr-link"])
@@ -123,9 +119,7 @@ class TestAllowDrift:
         out = capsys.readouterr().out
         assert f"#{458}" in out, "the stated reason must reach the push output"
 
-    def test_allow_drift_requires_a_reason(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_allow_drift_requires_a_reason(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import scripts.check_branch_protection as guard
 
         self._patch_actual(monkeypatch, ["quality", "pr-link"])
@@ -133,9 +127,7 @@ class TestAllowDrift:
             guard.main(["--allow-drift"])
         assert exc.value.code == 2
 
-    def test_no_drift_with_the_flag_is_still_clean(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_no_drift_with_the_flag_is_still_clean(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import scripts.check_branch_protection as guard
 
         self._patch_actual(monkeypatch, list(REQUIRED_CONTEXTS))
@@ -202,9 +194,7 @@ class TestProtectionFetch:
     def test_null_required_status_checks_is_drift_not_crash(self) -> None:
         """Explicit JSON `null` differs from a missing key; a traceback would yield code 1."""
         assert contexts_from_protection({"required_status_checks": None}) == ()
-        assert (
-            contexts_from_protection({"required_status_checks": {"checks": None}}) == ()
-        )
+        assert contexts_from_protection({"required_status_checks": {"checks": None}}) == ()
 
     def test_contexts_are_read_from_the_checks_field(self) -> None:
         """Read the non-deprecated `checks[*].context` form, the same one written."""
@@ -226,9 +216,7 @@ class TestProtectionFetch:
         from scripts.check_branch_protection import main
 
         payload = {
-            "required_status_checks": {
-                "checks": [{"context": c} for c in REQUIRED_CONTEXTS]
-            }
+            "required_status_checks": {"checks": [{"context": c} for c in REQUIRED_CONTEXTS]}
         }
         self._fake_run(monkeypatch, stdout=json.dumps(payload), stderr="", rc=0)
         main([])
@@ -248,16 +236,11 @@ class TestDeclarationMatchesWorkflows:
         """
         assert REQUIRED_CONTEXTS, "пустое объявление молча не гарантирует ничего"
         assert (
-            declaration_problems(
-                load_workflows(_WORKFLOWS), REQUIRED_CONTEXTS, NOT_REQUIRED
-            )
-            == []
+            declaration_problems(load_workflows(_WORKFLOWS), REQUIRED_CONTEXTS, NOT_REQUIRED) == []
         )
 
     def test_reusable_context_composition_is_visible_offline(self) -> None:
-        notices = unverified_offline_contexts(
-            load_workflows(_WORKFLOWS), REQUIRED_CONTEXTS
-        )
+        notices = unverified_offline_contexts(load_workflows(_WORKFLOWS), REQUIRED_CONTEXTS)
         assert len(notices) == len(REQUIRED_CONTEXTS)
         assert all("unverified offline" in notice for notice in notices)
 
@@ -275,13 +258,8 @@ class TestDeclarationMatchesWorkflows:
 
     def test_excluded_job_needs_a_reason(self) -> None:
         """An exclusion without a reason is a forgotten decision, not an accepted one."""
-        workflows = {
-            "new.yml": {"on": {"pull_request": None}, "jobs": {"advisory": {}}}
-        }
-        assert (
-            declaration_problems(workflows, (), {"advisory": "не блокирует fork-PR"})
-            == []
-        )
+        workflows = {"new.yml": {"on": {"pull_request": None}, "jobs": {"advisory": {}}}}
+        assert declaration_problems(workflows, (), {"advisory": "не блокирует fork-PR"}) == []
         assert declaration_problems(workflows, (), {"advisory": ""}) != []
 
     def test_declared_context_without_a_job_is_a_problem(self) -> None:
@@ -307,9 +285,7 @@ class TestDeclarationMatchesWorkflows:
         workflows = {
             "new.yml": {
                 "on": {"pull_request": None},
-                "jobs": {
-                    "gate": {"strategy": {"matrix": {"python": ["3.12", "3.13"]}}}
-                },
+                "jobs": {"gate": {"strategy": {"matrix": {"python": ["3.12", "3.13"]}}}},
             }
         }
         problems = declaration_problems(workflows, ("gate",), {})
@@ -453,11 +429,7 @@ class TestPrePushHook:
         log = tmp_path / "hook-calls.log"
         if not log.exists():
             return []
-        return [
-            line
-            for line in log.read_text(encoding="utf-8").splitlines()
-            if ".py" in line
-        ]
+        return [line for line in log.read_text(encoding="utf-8").splitlines() if ".py" in line]
 
     def test_runs_each_gate_exactly_once(self, tmp_path: Path) -> None:
         """Both gates run once—no repeats from the former `||` chain."""
@@ -471,9 +443,7 @@ class TestPrePushHook:
 
     def test_clears_repository_local_git_environment(self, tmp_path: Path) -> None:
         self._stub(tmp_path / ".venv" / "Scripts" / "python", "scripts")
-        result = self._run(
-            tmp_path, env={**os.environ, "GIT_DIR": str(_REPO_ROOT / ".git")}
-        )
+        result = self._run(tmp_path, env={**os.environ, "GIT_DIR": str(_REPO_ROOT / ".git")})
         calls = self._gate_calls(tmp_path)
 
         assert result.returncode == 0, result.stderr
@@ -515,9 +485,7 @@ class TestPrePushHook:
     def test_allow_drift_reason_reaches_protection_probe(self, tmp_path: Path) -> None:
         self._stub(tmp_path / ".venv" / "Scripts" / "python", "scripts")
         reason = "temporary branch-protection migration"
-        result = self._run(
-            tmp_path, env={**os.environ, "BRANCH_PROTECTION_ALLOW_DRIFT": reason}
-        )
+        result = self._run(tmp_path, env={**os.environ, "BRANCH_PROTECTION_ALLOW_DRIFT": reason})
 
         assert result.returncode == 0, result.stderr
         calls = self._gate_calls(tmp_path)
@@ -532,9 +500,7 @@ class TestPrePushHook:
         assert result.returncode != 0
         assert not any("ci_check.py" in c for c in self._gate_calls(tmp_path))
 
-    def test_failing_gate_is_not_rerun_under_the_next_interpreter(
-        self, tmp_path: Path
-    ) -> None:
+    def test_failing_gate_is_not_rerun_under_the_next_interpreter(self, tmp_path: Path) -> None:
         """A red gate is a verdict, not an interpreter-discovery failure."""
         self._stub(tmp_path / ".venv" / "Scripts" / "python", "scripts")
         self._stub(tmp_path / ".venv" / "bin" / "python", "bin")
@@ -577,6 +543,4 @@ class TestPrePushHook:
         env = {"PATH": str(Path(self._bash()).parent)}
         result = self._run(tmp_path, env=env)
         assert result.returncode != 0
-        assert result.stderr.strip(), (
-            "молчаливый отказ хука неотличим от зелёного прогона"
-        )
+        assert result.stderr.strip(), "молчаливый отказ хука неотличим от зелёного прогона"

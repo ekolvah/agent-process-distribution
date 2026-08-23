@@ -160,9 +160,7 @@ def reviewer_independence() -> dict[str, str]:
     """
     declared = _declared_role_field(_REVIEWER_ROLE, "adapter_independence")
     if not isinstance(declared, dict) or not declared:
-        raise CatalogueError(
-            f"{_REVIEWER_ROLE}.adapter_independence is not a non-empty mapping"
-        )
+        raise CatalogueError(f"{_REVIEWER_ROLE}.adapter_independence is not a non-empty mapping")
     return declared
 
 
@@ -174,16 +172,10 @@ def discovery_carriers() -> tuple[str, ...]:
     observation whoever ran the capture. The gate resolves the name and stops.
     """
     declared = _declared_role_field(_DISCOVERY_ROLE, "adapters")
-    if not isinstance(declared, list) or not all(
-        isinstance(name, str) for name in declared
-    ):
-        raise CatalogueError(
-            f"{_DISCOVERY_ROLE}.adapters is not a non-empty list of carriers"
-        )
+    if not isinstance(declared, list) or not all(isinstance(name, str) for name in declared):
+        raise CatalogueError(f"{_DISCOVERY_ROLE}.adapters is not a non-empty list of carriers")
     if not declared:
-        raise CatalogueError(
-            f"{_DISCOVERY_ROLE}.adapters is not a non-empty list of carriers"
-        )
+        raise CatalogueError(f"{_DISCOVERY_ROLE}.adapters is not a non-empty list of carriers")
     return tuple(declared)
 
 
@@ -216,8 +208,7 @@ def change_class_requirements() -> dict[str, dict[str, tuple[str, ...]]]:
                 f"{_CHANGE_CLASS_CATALOGUE} row {label!r} is not a mapping of adds/omits"
             )
         if not all(
-            isinstance(row[key], list)
-            and all(isinstance(item, str) for item in row[key])
+            isinstance(row[key], list) and all(isinstance(item, str) for item in row[key])
             for key in ("adds", "omits")
         ):
             raise CatalogueError(
@@ -246,9 +237,7 @@ def required_sections(label: str) -> tuple[str, ...]:
 
 def _resolve_class(labels: Sequence[str]) -> str | None:
     """The one type label routing this issue, or `None` when it is not exactly one."""
-    present = sorted(
-        {label.casefold() for label in labels} & set(change_class_requirements())
-    )
+    present = sorted({label.casefold() for label in labels} & set(change_class_requirements()))
     return present[0] if len(present) == 1 else None
 
 
@@ -260,9 +249,7 @@ def type_label_gaps(labels: Sequence[str], issue_number: int) -> list[str]:
     the *maintainer's* fix: a planner may not edit labels (§Planner runbook), so pointing
     at `/plan` would send the issue to a role that cannot resolve the gap.
     """
-    present = sorted(
-        {label.casefold() for label in labels} & set(change_class_requirements())
-    )
+    present = sorted({label.casefold() for label in labels} & set(change_class_requirements()))
     if len(present) == 1:
         return []
     detail = "none" if not present else f"several: {', '.join(present)}"
@@ -371,11 +358,7 @@ def _failed_capture_has_output(content: str) -> bool:
         return False
     lines = content.splitlines()
     output_index = next(
-        (
-            index
-            for index, line in enumerate(lines)
-            if line.strip().lower() == "output:"
-        ),
+        (index for index, line in enumerate(lines) if line.strip().lower() == "output:"),
         None,
     )
     if output_index is None:
@@ -409,9 +392,7 @@ def evidence_provenance_gaps(content: str) -> list[str]:
 def _after_provenance(content: str) -> str:
     """The section body below its provenance line."""
     lines = content.splitlines()
-    first = next(
-        (index for index, line in enumerate(lines) if line.strip()), len(lines)
-    )
+    first = next((index for index, line in enumerate(lines) if line.strip()), len(lines))
     return "\n".join(lines[first + 1 :])
 
 
@@ -445,11 +426,7 @@ def evidence_gaps(content: str) -> list[str]:
     candidate = Path(path_value)
     if candidate.is_absolute():
         return ["repository-relative capture path"]
-    if (
-        not candidate.parts
-        or candidate.parts[0] != "evidence"
-        or ".." in candidate.parts
-    ):
+    if not candidate.parts or candidate.parts[0] != "evidence" or ".." in candidate.parts:
         return ["capture path under evidence/"]
 
     if (_section_field(content, "status") or "").casefold() == "failed":
@@ -458,9 +435,7 @@ def evidence_gaps(content: str) -> list[str]:
         return ["successful capture"]
 
     return [
-        label
-        for field, label in EVIDENCE_DECISION_FIELDS
-        if not _section_field(content, field)
+        label for field, label in EVIDENCE_DECISION_FIELDS if not _section_field(content, field)
     ]
 
 
@@ -483,15 +458,11 @@ def prior_art_gaps(content: str) -> list[str]:
             return []
         return ["n/a reason"]
 
-    missing = [
-        label for field, label in PRIOR_ART_FIELDS if not _section_field(content, field)
-    ]
+    missing = [label for field, label in PRIOR_ART_FIELDS if not _section_field(content, field)]
     if missing:
         return missing
 
-    verdict = (
-        (_section_field(content, "verdict") or "").casefold().lstrip(_VERDICT_WRAPPERS)
-    )
+    verdict = (_section_field(content, "verdict") or "").casefold().lstrip(_VERDICT_WRAPPERS)
     if not verdict.startswith(VERDICT_DECISIONS):
         # Not `missing: verdict`: the author can see that line and would read that gap as a
         # parser failure. The gap names what the line has to decide instead.
@@ -679,9 +650,7 @@ def _parse_argv(raw: list[str]) -> tuple[int, bool, bool, str | None]:
     try:
         return int(positional[0]), mark_planned, evidence_only, body_file
     except ValueError:
-        print(
-            f"error: issue number must be int (got {positional[0]!r})", file=sys.stderr
-        )
+        print(f"error: issue number must be int (got {positional[0]!r})", file=sys.stderr)
         sys.exit(2)
 
 
@@ -708,11 +677,7 @@ def main() -> None:
         # it is handed.
         label_gaps = type_label_gaps(labels, n)
         change_class = None if label_gaps else _resolve_class(labels)
-        required = (
-            REQUIRED_SECTIONS
-            if change_class is None
-            else required_sections(change_class)
-        )
+        required = REQUIRED_SECTIONS if change_class is None else required_sections(change_class)
         gaps = label_gaps + find_gaps(body, required=required)
     except CatalogueError as exc:
         # Same class as a failed `gh` capture: the verdict cannot be trusted, so it is
@@ -730,8 +695,7 @@ def main() -> None:
         print(f"class: {change_class} — {red}")
         if (
             "Architect review" in required
-            and architect_review_provenance(_split_by_h2(body)["architect review"])
-            == SELF_REVIEW
+            and architect_review_provenance(_split_by_h2(body)["architect review"]) == SELF_REVIEW
         ):
             # Non-blocking, like the orphan-scope reminder: self-review is a valid
             # route, and the point is that it reaches the reader rather than passing as

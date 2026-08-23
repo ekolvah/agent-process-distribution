@@ -36,9 +36,7 @@ class TestSlugify:
         assert slugify("") == "task"
 
     def test_special_chars_dropped(self) -> None:
-        assert (
-            slugify("Add /plan + /implement commands!") == "add-plan-implement-commands"
-        )
+        assert slugify("Add /plan + /implement commands!") == "add-plan-implement-commands"
 
 
 class TestBuildBranchName:
@@ -68,17 +66,13 @@ class TestBuildBranchName:
 class TestFetchTitleEncoding:
     def test_cyrillic_title_decodes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         cyrillic_title = f"/plan и /implement не работают после PR #{121}"
-        payload = json.dumps(
-            {"state": "OPEN", "title": cyrillic_title}, ensure_ascii=False
-        )
+        payload = json.dumps({"state": "OPEN", "title": cyrillic_title}, ensure_ascii=False)
 
         def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
             assert kwargs.get("encoding") == "utf-8", (
                 "subprocess must request utf-8 to avoid cp1252 on Windows"
             )
-            return subprocess.CompletedProcess(
-                args=args, returncode=0, stdout=payload, stderr=""
-            )
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout=payload, stderr="")
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         assert _fetch_title(122) == cyrillic_title
@@ -173,9 +167,7 @@ class TestDirectDelegation:
             issue_branch, "_new_branch_module", lambda: _FakeNewBranch, raising=False
         )
         monkeypatch.setattr(issue_branch, "_require_project_bootstrap", lambda: None)
-        monkeypatch.setattr(
-            issue_branch, "_mark_in_progress", lambda issue_number: None
-        )
+        monkeypatch.setattr(issue_branch, "_mark_in_progress", lambda issue_number: None)
         # Spy so the pre-refactor re-spawn path cannot shell out to real git
         # during RED; the contract asserted below is the delegate call, not this.
         monkeypatch.setattr(
@@ -212,9 +204,7 @@ class _Recorder:
             @staticmethod
             def set_status(issue_number: int, status: str) -> None:
                 if recorder.status_fails:
-                    raise RuntimeError(
-                        "gh project item-edit failed (rc=1): revoked project access"
-                    )
+                    raise RuntimeError("gh project item-edit failed (rc=1): revoked project access")
                 recorder.statuses.append((issue_number, status))
 
         class _FakeSettings:
@@ -229,15 +219,11 @@ class _Recorder:
         }[name]
 
     def install(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(
-            issue_branch, "_fetch_title", lambda n: "board status manual"
-        )
+        monkeypatch.setattr(issue_branch, "_fetch_title", lambda n: "board status manual")
         monkeypatch.setattr(issue_branch, "_sibling_module", self.module, raising=False)
         # Also pinned by its own name so the pre-refactor code path cannot reach real git
         # during RED; the contract asserted below is the status call, not this.
-        monkeypatch.setattr(
-            issue_branch, "_new_branch_module", lambda: self.module("new_branch")
-        )
+        monkeypatch.setattr(issue_branch, "_new_branch_module", lambda: self.module("new_branch"))
         monkeypatch.setattr(
             subprocess,
             "run",
@@ -249,9 +235,7 @@ class _Recorder:
 class TestStatusTransition:
     """The branch is what «in progress» means, so the card moves after the checkout."""
 
-    def test_successful_branch_sets_in_progress(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_successful_branch_sets_in_progress(self, monkeypatch: pytest.MonkeyPatch) -> None:
         recorder = _Recorder()
         recorder.install(monkeypatch)
 

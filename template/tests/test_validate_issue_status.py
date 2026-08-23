@@ -14,9 +14,7 @@ def test_planned_status_failure_stops_planner_handoff(
         assert (issue_number, status) == (519, "planned")
         raise RuntimeError("gh project item-edit failed")
 
-    monkeypatch.setattr(
-        validate_issue_sections.set_issue_status, "set_status", fail_status
-    )
+    monkeypatch.setattr(validate_issue_sections.set_issue_status, "set_status", fail_status)
 
     with pytest.raises(SystemExit) as exc:
         validate_issue_sections._mark_planned(519)

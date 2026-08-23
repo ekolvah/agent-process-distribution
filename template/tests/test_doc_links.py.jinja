@@ -93,9 +93,8 @@ _CODE_SPAN_REF = re.compile(r"^[\w./-]+\.md#\S+$", re.UNICODE)
 # (for example, `template/docs/...` whose targets retain a `.jinja` suffix). Exclusions are
 # declared in Copier answers rather than inferred from a directory name, so ordinary consumers
 # still guard every tracked document by default.
-_EXCLUDED_PREFIXES = (
-{% for prefix in doc_guard_excluded_prefixes %}    {{ prefix | tojson }},
-{% endfor %})
+_EXCLUDED_PREFIXES = tuple({{ doc_guard_excluded_prefixes | tojson }})
+
 
 def slugify(heading_text: str) -> str:
     """GitHub anchor from heading text (github-slugger rules)."""
