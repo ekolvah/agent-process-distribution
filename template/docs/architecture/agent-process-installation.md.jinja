@@ -1,0 +1,38 @@
+# Agent-process installation
+
+**Question this document answers:** How does a repository install and activate
+the agent process before its first issue delivery?
+
+This document describes the one-time repository setup. It is separate from
+the [delivery flow](agent-process.md): installation prepares the repository;
+delivery flow handles one issue at a time.
+
+## Activation
+
+`copier copy` copies the payload but does not create or alter GitHub resources.
+The copied process is inactive until its GitHub Project is configured. Run:
+
+```bash
+python scripts/bootstrap_github_project.py{% if github_project_mode == "create" %} --confirm-create{% endif %}
+```
+
+In `existing` mode, bootstrap reads the selected Project and verifies that it
+has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`
+(`Planned`, `In Progress`). It writes no configuration until all checks pass.
+
+In `create` mode, `--confirm-create` is an explicit approval for the remote
+write. Bootstrap checks GitHub authentication, creates a Project, links the
+repository, and adds the required fields. If a later setup operation fails,
+it deletes the Project created in that invocation. If deletion also fails, it
+prints the exact `gh project delete` command for the maintainer.
+
+On successful activation bootstrap atomically writes
+`scripts/project_settings.py`. Review and commit that file. It contains the
+real, repository-owned Project and field IDs that every process runner uses.
+
+## Incomplete activation
+
+If bootstrap exits with an error, the process remains inactive: its prior
+settings file is unchanged and `python scripts/issue_branch.py <N>` stops
+before creating a branch. Correct the reported GitHub access, Project number,
+or field configuration, then rerun bootstrap. Do not edit IDs by hand.

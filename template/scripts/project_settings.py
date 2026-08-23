@@ -1,8 +1,8 @@
 """Persisted GitHub Project identifiers created by bootstrap.
 
-Run ``python scripts/bootstrap_github_project.py`` before planning or
-implementation. Bootstrap rewrites this module with real, project-owned IDs.
-It is deliberately tracked: every process runner must use the same board.
+Repository activation runs ``python scripts/bootstrap_github_project.py`` and
+rewrites this module with real, project-owned IDs. It is deliberately tracked:
+every process runner must use the same board.
 """
 
 PROJECT_NUMBER = ""

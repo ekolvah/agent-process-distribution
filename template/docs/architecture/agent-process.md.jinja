@@ -250,28 +250,21 @@ medium, or low — wherever the reviewer is unsure of the finding itself:
 
 ## Deterministic delivery flow
 
-1. Immediately after installing this payload, run
-   `python scripts/bootstrap_github_project.py`{% if github_project_mode == "create" %} with
-   `--confirm-create`{% endif %}. It either validates the chosen existing
-   Project or creates the selected new Project, then writes the real IDs to
-   `scripts/project_settings.py`. Copier has only copied an inactive payload
-   until this succeeds: it writes no IDs on failure, and `issue_branch.py`
-   refuses to create a branch. In create mode, a failure after Project creation
-   triggers deletion of that newly-created Project; if deletion also fails,
-   the command prints the exact manual cleanup command. Commit the settings
-   file before using the process.
-2. Before creating an issue, fetch `origin/main` and check recent closed
+This is the per-issue flow. It applies only after the one-time repository
+[installation and activation](agent-process-installation.md) are complete.
+
+1. Before creating an issue, fetch `origin/main` and check recent closed
    issues and merged PRs for semantic duplicates. Ask the user for priority,
    then set it with `python scripts/set_issue_priority.py <N> <priority>`.
-3. The planner researches the repository, writes the issue contract, obtains
+2. The planner researches the repository, writes the issue contract, obtains
    the architect review, fills `Agent handoff`, and validates the result.
-4. The implementer validates the issue again, verifies its Project Priority
+3. The implementer validates the issue again, verifies its Project Priority
    with `set_issue_priority.py <N> --check`, then creates the branch only
    with `python scripts/issue_branch.py <N>` (also moves the board card to
    `In Progress`). It writes and proves failing tests, commits RED before
    production logic, implements the agreed outline, updates docs/ADRs, and
    runs the local CI gate once in the foreground.
-5. Create the PR only with `python scripts/open_pr.py --body-file <report>`;
+4. Create the PR only with `python scripts/open_pr.py --body-file <report>`;
    a substantive UTF-8 report verifies the issue closing reference. Replace an
    existing PR body only with
    `python -m scripts.update_pr_body <PR> --body-file <path>`. Fix CI
