@@ -93,13 +93,17 @@ def _write(number: str, project_id: str, fields: list[dict[str, Any]]) -> None:
 
 
 def _create() -> tuple[str, str]:
-    if not REPOSITORY:
-        raise RuntimeError("github_repository is required to create and link a Project")
+    repository = REPOSITORY
+    if not repository:
+        current = _run(["gh", "repo", "view", "--json", "nameWithOwner"])
+        repository = str(current.get("nameWithOwner", ""))
+    if not repository:
+        raise RuntimeError("cannot resolve github_repository from the current checkout")
     created = _run(["gh", "project", "create", "--owner", OWNER, "--title", PROJECT_TITLE, "--format", "json"])
     number, project_id = str(created.get("number", "")), str(created.get("id", ""))
     if not number or not project_id:
         raise RuntimeError("`gh project create` returned no number or id")
-    _checked(["gh", "project", "link", number, "--owner", OWNER, "--repo", REPOSITORY])
+    _checked(["gh", "project", "link", number, "--owner", OWNER, "--repo", repository])
     for name, options in (("Priority", "High,Medium,Low"), ("Agent status", "Planned,In Progress")):
         _run(["gh", "project", "field-create", number, "--owner", OWNER, "--name", name, "--data-type", "SINGLE_SELECT", "--single-select-options", options, "--format", "json"])
     return number, project_id
