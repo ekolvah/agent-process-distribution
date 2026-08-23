@@ -25,6 +25,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: pr
+      - name: Select quality driver
+        id: quality-driver
+        run: |
+          if test -f "$GITHUB_WORKSPACE/trusted/scripts/ci_check.py"; then
+            echo "path=trusted" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=pr" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no quality driver yet"
+          fi
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -40,4 +49,4 @@ jobs:
       # worktree so its commands inspect the change, not the trusted checkout.
       - name: Run trusted quality checks
         working-directory: pr
-        run: python "$GITHUB_WORKSPACE/trusted/scripts/ci_check.py"
+        run: python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/scripts/ci_check.py"

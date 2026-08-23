@@ -18,6 +18,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+      - name: Checkout PR under test
+        uses: actions/checkout@v4
+        with:
+          path: pr
+      - name: Select PR-link driver
+        id: pr-link-driver
+        run: |
+          if test -f "$GITHUB_WORKSPACE/trusted/scripts/verify_pr_link.py"; then
+            echo "path=trusted" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=pr" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no PR-link driver yet"
+          fi
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -26,4 +40,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.head_ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+        working-directory: ${{ steps.pr-link-driver.outputs.path }}
         run: python -m scripts.verify_pr_link --branch "$HEAD_REF" --pr "$PR_NUMBER"

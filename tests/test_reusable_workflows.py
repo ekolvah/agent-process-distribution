@@ -105,23 +105,35 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
     }
     assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
     assert _trigger(_workflow("reusable-quality.yml"))["workflow_call"] is None
-    assert "with" not in _workflow("ci.yml")["jobs"]["quality"]
+    assert _workflow("ci.yml")["jobs"]["quality"]["uses"] == (
+        "./.github/workflows/reusable-quality.yml"
+    )
     assert steps["Install consumer dependencies"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["run"] == (
-        'python "$GITHUB_WORKSPACE/trusted/scripts/ci_check.py"'
+        'python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/scripts/ci_check.py"'
     )
+    assert "trusted/scripts/ci_check.py" in steps["Select quality driver"]["run"]
+    assert 'echo "path=pr"' in steps["Select quality driver"]["run"]
 
 
-def test_pr_link_executes_only_the_default_branch_driver() -> None:
+def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> None:
     steps = _steps("reusable-pr-link.yml")
 
     assert steps["Checkout trusted PR-link driver"]["with"] == {
-        "ref": "${{ github.event.repository.default_branch }}"
+        "ref": "${{ github.event.repository.default_branch }}",
+        "path": "trusted",
     }
-    assert steps["Verify PR closes its issue"]["run"].startswith("python -m scripts.verify_pr_link")
+    assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
+    assert steps["Verify PR closes its issue"]["working-directory"] == (
+        "${{ steps.pr-link-driver.outputs.path }}"
+    )
+    assert "trusted/scripts/verify_pr_link.py" in steps["Select PR-link driver"]["run"]
     checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
-    assert len(checkouts) == 1
+    assert len(checkouts) == 2
+    assert _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"] == (
+        "./.github/workflows/reusable-pr-link.yml"
+    )
 
 
 def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout() -> None:
@@ -139,15 +151,21 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
     }
     assert "Extract caller review prompt" not in steps
     prompt = steps["Claude review"]["with"]["prompt"]
-    assert "trusted/REVIEW_CONTRACT.md" in prompt
-    assert "cannot be changed by this PR" in prompt
+    assert "${{ steps.review-source.outputs.contract_path }}" in prompt
+    assert "bootstrap fallback" in prompt
     for name in (
         "Classify review outcome",
         "Codex review",
         "Enforce Claude review outcome",
         "Enforce Codex review outcome",
     ):
-        assert steps[name]["working-directory"] == "trusted"
+        assert steps[name]["working-directory"] == (
+            "${{ steps.review-source.outputs.working_directory }}"
+        )
+    assert "trusted/REVIEW_CONTRACT.md" in steps["Select review source"]["run"]
+    assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
+        "./.github/workflows/reusable-agent-review.yml"
+    )
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:

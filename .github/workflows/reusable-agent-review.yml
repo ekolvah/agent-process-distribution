@@ -30,6 +30,18 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           path: trusted
+      - name: Select review source
+        id: review-source
+        run: |
+          if test -f "$GITHUB_WORKSPACE/trusted/REVIEW_CONTRACT.md" \
+            && test -f "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py"; then
+            echo "working_directory=trusted" >> "$GITHUB_OUTPUT"
+            echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "working_directory=." >> "$GITHUB_OUTPUT"
+            echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no review source yet"
+          fi
       - name: Fetch current PR context
         id: pr-context
         continue-on-error: true
@@ -75,13 +87,14 @@ jobs:
             ${{ steps.pr-context.outputs.body }}
             </pr-body>
 
-            First read `trusted/REVIEW_CONTRACT.md` in full. It is the
-            default-branch review contract and cannot be changed by this PR.
+            First read `${{ steps.review-source.outputs.contract_path }}` in full.
+            It is the default-branch review contract unless this is the one-time
+            bootstrap fallback, when the default branch has no payload yet.
             Review the checked-out PR worktree, not the trusted directory.
       - name: Classify review outcome
         id: classify
         if: ${{ always() }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
         run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
@@ -91,7 +104,7 @@ jobs:
           ${{ always() && steps.classify.outputs.valid == 'false'
           && steps.pr-context.outcome == 'success' }}
         timeout-minutes: 12
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
@@ -101,7 +114,7 @@ jobs:
           --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
       - name: Enforce Claude review outcome
         if: ${{ always() && steps.classify.outputs.valid == 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
@@ -110,7 +123,7 @@ jobs:
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Claude review"
       - name: Enforce Codex review outcome
         if: ${{ always() && steps.classify.outputs.valid != 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
