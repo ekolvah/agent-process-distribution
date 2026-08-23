@@ -51,14 +51,28 @@ def _secret_names(records: list[Mapping[str, object]]) -> set[str]:
 
 
 def _secret_prerequisite(repository: str) -> Prerequisite:
-    endpoints = (
-        f"repos/{repository}/actions/secrets?per_page=100",
-        f"repos/{repository}/actions/organization-secrets?per_page=100",
-    )
     try:
-        names: set[str] = set()
-        for endpoint in endpoints:
-            names.update(_secret_names(slurp_named_records(endpoint, "secrets")))
+        names = _secret_names(
+            slurp_named_records(f"repos/{repository}/actions/secrets?per_page=100", "secrets")
+        )
+    except RuntimeError as exc:
+        return Prerequisite(
+            "carrier-1 secret",
+            2,
+            f"cannot determine whether {REVIEW_SECRET} is present: {exc}",
+        )
+    if REVIEW_SECRET.casefold() in names:
+        return Prerequisite(
+            "carrier-1 secret",
+            0,
+            f"ok: {REVIEW_SECRET} is present (presence-only; its value is not validated)",
+        )
+    try:
+        names = _secret_names(
+            slurp_named_records(
+                f"repos/{repository}/actions/organization-secrets?per_page=100", "secrets"
+            )
+        )
     except RuntimeError as exc:
         return Prerequisite(
             "carrier-1 secret",

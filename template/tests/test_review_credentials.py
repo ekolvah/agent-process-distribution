@@ -92,6 +92,18 @@ def test_secret_name_comparison_is_case_insensitive(monkeypatch: pytest.MonkeyPa
     _run()
 
 
+def test_direct_secret_does_not_require_an_inherited_secret_query(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_gh(
+        monkeypatch,
+        _all_present_payloads(),
+        failures={_ORG_SECRET_ENDPOINT: "HTTP 422: inherited list unavailable"},
+    )
+
+    _run()
+
+
 def test_installation_excluding_this_repository_is_a_negative(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -147,7 +159,6 @@ def test_no_secret_value_route_is_requested(monkeypatch: pytest.MonkeyPatch) -> 
     endpoints = [call[2] for call in calls]
     assert all("/actions/secrets/" not in endpoint for endpoint in endpoints)
     assert _SECRET_ENDPOINT in endpoints
-    assert _ORG_SECRET_ENDPOINT in endpoints
 
 
 def test_both_prerequisites_present_exits_zero(monkeypatch: pytest.MonkeyPatch) -> None:
