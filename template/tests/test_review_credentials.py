@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,6 @@ import pytest
 
 from scripts import check_review_credentials as credentials
 from scripts import gh_io
-
 
 _REPOSITORY = "example-org/example-repo"
 _SECRET_ENDPOINT = f"repos/{_REPOSITORY}/actions/secrets?per_page=100"
@@ -156,16 +156,36 @@ def test_both_prerequisites_present_exits_zero(monkeypatch: pytest.MonkeyPatch) 
     _run()
 
 
-def test_workflow_and_script_name_the_same_secret() -> None:
-    workflows = Path(__file__).resolve().parents[1] / ".github" / "workflows"
+def test_documented_script_command_imports_from_a_checkout() -> None:
+    completed = subprocess.run(
+        [sys.executable, "scripts/check_review_credentials.py", "--help"],
+        cwd=Path(__file__).resolve().parents[1],
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
 
-    assert {name.casefold() for name in credentials.workflow_secret_references(workflows)} == {
-        credentials.REVIEW_SECRET.casefold()
-    }
+    assert completed.returncode == 0, completed.stderr
+    assert "--repo" in completed.stdout
+
+
+def _assert_workflow_uses_the_preflight_secret(workflows: Path) -> None:
+    assert list(workflows.glob("agent-review.y*ml")), "no rendered review caller matched"
+    references = credentials.workflow_secret_references(workflows)
+    assert references, "rendered review caller has no explicit secrets. reference"
+    assert {name.casefold() for name in references} == {credentials.REVIEW_SECRET.casefold()}
+
+
+def test_workflow_and_script_name_the_same_secret() -> None:
+    _assert_workflow_uses_the_preflight_secret(
+        Path(__file__).resolve().parents[1] / ".github" / "workflows"
+    )
 
 
 def test_inherited_secrets_mapping_is_red(tmp_path: Path) -> None:
     workflow = tmp_path / "agent-review.yml"
     workflow.write_text("jobs:\n  agent-review:\n    secrets: inherit\n", encoding="utf-8")
 
-    assert credentials.workflow_secret_references(tmp_path) == set()
+    with pytest.raises(AssertionError, match="no explicit secrets"):
+        _assert_workflow_uses_the_preflight_secret(tmp_path)

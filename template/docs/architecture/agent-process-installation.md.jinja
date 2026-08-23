@@ -7,16 +7,48 @@ This document describes the one-time repository setup. It is separate from
 the [delivery flow](agent-process.md): installation prepares the repository;
 delivery flow handles one issue at a time.
 
-## CI prerequisites
+## Installation order
 
-The payload installs three thin caller workflows. They reference the published
-reusable workflows pinned in `workflow_references`; Python enforcement scripts
-remain copied because they are parameterized by the target's answers and also
-run locally. Before the first PR, configure the carrier-1 repository secret
-`CLAUDE_CODE_OAUTH_TOKEN`, install the Codex GitHub connector, and ensure the
-organisation permits this publisher under its Actions "Allow specified actions
-and reusable workflows" policy. A missing credential is deliberately a red
-review check, not a skipped job.
+Complete these steps in order. The credential preflight is a hard precondition
+of Project bootstrap: from the merge that carries this payload, the review
+workflows run on every pull request.
+
+1. Copy the payload with `copier copy`. It writes files only in the local
+   checkout. Answering `claude_adapter_installed` consents to the Layer 1
+   deny-list and its `PreToolUse`/`PostToolUse` hooks, which run on every Bash,
+   Read, Edit, and Write call.
+2. If the Claude adapter is adopted, install its Layer 1 plugin after the
+   payload with the marketplace's `/plugin install` command. This is a local
+   Claude configuration action; the plugin hooks rely on `scripts/hooks.py`
+   copied in the previous step.
+3. Configure the two review credentials, then run the read-only preflight:
+
+   ```bash
+   python scripts/check_review_credentials.py --repo {{ github_repository | default('<owner>/<repository>', true) }}
+   ```
+
+   It checks only that `CLAUDE_CODE_OAUTH_TOKEN` is named in the repository or
+   inherited-organisation secret lists, and that the
+   `chatgpt-codex-connector` App covers this repository. It never reads a
+   secret value. A present but expired or revoked token therefore passes; the
+   later `agent-review` check is still the validity test.
+
+   | Exit | Meaning | Next action |
+   | --- | --- | --- |
+   | `0` | Both prerequisites are present. | Continue to bootstrap. |
+   | `1` | A secret or App repository grant is absent. | Follow the precise command or settings URL printed by the preflight, then rerun it. |
+   | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
+
+   Also inspect the organisation Actions policy. If it uses "Allow specified
+   actions and reusable workflows", permit the pinned
+   `ekolvah/agent-process-distribution/.github/workflows/*.yml` reference.
+   GitHub does not expose that policy to the common maintainer token (the live
+   probe returned 404), so this is an explicit operator check rather than an
+   unearned green result.
+4. Activate the GitHub Project with the bootstrap command below. It may write
+   remote Project configuration only in `create` mode with `--confirm-create`.
+5. Configure branch protection after bootstrap. This installation guide
+   reserves the step; the first real activation supplies its exact command.
 
 Enable the copied local pre-push probe after reviewing it:
 
