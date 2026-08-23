@@ -37,4 +37,3 @@ workflow_references:
     agent-review: ./.github/workflows/reusable-agent-review.yml
     pr-link: ./.github/workflows/reusable-pr-link.yml
     quality: ./.github/workflows/reusable-quality.yml
-

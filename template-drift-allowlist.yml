@@ -11,10 +11,6 @@ root_only_paths:
     reason: Publisher-owned reusable workflow; payload ships only its caller.
   - path: .github/workflows/reusable-quality.yml
     reason: Publisher-owned reusable workflow; payload ships only its caller.
-  - path: requirements-dev.in
-    reason: The source repository needs Copier to render and test its payload.
-  - path: requirements-dev.txt
-    reason: Lockfile companion for the source-only Copier development dependency.
   - path: template-drift-allowlist.yml
     reason: Source-specific input data for the future drift gate.
   - path: tests/test_project_bootstrap_template.py
@@ -27,3 +23,14 @@ root_only_paths:
     reason: Reserved for the root-only drift gate in issue #6.
   - path: docs/adr/0013-template-source-self-hosting.md
     reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
+
+# Paths generated in both locations but intentionally changed by source-only work.
+expected_to_differ_paths:
+  - path: requirements-dev.in
+    reason: The source repository needs Copier to render and test its payload.
+  - path: requirements-dev.txt
+    reason: Lockfile companion for the source-only Copier development dependency.
+
+# Extra files outside these directories are reported but do not fail the gate.
+strict_extra_directories:
+  - .githooks
