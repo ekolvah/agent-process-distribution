@@ -10,4 +10,4 @@ permissions:
 
 jobs:
   pr-link:
-    uses: ./.github/workflows/reusable-pr-link.yml
+    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@e317c26cbd7ff49cc2452b6e6d658d1d1834c6c1"

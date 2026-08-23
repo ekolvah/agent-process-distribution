@@ -7,7 +7,6 @@ from typing import Any
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 
@@ -50,9 +49,7 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
         assert set(caller.get("with", {})) == set(inputs)
         assert set(caller.get("secrets", {})) == set(secrets)
         assert all(
-            key in caller.get("with", {})
-            for key, spec in inputs.items()
-            if spec.get("required")
+            key in caller.get("with", {}) for key, spec in inputs.items() if spec.get("required")
         )
         assert all(
             key in caller.get("secrets", {})
@@ -77,11 +74,7 @@ def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
 
 def _steps(name: str) -> dict[str, dict[str, Any]]:
     job = next(iter(_workflow(name)["jobs"].values()))
-    return {
-        step["name"]: step
-        for step in job["steps"]
-        if "name" in step
-    }
+    return {step["name"]: step for step in job["steps"] if "name" in step}
 
 
 def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
@@ -108,12 +101,8 @@ def test_pr_link_executes_only_the_default_branch_driver() -> None:
     assert steps["Checkout trusted PR-link driver"]["with"] == {
         "ref": "${{ github.event.repository.default_branch }}"
     }
-    assert steps["Verify PR closes its issue"]["run"].startswith(
-        "python -m scripts.verify_pr_link"
-    )
-    checkouts = [
-        step for step in steps.values() if step.get("uses") == "actions/checkout@v4"
-    ]
+    assert steps["Verify PR closes its issue"]["run"].startswith("python -m scripts.verify_pr_link")
+    checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
     assert len(checkouts) == 1
 
 
@@ -142,9 +131,7 @@ def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
     contract = ROOT / "REVIEW_CONTRACT.md"
     template_contract = ROOT / "template" / "REVIEW_CONTRACT.md.jinja"
 
-    assert contract.read_text(encoding="utf-8") == template_contract.read_text(
-        encoding="utf-8"
-    )
+    assert contract.read_text(encoding="utf-8") == template_contract.read_text(encoding="utf-8")
     assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (
         ROOT / "template" / "AGENTS.md.jinja"
     ).read_text(encoding="utf-8")

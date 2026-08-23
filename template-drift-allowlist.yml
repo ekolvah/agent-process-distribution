@@ -1,0 +1,29 @@
+# Input data for the self-hosting drift gate introduced by issue #6.
+#
+# Every entry is intentionally absent from template/ or differs from its rendered
+# counterpart. Add a path only with the reason that makes a generated copy wrong.
+root_only_paths:
+  - path: .copier-answers.yml
+    reason: Records this source checkout's selected answers, including Copier metadata.
+  - path: .github/workflows/reusable-agent-review.yml
+    reason: Publisher-owned reusable workflow; payload ships only its caller.
+  - path: .github/workflows/reusable-pr-link.yml
+    reason: Publisher-owned reusable workflow; payload ships only its caller.
+  - path: .github/workflows/reusable-quality.yml
+    reason: Publisher-owned reusable workflow; payload ships only its caller.
+  - path: requirements-dev.in
+    reason: The source repository needs Copier to render and test its payload.
+  - path: requirements-dev.txt
+    reason: Lockfile companion for the source-only Copier development dependency.
+  - path: template-drift-allowlist.yml
+    reason: Source-specific input data for the future drift gate.
+  - path: tests/test_project_bootstrap_template.py
+    reason: Exercises this repository's Copier source, not a rendered consumer.
+  - path: tests/conftest.py
+    reason: Caches Copier renders for source-repository integration tests.
+  - path: tests/test_self_installed_process.py
+    reason: Verifies this repository's self-application rather than consumer behavior.
+  - path: tests/test_template_drift.py
+    reason: Reserved for the root-only drift gate in issue #6.
+  - path: docs/adr/0013-template-source-self-hosting.md
+    reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
