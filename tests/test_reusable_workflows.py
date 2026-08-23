@@ -114,6 +114,11 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "ref": "${{ github.event.repository.default_branch }}",
         "path": "trusted",
     }
+    assert steps["Checkout reviewed PR head"]["with"] == {
+        "clean": False,
+        "fetch-depth": 0,
+        "ref": "${{ steps.pr-context.outputs.head_sha }}",
+    }
     assert "Extract caller review prompt" not in steps
     prompt = steps["Claude review"]["with"]["prompt"]
     assert "trusted/REVIEW_CONTRACT.md" in prompt

@@ -49,6 +49,10 @@ jobs:
         if: ${{ steps.pr-context.outcome == 'success' }}
         uses: actions/checkout@v4
         with:
+          # The trusted checkout is a sibling of the PR worktree.  The default
+          # cleanup deletes untracked siblings, including `trusted`, before the
+          # classifier and enforcement steps can use their trusted drivers.
+          clean: false
           fetch-depth: 0
           ref: ${{ steps.pr-context.outputs.head_sha }}
       - name: Claude review
