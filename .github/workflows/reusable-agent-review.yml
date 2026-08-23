@@ -107,40 +107,39 @@ jobs:
       - name: Classify review outcome
         id: classify
         if: ${{ always() }}
+        working-directory: ${{ steps.preserved-review-source.outputs.driver_path }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
-        run: >-
-          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/check_agent_review_outcome.py"
-          "$STRUCTURED_OUTCOME" --classify
+        run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
       - name: Codex review
         id: codex-review
         if: >-
           ${{ always() && steps.classify.outputs.valid == 'false'
           && steps.pr-context.outcome == 'success' }}
         timeout-minutes: 12
+        working-directory: ${{ steps.preserved-review-source.outputs.driver_path }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/request_codex_review.py"
-          --repo "${{ github.repository }}"
+          python -m scripts.request_codex_review --repo "${{ github.repository }}"
           --pr "${{ steps.pr-context.outputs.number }}"
           --head-sha "${{ steps.pr-context.outputs.head_sha }}"
           --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
       - name: Enforce Claude review outcome
         if: ${{ always() && steps.classify.outputs.valid == 'true' }}
+        working-directory: ${{ steps.preserved-review-source.outputs.driver_path }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
         run: >-
-          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/check_agent_review_outcome.py"
-          "$STRUCTURED_OUTCOME"
+          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Claude review"
       - name: Enforce Codex review outcome
         if: ${{ always() && steps.classify.outputs.valid != 'true' }}
+        working-directory: ${{ steps.preserved-review-source.outputs.driver_path }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
         run: >-
-          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/check_agent_review_outcome.py"
-          "$STRUCTURED_OUTCOME"
+          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Codex review"

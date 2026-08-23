@@ -162,8 +162,10 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "Enforce Claude review outcome",
         "Enforce Codex review outcome",
     ):
-        assert "working-directory" not in steps[name]
-        assert "${{ steps.preserved-review-source.outputs.driver_path }}" in steps[name]["run"]
+        assert steps[name]["working-directory"] == (
+            "${{ steps.preserved-review-source.outputs.driver_path }}"
+        )
+        assert "python -m scripts." in steps[name]["run"]
     assert "trusted/REVIEW_CONTRACT.md" in steps["Select review source"]["run"]
     assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
         "./.github/workflows/reusable-agent-review.yml"
