@@ -168,6 +168,17 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
     )
 
 
+def test_agent_review_requires_structured_review_evidence() -> None:
+    steps = _steps("reusable-agent-review.yml")
+
+    schema = steps["Claude review"]["with"]["claude_args"]
+    assert '"findings"' in schema
+    assert '"severity"' in schema
+    assert '"confidence"' in schema
+    assert "Publish validated review evidence" in steps
+    assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
+
+
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
     contract = ROOT / "REVIEW_CONTRACT.md"
     template_contract = ROOT / "template" / "REVIEW_CONTRACT.md.jinja"
