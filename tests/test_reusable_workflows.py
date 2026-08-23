@@ -150,8 +150,11 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "ref": "${{ steps.pr-context.outputs.head_sha }}",
     }
     assert "Extract caller review prompt" not in steps
+    preserved = steps["Preserve trusted review source outside PR worktree"]
+    assert preserved["id"] == "preserved-review-source"
+    assert 'target="$RUNNER_TEMP/trusted-review-source"' in preserved["run"]
     prompt = steps["Claude review"]["with"]["prompt"]
-    assert "${{ steps.review-source.outputs.contract_path }}" in prompt
+    assert "${{ steps.preserved-review-source.outputs.contract_path }}" in prompt
     assert "bootstrap fallback" in prompt
     for name in (
         "Classify review outcome",
@@ -159,9 +162,8 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "Enforce Claude review outcome",
         "Enforce Codex review outcome",
     ):
-        assert steps[name]["working-directory"] == (
-            "${{ steps.review-source.outputs.working_directory }}"
-        )
+        assert "working-directory" not in steps[name]
+        assert "${{ steps.preserved-review-source.outputs.driver_path }}" in steps[name]["run"]
     assert "trusted/REVIEW_CONTRACT.md" in steps["Select review source"]["run"]
     assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
         "./.github/workflows/reusable-agent-review.yml"

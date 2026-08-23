@@ -67,6 +67,19 @@ jobs:
           clean: false
           fetch-depth: 0
           ref: ${{ steps.pr-context.outputs.head_sha }}
+      - name: Preserve trusted review source outside PR worktree
+        id: preserved-review-source
+        run: |
+          if test "${{ steps.review-source.outputs.working_directory }}" = "trusted"; then
+            source="$GITHUB_WORKSPACE/trusted"
+            target="$RUNNER_TEMP/trusted-review-source"
+            cp -a "$source" "$target"
+            echo "driver_path=$target" >> "$GITHUB_OUTPUT"
+            echo "contract_path=$target/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "driver_path=." >> "$GITHUB_OUTPUT"
+            echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          fi
       - name: Claude review
         id: review
         if: ${{ steps.pr-context.outcome == 'success' }}
@@ -87,46 +100,47 @@ jobs:
             ${{ steps.pr-context.outputs.body }}
             </pr-body>
 
-            First read `${{ steps.review-source.outputs.contract_path }}` in full.
+            First read `${{ steps.preserved-review-source.outputs.contract_path }}` in full.
             It is the default-branch review contract unless this is the one-time
             bootstrap fallback, when the default branch has no payload yet.
             Review the checked-out PR worktree, not the trusted directory.
       - name: Classify review outcome
         id: classify
         if: ${{ always() }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
-        run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
+        run: >-
+          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/check_agent_review_outcome.py"
+          "$STRUCTURED_OUTCOME" --classify
       - name: Codex review
         id: codex-review
         if: >-
           ${{ always() && steps.classify.outputs.valid == 'false'
           && steps.pr-context.outcome == 'success' }}
         timeout-minutes: 12
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python -m scripts.request_codex_review --repo "${{ github.repository }}"
+          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/request_codex_review.py"
+          --repo "${{ github.repository }}"
           --pr "${{ steps.pr-context.outputs.number }}"
           --head-sha "${{ steps.pr-context.outputs.head_sha }}"
           --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
       - name: Enforce Claude review outcome
         if: ${{ always() && steps.classify.outputs.valid == 'true' }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
         run: >-
-          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/check_agent_review_outcome.py"
+          "$STRUCTURED_OUTCOME"
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Claude review"
       - name: Enforce Codex review outcome
         if: ${{ always() && steps.classify.outputs.valid != 'true' }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
         run: >-
-          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          python "${{ steps.preserved-review-source.outputs.driver_path }}/scripts/check_agent_review_outcome.py"
+          "$STRUCTURED_OUTCOME"
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Codex review"
