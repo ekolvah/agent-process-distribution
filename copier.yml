@@ -96,3 +96,8 @@ claude_adapter_installed:
   type: bool
   help: Include Layer 1 .claude directories in exported documentation-test scopes.
   default: false
+
+doc_guard_excluded_prefixes:
+  type: yaml
+  help: Repository-relative prefixes excluded from document guards for source-only material.
+  default: []
