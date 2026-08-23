@@ -34,18 +34,24 @@ import subprocess
 import sys
 from typing import Any
 
-# Sourced from `gh project field-list {{ github_project_number }} --owner {{ github_project_owner }}` (Status single-select).
-PROJECT_NUMBER = "{{ github_project_number }}"
-PROJECT_OWNER = "{{ github_project_owner }}"
-PROJECT_ID = "{{ github_project_id }}"
-STATUS_FIELD_ID = "{{ status_field_id }}"
-# `Todo` and `Done` are deliberately absent: they are written by the built-in
-# Project automations, so this map is also the rejection list.
-OPTION_IDS = {
-    "planned": "{{ status_option_planned }}",
-    "in-progress": "{{ status_option_in_progress }}",
-}
-
+try:
+    from .project_settings import (
+        PROJECT_ID,
+        PROJECT_NUMBER,
+        PROJECT_OWNER,
+        STATUS_FIELD_ID,
+        STATUS_OPTION_IDS as OPTION_IDS,
+        require_configured,
+    )
+except ImportError:  # documented `python scripts/...` entry point
+    from project_settings import (
+        PROJECT_ID,
+        PROJECT_NUMBER,
+        PROJECT_OWNER,
+        STATUS_FIELD_ID,
+        STATUS_OPTION_IDS as OPTION_IDS,
+        require_configured,
+    )
 
 def option_id_for_status(status: str) -> str:
     """Map a board status token to its single-select option id.
@@ -147,6 +153,7 @@ def _item_edit(item_id: str, option_id: str) -> None:
 def set_status(issue_number: int, status: str) -> None:
     """Set the board Status of `issue_number`, raising on an unusable status or a `gh` failure."""
     # Resolved first, so an unsupported status costs no `gh` call at all.
+    require_configured()
     option_id = option_id_for_status(status)
     item_id = _item_add(_issue_url(issue_number))
     _item_edit(item_id, option_id)

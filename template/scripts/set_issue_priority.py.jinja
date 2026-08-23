@@ -33,17 +33,24 @@ import subprocess
 import sys
 from typing import Any
 
-# Sourced from `gh project field-list {{ github_project_number }} --owner {{ github_project_owner }}` (Priority single-select).
-PROJECT_NUMBER = "{{ github_project_number }}"
-PROJECT_OWNER = "{{ github_project_owner }}"
-PROJECT_ID = "{{ github_project_id }}"
-PRIORITY_FIELD_ID = "{{ priority_field_id }}"
-OPTION_IDS = {
-    "high": "{{ priority_option_high }}",
-    "medium": "{{ priority_option_medium }}",
-    "low": "{{ priority_option_low }}",
-}
-
+try:
+    from .project_settings import (
+        PRIORITY_FIELD_ID,
+        PRIORITY_OPTION_IDS as OPTION_IDS,
+        PROJECT_ID,
+        PROJECT_NUMBER,
+        PROJECT_OWNER,
+        require_configured,
+    )
+except ImportError:  # documented `python scripts/...` entry point
+    from project_settings import (
+        PRIORITY_FIELD_ID,
+        PRIORITY_OPTION_IDS as OPTION_IDS,
+        PROJECT_ID,
+        PROJECT_NUMBER,
+        PROJECT_OWNER,
+        require_configured,
+    )
 
 def option_id_for_level(level: str) -> str:
     """Map a priority level (case-insensitive) to its single-select option id.
@@ -186,6 +193,7 @@ def _project_items_json() -> str:
 
 
 def _check_priority(issue: int) -> None:
+    require_configured()
     issue_url = _issue_url(issue)
     priority = priority_from_project_json(_project_items_json(), issue_url)
     if priority is None:
@@ -210,6 +218,12 @@ def main(argv: list[str] | None = None) -> None:
         help="verify that the issue already has a supported Priority; do not mutate the Project",
     )
     ns = parser.parse_args(argv)
+
+    try:
+        require_configured()
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     if ns.check:
         if ns.level is not None:

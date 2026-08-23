@@ -16,55 +16,35 @@ repo_name:
   help: Repository name used in process documentation and generated helpers.
   default: "my-project"
 
-github_project_number:
-  type: str
-  help: GitHub Project number containing the issue board.
-  default: "1"
-
 github_project_owner:
   type: str
-  help: GitHub user or organisation that owns the Project.
-  default: "my-org"
+  help: GitHub user or organisation that will own the process board.
+  default: "@me"
 
-github_project_id:
+github_project_mode:
   type: str
-  help: GitHub Project node ID.
-  default: "PVT_REPLACE_ME"
+  help: Reuse an existing GitHub Project or create a new one during explicit bootstrap.
+  choices:
+    Reuse existing Project: "existing"
+    Create Project: "create"
+  default: "create"
 
-priority_field_id:
+existing_github_project_number:
   type: str
-  help: Priority single-select field node ID.
-  default: "PVTSSF_PRIORITY_REPLACE_ME"
+  help: Number of the Project to reuse.
+  default: ""
+  when: "{{ github_project_mode == 'existing' }}"
 
-priority_option_high:
+github_project_title:
   type: str
-  help: Priority option ID for High.
-  default: "OPTION_HIGH_REPLACE_ME"
+  help: Title for a Project created by bootstrap.
+  default: "{{ repo_name }} agent process"
+  when: "{{ github_project_mode == 'create' }}"
 
-priority_option_medium:
+github_repository:
   type: str
-  help: Priority option ID for Medium.
-  default: "OPTION_MEDIUM_REPLACE_ME"
-
-priority_option_low:
-  type: str
-  help: Priority option ID for Low.
-  default: "OPTION_LOW_REPLACE_ME"
-
-status_field_id:
-  type: str
-  help: Status single-select field node ID.
-  default: "PVTSSF_STATUS_REPLACE_ME"
-
-status_option_planned:
-  type: str
-  help: Status option ID for Planned.
-  default: "OPTION_PLANNED_REPLACE_ME"
-
-status_option_in_progress:
-  type: str
-  help: Status option ID for In Progress.
-  default: "OPTION_IN_PROGRESS_REPLACE_ME"
+  help: GitHub repository to link to the process Project, for example owner/repository.
+  default: ""
 
 required_status_contexts:
   type: yaml

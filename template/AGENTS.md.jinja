@@ -6,6 +6,11 @@ Claude or Codex adapter is the only permitted executor.
 
 ## Codex adapter
 
+- Before planning or creating an issue branch, run
+  `python scripts/bootstrap_github_project.py`{% if github_project_mode == "create" %} with
+  `--confirm-create`{% endif %}. Commit the generated
+  `scripts/project_settings.py`; it is the source of truth for this
+  repository's Project IDs.
 - Plan an issue with `$plan-issue #N`; it runs the same planner runbook as any
   other planner adapter and, having no local subagents, performs both the
   discovery capture and the architect review itself.
