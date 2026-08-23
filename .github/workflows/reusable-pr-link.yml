@@ -1,0 +1,29 @@
+name: Reusable PR link
+
+# Called-only by design; see reusable-quality.yml for why this must not become a
+# standalone pull_request workflow.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-link:
+    runs-on: ubuntu-latest
+    steps:
+      # This gate consumes only GitHub PR metadata, so it needs no PR-head code.
+      - name: Checkout trusted PR-link driver
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify PR closes its issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python -m scripts.verify_pr_link --branch "$HEAD_REF" --pr "$PR_NUMBER"

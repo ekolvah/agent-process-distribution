@@ -52,12 +52,23 @@ github_repository:
 required_status_contexts:
   type: yaml
   help: Required GitHub branch-protection check contexts, in order.
-  default: ["quality", "pr-link", "agent-review"]
+  # A called workflow reports `<caller job> / <callee job>`, not a bare job key.
+  # These names are observed again on the source-repository PR before #7 enables
+  # protection; changing them is a breaking process release.
+  default: ["quality / quality", "pr-link / pr-link", "agent-review / agent-review"]
 
 agent_review_context:
   type: str
   help: Required-context name produced by the automated PR review workflow.
-  default: "agent-review"
+  default: "agent-review / agent-review"
+
+workflow_references:
+  type: yaml
+  help: Complete reusable-workflow references, pinned to this Copier release (or local self-apply paths).
+  default:
+    quality: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@{{ _copier_answers._commit }}"
+    pr-link: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@{{ _copier_answers._commit }}"
+    agent-review: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@{{ _copier_answers._commit }}"
 
 not_required_contexts:
   type: yaml
@@ -72,6 +83,9 @@ ci_checks:
     - {name: "lint", function: "check_lint"}
     - {name: "secrets", function: "check_secrets"}
     - {name: "pytest", function: "check_pytest"}
+    - {name: "pip-audit", function: "check_pip_audit"}
+    - {name: "pip-audit-dev", function: "check_pip_audit_dev"}
+    - {name: "requirements", function: "check_requirements"}
 
 fixture_routes:
   type: yaml

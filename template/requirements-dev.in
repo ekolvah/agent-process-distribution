@@ -1,0 +1,9 @@
+-r requirements.txt
+copier
+detect-secrets
+markdown-it-py
+mypy
+pip-audit
+pytest
+ruff
+types-PyYAML

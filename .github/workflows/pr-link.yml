@@ -1,0 +1,13 @@
+name: PR link
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-link:
+    uses: ./.github/workflows/reusable-pr-link.yml

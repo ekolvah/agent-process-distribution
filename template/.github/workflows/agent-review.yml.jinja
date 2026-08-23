@@ -1,0 +1,17 @@
+name: Agent review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  agent-review:
+    uses: {{ workflow_references["agent-review"] | tojson }}
+    with:
+      codex-timeout-seconds: 600
+    secrets:
+      claude_code_oauth_token: {% raw %}${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}{% endraw %}

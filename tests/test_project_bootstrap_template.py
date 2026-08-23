@@ -9,6 +9,7 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +70,77 @@ def generated_suite_passes(destination: Path) -> None:
             check=False,
         )
         assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+def _workflow(path: Path) -> dict[object, object]:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def test_rendered_project_ships_thin_required_context_callers(tmp_path: Path) -> None:
+    destination = render(tmp_path)
+    answers = yaml.safe_load(
+        (destination / ".copier-answers.yml").read_text(encoding="utf-8")
+    )
+    workflows = destination / ".github" / "workflows"
+    contexts = tuple(answers["required_status_contexts"])
+
+    assert {"ci.yml", "pr-link.yml", "agent-review.yml"} <= {
+        p.name for p in workflows.iterdir()
+    }
+    for context, filename in zip(
+        contexts, ("ci.yml", "pr-link.yml", "agent-review.yml"), strict=True
+    ):
+        job_key = context.split(" / ", 1)[0]
+        job = _workflow(workflows / filename)["jobs"][job_key]
+        assert "uses" in job
+        if job_key == "quality":
+            assert "with" not in job
+        assert job_key == context.split(" / ", 1)[0]
+
+
+def test_rendered_project_ships_the_standalone_review_contract(tmp_path: Path) -> None:
+    destination = render(tmp_path)
+
+    assert (destination / "REVIEW_CONTRACT.md").is_file()
+    assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (
+        destination / "AGENTS.md"
+    ).read_text(encoding="utf-8")
+    assert not (destination / "scripts" / "extract_review_prompt.py").exists()
+
+
+def test_rendered_callers_pin_a_complete_reference_and_map_secrets_explicitly(
+    tmp_path: Path,
+) -> None:
+    destination = render(tmp_path)
+    workflows = destination / ".github" / "workflows"
+    callers = {
+        "quality": _workflow(workflows / "ci.yml")["jobs"]["quality"],
+        "pr-link": _workflow(workflows / "pr-link.yml")["jobs"]["pr-link"],
+        "agent-review": _workflow(workflows / "agent-review.yml")["jobs"][
+            "agent-review"
+        ],
+    }
+    for name, job in callers.items():
+        reference = job["uses"]
+        assert f"reusable-{name}.yml@" in reference
+        assert not reference.endswith(("@main", "@master", "@HEAD"))
+    assert callers["agent-review"]["secrets"] == {
+        "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+    }
+    assert "inherit" not in callers["agent-review"].get("secrets", {})
+
+
+def test_non_default_context_answers_render_a_consistent_project(
+    tmp_path: Path,
+) -> None:
+    destination = render(
+        tmp_path,
+        "--data",
+        'required_status_contexts=["quality / quality", "pr-link / pr-link", "agent-review / agent-review"]',
+        "--data",
+        "agent_review_context=agent-review / agent-review",
+    )
+    generated_suite_passes(destination)
 
 
 def test_create_mode_requires_explicit_confirmation_and_no_placeholder_ids(

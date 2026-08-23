@@ -42,11 +42,14 @@ _PR_URL = ""
 _RUN_URL = "https://github.com/example-org/example-repo/actions/runs/31105364746"
 
 
-def _checks(overrides: dict[str, tuple[str, str]] | None = None) -> tuple[CheckRun, ...]:
+def _checks(
+    overrides: dict[str, tuple[str, str]] | None = None,
+) -> tuple[CheckRun, ...]:
     """Every required context COMPLETED/SUCCESS unless overridden."""
     graded = overrides or {}
     return tuple(
-        CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS"))) for name in REQUIRED_CONTEXTS
+        CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS")))
+        for name in REQUIRED_CONTEXTS
     )
 
 
@@ -81,7 +84,9 @@ class TestVerdict:
         assert "review unavailable" in verdict.reason
 
     def test_red_deterministic_check_is_fix_blocking_and_names_it(self) -> None:
-        evidence = _evidence(checks=_checks({"quality": ("COMPLETED", "FAILURE")}))
+        evidence = _evidence(
+            checks=_checks({"quality / quality": ("COMPLETED", "FAILURE")})
+        )
 
         verdict = evaluate(evidence, fixer_budget=3)
 
@@ -93,7 +98,8 @@ class TestVerdict:
         [
             pytest.param(_checks({REVIEW_CONTEXT: ("IN_PROGRESS", "")}), id="pending"),
             pytest.param(
-                tuple(check for check in _checks() if check.name != REVIEW_CONTEXT), id="absent"
+                tuple(check for check in _checks() if check.name != REVIEW_CONTEXT),
+                id="absent",
             ),
         ],
     )
@@ -171,7 +177,12 @@ def _pr_payload(**overrides: Any) -> dict[str, Any]:
         "headRefOid": _ROUND_2,
         "headRefName": "issue-464-feat-observability-dev",
         "statusCheckRollup": [
-            {"__typename": "CheckRun", "name": name, "status": "COMPLETED", "conclusion": "SUCCESS"}
+            {
+                "__typename": "CheckRun",
+                "name": name,
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+            }
             for name in REQUIRED_CONTEXTS
         ],
         "files": [{"path": "src/kinozal_scraper/app.py"}],
@@ -205,7 +216,9 @@ class TestEvidence:
         assert evidence.reviewed_heads == frozenset({_ROUND_1, _ROUND_2})
         assert evidence.review_run_url == _RUN_URL
 
-    def test_non_checkrun_rollup_entries_are_ignored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_non_checkrun_rollup_entries_are_ignored(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         rollup = [
             {"__typename": "StatusContext", "context": "legacy", "state": "FAILURE"},
             *_pr_payload()["statusCheckRollup"],
@@ -231,7 +244,9 @@ class TestEvidence:
         every agent-process PR.
         """
         payload = _pr_payload(files=[{"path": ".github/workflows/agent-review.yml"}])
-        monkeypatch.setattr(subprocess, "run", _gh_double(payload, _runs_payload(_ROUND_2)))
+        monkeypatch.setattr(
+            subprocess, "run", _gh_double(payload, _runs_payload(_ROUND_2))
+        )
 
         verdict = evaluate(collect_evidence("465"), fixer_budget=3)
 
@@ -242,7 +257,9 @@ class TestEvidence:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         def fail(args: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
-            return subprocess.CompletedProcess(args=args, returncode=1, stdout="", stderr="403")
+            return subprocess.CompletedProcess(
+                args=args, returncode=1, stdout="", stderr="403"
+            )
 
         monkeypatch.setattr(subprocess, "run", fail)
 
@@ -254,8 +271,12 @@ class TestEvidence:
     def test_broken_capture_exits_two(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """`stdout is None` means the reader died, not an empty answer."""
 
-        def capture_failed(args: list[str], **_kwargs: Any) -> subprocess.CompletedProcess[str]:
-            return subprocess.CompletedProcess(args=args, returncode=0, stdout=None, stderr="")
+        def capture_failed(
+            args: list[str], **_kwargs: Any
+        ) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(
+                args=args, returncode=0, stdout=None, stderr=""
+            )
 
         monkeypatch.setattr(subprocess, "run", capture_failed)
 
@@ -282,7 +303,9 @@ class TestCli:
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         monkeypatch.setattr(
-            subprocess, "run", _gh_double(_pr_payload(), _runs_payload(_ROUND_1, _ROUND_2))
+            subprocess,
+            "run",
+            _gh_double(_pr_payload(), _runs_payload(_ROUND_1, _ROUND_2)),
         )
 
         with pytest.raises(SystemExit) as excinfo:

@@ -12,9 +12,10 @@ this one: the diff it read is not the diff being merged. And a carrier that neve
 answered must leave nothing behind — the enforcement step reds the check on an
 empty payload, which is exactly what «no review happened» has to look like (§IV).
 
-The mapping below is not divination: `AGENTS.md` § Code Review Rules tells the
-reviewer to request changes only for a blocking finding and to comment otherwise,
-so the review state is the severity the reviewer was asked to express.
+The mapping below is not divination: `REVIEW_CONTRACT.md`, linked from
+`AGENTS.md`, tells the reviewer to request changes only for a blocking finding
+and to comment otherwise, so the review state is the severity the reviewer was
+asked to express.
 """
 
 from __future__ import annotations

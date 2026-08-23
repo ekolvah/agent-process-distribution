@@ -62,9 +62,9 @@ It reviews outside this runner, so `Codex review` is not a model step but the ad
 head has no response, and waits to a declared boundary. A verdict is **only** a review from
 `chatgpt-codex-connector[bot]` **on the current head SHA**—a previous push’s review describes a different
 diff from the one being merged. Review state is the verdict: changes requested → `blocking`, an ordinary
-comment → `rework`, approved → `clean`. This mapping is prescribed, not guessed: carrier 2’s review contract
-lives in `AGENTS.md` § Code Review Rules (the file from which Codex obtains repository rules) and requires
-requesting changes only for a blocking finding. If it does not reply in time, the payload is empty and
+comment → `rework`, approved → `clean`. This mapping is prescribed, not guessed: the standalone
+`REVIEW_CONTRACT.md`, linked from `AGENTS.md` for carrier 2, requires requesting changes only for a
+blocking finding. If it does not reply in time, the payload is empty and
 `Enforce Codex review outcome` fails the check. That is the literal present behavior: no verdict means a red gate.
 
 The role catalog gained `carrier_selection` (`run_route` | `ci_failover` | `sole`).
@@ -80,11 +80,10 @@ two carriers could silently attribute a run to the wrong agent.
   carrier is a result and cannot be overridden by the second.
 * Good, because the second carrier costs no money: it uses the same subscription as other repository work and
   is enabled by configuring Codex code review, not issuing a key.
-* Bad, because the review contract is duplicated in two copies: carrier 1’s workflow prompt and carrier 2’s
-  `AGENTS.md` § Code Review Rules. They cannot be combined into one file—`claude-code-action` has no
-  `prompt-file` input, GitHub Actions has no YAML anchors, and Codex reads only its own file. The compensation
-  is target-owned prompt guards parameterized for both carriers, so divergent copies make that target's
-  test red.
+* Good, because `REVIEW_CONTRACT.md` is the one review-rules file. Carrier 1 receives the
+  default-branch copy from its isolated `trusted/` checkout; carrier 2 reaches the same file from
+  `AGENTS.md`. The workflow carries only the invariant instruction to read that file, not a second
+  copy of its content.
 * Bad, because carriers respond in different formats and to different bars: carrier 1 writes inline comments
   and a structured outcome; carrier 2 leaves a normal GitHub review and GitHub publicly documents it as
   surfacing P0/P1 findings, narrower than this coverage-first contract. Therefore a green check from carrier 2
@@ -101,9 +100,9 @@ Guards: `tests/test_agent_orchestrator.py::TestCarrierSelection` verifies the po
 mechanism. The workflow that invokes either carrier is deliberately target-authored; its target project must
 test the step order, head-SHA verdict, output hand-off, and provider-specific review-state mapping there.
 
-What the guards do not prove: that Codex responds to `@codex review` from the bot and sets the review state
-as `AGENTS.md` requests. Both sides of that contract are external, verified by one live run; until then the
-record has unverified execution
+What the guards do not prove: that Codex responds to `@codex review` from the bot and follows
+`REVIEW_CONTRACT.md` when it sets the review state. Both sides of that contract are external, verified by
+one live run; until then the record has unverified execution
 (the target project should record any accepted limitation in its own ledger).
 
 ## Pros and Cons of the Options
@@ -158,7 +157,7 @@ record has unverified execution
 * Codex code review’s subscription basis was checked against OpenAI documentation, not inferred from a trial:
   [pricing](https://learn.chatgpt.com/docs/pricing) (“ChatGPT Work and Codex are included in your ChatGPT … plan”; code review is billed only when Codex reviews through GitHub) and
   [GitHub integration](https://learn.chatgpt.com/docs/third-party/github) (`@codex review` triggers and automatic
-  repository review, configured through `AGENTS.md` § Code Review Rules). The bot login was checked against the
+  repository review, configured through `AGENTS.md` and its linked review contract). The bot login was checked against the
   live API: `gh api apps/chatgpt-codex-connector` → owner `openai`.
 * Enabling carrier 2 is a one-time configuration outside the repository: Codex cloud is connected to the repository
   and **Code review** is enabled. Without it, the step runs as “no verdict”—a red check with `::warning::`, not a silent green.

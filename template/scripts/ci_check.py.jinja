@@ -2,10 +2,10 @@
 """Single source of truth for quality checks. Run before every commit:
 
     python scripts/ci_check.py            # run every check (pre-commit / pre-push)
-    python scripts/ci_check.py --only X   # run one check by name (used by ci.yml)
+    python scripts/ci_check.py --only X   # run one check by name locally
 
-`ci.yml` references checks by name via --only, so the check list cannot drift
-between local and CI: there is exactly one registry (CHECKS) below.
+CI runs this program without `--only` from the trusted default branch, so the
+same registry (CHECKS) defines its complete check set and the local full run.
 """
 
 from __future__ import annotations
@@ -222,7 +222,7 @@ def check_imports() -> None:
 
 
 # Registry — the single source of truth for the quality check set. Order is the
-# run order for a full pre-commit pass. ci.yml references these names via --only.
+# run order for a full pre-commit pass and for CI.
 CHECKS: dict[str, Callable[[], None]] = {
 {% for check in ci_checks %}    {{ check.name | tojson }}: {{ check.function }},
 {% endfor -%}

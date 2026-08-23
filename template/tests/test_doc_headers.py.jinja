@@ -8,10 +8,9 @@ equivalent for `.md` by default — a rule that lives only in prose is followed 
 time. This is exactly the "scripts over instructions" case — the deterministic step "ensure that a
 header exists" becomes an exit code.
 
-**Why a test, not an entry in `CHECKS`.** `tests/test_ci_check.py::TestStepParity` requires
-`_ci_yml_check_names() == set(CHECKS)`, so a new registry entry would also require an
-`--only` step in `ci.yml` — an extra parity element for a static check already run by
-`check_pytest`.
+**Why a test, not an entry in `CHECKS`.** `CHECKS` is run in full by the trusted
+CI driver, so this static guard already runs inside `check_pytest`; a second
+registry entry would only duplicate it.
 
 **Scope is the glob itself, with no second filter over it.** A filter that admits files "by
 property rather than by directory" (e.g. by frontmatter `description:`) risks a silent

@@ -83,6 +83,11 @@ already implies.
 repository's content (from the export manifest) and its Jinja parameter set,
 not inventing sync mechanics for either layer.
 
+**2026-08-23 amendment.** Layer 0 now has a narrow referenced component:
+GitHub workflow YAML is published as pinned reusable workflows while thin
+callers and Python enforcement remain in the Copier payload. This preserves the
+Copier update path while giving CI logic one home; ADR 0012 records the split.
+
 ### Consequences
 
 * Good, because both layers get drift detection from a maintained tool
