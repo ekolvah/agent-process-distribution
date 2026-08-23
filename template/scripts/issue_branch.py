@@ -6,7 +6,7 @@ Usage: python scripts/issue_branch.py <issue-number>
 Reads the issue title via `gh issue view`, derives a kebab-case ASCII
 slug, and delegates to `scripts/new_branch.py` to do the actual checkout
 (which itself guarantees branching from fresh origin/main HEAD). Once the
-branch exists, it moves the issue's Status on GitHub Project 1 to
+branch exists, it moves the issue's Status on the configured GitHub Project to
 `In Progress` through `scripts/set_issue_status.py`.
 """
 
@@ -59,18 +59,31 @@ def _new_branch_module() -> ModuleType:
     return _sibling_module("new_branch")
 
 
-def _mark_in_progress(issue_number: int) -> None:
-    """Move the issue's board card to `In Progress`; never fail the branch over it.
+def _require_project_bootstrap() -> None:
+    """Stop before creating a branch when the copied process is still inactive."""
+    try:
+        _sibling_module("project_settings").require_configured()
+    except RuntimeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(2)
 
-    Called after the checkout on purpose: the branch is what «in progress» means, so the card
-    must not claim it before the branch exists. Bookkeeping, so a failed board write is
-    visible on stderr and leaves the exit code alone — reporting a created branch as a failure
-    would be worse than a stale card.
+
+def _mark_in_progress(issue_number: int) -> None:
+    """Move the issue's board card to `In Progress`, or stop delivery visibly.
+
+    The branch must exist before its card claims `In Progress`. A branch cannot be
+    safely deleted on a status failure, so report it as created and stop delivery
+    rather than silently continuing with a stale card.
     """
     try:
         _sibling_module("set_issue_status").set_status(issue_number, "in-progress")
     except (RuntimeError, ValueError, OSError) as exc:
-        print(f"warning: board status not updated: {exc}", file=sys.stderr)
+        print(
+            f"error: branch for issue #{issue_number} was created, but its board status was "
+            f"not moved to In Progress: {exc}. Delivery stopped; repair the status before continuing.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
 
 def build_branch_name(issue_number: int, title: str) -> str:
@@ -108,7 +121,8 @@ def _fetch_title(issue_number: int) -> str:
         sys.exit(2)
     if data.get("state") != "OPEN":
         print(
-            f"error: issue #{issue_number} is not OPEN (state={data.get('state')})", file=sys.stderr
+            f"error: issue #{issue_number} is not OPEN (state={data.get('state')})",
+            file=sys.stderr,
         )
         sys.exit(2)
     return data.get("title") or ""
@@ -123,6 +137,7 @@ def main() -> None:
     except ValueError:
         print(f"error: issue number must be int (got {sys.argv[1]!r})", file=sys.stderr)
         sys.exit(2)
+    _require_project_bootstrap()
     title = _fetch_title(n)
     branch = build_branch_name(n, title)
     _new_branch_module().create_branch(branch)

@@ -6,26 +6,16 @@ Claude or Codex adapter is the only permitted executor.
 
 ## Codex adapter
 
-- Plan an issue with `$plan-issue #N`; it runs the same planner runbook as any
-  other planner adapter and, having no local subagents, performs both the
-  discovery capture and the architect review itself.
-- Implement a planned issue with `$implement-issue #N`.
-- Run `python scripts/validate_issue_sections.py N` before creating a branch.
-  If it fails, stop and hand the issue back to a planner.
-- Run `python scripts/set_issue_priority.py N --check` before creating a branch.
-  If it fails, stop and have the maintainer set the issue Priority.
-- Use `python scripts/issue_branch.py N`; never create an issue branch directly.
-- Follow RED -> GREEN: write the issue's named tests, prove them with
-  `python scripts/check_red.py <test paths>`, commit RED, then implement.
-- Before a PR, run `python scripts/ci_check.py` once in the foreground. Use
-  `python scripts/open_pr.py` to create the PR and leave merging to a human.
-- After every PR push, stay in the review/fix loop defined in
-  `agent-process.md`: wait for checks, then ask
-  `python -m scripts.review_gate <PR>` whether the loop continues. Its exit code
-  decides — `0` ends the loop, `10` means one more fixer commit, anything else
-  leaves the PR `not ready` for the maintainer. Do not substitute your own
-  reading of the findings for the verdict; `should-fix` findings are the
-  maintainer's call, not a gate.
+- A repository must be activated once before its first delivery. Follow
+  [the installation guide](docs/architecture/agent-process-installation.md),
+  then commit its generated `scripts/project_settings.py`. Until activation
+  succeeds, `issue_branch.py` refuses to create a branch.
+- Follow the canonical [per-issue delivery flow](docs/architecture/agent-process.md#deterministic-delivery-flow).
+  That document is the sole source of task gates, commands, and status
+  transitions; this file does not restate them.
+- Use `$plan-issue #N` for the Codex planner entry point and
+  `$implement-issue #N` for the Codex implementer entry point. They execute
+  the canonical role contracts; they do not replace any gate in that document.
 - The advisory control plane (`scripts/agent_orchestrator.py` plus
   `.agents/orchestration/roles.yaml`) reports evidence-based routing and budget
   escalation. It never authorizes bypassing its required delivery gates.

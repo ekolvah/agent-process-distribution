@@ -250,6 +250,9 @@ medium, or low — wherever the reviewer is unsure of the finding itself:
 
 ## Deterministic delivery flow
 
+This is the per-issue flow. It applies only after the one-time repository
+[installation and activation](agent-process-installation.md) are complete.
+
 1. Before creating an issue, fetch `origin/main` and check recent closed
    issues and merged PRs for semantic duplicates. Ask the user for priority,
    then set it with `python scripts/set_issue_priority.py <N> <priority>`.
