@@ -126,6 +126,7 @@ def test_create_mode_links_fields_and_persists_real_ids(
     destination = render(
         tmp_path, "--data", "github_repository=example-org/example-repo"
     )
+    monkeypatch.syspath_prepend(str(destination / "scripts"))
     bootstrap = bootstrap_module(destination)
     calls: list[list[str]] = []
     fields = {
@@ -182,3 +183,7 @@ def test_create_mode_links_fields_and_persists_real_ids(
         "--repo",
         "example-org/example-repo",
     ] in calls
+
+    call_count = len(calls)
+    bootstrap.main([])
+    assert len(calls) == call_count

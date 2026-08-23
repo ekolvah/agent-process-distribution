@@ -9,6 +9,7 @@ an external write and therefore requires ``--confirm-create``.
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import subprocess
 import sys
@@ -109,10 +110,24 @@ def _create() -> tuple[str, str]:
     return number, project_id
 
 
+def _already_configured() -> bool:
+    try:
+        import project_settings
+
+        project_settings = importlib.reload(project_settings)
+        project_settings.require_configured()
+    except (ImportError, RuntimeError):
+        return False
+    return True
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--confirm-create", action="store_true", help="allow Project creation in create mode")
     ns = parser.parse_args(argv)
+    if _already_configured():
+        print("ok: GitHub Project bootstrap is already configured")
+        return
     try:
         if MODE == "create":
             if not ns.confirm_create:
