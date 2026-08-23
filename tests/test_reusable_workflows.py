@@ -63,7 +63,11 @@ def test_source_review_caller_uses_the_preflight_secret() -> None:
     preflight = (ROOT / "template" / "scripts" / "check_review_credentials.py").read_text(
         encoding="utf-8"
     )
-    match = re.search(r'^REVIEW_SECRET = "([A-Za-z0-9_]+)"$', preflight, re.MULTILINE)
+    match = re.search(
+        r'^REVIEW_SECRET = "([A-Za-z0-9_]+)"(?:  # pragma: allowlist secret)?$',
+        preflight,
+        re.MULTILINE,
+    )
     assert match, "credential preflight declares no canonical secret name"
     caller = _workflow("agent-review.yml")["jobs"]["agent-review"]
 

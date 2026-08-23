@@ -20,7 +20,7 @@ if __package__ in (None, ""):
 from scripts.gh_io import slurp_named_records
 from scripts.request_codex_review import CODEX_REVIEWER
 
-REVIEW_SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
+REVIEW_SECRET = "CLAUDE_CODE_OAUTH_TOKEN"  # pragma: allowlist secret
 _SETTINGS_URL = "https://github.com/settings/installations"
 
 

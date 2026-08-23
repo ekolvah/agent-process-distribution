@@ -98,7 +98,9 @@ def test_direct_secret_does_not_require_an_inherited_secret_query(
     _install_gh(
         monkeypatch,
         _all_present_payloads(),
-        failures={_ORG_SECRET_ENDPOINT: "HTTP 422: inherited list unavailable"},
+        failures={
+            _ORG_SECRET_ENDPOINT: "HTTP 422: inherited list unavailable"
+        },  # pragma: allowlist secret
     )
 
     _run()
@@ -140,7 +142,7 @@ def test_insufficient_permissions_is_not_a_missing_credential(
     _install_gh(
         monkeypatch,
         _all_present_payloads(),
-        failures={_SECRET_ENDPOINT: "HTTP 404: resource not found"},
+        failures={_SECRET_ENDPOINT: "HTTP 404: resource not found"},  # pragma: allowlist secret
     )
 
     with pytest.raises(SystemExit, match="2"):
