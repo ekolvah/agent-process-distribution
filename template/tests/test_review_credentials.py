@@ -99,8 +99,8 @@ def test_direct_secret_does_not_require_an_inherited_secret_query(
         monkeypatch,
         _all_present_payloads(),
         failures={
-            _ORG_SECRET_ENDPOINT: "HTTP 422: inherited list unavailable"
-        },  # pragma: allowlist secret
+            _ORG_SECRET_ENDPOINT: "HTTP 422: inherited list unavailable"  # pragma: allowlist secret
+        },
     )
 
     _run()
