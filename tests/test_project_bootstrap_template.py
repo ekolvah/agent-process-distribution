@@ -118,6 +118,7 @@ def test_existing_mode_bakes_only_the_selected_project_number(tmp_path: Path) ->
     assert "--confirm-create" not in (destination / "AGENTS.md").read_text(
         encoding="utf-8"
     )
+    generated_suite_passes(destination)
 
 
 def test_create_mode_links_fields_and_persists_real_ids(
