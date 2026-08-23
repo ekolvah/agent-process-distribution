@@ -85,7 +85,7 @@ def _require_live_pr_context(status: str | None) -> None:
         raise SystemExit(2)
 
 
-def _validated_evidence(payload: object) -> tuple[str, list[dict[str, str]]] | None:
+def validated_evidence(payload: object) -> tuple[str, list[dict[str, str]]] | None:
     """Return only evidence that can support the declared review outcome."""
     if not isinstance(payload, dict) or set(payload) != {"outcome", "findings"}:
         return None
@@ -175,7 +175,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         payload = json.loads(payload_arg)
     except json.JSONDecodeError:
         payload = None
-    evidence = _validated_evidence(payload)
+    evidence = validated_evidence(payload)
 
     if options.classify:
         _report_validity(evidence)

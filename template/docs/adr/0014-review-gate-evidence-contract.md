@@ -27,6 +27,10 @@ least one finding with severity, confidence, and a human-readable summary. The
 summary includes the live reviewed head SHA, so an operator can relate the
 verdict to the exact diff.
 
+Both review carriers produce that same evidence shape. GitHub-review carriers
+place the JSON in a delimited HTML comment; the adapter also checks that its
+declared outcome matches the review state GitHub recorded.
+
 ### Consequences
 
 * Good, because a merge-blocking result is inspectable from the required check.

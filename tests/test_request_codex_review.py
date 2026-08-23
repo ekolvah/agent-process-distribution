@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from scripts.request_codex_review import find_verdict
 
-
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
 
