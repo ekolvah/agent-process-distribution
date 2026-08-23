@@ -9,6 +9,3 @@ permissions:
 jobs:
   quality:
     uses: {{ workflow_references["quality"] | tojson }}
-    with:
-      checks: "{% for check in ci_checks %}{{ check.name }}{% if not loop.last %} {% endif %}{% endfor %}"
-      install-command: "python -m pip install -r requirements.txt -r requirements-dev.txt"

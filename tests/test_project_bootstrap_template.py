@@ -93,7 +93,19 @@ def test_rendered_project_ships_thin_required_context_callers(tmp_path: Path) ->
         job_key = context.split(" / ", 1)[0]
         job = _workflow(workflows / filename)["jobs"][job_key]
         assert "uses" in job
+        if job_key == "quality":
+            assert "with" not in job
         assert job_key == context.split(" / ", 1)[0]
+
+
+def test_rendered_project_ships_the_standalone_review_contract(tmp_path: Path) -> None:
+    destination = render(tmp_path)
+
+    assert (destination / "REVIEW_CONTRACT.md").is_file()
+    assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (
+        destination / "AGENTS.md"
+    ).read_text(encoding="utf-8")
+    assert not (destination / "scripts" / "extract_review_prompt.py").exists()
 
 
 def test_rendered_callers_pin_a_complete_reference_and_map_secrets_explicitly(

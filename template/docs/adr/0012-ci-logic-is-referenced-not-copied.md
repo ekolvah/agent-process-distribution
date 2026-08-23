@@ -43,12 +43,20 @@ secret guard is permitted: an unavailable carrier must red the required check.
 
 * Good, because reusable workflow fixes have one home and move through a
   reviewed tag/SHA update.
-* Good, because enforcement restores a default-branch checkout after reviewing
-  the head, preserving ADR 0004's residual-trust compensation.
+* Good, because the workflow keeps its default-branch contract and enforcement
+  scripts in an isolated trusted checkout while it reviews the PR-head
+  worktree. This protects an invoked callee, not the PR-head caller that
+  invokes it.
 * Bad, because organisations may block external reusable workflows and every
   target must provision the named credential before its first review.
 * Bad, because changing composed context names or callee permissions is a
   breaking release for existing callers.
+* Bad, because classic name-only required contexts do not authenticate their
+  caller workflow. A PR can replace that caller and still publish the same
+  context name. A target needs an external workflow-definition trust anchor
+  before it treats these contexts as a security boundary; this payload does not
+  use `pull_request_target`, because the review carrier has a credential and
+  consumes untrusted PR material.
 
 ### Confirmation
 

@@ -28,6 +28,19 @@ The caller permission grants (`contents: read`, `pull-requests: write` for
 review) are part of the published contract. A release that requires a wider
 callee permission is breaking until callers are re-rendered.
 
+## Workflow-definition trust
+
+Thin callers are part of the PR head. Classic branch protection matches a
+check's displayed name, so it cannot prove that a PR did not replace a caller
+with a different job that reports the same name. Before treating these checks
+as a security boundary, configure an organisation or platform trust anchor
+that requires the intended workflow definition (for example, a Ruleset
+Required Workflow where that GitHub feature is available). Do not switch these
+review workflows to `pull_request_target` as a shortcut: the review carrier has
+a credential and reads untrusted PR material. Until an external anchor is
+configured, required contexts remain delivery evidence, not proof that an
+untrusted contributor ran the publisher's policy.
+
 ## Activation
 
 `copier copy` copies the payload but does not create or alter GitHub resources.

@@ -9,6 +9,3 @@ permissions:
 jobs:
   quality:
     uses: ./.github/workflows/reusable-quality.yml
-    with:
-      checks: format lint secrets pytest pip-audit pip-audit-dev requirements
-      install-command: python -m pip install -r requirements.txt -r requirements-dev.txt

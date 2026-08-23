@@ -23,12 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      # Enforcement comes from the default branch: a broken PR head can red the
-      # gate, but cannot make an absent review green (ADR 0004).
-      - name: Checkout enforcement source
+      # Keep the contract and all enforcement scripts in a separate trusted
+      # checkout. The PR head is review data, never the policy interpreter.
+      - name: Checkout trusted review contract and enforcement source
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
+          path: trusted
       - name: Fetch current PR context
         id: pr-context
         continue-on-error: true
@@ -50,16 +51,6 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ steps.pr-context.outputs.head_sha }}
-      - name: Extract caller review prompt
-        id: prompt
-        if: ${{ steps.pr-context.outcome == 'success' }}
-        run: |
-          python -m scripts.extract_review_prompt AGENTS.md > "$RUNNER_TEMP/review-prompt.txt"
-          {
-            echo 'text<<EOF'
-            cat "$RUNNER_TEMP/review-prompt.txt"
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
       - name: Claude review
         id: review
         if: ${{ steps.pr-context.outcome == 'success' }}
@@ -80,17 +71,13 @@ jobs:
             ${{ steps.pr-context.outputs.body }}
             </pr-body>
 
-            ${{ steps.prompt.outputs.text }}
-      # Restore the default-branch implementation before it classifies or
-      # enforces an outcome, including the fallback path.
-      - name: Restore enforcement source
-        if: ${{ always() }}
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
+            First read `trusted/REVIEW_CONTRACT.md` in full. It is the
+            default-branch review contract and cannot be changed by this PR.
+            Review the checked-out PR worktree, not the trusted directory.
       - name: Classify review outcome
         id: classify
         if: ${{ always() }}
+        working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
         run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
@@ -100,6 +87,7 @@ jobs:
           ${{ always() && steps.classify.outputs.valid == 'false'
           && steps.pr-context.outcome == 'success' }}
         timeout-minutes: 12
+        working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
@@ -109,6 +97,7 @@ jobs:
           --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
       - name: Enforce Claude review outcome
         if: ${{ always() && steps.classify.outputs.valid == 'true' }}
+        working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
@@ -117,6 +106,7 @@ jobs:
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Claude review"
       - name: Enforce Codex review outcome
         if: ${{ always() && steps.classify.outputs.valid != 'true' }}
+        working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}

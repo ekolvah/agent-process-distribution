@@ -69,9 +69,10 @@ it is a second, independent credential.
   so a broken controller turns itself red rather than the next unrelated PR.
 * Bad, because a controller PR verifies itself: review runs code from head. This is a **residual trust assumption**,
   not eliminated risk—under one maintainer and a private repository, the same person writes head and merges it.
-  The compensation is structural, not mechanical: enforcement scripts always check out from the default branch
-  (a broken head can turn the check red but cannot turn no review green), and the controller PR remains narrowly
-  scoped. This assumption is false on a fork, where the verifier fork remains governed by the general rule that
+  The compensation is structural, not mechanical: an invoked reusable callee checks out its enforcement scripts
+  from the default branch. That protects the callee from its reviewed worktree, but not the PR-head thin caller
+  that selects the callee; classic name-only contexts need an external workflow-definition trust anchor. The
+  controller PR remains narrowly scoped. This assumption is false on a fork, where the verifier fork remains governed by the general rule that
   “no required context on a fork is evidence.”
 * Neutral: workflow and App tokens differ in comment author and scope. Review comments now publish as `github-actions[bot]`.
 
@@ -84,8 +85,11 @@ exception.
 
 **2026-08-23 amendment.** The invocation is now a thin, target-authored caller
 to a pinned reusable workflow. The caller still owns the explicit secret mapping
-and permission grant, while the reusable workflow restores a default-branch
-checkout before classifier and enforcement steps run.
+and permission grant, while the reusable workflow keeps a separate
+default-branch `trusted/` checkout for the review contract, classifier, and
+enforcement steps. This does not make the caller immutable: activating a
+name-only required context still needs the external trust anchor recorded in
+ADR 0012.
 
 What guards do not prove is that a live run actually passes: that is an external side of the contract. Verify
 it on the PR making the change (it is inherently a controller PR): the log lacks `Skipping action due to workflow validation`,

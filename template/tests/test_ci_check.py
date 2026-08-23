@@ -13,15 +13,16 @@ from typing import Any
 import pytest
 import yaml
 
-from scripts.ci_check import CHECKS, _find_modules, _run, _tracked_files, run_selected
+from scripts import ci_check
+from scripts.ci_check import _find_modules, _run, _tracked_files, run_selected
 
 _CI_YML = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
 
 
-def _ci_yml_check_names() -> set[str]:
-    """Names passed to the reusable quality workflow by the thin ci.yml caller."""
+def _quality_caller() -> dict[str, Any]:
+    """Return the thin quality caller without letting it select checks."""
     spec = yaml.safe_load(_CI_YML.read_text(encoding="utf-8"))
-    return set(str(spec["jobs"]["quality"]["with"]["checks"]).split())
+    return spec["jobs"]["quality"]
 
 
 class TestStepParity:
@@ -29,11 +30,22 @@ class TestStepParity:
     some registry checks were silently missing in CI. The caller passes check names
     to the callee, so parity remains enforceable without copying workflow steps."""
 
-    def test_ci_yml_runs_every_registered_check(self) -> None:
-        assert _ci_yml_check_names() == set(CHECKS), (
-            "ci.yml caller input must cover exactly the ci_check registry — "
-            "any divergence is the drift this issue fixes"
+    def test_ci_yml_cannot_select_a_subset_of_checks(self) -> None:
+        assert "with" not in _quality_caller()
+
+    def test_full_runner_visits_every_registered_check(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        called: list[str] = []
+        monkeypatch.setattr(
+            ci_check,
+            "CHECKS",
+            {"first": lambda: called.append("first"), "second": lambda: called.append("second")},
         )
+
+        run_selected()
+
+        assert called == ["first", "second"]
 
 
 class TestFindModules:
