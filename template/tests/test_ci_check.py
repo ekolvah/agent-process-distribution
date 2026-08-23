@@ -6,7 +6,6 @@ codes, and the capture-failure path that must name its real cause.
 
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -16,33 +15,23 @@ import yaml
 
 from scripts.ci_check import CHECKS, _find_modules, _run, _tracked_files, run_selected
 
-_CI_YML = Path(".github/workflows/ci.yml")
-_ONLY_RE = re.compile(r"scripts/ci_check\.py\s+--only\s+(\S+)")
+_CI_YML = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
 
 
 def _ci_yml_check_names() -> set[str]:
-    """Names passed to `ci_check.py --only X` in the ci.yml quality job."""
+    """Names passed to the reusable quality workflow by the thin ci.yml caller."""
     spec = yaml.safe_load(_CI_YML.read_text(encoding="utf-8"))
-    steps = spec["jobs"]["quality"]["steps"]
-    names: set[str] = set()
-    for step in steps:
-        run = step.get("run", "")
-        names.update(_ONLY_RE.findall(run))
-    return names
+    return set(str(spec["jobs"]["quality"]["with"]["checks"]).split())
 
 
-@pytest.mark.skipif(
-    not _CI_YML.is_file(),
-    reason="the generated project does not include a repository-specific CI workflow",
-)
 class TestStepParity:
     """The core defect: ci.yml duplicated the check list by hand and drifted —
-    some registry checks were silently missing in CI. After the registry refactor,
-    ci.yml references check *names* only, so parity is enforceable."""
+    some registry checks were silently missing in CI. The caller passes check names
+    to the callee, so parity remains enforceable without copying workflow steps."""
 
     def test_ci_yml_runs_every_registered_check(self) -> None:
         assert _ci_yml_check_names() == set(CHECKS), (
-            "ci.yml --only steps must cover exactly the ci_check registry — "
+            "ci.yml caller input must cover exactly the ci_check registry — "
             "any divergence is the drift this issue fixes"
         )
 
@@ -57,12 +46,15 @@ class TestFindModules:
         evidence = tmp_path / "evidence"
         evidence.mkdir()
         (evidence / "planning_probe.py").write_text("probe = True\n", encoding="utf-8")
-        subprocess.run(["git", "add", ".gitignore", "tracked.py"], cwd=tmp_path, check=True)
+        subprocess.run(
+            ["git", "add", ".gitignore", "tracked.py"], cwd=tmp_path, check=True
+        )
 
     def test_excludes_audit_tmp_and_pytest_cache(self) -> None:
         modules = set(_find_modules())
         assert (
-            "scripts/ci_check.py".replace("/", "\\") in modules or "scripts/ci_check.py" in modules
+            "scripts/ci_check.py".replace("/", "\\") in modules
+            or "scripts/ci_check.py" in modules
         )
         assert not any(".audit-tmp" in m for m in modules)
         assert not any("pytest-cache-files-" in m for m in modules)
@@ -111,16 +103,23 @@ class TestMypyManifest:
         (tmp_path / "new_module.py").write_text("new = True\n", encoding="utf-8")
         monkeypatch.chdir(tmp_path)
 
-        def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[bytes]:
             calls.append(cmd)
             return subprocess.CompletedProcess(
-                args=cmd, returncode=0, stdout=b"tracked.py\0new_module.py\0", stderr=b""
+                args=cmd,
+                returncode=0,
+                stdout=b"tracked.py\0new_module.py\0",
+                stderr=b"",
             )
 
         monkeypatch.setattr(subprocess, "run", fake_run)
 
         assert _find_modules() == ["tracked.py", "new_module.py"]
-        assert calls == [["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"]]
+        assert calls == [
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"]
+        ]
 
 
 class TestRunner:
@@ -133,7 +132,9 @@ class TestRunner:
     def test_nonzero_step_exits_nonzero(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # A failing subprocess must propagate as sys.exit(1), not be swallowed.
         def fake_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
-            return subprocess.CompletedProcess(args=args, returncode=1, stdout="", stderr="")
+            return subprocess.CompletedProcess(
+                args=args, returncode=1, stdout="", stderr=""
+            )
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         with pytest.raises(SystemExit) as exc:
@@ -154,8 +155,12 @@ class TestTrackedFilesCaptureFailure:
     def test_none_stdout_exits_two(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
-            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout=None, stderr=None)
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[bytes]:
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=0, stdout=None, stderr=None
+            )
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         with pytest.raises(SystemExit) as exc:
@@ -168,8 +173,12 @@ class TestTrackedFilesCaptureFailure:
     def test_git_failure_exits_two(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
-            return subprocess.CompletedProcess(args=cmd, returncode=128, stdout=b"", stderr=b"")
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[bytes]:
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=128, stdout=b"", stderr=b""
+            )
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         with pytest.raises(SystemExit) as exc:
@@ -181,8 +190,12 @@ class TestTrackedFilesCaptureFailure:
     def test_mypy_manifest_none_stdout_exits_two(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
-            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout=None, stderr=None)
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[bytes]:
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=0, stdout=None, stderr=None
+            )
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         with pytest.raises(SystemExit) as exc:
@@ -194,8 +207,12 @@ class TestTrackedFilesCaptureFailure:
     def test_mypy_manifest_git_failure_exits_two(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        def fake_run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
-            return subprocess.CompletedProcess(args=cmd, returncode=128, stdout=b"", stderr=b"")
+        def fake_run(
+            cmd: list[str], **kwargs: object
+        ) -> subprocess.CompletedProcess[bytes]:
+            return subprocess.CompletedProcess(
+                args=cmd, returncode=128, stdout=b"", stderr=b""
+            )
 
         monkeypatch.setattr(subprocess, "run", fake_run)
         with pytest.raises(SystemExit) as exc:

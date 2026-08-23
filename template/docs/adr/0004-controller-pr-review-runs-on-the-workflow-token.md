@@ -82,6 +82,11 @@ verifies the portable gate rule. The workflow-token configuration and its invoca
 target project must test that its own workflow passes the token and enforcement output without a controller-path
 exception.
 
+**2026-08-23 amendment.** The invocation is now a thin, target-authored caller
+to a pinned reusable workflow. The caller still owns the explicit secret mapping
+and permission grant, while the reusable workflow restores a default-branch
+checkout before classifier and enforcement steps run.
+
 What guards do not prove is that a live run actually passes: that is an external side of the contract. Verify
 it on the PR making the change (it is inherently a controller PR): the log lacks `Skipping action due to workflow validation`,
 `Classify review outcome` prints `valid=true`, `Enforce Claude review outcome` runs, `Codex review` is skipped,

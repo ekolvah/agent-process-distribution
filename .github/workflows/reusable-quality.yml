@@ -1,0 +1,43 @@
+name: Reusable quality
+
+# This workflow is called by a consumer job. It deliberately has no pull_request
+# trigger, so it is not a standalone PR context after this repository self-applies
+# the template; the caller is the context that branch protection observes.
+on:
+  workflow_call:
+    inputs:
+      checks:
+        description: Space-separated CHECKS registry names.
+        required: true
+        type: string
+      install-command:
+        description: Consumer-owned dependency installation command.
+        required: false
+        type: string
+        default: python -m pip install -r requirements.txt -r requirements-dev.txt
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - name: Install consumer dependencies
+        run: ${{ inputs.install-command }}
+      # Inputs are scalar. A matrix would expand the required context into one
+      # check run per item, so one shell step preserves the single quality context.
+      - name: Run declared quality checks
+        shell: bash
+        run: |
+          for check in ${{ inputs.checks }}; do
+            python -m scripts.ci_check --only "$check"
+          done

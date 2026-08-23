@@ -309,6 +309,11 @@ current PR body/head from the live API, so a broken head cannot make an absent
 review green. Keep it to that controller, direct tests, and docs; never disable
 the required context or treat the PR body as merge authority.
 
+The target's thin caller invokes the publisher's pinned
+`reusable-agent-review.yml`; that workflow extracts this repository's
+`AGENTS.md` Code Review Rules through `scripts/extract_review_prompt.py`.
+Both carriers therefore use one review contract instead of a copied YAML prompt.
+
 ## Governance conventions
 1. Create issue branches only with `python scripts/issue_branch.py <N>` (starts
    from fresh `origin/main`); never create a branch directly.

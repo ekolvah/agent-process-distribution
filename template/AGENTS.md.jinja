@@ -40,9 +40,8 @@ Claude or Codex adapter is the only permitted executor.
 
 Codex code review is carrier 2 of the required review gate: it is asked for
 a review when carrier 1 left no verdict, and `scripts/request_codex_review.py` reads
-the review it posts on the pull request. The rules below are that review contract —
-this project's own review workflow should carry the same prompt to carrier 1, and a
-guard test should keep the two from drifting apart.
+the review it posts on the pull request. The rules below are the single review
+contract: carrier 1 obtains this section through `scripts/extract_review_prompt.py`.
 
 - Read `CLAUDE.md` and the repository docs it links to first: repository
   conventions take precedence over your defaults.

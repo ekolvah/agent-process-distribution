@@ -178,13 +178,21 @@ def _declared_problems(declared: tuple[str, ...], jobs: Mapping[str, _Job]) -> l
     """Declared-context problems: missing job, matrix, or trigger filter."""
     problems: list[str] = []
     for context in declared:
-        job = jobs.get(context)
+        caller_key = context.split(" / ", 1)[0]
+        job = jobs.get(context) or jobs.get(caller_key)
         if job is None:
             problems.append(
                 f"объявлен required-контекст {context!r}, но PR-джоба с таким именем check-run'а "
                 f"нет — он навсегда останется в статусе «Expected» и запрёт мёрдж"
             )
             continue
+        if caller_key != context:
+            if "uses" not in job.definition:
+                problems.append(
+                    f"declared composed context {context!r} has caller job {caller_key!r}, "
+                    "but that job does not call a reusable workflow"
+                )
+                continue
         if "matrix" in (job.definition.get("strategy") or {}):
             problems.append(
                 f"{context!r} объявлен голым именем, но джоб использует matrix — реальные "
@@ -204,8 +212,9 @@ def _undeclared_problems(
 ) -> list[str]:
     """Other problems: no decision, unexplained exclusion, or stale exclusion."""
     problems: list[str] = []
+    declared_job_keys = {context.split(" / ", 1)[0] for context in declared}
     for context in sorted(jobs):
-        if context in declared:
+        if context in declared or context in declared_job_keys:
             continue
         if context not in excluded:
             problems.append(
@@ -246,6 +255,24 @@ def declaration_problems(
         ),
         *_declared_problems(declared, jobs),
         *_undeclared_problems(declared, jobs, excluded),
+    ]
+
+
+def unverified_offline_contexts(
+    workflows: Mapping[str, Mapping[Any, Any]],
+    declared: Iterable[str] = REQUIRED_CONTEXTS,
+) -> list[str]:
+    """Report reusable-workflow composed names that local YAML cannot prove.
+
+    The caller key is inspectable locally, while GitHub alone composes the
+    callee segment. Keep the limitation visible without turning a valid render
+    into a false failure; the source PR records the observed names before #7.
+    """
+    jobs, _ = _pull_request_jobs(workflows)
+    return [
+        f"unverified offline: {context!r} is composed by GitHub from caller job {context.split(' / ', 1)[0]!r}"
+        for context in declared
+        if " / " in context and context.split(" / ", 1)[0] in jobs
     ]
 
 
@@ -314,6 +341,10 @@ def main(argv: list[str] | None = None) -> None:
     options = parser.parse_args(argv)
 
     actual = contexts_from_protection(fetch_protection())
+    workflows_dir = Path(".github/workflows")
+    if workflows_dir.is_dir():
+        for notice in unverified_offline_contexts(load_workflows(workflows_dir)):
+            print(notice)
     print(f"required status checks on `{BRANCH}`: {', '.join(actual) or '(none)'}")
     print(f"declared in {Path(__file__).name}: {', '.join(REQUIRED_CONTEXTS)}")
 
