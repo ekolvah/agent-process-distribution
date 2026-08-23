@@ -127,7 +127,9 @@ def _report_validity(evidence: tuple[str, list[dict[str, str]]] | None) -> None:
     publish_step_output(f"valid={'true' if evidence is not None else 'false'}")
 
 
-def _publish_summary(evidence: tuple[str, list[dict[str, str]]], reviewed_head_sha: str | None) -> None:
+def _publish_summary(
+    evidence: tuple[str, list[dict[str, str]]], reviewed_head_sha: str | None
+) -> None:
     """Write the validated review evidence to the durable Actions check summary."""
     if not reviewed_head_sha:
         print("error: --publish-summary needs --reviewed-head-sha", file=sys.stderr)
@@ -182,7 +184,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     producer = options.producer
     _require_live_pr_context(options.live_pr_context_status)
     if evidence is None:
-        print(f"error: {producer} unavailable: no valid structured review evidence.", file=sys.stderr)
+        print(
+            f"error: {producer} unavailable: no valid structured review evidence.", file=sys.stderr
+        )
         raise SystemExit(2)
     if options.publish_summary:
         _publish_summary(evidence, options.reviewed_head_sha)
