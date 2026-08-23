@@ -63,6 +63,26 @@ def slurp_records(endpoint: str) -> list[Mapping[str, object]]:
     return flatten_pages(payload)
 
 
+def slurp_named_records(endpoint: str, key: str) -> list[Mapping[str, object]]:
+    """Read a paginated object collection such as ``{"secrets": [...]}`` whole."""
+    raw = run_gh(["api", endpoint, "--paginate", "--slurp"])
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"gh api {endpoint} returned invalid JSON: {exc}") from exc
+    if not isinstance(payload, list):
+        raise RuntimeError(f"unexpected payload shape from --slurp: {type(payload).__name__}")
+    if not payload:
+        raise RuntimeError("unexpected payload shape from --slurp: no pages")
+    pages = payload if all(isinstance(page, Mapping) for page in payload) else [payload]
+    records = [record for page in pages for record in page.get(key, [])]
+    if not all(isinstance(record, Mapping) for record in records):
+        raise RuntimeError(f"unexpected payload shape from --slurp: {key} is not records")
+    if any(key not in page or not isinstance(page[key], list) for page in pages):
+        raise RuntimeError(f"unexpected payload shape from --slurp: no {key} list")
+    return records
+
+
 def publish_step_output(line: str) -> None:
     """Print `key=value` and append it to `$GITHUB_OUTPUT` when running in Actions.
 
