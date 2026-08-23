@@ -36,6 +36,7 @@ NON_PAYLOAD_DIRECTORIES = frozenset(
         "template",
     }
 )
+COPIER_METADATA_PATHS = frozenset({".copier-answers.yml"})
 
 
 @dataclass(frozen=True)
@@ -163,7 +164,7 @@ def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
     root_files = _files(root)
     rendered_files = _files(rendered)
     rendered_files = {
-        path: file for path, file in rendered_files.items() if path not in allowlist.root_only_paths
+        path: file for path, file in rendered_files.items() if path not in COPIER_METADATA_PATHS
     }
     errors: list[str] = []
     reported_extras: list[str] = []
@@ -191,7 +192,7 @@ def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
             errors.append(f"stale expected-to-differ allowlist entry: {path}")
 
     for path in allowlist.root_only_paths:
-        if path not in root_files:
+        if path not in root_files or path in rendered_files:
             errors.append(f"stale root-only allowlist entry: {path}")
 
     for path in sorted(root_files.keys() - rendered_files.keys()):

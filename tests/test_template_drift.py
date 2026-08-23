@@ -78,6 +78,21 @@ def test_stale_allowlist_entry_is_red(tmp_path: Path, rendered_self_applied: Pat
     assert "stale expected-to-differ allowlist entry: scripts/check_red.py" in report.errors
 
 
+def test_root_only_entry_with_a_template_origin_is_red(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    source = checkout(tmp_path)
+    rendered = tmp_path / "rendered"
+    shutil.copytree(rendered_self_applied, rendered)
+    shutil.copy2(
+        source / "tests" / "test_template_drift.py", rendered / "tests" / "test_template_drift.py"
+    )
+
+    report = template_drift.compare(source, rendered, template_drift.load_allowlist(source))
+
+    assert "stale root-only allowlist entry: tests/test_template_drift.py" in report.errors
+
+
 def test_declared_expected_difference_is_allowed(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
