@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -171,10 +172,13 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
 def test_agent_review_requires_structured_review_evidence() -> None:
     steps = _steps("reusable-agent-review.yml")
 
-    schema = steps["Claude review"]["with"]["claude_args"]
-    assert '"findings"' in schema
-    assert '"severity"' in schema
-    assert '"confidence"' in schema
+    schema_arg = steps["Claude review"]["with"]["claude_args"]
+    schema = json.loads(schema_arg.removeprefix("--json-schema ").strip("'"))
+    assert "findings" in schema["properties"]
+    assert {"severity", "confidence", "summary"} == set(
+        schema["properties"]["findings"]["items"]["properties"]
+    )
+    assert schema["required"] == ["outcome", "findings"]
     assert "Publish validated review evidence" in steps
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
 
