@@ -222,3 +222,78 @@ def test_create_mode_rolls_back_a_project_when_activation_fails(
     )
     assert 'PROJECT_ID = ""' in settings
     assert "did not activate" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("failure", ["field-list", "settings-write"])
+def test_create_mode_rolls_back_late_activation_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    destination = render(
+        tmp_path, "--data", "github_repository=example-org/example-repo"
+    )
+    bootstrap = bootstrap_module(destination)
+    calls: list[list[str]] = []
+    valid_fields = {
+        "fields": [
+            {
+                "id": "priority-field",
+                "name": "Priority",
+                "options": [
+                    {"id": "priority-high", "name": "High"},
+                    {"id": "priority-medium", "name": "Medium"},
+                    {"id": "priority-low", "name": "Low"},
+                ],
+            },
+            {
+                "id": "status-field",
+                "name": "Agent status",
+                "options": [
+                    {"id": "status-planned", "name": "Planned"},
+                    {"id": "status-progress", "name": "In Progress"},
+                ],
+            },
+        ]
+    }
+
+    def fake_run(command: list[str]) -> dict[str, object]:
+        calls.append(command)
+        if command[2] == "create":
+            return {"number": 7, "id": "project-7"}
+        if command[2] == "field-list":
+            return {"fields": []} if failure == "field-list" else valid_fields
+        return {}
+
+    def fail_write(*args: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(bootstrap, "_run", fake_run)
+    monkeypatch.setattr(
+        bootstrap, "_checked", lambda command: calls.append(command) or ""
+    )
+    if failure == "settings-write":
+        monkeypatch.setattr(bootstrap, "_write", fail_write)
+
+    with pytest.raises(SystemExit) as exc:
+        bootstrap.main(["--confirm-create"])
+
+    assert exc.value.code == 1
+    assert ["gh", "project", "delete", "7", "--owner", "@me"] in calls
+
+
+def test_rendered_runtime_scripts_do_not_refer_to_removed_project_answers(
+    tmp_path: Path,
+) -> None:
+    destination = render(tmp_path)
+
+    for path in (
+        destination / "scripts" / "set_issue_priority.py",
+        destination / "scripts" / "set_issue_status.py",
+        destination / "scripts" / "issue_branch.py",
+        destination / "scripts" / "validate_issue_sections.py",
+    ):
+        text = path.read_text(encoding="utf-8")
+        assert "github_project_number" not in text
+        assert "GitHub Project 1" not in text
+        assert "hardcoded constants" not in text

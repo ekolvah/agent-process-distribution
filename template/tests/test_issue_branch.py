@@ -173,6 +173,9 @@ class TestDirectDelegation:
             issue_branch, "_new_branch_module", lambda: _FakeNewBranch, raising=False
         )
         monkeypatch.setattr(issue_branch, "_require_project_bootstrap", lambda: None)
+        monkeypatch.setattr(
+            issue_branch, "_mark_in_progress", lambda issue_number: None
+        )
         # Spy so the pre-refactor re-spawn path cannot shell out to real git
         # during RED; the contract asserted below is the delegate call, not this.
         monkeypatch.setattr(
@@ -244,12 +247,7 @@ class _Recorder:
 
 
 class TestStatusTransition:
-    """The branch is what «in progress» means, so the card moves after the checkout.
-
-    Ordering is the whole point: a card must not claim `In Progress` before the branch
-    exists, and a board failure after a successful checkout must not be reported as a
-    failed branch creation.
-    """
+    """The branch is what «in progress» means, so the card moves after the checkout."""
 
     def test_successful_branch_sets_in_progress(
         self, monkeypatch: pytest.MonkeyPatch
@@ -262,17 +260,19 @@ class TestStatusTransition:
         assert recorder.branches == ["issue-519-board-status-manual"]
         assert recorder.statuses == [(519, "in-progress")]
 
-    def test_board_failure_warns_without_failing_branch_creation(
+    def test_board_failure_stops_delivery_after_branch_creation(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         recorder = _Recorder(status_fails=True)
         recorder.install(monkeypatch)
 
-        issue_branch.main()
+        with pytest.raises(SystemExit) as exc:
+            issue_branch.main()
 
+        assert exc.value.code == 2
         assert recorder.branches == ["issue-519-board-status-manual"]
         error = capsys.readouterr().err
-        assert "warning: board status not updated" in error
+        assert "Delivery stopped" in error
         assert "revoked project access" in error
 
 

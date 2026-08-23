@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Move an issue's Status field in GitHub Project {{ github_project_number }}.
+"""Move an issue's Status field in the configured GitHub Project.
 
 Usage: python scripts/set_issue_status.py <N> <planned|in-progress>  (N = bare issue number)
 
@@ -15,9 +15,8 @@ The canonical CLI token is `in-progress`, never `"In Progress"`: an unquoted
 two-word argument is an argparse error in both bash and PowerShell, and the
 process documentation has to be copy-pasteable in both.
 
-This module imports nothing from the repository, so a guard test should assert
-its Project constants stay identical to `set_issue_priority.py`'s rather than
-letting the two drift apart.
+This module loads the tracked ``project_settings.py`` configuration, as does
+``set_issue_priority.py``, so both scripts operate on the same Project.
 
 `set_status` raises instead of exiting, because it runs inside two other CLIs
 whose exit codes keep their own meaning; only `main` turns a failure into a
@@ -53,6 +52,7 @@ except ImportError:  # documented `python scripts/...` entry point
         require_configured,
     )
 
+
 def option_id_for_status(status: str) -> str:
     """Map a board status token to its single-select option id.
 
@@ -76,7 +76,9 @@ def item_id_from_add_json(output: str | None) -> str:
     try:
         data: dict[str, Any] = json.loads(output or "")
     except (json.JSONDecodeError, TypeError) as exc:
-        raise ValueError(f"could not parse `gh project item-add` output: {output!r}") from exc
+        raise ValueError(
+            f"could not parse `gh project item-add` output: {output!r}"
+        ) from exc
     item_id = data.get("id")
     if not item_id:
         raise ValueError(f"`gh project item-add` returned no item id: {output!r}")

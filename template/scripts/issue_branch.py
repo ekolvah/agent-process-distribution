@@ -6,7 +6,7 @@ Usage: python scripts/issue_branch.py <issue-number>
 Reads the issue title via `gh issue view`, derives a kebab-case ASCII
 slug, and delegates to `scripts/new_branch.py` to do the actual checkout
 (which itself guarantees branching from fresh origin/main HEAD). Once the
-branch exists, it moves the issue's Status on GitHub Project 1 to
+branch exists, it moves the issue's Status on the configured GitHub Project to
 `In Progress` through `scripts/set_issue_status.py`.
 """
 
@@ -69,17 +69,21 @@ def _require_project_bootstrap() -> None:
 
 
 def _mark_in_progress(issue_number: int) -> None:
-    """Move the issue's board card to `In Progress`; never fail the branch over it.
+    """Move the issue's board card to `In Progress`, or stop delivery visibly.
 
-    Called after the checkout on purpose: the branch is what «in progress» means, so the card
-    must not claim it before the branch exists. Bookkeeping, so a failed board write is
-    visible on stderr and leaves the exit code alone — reporting a created branch as a failure
-    would be worse than a stale card.
+    The branch must exist before its card claims `In Progress`. A branch cannot be
+    safely deleted on a status failure, so report it as created and stop delivery
+    rather than silently continuing with a stale card.
     """
     try:
         _sibling_module("set_issue_status").set_status(issue_number, "in-progress")
     except (RuntimeError, ValueError, OSError) as exc:
-        print(f"warning: board status not updated: {exc}", file=sys.stderr)
+        print(
+            f"error: branch for issue #{issue_number} was created, but its board status was "
+            f"not moved to In Progress: {exc}. Delivery stopped; repair the status before continuing.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
 
 def build_branch_name(issue_number: int, title: str) -> str:
