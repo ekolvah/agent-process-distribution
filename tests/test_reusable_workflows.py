@@ -153,6 +153,10 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
     preserved = steps["Preserve trusted review source outside PR worktree"]
     assert preserved["id"] == "preserved-review-source"
     assert 'target="$RUNNER_TEMP/trusted-review-source"' in preserved["run"]
+    names = list(steps)
+    assert names.index("Preserve trusted review source outside PR worktree") < names.index(
+        "Checkout reviewed PR head"
+    )
     prompt = steps["Claude review"]["with"]["prompt"]
     assert "${{ steps.preserved-review-source.outputs.contract_path }}" in prompt
     assert "bootstrap fallback" in prompt

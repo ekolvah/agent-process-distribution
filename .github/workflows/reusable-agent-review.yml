@@ -42,6 +42,19 @@ jobs:
             echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no review source yet"
           fi
+      - name: Preserve trusted review source outside PR worktree
+        id: preserved-review-source
+        run: |
+          if test "${{ steps.review-source.outputs.working_directory }}" = "trusted"; then
+            source="$GITHUB_WORKSPACE/trusted"
+            target="$RUNNER_TEMP/trusted-review-source"
+            cp -a "$source" "$target"
+            echo "driver_path=$target" >> "$GITHUB_OUTPUT"
+            echo "contract_path=$target/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "driver_path=." >> "$GITHUB_OUTPUT"
+            echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          fi
       - name: Fetch current PR context
         id: pr-context
         continue-on-error: true
@@ -67,19 +80,6 @@ jobs:
           clean: false
           fetch-depth: 0
           ref: ${{ steps.pr-context.outputs.head_sha }}
-      - name: Preserve trusted review source outside PR worktree
-        id: preserved-review-source
-        run: |
-          if test "${{ steps.review-source.outputs.working_directory }}" = "trusted"; then
-            source="$GITHUB_WORKSPACE/trusted"
-            target="$RUNNER_TEMP/trusted-review-source"
-            cp -a "$source" "$target"
-            echo "driver_path=$target" >> "$GITHUB_OUTPUT"
-            echo "contract_path=$target/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
-          else
-            echo "driver_path=." >> "$GITHUB_OUTPUT"
-            echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
-          fi
       - name: Claude review
         id: review
         if: ${{ steps.pr-context.outcome == 'success' }}
