@@ -1,5 +1,4 @@
 -r requirements.txt
-copier
 detect-secrets
 markdown-it-py
 mypy
