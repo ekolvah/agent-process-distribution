@@ -323,9 +323,16 @@ reviewed. `AGENTS.md` points carrier 2 to the same standalone contract. The
 workflow therefore does not copy review rules into YAML or parse a section out
 of another document.
 
+## Maintaining this distribution
+
+This section applies only when maintaining `agent-process-distribution` itself,
+not when delivering an issue in a repository that received its payload.
+
+Edit a payload file in `template/` and re-render its root copy; never hand-edit
+the generated root copy.
+
 ## Governance conventions
-0. In this repository, edit a payload file in `template/` and re-render its root
-   copy; never hand-edit the generated root copy.
+
 1. Create issue branches only with `python scripts/issue_branch.py <N>` (starts
    from fresh `origin/main`); never create a branch directly.
 2. Keep one PR to one logical unit. A temporary CI unblock for an unrelated
