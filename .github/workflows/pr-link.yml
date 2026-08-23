@@ -10,4 +10,4 @@ permissions:
 
 jobs:
   pr-link:
-    uses: ./.github/workflows/reusable-pr-link.yml
+    uses: "./.github/workflows/reusable-pr-link.yml"

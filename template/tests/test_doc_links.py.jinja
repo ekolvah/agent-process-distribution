@@ -89,6 +89,13 @@ _CODE_SPAN_REF = re.compile(r"^[\w./-]+\.md#\S+$", re.UNICODE)
 {% else %}_EXPECTED_SCOPE_DIRS = ("docs/architecture", "docs/adr")
 {% endif %}
 
+# A template source may track documentation that is intentionally not renderable in-place
+# (for example, `template/docs/...` whose targets retain a `.jinja` suffix). Exclusions are
+# declared in Copier answers rather than inferred from a directory name, so ordinary consumers
+# still guard every tracked document by default.
+_EXCLUDED_PREFIXES = tuple({{ doc_guard_excluded_prefixes | tojson }})
+
+
 def slugify(heading_text: str) -> str:
     """GitHub anchor from heading text (github-slugger rules)."""
     return _SLUG_DROP.sub("", heading_text.strip().lower()).replace(" ", "-")
@@ -197,7 +204,11 @@ def _tracked_paths() -> frozenset[str]:
 
 
 def _tracked_docs() -> list[str]:
-    return [name for name in _tracked_files() if name.endswith(".md")]
+    return [
+        name
+        for name in _tracked_files()
+        if name.endswith(".md") and not name.startswith(_EXCLUDED_PREFIXES)
+    ]
 
 
 @cache

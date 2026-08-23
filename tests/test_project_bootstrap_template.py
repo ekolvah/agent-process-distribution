@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -11,11 +12,11 @@ from types import ModuleType
 import pytest
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def render(tmp_path: Path, *data: str) -> Path:
+    """Render a deliberately non-default answer set for mode-specific coverage."""
     destination = tmp_path / "rendered"
     completed = subprocess.run(
         [
@@ -76,17 +77,13 @@ def _workflow(path: Path) -> dict[object, object]:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def test_rendered_project_ships_thin_required_context_callers(tmp_path: Path) -> None:
-    destination = render(tmp_path)
-    answers = yaml.safe_load(
-        (destination / ".copier-answers.yml").read_text(encoding="utf-8")
-    )
+def test_rendered_project_ships_thin_required_context_callers(rendered_default: Path) -> None:
+    destination = rendered_default
+    answers = yaml.safe_load((destination / ".copier-answers.yml").read_text(encoding="utf-8"))
     workflows = destination / ".github" / "workflows"
     contexts = tuple(answers["required_status_contexts"])
 
-    assert {"ci.yml", "pr-link.yml", "agent-review.yml"} <= {
-        p.name for p in workflows.iterdir()
-    }
+    assert {"ci.yml", "pr-link.yml", "agent-review.yml"} <= {p.name for p in workflows.iterdir()}
     for context, filename in zip(
         contexts, ("ci.yml", "pr-link.yml", "agent-review.yml"), strict=True
     ):
@@ -98,32 +95,31 @@ def test_rendered_project_ships_thin_required_context_callers(tmp_path: Path) ->
         assert job_key == context.split(" / ", 1)[0]
 
 
-def test_rendered_project_ships_the_standalone_review_contract(tmp_path: Path) -> None:
-    destination = render(tmp_path)
+def test_rendered_project_ships_the_standalone_review_contract(rendered_default: Path) -> None:
+    destination = rendered_default
 
     assert (destination / "REVIEW_CONTRACT.md").is_file()
-    assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (
-        destination / "AGENTS.md"
-    ).read_text(encoding="utf-8")
+    assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (destination / "AGENTS.md").read_text(
+        encoding="utf-8"
+    )
     assert not (destination / "scripts" / "extract_review_prompt.py").exists()
 
 
 def test_rendered_callers_pin_a_complete_reference_and_map_secrets_explicitly(
-    tmp_path: Path,
+    rendered_default: Path,
 ) -> None:
-    destination = render(tmp_path)
+    destination = rendered_default
     workflows = destination / ".github" / "workflows"
     callers = {
         "quality": _workflow(workflows / "ci.yml")["jobs"]["quality"],
         "pr-link": _workflow(workflows / "pr-link.yml")["jobs"]["pr-link"],
-        "agent-review": _workflow(workflows / "agent-review.yml")["jobs"][
-            "agent-review"
-        ],
+        "agent-review": _workflow(workflows / "agent-review.yml")["jobs"]["agent-review"],
     }
     for name, job in callers.items():
         reference = job["uses"]
         assert f"reusable-{name}.yml@" in reference
         assert not reference.endswith(("@main", "@master", "@HEAD"))
+        assert re.fullmatch(r".+@[0-9a-f]{40}", reference)
     assert callers["agent-review"]["secrets"] == {
         "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
     }
@@ -146,13 +142,9 @@ def test_non_default_context_answers_render_a_consistent_project(
 def test_create_mode_requires_explicit_confirmation_and_no_placeholder_ids(
     tmp_path: Path,
 ) -> None:
-    destination = render(
-        tmp_path, "--data", "github_repository=example-org/example-repo"
-    )
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
 
-    settings = (destination / "scripts" / "project_settings.py").read_text(
-        encoding="utf-8"
-    )
+    settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
     assert "PVT_" not in settings
     assert "REPLACE_ME" not in settings
     bootstrap = destination / "scripts" / "bootstrap_github_project.py"
@@ -187,18 +179,14 @@ def test_existing_mode_bakes_only_the_selected_project_number(tmp_path: Path) ->
     assert 'MODE = "existing"' in bootstrap
     assert 'OWNER = "example-org"' in bootstrap
     assert 'EXISTING_NUMBER = "42"' in bootstrap
-    assert "--confirm-create" not in (destination / "AGENTS.md").read_text(
-        encoding="utf-8"
-    )
+    assert "--confirm-create" not in (destination / "AGENTS.md").read_text(encoding="utf-8")
     generated_suite_passes(destination)
 
 
 def test_create_mode_links_fields_and_persists_real_ids(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    destination = render(
-        tmp_path, "--data", "github_repository=example-org/example-repo"
-    )
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
     monkeypatch.syspath_prepend(str(destination / "scripts"))
     bootstrap = bootstrap_module(destination)
     calls: list[list[str]] = []
@@ -233,15 +221,11 @@ def test_create_mode_links_fields_and_persists_real_ids(
         return {}
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
-    monkeypatch.setattr(
-        bootstrap, "_checked", lambda command: calls.append(command) or ""
-    )
+    monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
 
     bootstrap.main(["--confirm-create"])
 
-    settings = (destination / "scripts" / "project_settings.py").read_text(
-        encoding="utf-8"
-    )
+    settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
     assert "PROJECT_NUMBER = '7'" in settings
     assert "PROJECT_ID = 'project-7'" in settings
     assert "priority-high" in settings
@@ -265,9 +249,7 @@ def test_create_mode_links_fields_and_persists_real_ids(
 def test_create_mode_rolls_back_a_project_when_activation_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    destination = render(
-        tmp_path, "--data", "github_repository=example-org/example-repo"
-    )
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
     bootstrap = bootstrap_module(destination)
     calls: list[list[str]] = []
 
@@ -280,18 +262,14 @@ def test_create_mode_rolls_back_a_project_when_activation_fails(
         return {}
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
-    monkeypatch.setattr(
-        bootstrap, "_checked", lambda command: calls.append(command) or ""
-    )
+    monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
 
     with pytest.raises(SystemExit) as exc:
         bootstrap.main(["--confirm-create"])
 
     assert exc.value.code == 1
     assert ["gh", "project", "delete", "7", "--owner", "@me"] in calls
-    settings = (destination / "scripts" / "project_settings.py").read_text(
-        encoding="utf-8"
-    )
+    settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
     assert 'PROJECT_ID = ""' in settings
     assert "did not activate" in capsys.readouterr().err
 
@@ -302,9 +280,7 @@ def test_create_mode_rolls_back_late_activation_failures(
     monkeypatch: pytest.MonkeyPatch,
     failure: str,
 ) -> None:
-    destination = render(
-        tmp_path, "--data", "github_repository=example-org/example-repo"
-    )
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
     bootstrap = bootstrap_module(destination)
     calls: list[list[str]] = []
     valid_fields = {
@@ -341,9 +317,7 @@ def test_create_mode_rolls_back_late_activation_failures(
         raise OSError("disk full")
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
-    monkeypatch.setattr(
-        bootstrap, "_checked", lambda command: calls.append(command) or ""
-    )
+    monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
     if failure == "settings-write":
         monkeypatch.setattr(bootstrap, "_write", fail_write)
 
@@ -355,9 +329,9 @@ def test_create_mode_rolls_back_late_activation_failures(
 
 
 def test_rendered_runtime_scripts_do_not_refer_to_removed_project_answers(
-    tmp_path: Path,
+    rendered_default: Path,
 ) -> None:
-    destination = render(tmp_path)
+    destination = rendered_default
 
     for path in (
         destination / "scripts" / "set_issue_priority.py",

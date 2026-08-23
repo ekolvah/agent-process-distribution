@@ -7,6 +7,22 @@ This document describes the one-time repository setup. It is separate from
 the [delivery flow](agent-process.md): installation prepares the repository;
 delivery flow handles one issue at a time.
 
+## Bootstrap exception
+
+Until this payload is installed and its GitHub Project is activated, a
+repository's first process-installation issues may create their branches and
+publish their PRs manually. Those bootstrap changes must still state the issue
+number and use the normal tests and review workflow. Once activation succeeds,
+all later delivery uses `python scripts/issue_branch.py <N>`; do not retain a
+manual-branch bypass as a second process.
+
+For this one bootstrap PR, the repository's callers invoke their local
+root-only reusable workflows. Each workflow uses the PR driver only when the
+default branch does not yet contain its driver; once this payload merges, it
+returns to the default-branch driver. This narrow fallback makes the first
+required checks executable without changing the pinned references copied to
+ordinary consumer repositories.
+
 ## Installation order
 
 Complete these steps in order. The credential preflight is a hard precondition

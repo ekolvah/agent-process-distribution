@@ -1,0 +1,3 @@
+# Generated from requirements.in with pip-compile; pins remain explicit so
+# pip-audit and the reproducible CI install have an auditable manifest.
+PyYAML==6.0.3

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   agent-review:
-    uses: ./.github/workflows/reusable-agent-review.yml
+    uses: "./.github/workflows/reusable-agent-review.yml"
     with:
       codex-timeout-seconds: 600
     secrets:

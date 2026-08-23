@@ -8,7 +8,6 @@ from typing import Any
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 
@@ -51,9 +50,7 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
         assert set(caller.get("with", {})) == set(inputs)
         assert set(caller.get("secrets", {})) == set(secrets)
         assert all(
-            key in caller.get("with", {})
-            for key, spec in inputs.items()
-            if spec.get("required")
+            key in caller.get("with", {}) for key, spec in inputs.items() if spec.get("required")
         )
         assert all(
             key in caller.get("secrets", {})
@@ -66,7 +63,11 @@ def test_source_review_caller_uses_the_preflight_secret() -> None:
     preflight = (ROOT / "template" / "scripts" / "check_review_credentials.py").read_text(
         encoding="utf-8"
     )
-    match = re.search(r'^REVIEW_SECRET = "([A-Za-z0-9_]+)"$', preflight, re.MULTILINE)
+    match = re.search(
+        r'^REVIEW_SECRET = "([A-Za-z0-9_]+)"(?:  # pragma: allowlist secret)?$',
+        preflight,
+        re.MULTILINE,
+    )
     assert match, "credential preflight declares no canonical secret name"
     caller = _workflow("agent-review.yml")["jobs"]["agent-review"]
 
@@ -91,11 +92,7 @@ def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
 
 def _steps(name: str) -> dict[str, dict[str, Any]]:
     job = next(iter(_workflow(name)["jobs"].values()))
-    return {
-        step["name"]: step
-        for step in job["steps"]
-        if "name" in step
-    }
+    return {step["name"]: step for step in job["steps"] if "name" in step}
 
 
 def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
@@ -108,27 +105,35 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
     }
     assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
     assert _trigger(_workflow("reusable-quality.yml"))["workflow_call"] is None
-    assert "with" not in _workflow("ci.yml")["jobs"]["quality"]
+    assert _workflow("ci.yml")["jobs"]["quality"]["uses"] == (
+        "./.github/workflows/reusable-quality.yml"
+    )
     assert steps["Install consumer dependencies"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["run"] == (
-        'python "$GITHUB_WORKSPACE/trusted/scripts/ci_check.py"'
+        'python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/scripts/ci_check.py"'
     )
+    assert "trusted/scripts/ci_check.py" in steps["Select quality driver"]["run"]
+    assert 'echo "path=pr"' in steps["Select quality driver"]["run"]
 
 
-def test_pr_link_executes_only_the_default_branch_driver() -> None:
+def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> None:
     steps = _steps("reusable-pr-link.yml")
 
     assert steps["Checkout trusted PR-link driver"]["with"] == {
-        "ref": "${{ github.event.repository.default_branch }}"
+        "ref": "${{ github.event.repository.default_branch }}",
+        "path": "trusted",
     }
-    assert steps["Verify PR closes its issue"]["run"].startswith(
-        "python -m scripts.verify_pr_link"
+    assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
+    assert steps["Verify PR closes its issue"]["working-directory"] == (
+        "${{ steps.pr-link-driver.outputs.path }}"
     )
-    checkouts = [
-        step for step in steps.values() if step.get("uses") == "actions/checkout@v4"
-    ]
-    assert len(checkouts) == 1
+    assert "trusted/scripts/verify_pr_link.py" in steps["Select PR-link driver"]["run"]
+    checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
+    assert len(checkouts) == 2
+    assert _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"] == (
+        "./.github/workflows/reusable-pr-link.yml"
+    )
 
 
 def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout() -> None:
@@ -139,26 +144,35 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "ref": "${{ github.event.repository.default_branch }}",
         "path": "trusted",
     }
+    assert steps["Checkout reviewed PR head"]["with"] == {
+        "clean": False,
+        "fetch-depth": 0,
+        "ref": "${{ steps.pr-context.outputs.head_sha }}",
+    }
     assert "Extract caller review prompt" not in steps
     prompt = steps["Claude review"]["with"]["prompt"]
-    assert "trusted/REVIEW_CONTRACT.md" in prompt
-    assert "cannot be changed by this PR" in prompt
+    assert "${{ steps.review-source.outputs.contract_path }}" in prompt
+    assert "bootstrap fallback" in prompt
     for name in (
         "Classify review outcome",
         "Codex review",
         "Enforce Claude review outcome",
         "Enforce Codex review outcome",
     ):
-        assert steps[name]["working-directory"] == "trusted"
+        assert steps[name]["working-directory"] == (
+            "${{ steps.review-source.outputs.working_directory }}"
+        )
+    assert "trusted/REVIEW_CONTRACT.md" in steps["Select review source"]["run"]
+    assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
+        "./.github/workflows/reusable-agent-review.yml"
+    )
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
     contract = ROOT / "REVIEW_CONTRACT.md"
     template_contract = ROOT / "template" / "REVIEW_CONTRACT.md.jinja"
 
-    assert contract.read_text(encoding="utf-8") == template_contract.read_text(
-        encoding="utf-8"
-    )
+    assert contract.read_text(encoding="utf-8") == template_contract.read_text(encoding="utf-8")
     assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (
         ROOT / "template" / "AGENTS.md.jinja"
     ).read_text(encoding="utf-8")
