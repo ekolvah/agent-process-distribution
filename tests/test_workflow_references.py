@@ -12,7 +12,7 @@ _PIN = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 _PUBLISHED_REVISIONS = {
     "quality": "d3f6d238891dbaee6af10b18609e7e07f8901921",  # pragma: allowlist secret
     "pr-link": "d3f6d238891dbaee6af10b18609e7e07f8901921",  # pragma: allowlist secret
-    "agent-review": "dbd753affad80cc0d0b996f9944ae6b6942cb022",  # pragma: allowlist secret
+    "agent-review": "7cbf0371f13cf6c1f8d76db4706059b191a1f4b1",  # pragma: allowlist secret
 }
 
 
