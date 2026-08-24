@@ -11,15 +11,19 @@ import pytest
 from scripts import template_drift
 
 ROOT = Path(__file__).resolve().parents[1]
+CHECKOUT_IGNORES = (
+    *template_drift.ARTIFACT_DIRECTORIES,
+    *(f"{prefix}*" for prefix in template_drift.ARTIFACT_DIRECTORY_PREFIXES),
+)
 
 
-def checkout(tmp_path: Path) -> Path:
+def checkout(tmp_path: Path, *, root: Path = ROOT) -> Path:
     """Make an isolated source checkout whose edits do not touch this branch."""
     destination = tmp_path / "checkout"
     shutil.copytree(
-        ROOT,
+        root,
         destination,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", ".ruff_cache", "__pycache__"),
+        ignore=shutil.ignore_patterns(*CHECKOUT_IGNORES),
     )
     return destination
 
@@ -41,6 +45,22 @@ def test_generated_files_match_the_working_tree(
     clean_drift_report: template_drift.DriftReport,
 ) -> None:
     assert clean_drift_report.errors == (), clean_drift_report.format()
+
+
+def test_checkout_excludes_ignored_artifacts(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "tracked.txt").write_text("kept\n", encoding="utf-8")
+    for artifact in (".venv", "pytest-cache-files-repro"):
+        directory = source / artifact
+        directory.mkdir()
+        (directory / "artifact.txt").write_text("ignored\n", encoding="utf-8")
+
+    copied = checkout(tmp_path / "destination", root=source)
+
+    assert (copied / "tracked.txt").is_file()
+    assert not (copied / ".venv").exists()
+    assert not (copied / "pytest-cache-files-repro").exists()
 
 
 def test_working_tree_template_edit_is_detected(tmp_path: Path) -> None:
