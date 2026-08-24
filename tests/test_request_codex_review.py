@@ -90,6 +90,7 @@ def test_poll_for_verdict_never_posts_a_codex_request(
 
     assert verdict is None
     assert requests == []
+    assert not hasattr(request_codex_review, "REVIEW_REQUEST")
 
 
 def test_only_current_head_codex_evidence_is_accepted(
