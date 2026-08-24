@@ -79,7 +79,7 @@ def test_latest_current_head_review_overrides_an_older_clean_verdict() -> None:
     )
 
 
-def test_clean_reaction_must_be_codex_response_to_current_author_request() -> None:
+def test_clean_reaction_must_follow_the_github_observed_head_transition() -> None:
     request = {
         "id": 99,
         "user": {"login": "author"},
@@ -92,7 +92,7 @@ def test_clean_reaction_must_be_codex_response_to_current_author_request() -> No
         [request],
         reactions,
         author_login="author",
-        committed_at="2026-08-24T08:31:00Z",
+        head_observed_at="2026-08-24T08:31:00Z",
         reviewer=_REVIEWER,
     ) == {"outcome": "clean", "findings": []}
     assert (
@@ -100,7 +100,7 @@ def test_clean_reaction_must_be_codex_response_to_current_author_request() -> No
             [request],
             reactions,
             author_login="author",
-            committed_at="2026-08-24T08:33:00Z",
+        head_observed_at="2026-08-24T08:33:00Z",
             reviewer=_REVIEWER,
         )
         is None
@@ -121,6 +121,7 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
             "owner/repo",
             "14",
             _HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
             timeout_seconds=60,
             poll_seconds=1,
             sleep=lambda _seconds: None,

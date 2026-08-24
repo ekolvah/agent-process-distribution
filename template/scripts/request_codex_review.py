@@ -110,7 +110,7 @@ def _read_record(endpoint: str) -> Mapping[str, object]:
     return payload
 
 
-def _clean_reaction_context(repository: str, pr_number: str, head_sha: str) -> tuple[str, str]:
+def _clean_reaction_context(repository: str, pr_number: str, head_sha: str) -> str:
     pull = _read_record(f"repos/{repository}/pulls/{pr_number}")
     author = pull.get("user")
     author_login = author.get("login") if isinstance(author, Mapping) else None
@@ -121,13 +121,7 @@ def _clean_reaction_context(repository: str, pr_number: str, head_sha: str) -> t
         or head.get("sha") != head_sha
     ):
         raise RuntimeError("live PR author or head SHA is unavailable")
-    commit = _read_record(f"repos/{repository}/commits/{head_sha}")
-    commit_data = commit.get("commit")
-    committer = commit_data.get("committer") if isinstance(commit_data, Mapping) else None
-    committed_at = committer.get("date") if isinstance(committer, Mapping) else None
-    if not isinstance(committed_at, str):
-        raise RuntimeError("current head commit has no committer date")
-    return author_login, committed_at
+    return author_login
 
 
 def find_clean_reaction(
@@ -135,7 +129,7 @@ def find_clean_reaction(
     reactions_by_request: Mapping[object, object],
     *,
     author_login: str,
-    committed_at: str,
+    head_observed_at: str,
     reviewer: str,
 ) -> dict[str, object] | None:
     """Accept only the native clean reaction tied to this author and head."""
@@ -146,7 +140,7 @@ def find_clean_reaction(
             or author.get("login") != author_login
             or request.get("body") != "@codex review"
             or not isinstance(request.get("created_at"), str)
-            or request["created_at"] < committed_at
+            or request["created_at"] < head_observed_at
         ):
             continue
         reactions = reactions_by_request.get(request.get("id"), [])
@@ -181,6 +175,7 @@ def poll_for_verdict(
     pr_number: str,
     head_sha: str,
     *,
+    head_observed_at: str,
     reviewer: str = CODEX_REVIEWER,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     poll_seconds: int = DEFAULT_POLL_SECONDS,
@@ -191,7 +186,7 @@ def poll_for_verdict(
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
     deadline = clock() + timeout_seconds
-    clean_context: tuple[str, str] | None = None
+    author_login: str | None = None
     while True:
         reviews = _fetch_reviews(repository, pr_number)
         verdict = find_verdict(
@@ -202,8 +197,8 @@ def poll_for_verdict(
         )
         if verdict is not None or _has_current_review(reviews, head_sha, reviewer):
             return verdict
-        if clean_context is None:
-            clean_context = _clean_reaction_context(repository, pr_number, head_sha)
+        if author_login is None:
+            author_login = _clean_reaction_context(repository, pr_number, head_sha)
         requests = _fetch_request_comments(repository, pr_number)
         reactions = {
             request.get("id"): _fetch_reactions(repository, request.get("id"))
@@ -213,8 +208,8 @@ def poll_for_verdict(
         clean = find_clean_reaction(
             requests,
             reactions,
-            author_login=clean_context[0],
-            committed_at=clean_context[1],
+            author_login=author_login,
+            head_observed_at=head_observed_at,
             reviewer=reviewer,
         )
         if clean is not None:
@@ -229,6 +224,11 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--repo", dest="repository", required=True, metavar="OWNER/REPO")
     parser.add_argument("--pr", dest="pr_number", required=True, metavar="NUMBER")
     parser.add_argument("--head-sha", required=True)
+    parser.add_argument(
+        "--head-observed-at",
+        required=True,
+        help="GitHub event timestamp for the current PR head transition.",
+    )
     parser.add_argument("--reviewer", default=CODEX_REVIEWER)
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--poll-seconds", type=int, default=DEFAULT_POLL_SECONDS)
@@ -242,6 +242,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         options.repository,
         options.pr_number,
         options.head_sha,
+        head_observed_at=options.head_observed_at,
         reviewer=options.reviewer,
         timeout_seconds=options.timeout_seconds,
         poll_seconds=options.poll_seconds,

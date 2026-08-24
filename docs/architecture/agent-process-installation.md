@@ -34,8 +34,10 @@ and set up Codex cloud for the repository. The PR author comments
 comment or enables Automatic reviews. Configure `CLAUDE_CODE_OAUTH_TOKEN` for
 the Claude fallback carrier. Ensure the
 organisation permits this publisher under its Actions "Allow specified actions
-and reusable workflows" policy. A missing or unavailable requested review is
-deliberately a red review check, not a skipped job.
+and reusable workflows" policy. When Codex leaves no valid evidence, the
+workflow invokes Claude as its fallback carrier. The review check is red only
+when neither carrier produces valid evidence, or when either carrier reports
+blocking findings; it is never silently skipped.
 
 Enable the copied local pre-push probe after reviewing it:
 
@@ -43,9 +45,10 @@ Enable the copied local pre-push probe after reviewing it:
 git config core.hooksPath .githooks
 ```
 
-The caller permission grants (`contents: read`, `pull-requests: write` for
-review) are part of the published contract. A release that requires a wider
-callee permission is breaking until callers are re-rendered.
+The caller permission grants (`contents: read`, `issues: read`, and
+`pull-requests: write` for review) are part of the published contract. A
+release that requires a wider callee permission is breaking until callers are
+re-rendered.
 
 ## Workflow-definition trust
 

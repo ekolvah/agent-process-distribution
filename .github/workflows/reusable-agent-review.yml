@@ -37,8 +37,15 @@ jobs:
               pull_number: context.payload.pull_request.number,
             });
             if (!pr.head.sha) throw new Error("GitHub returned a PR without a head SHA");
+            if (pr.head.sha !== context.payload.pull_request.head.sha) {
+              throw new Error("PR head advanced while this workflow was queued; the newer synchronize run owns it");
+            }
+            if (!context.payload.pull_request.updated_at) {
+              throw new Error("GitHub event has no observed timestamp for the PR head");
+            }
             core.setOutput("number", String(pr.number));
             core.setOutput("head_sha", pr.head.sha);
+            core.setOutput("head_observed_at", context.payload.pull_request.updated_at);
             core.setOutput("body", pr.body ?? "");
       - name: Checkout reviewed PR head
         if: ${{ steps.pr-context.outcome == 'success' }}
@@ -74,6 +81,7 @@ jobs:
           python -m scripts.request_codex_review --repo "${{ github.repository }}"
           --pr "${{ steps.pr-context.outputs.number }}"
           --head-sha "${{ steps.pr-context.outputs.head_sha }}"
+          --head-observed-at "${{ steps.pr-context.outputs.head_observed_at }}"
           --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
       - name: Classify Codex review outcome
         id: codex-classify
