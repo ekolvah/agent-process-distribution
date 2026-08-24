@@ -105,7 +105,7 @@ def test_rendered_project_ships_the_standalone_review_contract(rendered_default:
     assert not (destination / "scripts" / "extract_review_prompt.py").exists()
 
 
-def test_rendered_callers_pin_a_complete_reference_without_provider_secrets(
+def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
     rendered_default: Path,
 ) -> None:
     destination = rendered_default
@@ -120,7 +120,9 @@ def test_rendered_callers_pin_a_complete_reference_without_provider_secrets(
         assert f"reusable-{name}.yml@" in reference
         assert not reference.endswith(("@main", "@master", "@HEAD"))
         assert re.fullmatch(r".+@[0-9a-f]{40}", reference)
-    assert "secrets" not in callers["agent-review"]
+    assert callers["agent-review"]["secrets"] == {
+        "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+    }
 
 
 def test_rendered_review_caller_uses_owner_requested_codex_review(
@@ -130,7 +132,9 @@ def test_rendered_review_caller_uses_owner_requested_codex_review(
         "agent-review"
     ]
 
-    assert "secrets" not in caller
+    assert caller["secrets"] == {
+        "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+    }
     assert "OPENAI_API_KEY" not in str(caller)
     installation = (
         rendered_default / "docs" / "architecture" / "agent-process-installation.md"

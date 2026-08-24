@@ -58,10 +58,12 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
         )
 
 
-def test_source_review_caller_has_no_provider_secret() -> None:
+def test_source_review_caller_passes_only_the_claude_fallback_secret() -> None:
     caller = _workflow("agent-review.yml")["jobs"]["agent-review"]
 
-    assert "secrets" not in caller
+    assert caller["secrets"] == {
+        "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+    }
 
 
 def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
@@ -124,7 +126,7 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     )
 
 
-def test_agent_review_reads_manual_codex_evidence_from_trusted_source() -> None:
+def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> None:
     steps = _steps("reusable-agent-review.yml")
 
     trusted_checkout = steps["Checkout trusted review source"]
@@ -138,13 +140,16 @@ def test_agent_review_reads_manual_codex_evidence_from_trusted_source() -> None:
     }
     names = list(steps)
     assert names.index("Checkout reviewed PR head") < names.index("Checkout trusted review source")
-    assert "Claude review" not in steps
-    assert "Classify Codex review outcome" not in steps
+    assert "Claude review" in steps
+    assert "Classify Codex review outcome" in steps
+    assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
     assert "@codex review" not in str(steps["Read owner-requested Codex review"])
     for name in (
         "Read owner-requested Codex review",
-        "Publish validated Codex review evidence",
-        "Enforce Codex review outcome",
+        "Classify Codex review outcome",
+        "Classify Claude review outcome",
+        "Publish validated review evidence",
+        "Enforce selected review outcome",
     ):
         assert steps[name]["working-directory"] == (
             "${{ steps.review-source.outputs.working_directory }}"
@@ -158,9 +163,9 @@ def test_agent_review_reads_manual_codex_evidence_from_trusted_source() -> None:
 def test_agent_review_requires_structured_review_evidence() -> None:
     steps = _steps("reusable-agent-review.yml")
 
-    assert "Publish validated Codex review evidence" in steps
-    assert "--reviewed-head-sha" in steps["Publish validated Codex review evidence"]["run"]
-    assert steps["Enforce Codex review outcome"]["env"]["REVIEW_PRODUCER"] == "Codex review"
+    assert "Publish validated review evidence" in steps
+    assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
+    assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:

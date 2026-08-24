@@ -319,11 +319,12 @@ tests and docs; never disable the required context or treat the PR body as
 merge authority.
 
 The target's thin caller invokes the publisher's pinned
-`reusable-agent-review.yml`. The PR author starts the sole carrier with
-`@codex review`; the workflow never posts that command and never invokes a
-fallback model. It waits for Codex's normal GitHub review on the current head,
-then translates its P0/P1/P2/P3 inline comments into the gate outcome. A valid
-Codex `clean`, `rework`, or `blocking` verdict is final for that head.
+`reusable-agent-review.yml`. The PR author starts the Codex primary with
+`@codex review`; the workflow never posts that command or enables Automatic
+reviews. It waits for Codex's normal GitHub review on the current head, then
+translates its P0/P1/P2/P3 inline comments into the gate outcome. When Codex
+leaves no valid evidence, Claude runs as the structured-output fallback. A
+valid verdict from either carrier is final for that head.
 The workflow keeps an isolated checkout of the publisher's default branch in
 `trusted/` for the adapter, evidence validator, and enforcement script, while
 the adapter reads the standard review from the PR's live GitHub API records.

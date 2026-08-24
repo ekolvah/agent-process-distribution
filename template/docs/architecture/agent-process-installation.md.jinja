@@ -39,9 +39,10 @@ workflows run on every pull request.
    copied in the previous step.
 3. Install the Codex GitHub connector and set up Codex cloud for this repository.
    On every PR head that needs review, the PR author comments `@codex review`.
-   The workflow never posts that command, enables Automatic reviews, or reads a
-   model credential. A missing or unavailable requested review deliberately reds
-   the required review check rather than silently skipping it.
+   The workflow never posts that command or enables Automatic reviews. Configure
+   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier. A missing or
+   unavailable requested review falls back to Claude rather than silently
+   skipping the required review check.
 
    Also inspect the organisation Actions policy. If it uses "Allow specified
    actions and reusable workflows", permit the pinned
@@ -60,7 +61,7 @@ Enable the copied local pre-push probe after reviewing it:
 git config core.hooksPath .githooks
 ```
 
-The caller permission grants (`contents: read`, `pull-requests: read` for
+The caller permission grants (`contents: read`, `pull-requests: write` for
 review) are part of the published contract. A release that requires a wider
 callee permission is breaking until callers are re-rendered.
 

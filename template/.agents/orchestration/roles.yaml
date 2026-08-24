@@ -109,12 +109,14 @@ roles:
     contract: "docs/architecture/agent-process.md#roles-and-hand-offs"
     adapters:
       - "Codex code review (GitHub integration)"
+      - "Claude code-review GitHub Action"
     adapter_files:
       "Codex code review (GitHub integration)": null
+      "Claude code-review GitHub Action": null
     adapter_routes: null
-    carrier_selection: "sole"
+    carrier_selection: "ci_failover"
     adapter: "Codex code review (GitHub integration)"
-    authority: "The PR author requests it with @codex review; it may publish review evidence but may not merge."
+    authority: "The PR author requests Codex with @codex review; Claude may publish fallback review evidence; neither may merge."
     entry_evidence: "Passing deterministic CI and a PR head SHA."
     completion_evidence: "Current-head clean, rework, or blocking outcome marker."
     activation: "One review is required for every new PR head SHA."

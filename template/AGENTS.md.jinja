@@ -38,9 +38,10 @@ Claude or Codex adapter is the only permitted executor.
 
 ## Code review
 
-Codex code review is the sole carrier of the required review gate. The PR author
-starts it with `@codex review`; workflows only wait for and validate the standard
-GitHub review on the current head. Its reporting contract is
+Codex code review is the primary carrier: the PR author starts it with
+`@codex review`, and workflows validate its standard GitHub review on the
+current head. Claude remains the fallback carrier only when Codex leaves no
+valid current-head evidence. Their reporting contract is
 [REVIEW_CONTRACT.md](REVIEW_CONTRACT.md). The gate's parser and enforcement code
-come from the default branch, but a Codex review is owner-requested evidence,
-not a substitute for the platform workflow-definition trust anchor.
+come from the default branch, but either review is evidence, not a substitute
+for the platform workflow-definition trust anchor.

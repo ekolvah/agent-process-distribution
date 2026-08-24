@@ -354,11 +354,14 @@ class TestCarrierSelection:
     reviewed by Codex, which is confident misinformation of exactly the kind.
     """
 
-    def test_the_review_gate_declares_its_sole_carrier(self) -> None:
+    def test_the_review_gate_declares_codex_primary_and_claude_fallback(self) -> None:
         role = load_catalog()["roles"]["pr_reviewer"]
 
-        assert role["adapters"] == ["Codex code review (GitHub integration)"]
-        assert role["carrier_selection"] == "sole"
+        assert role["adapters"] == [
+            "Codex code review (GitHub integration)",
+            "Claude code-review GitHub Action",
+        ]
+        assert role["carrier_selection"] == "ci_failover"
         assert role["adapter_routes"] is None
         assert set(role["adapter_files"]) == set(role["adapters"])
 
@@ -373,15 +376,15 @@ class TestCarrierSelection:
         assert claude.next_role == codex.next_role == "pr_reviewer"
         assert claude.adapter == codex.adapter == "Codex code review (GitHub integration)"
 
-    def test_the_sole_carrier_is_the_declared_default(self, tmp_path: Path) -> None:
+    def test_the_primary_carrier_is_the_declared_default(self, tmp_path: Path) -> None:
         """Otherwise `adapter` and the failover order tell two different stories."""
         catalogue = load_catalog()
         role = catalogue["roles"]["pr_reviewer"]
-        role["adapter"] = "Unknown reviewer"
+        role["adapter"] = role["adapters"][1]
         reordered = tmp_path / "roles.yaml"
         reordered.write_text(yaml.safe_dump(catalogue), encoding="utf-8")
 
-        with pytest.raises(ValueError, match="adapter"):
+        with pytest.raises(ValueError, match="asked first"):
             load_catalog(reordered)
 
     def test_a_second_carrier_cannot_arrive_without_saying_how_it_is_selected(
