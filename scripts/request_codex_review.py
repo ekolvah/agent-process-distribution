@@ -1,9 +1,9 @@
-"""Ask carrier 2 for a verdict on the reviewed head and publish it.
+"""Read the automatic Codex verdict for the reviewed head and publish it.
 
-Carrier 2 is the Codex code review that runs on GitHub through the ChatGPT
-subscription: it is triggered by `@codex review` on the pull request and answers
-by posting a review of its own. Unlike carrier 1 it does not execute inside this
-runner, so this module is the whole adapter — it asks, waits for a review the
+Carrier 1 is the Codex code review that runs on GitHub through the ChatGPT
+subscription: Automatic reviews triggers it without a workflow-authored comment.
+It posts its own review. Unlike Claude it does not execute inside this
+runner, so this module polls for a review the
 declared reviewer left on *this* head, and translates the review state into the
 outcome vocabulary the enforcement step already understands.
 
@@ -27,21 +27,12 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 
 from scripts.check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
-from scripts.gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
+from scripts.gh_io import flatten_pages, publish_step_output, slurp_records
 
 # Verified against the live API (`gh api apps/chatgpt-codex-connector` → owner
 # `openai`), not inferred from the product name: a wrong login here would read
 # every Codex review as absent and time the carrier out on every run.
 CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
-REVIEW_REQUEST = """@codex review
-
-Append one valid evidence block to your GitHub review body after the human-readable review:
-<!-- agent-review-evidence
-{"outcome":"clean|rework|blocking","findings":[]}
--->
-
-Replace the example outcome with the actual outcome. Use `findings: []` only for `clean`. Each `rework` or `blocking` finding needs
-`severity`, `confidence`, and a non-empty `summary`; make outcome match the review state."""
 _EVIDENCE_BLOCK = re.compile(
     r"<!--\s*agent-review-evidence\s*\n(?P<payload>\{.*?\})\s*-->", re.DOTALL
 )
@@ -113,11 +104,11 @@ def poll_for_verdict(
     sleep: Callable[[float], None] | None = None,
     monotonic: Callable[[], float] | None = None,
 ) -> dict[str, object] | None:
-    """Request a review once, then wait for it until `timeout_seconds` elapses.
+    """Wait for automatic review evidence until `timeout_seconds` elapses.
 
-    The first read happens before the request: automatic review is a repository
-    setting, so the carrier may have already answered for this head, and asking
-    again would spend a review of the subscription's budget to learn nothing.
+    The first read handles automatic review that completed before this job.
+    An invalid current-head review permits Claude fallback; an absent review is
+    polled until the bounded timeout.
     """
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
@@ -128,9 +119,6 @@ def poll_for_verdict(
         return verdict
     if _has_current_review(reviews, head_sha, reviewer):
         return None
-
-    run_gh(["pr", "comment", pr_number, "--repo", repository, "--body", REVIEW_REQUEST])
-    print(f"requested a review from {reviewer} on {head_sha}")
 
     deadline = clock() + timeout_seconds
     while clock() < deadline:
@@ -153,7 +141,7 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Publish carrier 2's verdict as the payload the enforcement step reads.
+    """Publish Codex's verdict as the payload the enforcement step reads.
 
     Exit code 0 either way, on purpose: the enforcement step is the single place
     that turns an outcome into a check result, and an empty payload already means
@@ -172,16 +160,16 @@ def main(argv: Sequence[str] | None = None) -> None:
     if verdict is None:
         print(
             f"::warning::{options.reviewer} left no review of {options.head_sha} within "
-            f"{options.timeout_seconds}s. Carrier 2 produced no verdict, so the enforcement "
-            "step below has no outcome to enforce. Check that this repository is connected "
-            "in Codex cloud settings with code review enabled, and that its subscription "
+            f"{options.timeout_seconds}s. Codex produced no verdict, so the enforcement "
+            "step below has no outcome to enforce. Check that Automatic reviews are enabled "
+            "with the On every push trigger, and that its subscription "
             "quota is not exhausted."
         )
         publish_step_output("payload=")
         return
     outcome = verdict.get("outcome")
     if outcome not in VALID_OUTCOMES:  # pragma: no cover - guarded by the mapping test
-        raise RuntimeError(f"carrier 2 produced an outcome the gate does not know: {outcome!r}")
+        raise RuntimeError(f"Codex produced an outcome the gate does not know: {outcome!r}")
     publish_step_output(f"payload={json.dumps(verdict, separators=(',', ':'))}")
 
 

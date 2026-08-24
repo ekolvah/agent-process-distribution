@@ -76,7 +76,7 @@ def test_poll_for_verdict_never_posts_a_codex_request(
     requests: list[object] = []
     clock = iter((0.0, 1.0))
     monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [])
-    monkeypatch.setattr(request_codex_review, "run_gh", requests.append)
+    monkeypatch.setattr(request_codex_review, "run_gh", requests.append, raising=False)
 
     verdict = poll_for_verdict(
         "owner/repo",
@@ -92,7 +92,9 @@ def test_poll_for_verdict_never_posts_a_codex_request(
     assert requests == []
 
 
-def test_only_current_head_codex_evidence_is_accepted() -> None:
+def test_only_current_head_codex_evidence_is_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     current = _review(
         "APPROVED",
         """<!-- agent-review-evidence
@@ -104,11 +106,10 @@ def test_only_current_head_codex_evidence_is_accepted() -> None:
     clock = iter((0.0, 1.0))
 
     assert find_verdict([stale], _HEAD, _REVIEWER) is None
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [stale])
-    monkeypatch.setattr(request_codex_review, "run_gh", requests.append)
-    try:
-        assert poll_for_verdict(
+    monkeypatch.setattr(request_codex_review, "run_gh", requests.append, raising=False)
+    assert (
+        poll_for_verdict(
             "owner/repo",
             "14",
             _HEAD,
@@ -116,9 +117,9 @@ def test_only_current_head_codex_evidence_is_accepted() -> None:
             poll_seconds=1,
             sleep=lambda _seconds: None,
             monotonic=lambda: next(clock),
-        ) is None
-    finally:
-        monkeypatch.undo()
+        )
+        is None
+    )
     assert requests == []
 
 

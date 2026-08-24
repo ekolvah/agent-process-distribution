@@ -37,7 +37,10 @@ workflows run on every pull request.
    payload with the marketplace's `/plugin install` command. This is a local
    Claude configuration action; the plugin hooks rely on `scripts/hooks.py`
    copied in the previous step.
-3. Configure the two review credentials, then run the read-only preflight:
+3. Install the Codex GitHub connector and, in its Code review settings for this
+   repository, enable **Automatic reviews** with **On every push**. Configure
+   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude availability fallback, then run the
+   read-only preflight:
 
    ```bash
    python scripts/check_review_credentials.py --repo {{ github_repository | default('<owner>/<repository>', true) }}

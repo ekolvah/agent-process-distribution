@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       codex-timeout-seconds:
-        description: Bounded wait for the subscription-backed fallback carrier.
+        description: Bounded wait for the automatic subscription-backed primary carrier.
         required: false
         type: number
         default: 600
@@ -64,9 +64,30 @@ jobs:
             echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no review source yet"
           fi
+      - name: Codex review
+        id: codex-review
+        if: ${{ always() && steps.pr-context.outcome == 'success' }}
+        timeout-minutes: 12
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python -m scripts.request_codex_review --repo "${{ github.repository }}"
+          --pr "${{ steps.pr-context.outputs.number }}"
+          --head-sha "${{ steps.pr-context.outputs.head_sha }}"
+          --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
+      - name: Classify Codex review outcome
+        id: codex-classify
+        if: ${{ always() }}
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        env:
+          STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
+        run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
       - name: Claude review
         id: review
-        if: ${{ steps.pr-context.outcome == 'success' }}
+        if: >-
+          ${{ always() && steps.codex-classify.outputs.valid != 'true'
+          && steps.pr-context.outcome == 'success' }}
         continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
@@ -88,51 +109,29 @@ jobs:
             It is the default-branch review contract unless this is the one-time
             bootstrap fallback, when the default branch has no payload yet.
             Review the checked-out PR worktree, not the trusted directory.
-      - name: Classify review outcome
-        id: classify
-        if: ${{ always() }}
+      - name: Classify Claude review outcome
+        id: claude-classify
+        if: ${{ always() && steps.codex-classify.outputs.valid != 'true' }}
         working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
         run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
-      - name: Codex review
-        id: codex-review
-        if: >-
-          ${{ always() && steps.classify.outputs.valid == 'false'
-          && steps.pr-context.outcome == 'success' }}
-        timeout-minutes: 12
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >-
-          python -m scripts.request_codex_review --repo "${{ github.repository }}"
-          --pr "${{ steps.pr-context.outputs.number }}"
-          --head-sha "${{ steps.pr-context.outputs.head_sha }}"
-          --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
       - name: Publish validated review evidence
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
         working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
-          STRUCTURED_OUTCOME: ${{ steps.classify.outputs.valid == 'true' && steps.review.outputs.structured_output || steps.codex-review.outputs.payload }}
+          STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
         run: >-
           python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
           --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
-      - name: Enforce Claude review outcome
-        if: ${{ always() && steps.classify.outputs.valid == 'true' }}
+      - name: Enforce selected review outcome
+        if: ${{ always() }}
         working-directory: ${{ steps.review-source.outputs.working_directory }}
         env:
-          STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
+          STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
+          REVIEW_PRODUCER: ${{ steps.codex-classify.outputs.valid == 'true' && 'Codex review' || 'Claude review' }}
         run: >-
           python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
-          --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Claude review"
-      - name: Enforce Codex review outcome
-        if: ${{ always() && steps.classify.outputs.valid != 'true' }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
-        env:
-          STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
-          LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
-        run: >-
-          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
-          --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "Codex review"
+          --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "$REVIEW_PRODUCER"

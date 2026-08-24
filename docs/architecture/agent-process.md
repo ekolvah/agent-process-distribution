@@ -316,12 +316,14 @@ installation guide. Keep the controller to direct tests and docs; never disable
 the required context or treat the PR body as merge authority.
 
 The target's thin caller invokes the publisher's pinned
-`reusable-agent-review.yml`. That workflow keeps an isolated checkout of the
-publisher's default branch in `trusted/`: carrier 1 reads
-`trusted/REVIEW_CONTRACT.md`, while the PR head remains the worktree being
-reviewed. `AGENTS.md` points carrier 2 to the same standalone contract. The
-workflow therefore does not copy review rules into YAML or parse a section out
-of another document.
+`reusable-agent-review.yml`. Codex Automatic reviews is carrier 1: the workflow
+waits for its current-head, structured verdict without posting `@codex review`.
+Only absent or invalid Codex evidence invokes the Claude availability fallback;
+a valid Codex `clean`, `rework`, or `blocking` verdict is final for that head.
+The workflow keeps an isolated checkout of the publisher's default branch in
+`trusted/`: both carriers read the standalone `REVIEW_CONTRACT.md`, while the
+PR head remains the worktree being reviewed. The workflow therefore does not
+copy review rules into YAML or parse a section out of another document.
 
 ## Governance conventions
 1. Create issue branches only with `python scripts/issue_branch.py <N>` (starts
