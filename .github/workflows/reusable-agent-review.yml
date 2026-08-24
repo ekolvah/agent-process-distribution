@@ -23,25 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      # Keep the contract and all enforcement scripts in a separate trusted
-      # checkout. The PR head is review data, never the policy interpreter.
-      - name: Checkout trusted review contract and enforcement source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
-          path: trusted
-      - name: Select review source
-        id: review-source
-        run: |
-          if test -f "$GITHUB_WORKSPACE/trusted/REVIEW_CONTRACT.md" \
-            && test -f "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py"; then
-            echo "working_directory=trusted" >> "$GITHUB_OUTPUT"
-            echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
-          else
-            echo "working_directory=." >> "$GITHUB_OUTPUT"
-            echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
-            echo "::notice::bootstrap fallback: default branch has no review source yet"
-          fi
       - name: Fetch current PR context
         id: pr-context
         continue-on-error: true
@@ -61,12 +42,28 @@ jobs:
         if: ${{ steps.pr-context.outcome == 'success' }}
         uses: actions/checkout@v4
         with:
-          # The trusted checkout is a sibling of the PR worktree.  The default
-          # cleanup deletes untracked siblings, including `trusted`, before the
-          # classifier and enforcement steps can use their trusted drivers.
-          clean: false
           fetch-depth: 0
           ref: ${{ steps.pr-context.outputs.head_sha }}
+      # Check out the PR first, then the policy source beside it. A later root
+      # checkout deletes untracked siblings, so the reverse order loses the
+      # trusted contract before the classifier and fallback can use it.
+      - name: Checkout trusted review contract and enforcement source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+      - name: Select review source
+        id: review-source
+        run: |
+          if test -f "$GITHUB_WORKSPACE/trusted/REVIEW_CONTRACT.md" \
+            && test -f "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py"; then
+            echo "working_directory=trusted" >> "$GITHUB_OUTPUT"
+            echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "working_directory=." >> "$GITHUB_OUTPUT"
+            echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no review source yet"
+          fi
       - name: Claude review
         id: review
         if: ${{ steps.pr-context.outcome == 'success' }}
@@ -76,7 +73,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.claude_code_oauth_token }}
           github_token: ${{ github.token }}
           claude_args: >-
-            --json-schema '{"type":"object","properties":{"outcome":{"type":"string","enum":["clean","rework","blocking"]}},"required":["outcome"],"additionalProperties":false}'
+            --json-schema '{"type":"object","properties":{"outcome":{"type":"string","enum":["clean","rework","blocking"]},"findings":{"type":"array","items":{"type":"object","properties":{"severity":{"type":"string","enum":["blocking","should-fix","nice-to-have"]},"confidence":{"type":"string","enum":["high","medium","low"]},"summary":{"type":"string","minLength":1}},"required":["severity","confidence","summary"],"additionalProperties":false}}},"required":["outcome","findings"],"additionalProperties":false,"allOf":[{"if":{"properties":{"outcome":{"const":"clean"}}},"then":{"properties":{"findings":{"maxItems":0}}},"else":{"properties":{"findings":{"minItems":1}}}},{"if":{"properties":{"outcome":{"const":"rework"}}},"then":{"properties":{"findings":{"not":{"contains":{"properties":{"severity":{"const":"blocking"}},"required":["severity"]}}}}}},{"if":{"properties":{"outcome":{"const":"blocking"}}},"then":{"properties":{"findings":{"contains":{"properties":{"severity":{"const":"blocking"}},"required":["severity"]}}}}}]}'
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ steps.pr-context.outputs.number }}
@@ -112,6 +109,15 @@ jobs:
           --pr "${{ steps.pr-context.outputs.number }}"
           --head-sha "${{ steps.pr-context.outputs.head_sha }}"
           --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
+      - name: Publish validated review evidence
+        if: ${{ always() && steps.pr-context.outcome == 'success' }}
+        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        env:
+          STRUCTURED_OUTCOME: ${{ steps.classify.outputs.valid == 'true' && steps.review.outputs.structured_output || steps.codex-review.outputs.payload }}
+          REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
+        run: >-
+          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
       - name: Enforce Claude review outcome
         if: ${{ always() && steps.classify.outputs.valid == 'true' }}
         working-directory: ${{ steps.review-source.outputs.working_directory }}

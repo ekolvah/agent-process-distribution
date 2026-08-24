@@ -303,7 +303,10 @@ unchanged head spends none of it. The verdict goes into `## Agent record`.
 ## Review outcome enforcement
 
 `clean` and `rework` outcomes pass; `blocking`, empty, or malformed outcomes
-red the check. Once the reusable review workflow is invoked, it reads its
+red the check. A valid result has an explicit empty finding list for `clean`, or
+one or more severity-, confidence-, and summary-bearing findings for `rework` or
+`blocking`; the workflow writes that validated evidence and the reviewed head SHA
+to its check summary. Once the reusable review workflow is invoked, it reads its
 verifier from the default branch and current PR body/head from the live API, so
 the reviewed worktree cannot alter its own verifier. This does **not**
 authenticate the thin caller workflow: a PR can replace a name-only required

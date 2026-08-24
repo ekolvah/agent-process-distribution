@@ -22,17 +22,29 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from collections.abc import Callable, Mapping, Sequence
 
-from scripts.check_agent_review_outcome import VALID_OUTCOMES
+from scripts.check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
 from scripts.gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
 
 # Verified against the live API (`gh api apps/chatgpt-codex-connector` → owner
 # `openai`), not inferred from the product name: a wrong login here would read
 # every Codex review as absent and time the carrier out on every run.
 CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
-REVIEW_REQUEST = "@codex review"
+REVIEW_REQUEST = """@codex review
+
+Append one valid evidence block to your GitHub review body after the human-readable review:
+<!-- agent-review-evidence
+{"outcome":"clean|rework|blocking","findings":[]}
+-->
+
+Replace the example outcome with the actual outcome. Use `findings: []` only for `clean`. Each `rework` or `blocking` finding needs
+`severity`, `confidence`, and a non-empty `summary`; make outcome match the review state."""
+_EVIDENCE_BLOCK = re.compile(
+    r"<!--\s*agent-review-evidence\s*\n(?P<payload>\{.*?\})\s*-->", re.DOTALL
+)
 STATE_OUTCOMES = {
     "APPROVED": "clean",
     "COMMENTED": "rework",
@@ -42,13 +54,29 @@ DEFAULT_TIMEOUT_SECONDS = 900
 DEFAULT_POLL_SECONDS = 20
 
 
-def find_verdict(reviews: object, head_sha: str, reviewer: str) -> str | None:
-    """Return the outcome carried by `reviewer`'s review of `head_sha`, if any.
+def _evidence_from_review(record: Mapping[str, object], outcome: str) -> dict[str, object] | None:
+    """Read the explicitly-delimited evidence block without inventing findings."""
+    body = record.get("body")
+    match = _EVIDENCE_BLOCK.search(body) if isinstance(body, str) else None
+    if match is None:
+        return None
+    try:
+        payload = json.loads(match.group("payload"))
+    except json.JSONDecodeError:
+        return None
+    evidence = validated_evidence(payload)
+    if evidence is None or evidence[0] != outcome:
+        return None
+    return {"outcome": evidence[0], "findings": evidence[1]}
+
+
+def find_verdict(reviews: object, head_sha: str, reviewer: str) -> dict[str, object] | None:
+    """Return structured evidence from `reviewer`'s review of `head_sha`, if any.
 
     The last matching review wins: Codex re-reviews on request, and its latest
     word on this head is the one the maintainer sees.
     """
-    verdict: str | None = None
+    verdict: dict[str, object] | None = None
     for record in flatten_pages(reviews):
         user = record.get("user")
         login = user.get("login") if isinstance(user, Mapping) else None
@@ -56,12 +84,22 @@ def find_verdict(reviews: object, head_sha: str, reviewer: str) -> str | None:
             continue
         outcome = STATE_OUTCOMES.get(str(record.get("state")))
         if outcome is not None:
-            verdict = outcome
+            verdict = _evidence_from_review(record, outcome)
     return verdict
 
 
 def _fetch_reviews(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/pulls/{pr_number}/reviews?per_page=100")
+
+
+def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
+    return any(
+        isinstance(record.get("user"), Mapping)
+        and record["user"].get("login") == reviewer
+        and record.get("commit_id") == head_sha
+        and str(record.get("state")) in STATE_OUTCOMES
+        for record in flatten_pages(reviews)
+    )
 
 
 def poll_for_verdict(
@@ -74,7 +112,7 @@ def poll_for_verdict(
     poll_seconds: int = DEFAULT_POLL_SECONDS,
     sleep: Callable[[float], None] | None = None,
     monotonic: Callable[[], float] | None = None,
-) -> str | None:
+) -> dict[str, object] | None:
     """Request a review once, then wait for it until `timeout_seconds` elapses.
 
     The first read happens before the request: automatic review is a repository
@@ -84,9 +122,12 @@ def poll_for_verdict(
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
 
-    verdict = find_verdict(_fetch_reviews(repository, pr_number), head_sha, reviewer)
+    reviews = _fetch_reviews(repository, pr_number)
+    verdict = find_verdict(reviews, head_sha, reviewer)
     if verdict is not None:
         return verdict
+    if _has_current_review(reviews, head_sha, reviewer):
+        return None
 
     run_gh(["pr", "comment", pr_number, "--repo", repository, "--body", REVIEW_REQUEST])
     print(f"requested a review from {reviewer} on {head_sha}")
@@ -138,9 +179,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
         publish_step_output("payload=")
         return
-    if verdict not in VALID_OUTCOMES:  # pragma: no cover - guarded by the mapping test
-        raise RuntimeError(f"carrier 2 produced an outcome the gate does not know: {verdict!r}")
-    publish_step_output(f"payload={json.dumps({'outcome': verdict})}")
+    outcome = verdict.get("outcome")
+    if outcome not in VALID_OUTCOMES:  # pragma: no cover - guarded by the mapping test
+        raise RuntimeError(f"carrier 2 produced an outcome the gate does not know: {outcome!r}")
+    publish_step_output(f"payload={json.dumps(verdict, separators=(',', ':'))}")
 
 
 if __name__ == "__main__":
