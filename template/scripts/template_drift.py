@@ -36,7 +36,10 @@ ROOT_ONLY_DIRECTORIES = frozenset(
 # Build artefacts never belong to a payload at any depth.  The source-only
 # directories above exist only at the checkout root, so matching them at any
 # depth would hide nested payload paths such as .agents/skills/*/agents/.
-ARTIFACT_DIRECTORIES = frozenset({".git", ".pytest_cache", ".ruff_cache", "__pycache__"})
+ARTIFACT_DIRECTORIES = frozenset(
+    {".audit-tmp", ".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv", "__pycache__"}
+)
+ARTIFACT_DIRECTORY_PREFIXES = ("pytest-cache-files-",)
 COPIER_METADATA_PATHS = frozenset({".copier-answers.yml"})
 
 
@@ -128,13 +131,18 @@ def render_working_tree(root: Path, destination: Path) -> Path:
 
 
 def _files(directory: Path) -> dict[str, Path]:
-    return {
-        path.relative_to(directory).as_posix(): path
-        for path in directory.rglob("*")
-        if path.is_file()
-        and path.relative_to(directory).parts[0] not in ROOT_ONLY_DIRECTORIES
-        and not ARTIFACT_DIRECTORIES & set(path.relative_to(directory).parts)
-    }
+    files: dict[str, Path] = {}
+    for path in directory.rglob("*"):
+        relative_path = path.relative_to(directory)
+        if not path.is_file() or relative_path.parts[0] in ROOT_ONLY_DIRECTORIES:
+            continue
+        if any(
+            part in ARTIFACT_DIRECTORIES or part.startswith(ARTIFACT_DIRECTORY_PREFIXES)
+            for part in relative_path.parts
+        ):
+            continue
+        files[relative_path.as_posix()] = path
+    return files
 
 
 def _normalised(path: Path) -> str:

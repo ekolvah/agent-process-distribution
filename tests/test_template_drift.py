@@ -162,6 +162,21 @@ def test_artifact_directories_are_excluded_at_any_depth(
     assert not any("__pycache__" in error for error in report.errors), report.format()
 
 
+def test_venv_directory_is_excluded_from_drift_scan(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    source = checkout(tmp_path)
+    virtualenv = source / ".venv"
+    virtualenv.mkdir()
+    (virtualenv / "pyvenv.cfg").write_text("home = python\n", encoding="utf-8")
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert not any(".venv" in error for error in report.errors), report.format()
+
+
 def test_expected_path_set_is_not_vacuous(clean_drift_report: template_drift.DriftReport) -> None:
     assert clean_drift_report.errors == (), clean_drift_report.format()
     assert template_drift.REQUIRED_GENERATED_PATHS
