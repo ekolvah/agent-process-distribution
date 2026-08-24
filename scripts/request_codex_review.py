@@ -16,7 +16,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 
 from scripts.check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
-from scripts.gh_io import flatten_pages, publish_step_output, slurp_records
+from scripts.gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
 
 CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
 STANDARD_REVIEW_PARSER = True
@@ -100,12 +100,80 @@ def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
     )
 
 
+def _read_record(endpoint: str) -> Mapping[str, object]:
+    try:
+        payload = json.loads(run_gh(["api", endpoint]))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"gh api {endpoint} returned invalid JSON: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise RuntimeError(f"unexpected payload shape from {endpoint}: {type(payload).__name__}")
+    return payload
+
+
+def _clean_reaction_context(repository: str, pr_number: str, head_sha: str) -> tuple[str, str]:
+    pull = _read_record(f"repos/{repository}/pulls/{pr_number}")
+    author = pull.get("user")
+    author_login = author.get("login") if isinstance(author, Mapping) else None
+    head = pull.get("head")
+    if (
+        not isinstance(author_login, str)
+        or not isinstance(head, Mapping)
+        or head.get("sha") != head_sha
+    ):
+        raise RuntimeError("live PR author or head SHA is unavailable")
+    commit = _read_record(f"repos/{repository}/commits/{head_sha}")
+    commit_data = commit.get("commit")
+    committer = commit_data.get("committer") if isinstance(commit_data, Mapping) else None
+    committed_at = committer.get("date") if isinstance(committer, Mapping) else None
+    if not isinstance(committed_at, str):
+        raise RuntimeError("current head commit has no committer date")
+    return author_login, committed_at
+
+
+def find_clean_reaction(
+    requests: object,
+    reactions_by_request: Mapping[object, object],
+    *,
+    author_login: str,
+    committed_at: str,
+    reviewer: str,
+) -> dict[str, object] | None:
+    """Accept only the native clean reaction tied to this author and head."""
+    for request in reversed(flatten_pages(requests)):
+        author = request.get("user")
+        if (
+            not isinstance(author, Mapping)
+            or author.get("login") != author_login
+            or request.get("body") != "@codex review"
+            or not isinstance(request.get("created_at"), str)
+            or request["created_at"] < committed_at
+        ):
+            continue
+        reactions = reactions_by_request.get(request.get("id"), [])
+        if any(
+            reaction.get("content") == "+1"
+            and isinstance(reaction.get("user"), Mapping)
+            and reaction["user"].get("login") == reviewer
+            for reaction in flatten_pages(reactions)
+        ):
+            return {"outcome": "clean", "findings": []}
+    return None
+
+
 def _fetch_reviews(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/pulls/{pr_number}/reviews?per_page=100")
 
 
 def _fetch_review_comments(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/pulls/{pr_number}/comments?per_page=100")
+
+
+def _fetch_request_comments(repository: str, pr_number: str) -> object:
+    return slurp_records(f"repos/{repository}/issues/{pr_number}/comments?per_page=100")
+
+
+def _fetch_reactions(repository: str, comment_id: object) -> object:
+    return slurp_records(f"repos/{repository}/issues/comments/{comment_id}/reactions?per_page=100")
 
 
 def poll_for_verdict(
@@ -123,6 +191,7 @@ def poll_for_verdict(
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
     deadline = clock() + timeout_seconds
+    clean_context: tuple[str, str] | None = None
     while True:
         reviews = _fetch_reviews(repository, pr_number)
         verdict = find_verdict(
@@ -133,6 +202,23 @@ def poll_for_verdict(
         )
         if verdict is not None or _has_current_review(reviews, head_sha, reviewer):
             return verdict
+        if clean_context is None:
+            clean_context = _clean_reaction_context(repository, pr_number, head_sha)
+        requests = _fetch_request_comments(repository, pr_number)
+        reactions = {
+            request.get("id"): _fetch_reactions(repository, request.get("id"))
+            for request in flatten_pages(requests)
+            if request.get("body") == "@codex review"
+        }
+        clean = find_clean_reaction(
+            requests,
+            reactions,
+            author_login=clean_context[0],
+            committed_at=clean_context[1],
+            reviewer=reviewer,
+        )
+        if clean is not None:
+            return clean
         if clock() >= deadline:
             return None
         wait(poll_seconds)

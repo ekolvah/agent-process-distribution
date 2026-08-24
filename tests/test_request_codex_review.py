@@ -8,7 +8,7 @@ import sys
 import pytest
 
 from scripts import request_codex_review
-from scripts.request_codex_review import find_verdict, poll_for_verdict
+from scripts.request_codex_review import find_clean_reaction, find_verdict, poll_for_verdict
 
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
@@ -74,6 +74,34 @@ def test_latest_current_head_review_overrides_an_older_clean_verdict() -> None:
             [],
             _HEAD,
             _REVIEWER,
+        )
+        is None
+    )
+
+
+def test_clean_reaction_must_be_codex_response_to_current_author_request() -> None:
+    request = {
+        "id": 99,
+        "user": {"login": "author"},
+        "body": "@codex review",
+        "created_at": "2026-08-24T08:32:00Z",
+    }
+    reactions = {99: [{"content": "+1", "user": {"login": _REVIEWER}}]}
+
+    assert find_clean_reaction(
+        [request],
+        reactions,
+        author_login="author",
+        committed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+    assert (
+        find_clean_reaction(
+            [request],
+            reactions,
+            author_login="author",
+            committed_at="2026-08-24T08:33:00Z",
+            reviewer=_REVIEWER,
         )
         is None
     )
