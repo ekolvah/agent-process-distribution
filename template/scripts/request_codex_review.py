@@ -36,6 +36,7 @@ _TRUSTED_POLICY_PATHS = frozenset(
         "REVIEW_CONTRACT.md",
         "docs/architecture/agent-process.md",
         "docs/architecture/agent-process-installation.md",
+        "docs/architecture/principles.md",
     }
 )
 

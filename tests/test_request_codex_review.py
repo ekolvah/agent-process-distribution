@@ -176,6 +176,7 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
         {"filename": "REVIEW_CONTRACT.md"},
         {"filename": "docs/architecture/agent-process.md"},
         {"filename": "docs/architecture/agent-process-installation.md"},
+        {"filename": "docs/architecture/principles.md"},
         {"filename": "services/worker/AGENTS.md"},
         {"filename": "README.md", "previous_filename": "legacy/AGENTS.md"},
     ],
