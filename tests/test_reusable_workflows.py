@@ -155,7 +155,10 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
             "${{ steps.review-source.outputs.working_directory }}"
         )
     assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
-    assert "context.payload.pull_request.updated_at" in steps["Fetch current PR context"]["with"]["script"]
+    assert (
+        "context.payload.pull_request.updated_at"
+        in steps["Fetch current PR context"]["with"]["script"]
+    )
     assert "--head-observed-at" in steps["Read owner-requested Codex review"]["run"]
     assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
         "./.github/workflows/reusable-agent-review.yml"
@@ -182,9 +185,9 @@ def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
 
 
 def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
-    source_installation = (ROOT / "docs" / "architecture" / "agent-process-installation.md").read_text(
-        encoding="utf-8"
-    )
+    source_installation = (
+        ROOT / "docs" / "architecture" / "agent-process-installation.md"
+    ).read_text(encoding="utf-8")
     installation = (
         ROOT / "template" / "docs" / "architecture" / "agent-process-installation.md.jinja"
     ).read_text(encoding="utf-8")

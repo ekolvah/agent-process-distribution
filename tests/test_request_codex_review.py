@@ -100,7 +100,7 @@ def test_clean_reaction_must_follow_the_github_observed_head_transition() -> Non
             [request],
             reactions,
             author_login="author",
-        head_observed_at="2026-08-24T08:33:00Z",
+            head_observed_at="2026-08-24T08:33:00Z",
             reviewer=_REVIEWER,
         )
         is None
