@@ -30,6 +30,14 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 _REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
+_TRUSTED_POLICY_PATHS = frozenset(
+    {
+        "AGENTS.md",
+        "REVIEW_CONTRACT.md",
+        "docs/architecture/agent-process.md",
+        "docs/architecture/agent-process-installation.md",
+    }
+)
 
 
 def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
@@ -190,7 +198,7 @@ def _changes_trusted_review_policy(changed_files: object) -> bool:
         for key in ("filename", "previous_filename"):
             path = record.get(key)
             if isinstance(path, str) and (
-                path == "REVIEW_CONTRACT.md" or path == "AGENTS.md" or path.endswith("/AGENTS.md")
+                path in _TRUSTED_POLICY_PATHS or path.endswith("/AGENTS.md")
             ):
                 return True
     return False
