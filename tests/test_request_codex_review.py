@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+
 import pytest
 
 from scripts import request_codex_review
@@ -85,3 +88,16 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
         )
         is None
     )
+
+
+def test_module_entry_point_runs_the_cli() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "scripts.request_codex_review", "--help"],
+        capture_output=True,
+        check=False,
+        encoding="utf-8",
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "Read the standard GitHub review" in result.stdout

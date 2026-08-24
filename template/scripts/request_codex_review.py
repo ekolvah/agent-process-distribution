@@ -169,3 +169,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     if outcome not in VALID_OUTCOMES:  # pragma: no cover - validated above
         raise RuntimeError(f"Codex produced an outcome the gate does not know: {outcome!r}")
     publish_step_output(f"payload={json.dumps(verdict, separators=(',', ':'))}")
+
+
+if __name__ == "__main__":
+    main()
