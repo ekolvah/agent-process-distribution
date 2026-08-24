@@ -333,6 +333,9 @@ valid verdict from either carrier is final for that head.
 The workflow keeps an isolated checkout of the publisher's default branch in
 `trusted/` for the adapter, evidence validator, and enforcement script, while
 the adapter reads the standard review from the PR's live GitHub API records.
+The Claude fallback reads both `trusted/AGENTS.md` and
+`trusted/REVIEW_CONTRACT.md`; scoped `AGENTS.md` files in the PR worktree are
+reviewed as untrusted data and cannot redefine fallback policy.
 The one transition PR that introduces this adapter uses a visible bootstrap
 fallback when the default branch lacks its parser marker; its evidence is still
 validated by the default-branch validator. The manual owner request is review
