@@ -303,10 +303,14 @@ unchanged head spends none of it. The verdict goes into `## Agent record`.
 ## Review outcome enforcement
 
 `clean` and `rework` outcomes pass; `blocking`, empty, or malformed outcomes
-red the check. A valid result has an explicit empty finding list for `clean`, or
-one or more severity-, confidence-, and summary-bearing findings for `rework` or
-`blocking`; the workflow writes that validated evidence and the reviewed head SHA
-to its check summary. Once the reusable review workflow is invoked, it reads its
+red the check. The workflow replies to every Codex finding with the user-facing
+merge class **BLOCKING** or **NON-BLOCKING**. An open BLOCKING conversation
+independently fails the same required check until it is resolved; an open
+NON-BLOCKING conversation is advisory. A valid result has an explicit empty
+finding list for `clean`, or one or more severity-, confidence-, and
+summary-bearing findings for `rework` or `blocking`; the workflow writes that
+validated evidence and the reviewed head SHA to its check summary. Once the
+reusable review workflow is invoked, it reads its
 verifier from the default branch and current PR body/head from the live API, so
 the reviewed worktree cannot alter its own verifier. This does **not**
 authenticate the thin caller workflow: a PR can replace a name-only required
@@ -319,12 +323,24 @@ tests and docs; never disable the required context or treat the PR body as
 merge authority.
 
 The target's thin caller invokes the publisher's pinned
-`reusable-agent-review.yml`. That workflow keeps an isolated checkout of the
-publisher's default branch in `trusted/`: carrier 1 reads
-`trusted/REVIEW_CONTRACT.md`, while the PR head remains the worktree being
-reviewed. `AGENTS.md` points carrier 2 to the same standalone contract. The
-workflow therefore does not copy review rules into YAML or parse a section out
-of another document.
+`reusable-agent-review.yml`. The PR author starts the Codex primary with
+`@codex review`; the workflow never posts that command or enables Automatic
+reviews. It waits for Codex's normal GitHub review on the current head, then
+translates the integration's native P0/P1/P2/P3 metadata into the gate outcome
+and adds the plain-language merge-class reply. When Codex
+leaves no valid evidence, Claude runs as the structured-output fallback. A
+valid verdict from either carrier is final for that head; changing agent-process
+policy files does not require both carriers.
+The workflow keeps an isolated checkout of the publisher's default branch in
+`trusted/` for the adapter, evidence validator, and enforcement script, while
+the adapter reads the standard review from the PR's live GitHub API records.
+The Claude fallback reads both `trusted/AGENTS.md` and
+`trusted/REVIEW_CONTRACT.md`; scoped `AGENTS.md` files in the PR worktree are
+reviewed as untrusted data and cannot redefine fallback policy.
+The one transition PR that introduces this adapter uses a visible bootstrap
+fallback when the default branch lacks its parser marker; its evidence is still
+validated by the default-branch validator. The manual owner request is review
+evidence, not a replacement for the platform workflow-definition trust anchor.
 
 ## Governance conventions
 1. Create issue branches only with `python scripts/issue_branch.py <N>` (starts

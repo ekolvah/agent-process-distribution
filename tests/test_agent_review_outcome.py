@@ -97,6 +97,7 @@ def test_valid_blocking_finding_is_reported_with_head_sha(
     )
 
     assert "a" * 40 in summary.read_text(encoding="utf-8")
+    assert "BLOCKING" in summary.read_text(encoding="utf-8")
     assert "The required review result has no inspectable finding." in summary.read_text(
         encoding="utf-8"
     )

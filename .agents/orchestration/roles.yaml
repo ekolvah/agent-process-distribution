@@ -107,19 +107,16 @@ roles:
     max_runs: 1
   pr_reviewer:
     contract: "docs/architecture/agent-process.md#roles-and-hand-offs"
-    # Ordered failover: the workflow asks the first carrier and reaches the second
-    # only when the first returned no usable verdict. `adapter` names the
-    # carrier asked first, which is why it must stay the head of this list.
     adapters:
-      - "Claude code-review GitHub Action"
       - "Codex code review (GitHub integration)"
+      - "Claude code-review GitHub Action"
     adapter_files:
-      "Claude code-review GitHub Action": null
       "Codex code review (GitHub integration)": null
+      "Claude code-review GitHub Action": null
     adapter_routes: null
     carrier_selection: "ci_failover"
-    adapter: "Claude code-review GitHub Action"
-    authority: "May publish review evidence; may not merge."
+    adapter: "Codex code review (GitHub integration)"
+    authority: "The PR author requests Codex with @codex review; Claude may publish fallback review evidence; neither may merge."
     entry_evidence: "Passing deterministic CI and a PR head SHA."
     completion_evidence: "Current-head clean, rework, or blocking outcome marker."
     activation: "One review is required for every new PR head SHA."

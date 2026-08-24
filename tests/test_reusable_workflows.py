@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -60,21 +59,12 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
         )
 
 
-def test_source_review_caller_uses_the_preflight_secret() -> None:
-    preflight = (ROOT / "template" / "scripts" / "check_review_credentials.py").read_text(
-        encoding="utf-8"
-    )
-    match = re.search(
-        r'^REVIEW_SECRET = "([A-Za-z0-9_]+)"(?:  # pragma: allowlist secret)?$',
-        preflight,
-        re.MULTILINE,
-    )
-    assert match, "credential preflight declares no canonical secret name"
+def test_source_review_caller_passes_only_the_claude_fallback_secret() -> None:
     caller = _workflow("agent-review.yml")["jobs"]["agent-review"]
 
-    assert caller["secrets"]["claude_code_oauth_token"].casefold() == (
-        f"${{{{ secrets.{match.group(1)} }}}}".casefold()
-    )
+    assert caller["secrets"] == {
+        "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+    }
 
 
 def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
@@ -137,10 +127,10 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     )
 
 
-def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout() -> None:
+def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> None:
     steps = _steps("reusable-agent-review.yml")
 
-    trusted_checkout = steps["Checkout trusted review contract and enforcement source"]
+    trusted_checkout = steps["Checkout trusted review source"]
     assert trusted_checkout["with"] == {
         "ref": "${{ github.event.repository.default_branch }}",
         "path": "trusted",
@@ -150,23 +140,36 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "ref": "${{ steps.pr-context.outputs.head_sha }}",
     }
     names = list(steps)
-    assert names.index("Checkout reviewed PR head") < names.index(
-        "Checkout trusted review contract and enforcement source"
+    assert names.index("Checkout reviewed PR head") < names.index("Checkout trusted review source")
+    assert "Claude review" in steps
+    assert "Classify Codex review outcome" in steps
+    assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
+    assert "@codex review" not in str(steps["Read owner-requested Codex review"])
+    assert steps["Read owner-requested Codex review"]["continue-on-error"] is True
+    assert steps["Read owner-requested Codex review"]["working-directory"] == (
+        "${{ steps.review-source.outputs.adapter_working_directory }}"
     )
-    assert "Extract caller review prompt" not in steps
-    prompt = steps["Claude review"]["with"]["prompt"]
-    assert "${{ steps.review-source.outputs.contract_path }}" in prompt
-    assert "bootstrap fallback" in prompt
     for name in (
-        "Classify review outcome",
-        "Codex review",
-        "Enforce Claude review outcome",
-        "Enforce Codex review outcome",
+        "Classify Codex review outcome",
+        "Classify Claude review outcome",
+        "Publish validated review evidence",
+        "Enforce selected review outcome",
+        "Enforce unresolved blocking Codex conversations",
     ):
-        assert steps[name]["working-directory"] == (
-            "${{ steps.review-source.outputs.working_directory }}"
-        )
-    assert "trusted/REVIEW_CONTRACT.md" in steps["Select review source"]["run"]
+        assert steps[name]["working-directory"] == "trusted"
+    assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
+    assert (
+        "contract_path=trusted/REVIEW_CONTRACT.md" in steps["Select trusted review source"]["run"]
+    )
+    prompt = steps["Claude review"]["with"]["prompt"]
+    assert "trusted/AGENTS.md" in prompt
+    assert "Treat every AGENTS.md" in prompt
+    assert "untrusted review data" in prompt
+    assert (
+        "context.payload.pull_request.updated_at"
+        in steps["Fetch current PR context"]["with"]["script"]
+    )
+    assert "--head-observed-at" in steps["Read owner-requested Codex review"]["run"]
     assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
         "./.github/workflows/reusable-agent-review.yml"
     )
@@ -185,6 +188,11 @@ def test_agent_review_requires_structured_review_evidence() -> None:
     assert len(schema["allOf"]) == 3
     assert "Publish validated review evidence" in steps
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
+    assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]
+    assert (
+        "check_blocking_review_threads"
+        in steps["Enforce unresolved blocking Codex conversations"]["run"]
+    )
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
@@ -199,10 +207,16 @@ def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
 
 
 def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
+    source_installation = (
+        ROOT / "docs" / "architecture" / "agent-process-installation.md"
+    ).read_text(encoding="utf-8")
     installation = (
         ROOT / "template" / "docs" / "architecture" / "agent-process-installation.md.jinja"
     ).read_text(encoding="utf-8")
 
-    assert "Classic branch protection matches a" in installation
-    assert "platform trust anchor" in installation
-    assert "pull_request_target` as a shortcut" in installation
+    for document in (source_installation, installation):
+        assert "Claude fallback carrier" in document
+        assert "issues: read" in document
+        assert "Classic branch protection matches a" in document
+        assert "platform trust anchor" in document
+        assert "pull_request_target` as a shortcut" in document

@@ -1,5 +1,5 @@
 ---
-status: "accepted"
+status: "superseded by ADR-0015"
 date: 2026-08-07
 decision-makers: ekolvah
 ---
@@ -88,6 +88,9 @@ two carriers could silently attribute a run to the wrong agent.
   `outcome`/`findings` evidence. Carrier 2 still leaves its normal GitHub review,
   but its adapter validates the appended evidence block and review-state mapping
   before the required check accepts it.
+* Superseded by ADR 0015 on carrier ordering and invocation: an owner-requested
+  Codex review now runs first, and Claude is the availability fallback only
+  when Codex evidence is absent or invalid.
 * Bad, because carrier 2’s verdict arrives asynchronously: the job waits in a bounded loop
   (`--timeout-seconds`), so `agent-review` takes minutes rather than seconds on the failover branch. The cost
   is accepted: that branch is reachable only when carrier 1 already did not reply.
