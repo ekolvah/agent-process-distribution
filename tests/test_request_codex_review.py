@@ -61,6 +61,18 @@ def test_standard_codex_p2_comment_is_rework_evidence() -> None:
     assert verdict["findings"][0]["severity"] == "should-fix"
 
 
+def test_changes_requested_requires_a_blocking_codex_finding() -> None:
+    assert (
+        find_verdict(
+            [_review("CHANGES_REQUESTED")],
+            [_comment("**![P2 Badge](https://example.test/p2) Update guidance")],
+            _HEAD,
+            _REVIEWER,
+        )
+        is None
+    )
+
+
 def test_only_current_head_codex_review_is_accepted() -> None:
     stale = {**_review("APPROVED"), "commit_id": "b" * 40}
 

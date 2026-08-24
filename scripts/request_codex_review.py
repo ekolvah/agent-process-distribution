@@ -61,6 +61,10 @@ def _evidence_from_review(
         return {"outcome": "clean", "findings": []} if not findings else None
     if state not in {"COMMENTED", "CHANGES_REQUESTED"} or not findings:
         return None
+    if state == "CHANGES_REQUESTED" and not any(
+        finding["severity"] == "blocking" for finding in findings
+    ):
+        return None
     outcome = (
         "blocking" if any(finding["severity"] == "blocking" for finding in findings) else "rework"
     )
