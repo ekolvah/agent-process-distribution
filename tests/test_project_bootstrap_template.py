@@ -105,7 +105,7 @@ def test_rendered_project_ships_the_standalone_review_contract(rendered_default:
     assert not (destination / "scripts" / "extract_review_prompt.py").exists()
 
 
-def test_rendered_callers_pin_a_complete_reference_and_map_secrets_explicitly(
+def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
     rendered_default: Path,
 ) -> None:
     destination = rendered_default
@@ -123,7 +123,24 @@ def test_rendered_callers_pin_a_complete_reference_and_map_secrets_explicitly(
     assert callers["agent-review"]["secrets"] == {
         "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
     }
-    assert "inherit" not in callers["agent-review"].get("secrets", {})
+
+
+def test_rendered_review_caller_uses_owner_requested_codex_review(
+    rendered_default: Path,
+) -> None:
+    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-review.yml")["jobs"][
+        "agent-review"
+    ]
+
+    assert caller["secrets"] == {
+        "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+    }
+    assert "OPENAI_API_KEY" not in str(caller)
+    installation = (
+        rendered_default / "docs" / "architecture" / "agent-process-installation.md"
+    ).read_text(encoding="utf-8")
+    assert "@codex review" in installation
+    assert "enable **Automatic reviews**" not in installation
 
 
 def test_non_default_context_answers_render_a_consistent_project(

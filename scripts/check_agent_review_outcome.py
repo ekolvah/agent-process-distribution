@@ -6,11 +6,11 @@ reds the required check, `clean` and `rework` pass (the latter with a visible
 unknown outcome, or an unavailable live PR context — stays red. Absence of
 evidence must never read as success (§IV).
 
-The required check has two carriers, so this module also answers *whether*
-a carrier produced a usable verdict at all: `--classify` measures without judging,
-which is what the failover step gates on. That question lives here because the
-validity rule lives here; asked as a YAML `contains()`/`fromJSON()` expression it
-would become a second, untestable home for the same policy.
+The required check has an owner-requested Codex primary and a Claude availability
+fallback. This module validates whichever verdict the workflow selected before
+judging it. That question lives here because the validity rule lives here;
+asked as a YAML `contains()`/`fromJSON()` expression it would become a second,
+untestable home for the same policy.
 
 The rule has no path-based exception any more. A PR touching the review
 controller used to pass with a `::warning::` on an empty outcome, because the
@@ -23,15 +23,23 @@ review here exactly as anywhere else.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections.abc import Sequence
 
 from scripts.gh_io import publish_step_output
 
-# Public: carrier 2 translates its own review states into this vocabulary,
-# and a second private copy there would be a second merge bar.
+# The Codex adapter translates GitHub review states into this vocabulary; a
+# second private copy there would be a second merge bar.
 VALID_OUTCOMES = frozenset({"clean", "rework", "blocking"})
-_DEFAULT_PRODUCER = "Claude review"
+VALID_SEVERITIES = frozenset({"blocking", "should-fix", "nice-to-have"})
+VALID_CONFIDENCES = frozenset({"high", "medium", "low"})
+_DEFAULT_PRODUCER = "Codex review"
+_SEVERITY_LABELS = {
+    "blocking": "BLOCKING",
+    "should-fix": "NON-BLOCKING",
+    "nice-to-have": "NON-BLOCKING",
+}
 
 
 class _Options:
@@ -41,6 +49,8 @@ class _Options:
         self.live_pr_context_status: str | None = None
         self.producer: str = _DEFAULT_PRODUCER
         self.classify: bool = False
+        self.publish_summary: bool = False
+        self.reviewed_head_sha: str | None = None
 
 
 def _parse_options(args: list[str]) -> _Options:
@@ -50,6 +60,9 @@ def _parse_options(args: list[str]) -> _Options:
         if option == "--classify":
             options.classify = True
             continue
+        if option == "--publish-summary":
+            options.publish_summary = True
+            continue
         if not args:
             print(f"error: expected a value after {option}", file=sys.stderr)
             raise SystemExit(2)
@@ -58,6 +71,8 @@ def _parse_options(args: list[str]) -> _Options:
             options.live_pr_context_status = value
         elif option == "--producer":
             options.producer = value
+        elif option == "--reviewed-head-sha":
+            options.reviewed_head_sha = value
         else:
             print(f"error: unexpected argument {option}", file=sys.stderr)
             raise SystemExit(2)
@@ -75,14 +90,94 @@ def _require_live_pr_context(status: str | None) -> None:
         raise SystemExit(2)
 
 
-def _report_validity(outcome: object) -> None:
+def validated_evidence(payload: object) -> tuple[str, list[dict[str, str]]] | None:
+    """Return only evidence that can support the declared review outcome."""
+    if not isinstance(payload, dict) or set(payload) != {"outcome", "findings"}:
+        return None
+    outcome = payload.get("outcome")
+    findings = payload.get("findings")
+    if outcome not in VALID_OUTCOMES or not isinstance(findings, list):
+        return None
+
+    validated: list[dict[str, str]] = []
+    for finding in findings:
+        if not isinstance(finding, dict) or set(finding) != {"severity", "confidence", "summary"}:
+            return None
+        severity = finding.get("severity")
+        confidence = finding.get("confidence")
+        summary = finding.get("summary")
+        if (
+            severity not in VALID_SEVERITIES
+            or confidence not in VALID_CONFIDENCES
+            or not isinstance(summary, str)
+            or not summary.strip()
+        ):
+            return None
+        validated.append(
+            {"severity": severity, "confidence": confidence, "summary": summary.strip()}
+        )
+
+    if outcome == "clean":
+        return (outcome, validated) if not validated else None
+    if outcome == "rework":
+        return (
+            (outcome, validated)
+            if validated and all(finding["severity"] != "blocking" for finding in validated)
+            else None
+        )
+    if outcome == "blocking":
+        return (
+            (outcome, validated)
+            if any(finding["severity"] == "blocking" for finding in validated)
+            else None
+        )
+    return None
+
+
+def _report_validity(evidence: tuple[str, list[dict[str, str]]] | None) -> None:
     """Publish «did this carrier produce a usable verdict» and exit 0 either way.
 
     Measuring is not judging: a non-zero exit here would end the job before the
     second carrier was ever asked, and a `blocking` verdict is a result — treating
     it as invalid would let the failover overrule the carrier that found it.
     """
-    publish_step_output(f"valid={'true' if outcome in VALID_OUTCOMES else 'false'}")
+    publish_step_output(f"valid={'true' if evidence is not None else 'false'}")
+
+
+def _publish_summary(
+    evidence: tuple[str, list[dict[str, str]]], reviewed_head_sha: str | None
+) -> None:
+    """Write the validated review evidence to the durable Actions check summary."""
+    if not reviewed_head_sha:
+        print("error: --publish-summary needs --reviewed-head-sha", file=sys.stderr)
+        raise SystemExit(2)
+    destination = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not destination:
+        print("error: GITHUB_STEP_SUMMARY is unavailable", file=sys.stderr)
+        raise SystemExit(2)
+    outcome, findings = evidence
+    lines = [
+        "## Validated agent-review evidence",
+        "",
+        f"Reviewed head SHA: `{reviewed_head_sha}`",
+        "",
+        f"Outcome: `{outcome}`",
+        "",
+    ]
+    if findings:
+        lines.extend(
+            f"- **{_SEVERITY_LABELS[finding['severity']]} ({finding['confidence']})**: "
+            f"{finding['summary']}"
+            for finding in findings
+        )
+    else:
+        lines.append("No findings.")
+    try:
+        with open(destination, "a", encoding="utf-8") as handle:
+            handle.write("\n".join(lines) + "\n")
+    except OSError as exc:
+        print(f"error: cannot write GITHUB_STEP_SUMMARY {destination!r}: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -98,15 +193,24 @@ def main(argv: Sequence[str] | None = None) -> None:
         payload = json.loads(payload_arg)
     except json.JSONDecodeError:
         payload = None
-    outcome = payload.get("outcome") if isinstance(payload, dict) else None
+    evidence = validated_evidence(payload)
 
     if options.classify:
-        _report_validity(outcome)
+        _report_validity(evidence)
         return
 
     producer = options.producer
     _require_live_pr_context(options.live_pr_context_status)
+    if evidence is None:
+        print(
+            f"error: {producer} unavailable: no valid structured review evidence.", file=sys.stderr
+        )
+        raise SystemExit(2)
+    if options.publish_summary:
+        _publish_summary(evidence, options.reviewed_head_sha)
+        return
 
+    outcome, _findings = evidence
     if outcome == "clean":
         print(f"ok: {producer} outcome is clean")
         return
@@ -131,8 +235,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         raise SystemExit(1)
     # Naming the carrier matters most here: two carriers whose «unavailable» reads
     # identically leave the operator unable to tell which one came back empty (§IV).
-    print(f"error: {producer} unavailable: no valid structured outcome.", file=sys.stderr)
-    raise SystemExit(2)
+    raise AssertionError(f"validated evidence had an unknown outcome: {outcome!r}")
 
 
 if __name__ == "__main__":

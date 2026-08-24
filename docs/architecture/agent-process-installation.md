@@ -37,7 +37,9 @@ workflows run on every pull request.
    payload with the marketplace's `/plugin install` command. This is a local
    Claude configuration action; the plugin hooks rely on `scripts/hooks.py`
    copied in the previous step.
-3. Configure the two review credentials, then run the read-only preflight:
+3. Configure the two review credentials, including
+   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier, then run the
+   read-only preflight:
 
    ```bash
    python scripts/check_review_credentials.py --repo ekolvah/agent-process-distribution
@@ -55,6 +57,12 @@ workflows run on every pull request.
    | `1` | A secret or App repository grant is absent. | Follow the precise command or settings URL printed by the preflight, then rerun it. |
    | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
 
+   On every PR head that needs review, the PR author comments `@codex review`.
+   The workflow never posts that command or enables Automatic reviews. If Codex
+   leaves no valid evidence, the workflow falls back to Claude. The required
+   review check is red only when neither carrier produces valid evidence, or
+   when a carrier reports blocking findings; it is never silently skipped.
+
    Also inspect the organisation Actions policy. If it uses "Allow specified
    actions and reusable workflows", permit the pinned
    `ekolvah/agent-process-distribution/.github/workflows/*.yml` reference.
@@ -64,7 +72,8 @@ workflows run on every pull request.
 4. Activate the GitHub Project with the bootstrap command below. It may write
    remote Project configuration only in `create` mode with `--confirm-create`.
 5. Configure branch protection after bootstrap. This installation guide
-   reserves the step; the first real activation supplies its exact command.
+   reserves the step; [issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18)
+   supplies the safe, policy-preserving command.
 
 Enable the copied local pre-push probe after reviewing it:
 
@@ -72,9 +81,10 @@ Enable the copied local pre-push probe after reviewing it:
 git config core.hooksPath .githooks
 ```
 
-The caller permission grants (`contents: read`, `pull-requests: write` for
-review) are part of the published contract. A release that requires a wider
-callee permission is breaking until callers are re-rendered.
+The caller permission grants (`contents: read`, `issues: read`, and
+`pull-requests: write` for review) are part of the published contract. A
+release that requires a wider callee permission is breaking until callers are
+re-rendered.
 
 ## Workflow-definition trust
 

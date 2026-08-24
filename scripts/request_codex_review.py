@@ -1,67 +1,191 @@
-"""Ask carrier 2 for a verdict on the reviewed head and publish it.
+"""Read the standard GitHub review that a PR author requested from Codex.
 
-Carrier 2 is the Codex code review that runs on GitHub through the ChatGPT
-subscription: it is triggered by `@codex review` on the pull request and answers
-by posting a review of its own. Unlike carrier 1 it does not execute inside this
-runner, so this module is the whole adapter — it asks, waits for a review the
-declared reviewer left on *this* head, and translates the review state into the
-outcome vocabulary the enforcement step already understands.
-
-Two rules carry the design. A review left on an earlier head is not a verdict on
-this one: the diff it read is not the diff being merged. And a carrier that never
-answered must leave nothing behind — the enforcement step reds the check on an
-empty payload, which is exactly what «no review happened» has to look like (§IV).
-
-The mapping below is not divination: `REVIEW_CONTRACT.md`, linked from
-`AGENTS.md`, tells the reviewer to request changes only for a blocking finding
-and to comment otherwise, so the review state is the severity the reviewer was
-asked to express.
+Codex's supported GitHub flow is an owner comment, ``@codex review``. The
+integration posts a normal GitHub review: its summary is generic and its actual
+findings are inline comments, marked P0 through P3. This adapter never writes a
+comment or invokes another model. It waits for a current-head Codex review and
+translates those native records into the gate's evidence vocabulary.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from collections.abc import Callable, Mapping, Sequence
 
-from scripts.check_agent_review_outcome import VALID_OUTCOMES
+from scripts.check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
 from scripts.gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
 
-# Verified against the live API (`gh api apps/chatgpt-codex-connector` → owner
-# `openai`), not inferred from the product name: a wrong login here would read
-# every Codex review as absent and time the carrier out on every run.
 CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
-REVIEW_REQUEST = "@codex review"
-STATE_OUTCOMES = {
-    "APPROVED": "clean",
-    "COMMENTED": "rework",
-    "CHANGES_REQUESTED": "blocking",
-}
+STANDARD_REVIEW_PARSER = True
 DEFAULT_TIMEOUT_SECONDS = 900
 DEFAULT_POLL_SECONDS = 20
+_PRIORITY = re.compile(r"\bP(?P<number>[0-3])\b", re.IGNORECASE)
+_SEVERITIES = {
+    "0": "blocking",
+    "1": "blocking",
+    "2": "should-fix",
+    "3": "nice-to-have",
+}
+_REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
 
 
-def find_verdict(reviews: object, head_sha: str, reviewer: str) -> str | None:
-    """Return the outcome carried by `reviewer`'s review of `head_sha`, if any.
+def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
+    body = record.get("body")
+    if not isinstance(body, str) or not (summary := body.strip()):
+        return None
+    priority = _PRIORITY.search(summary)
+    if priority is None:
+        return None
+    severity = _SEVERITIES[priority.group("number")]
+    return {"severity": severity, "confidence": "high", "summary": summary}
 
-    The last matching review wins: Codex re-reviews on request, and its latest
-    word on this head is the one the maintainer sees.
-    """
-    verdict: str | None = None
-    for record in flatten_pages(reviews):
-        user = record.get("user")
-        login = user.get("login") if isinstance(user, Mapping) else None
-        if login != reviewer or record.get("commit_id") != head_sha:
+
+def _findings_for_review(
+    comments: object, review_id: object, reviewer: str
+) -> list[dict[str, str]] | None:
+    findings: list[dict[str, str]] = []
+    for comment in flatten_pages(comments):
+        if comment.get("pull_request_review_id") != review_id:
             continue
-        outcome = STATE_OUTCOMES.get(str(record.get("state")))
-        if outcome is not None:
-            verdict = outcome
-    return verdict
+        author = comment.get("user")
+        if (
+            not isinstance(author, Mapping)
+            or author.get("login") != reviewer
+            or comment.get("in_reply_to_id") is not None
+        ):
+            continue
+        finding = _finding(comment)
+        if finding is None:
+            return None
+        findings.append(finding)
+    return findings
+
+
+def _evidence_from_review(
+    record: Mapping[str, object], comments: object, reviewer: str
+) -> dict[str, object] | None:
+    state = str(record.get("state"))
+    findings = _findings_for_review(comments, record.get("id"), reviewer)
+    if findings is None:
+        return None
+    if state == "APPROVED":
+        return {"outcome": "clean", "findings": []} if not findings else None
+    if state not in {"COMMENTED", "CHANGES_REQUESTED"} or not findings:
+        return None
+    if state == "CHANGES_REQUESTED" and not any(
+        finding["severity"] == "blocking" for finding in findings
+    ):
+        return None
+    outcome = (
+        "blocking" if any(finding["severity"] == "blocking" for finding in findings) else "rework"
+    )
+    evidence = {"outcome": outcome, "findings": findings}
+    return evidence if validated_evidence(evidence) is not None else None
+
+
+def find_verdict(
+    reviews: object,
+    comments: object,
+    head_sha: str,
+    reviewer: str,
+) -> dict[str, object] | None:
+    """Return native Codex evidence for the current reviewed head, if present."""
+    matching = [
+        record
+        for record in flatten_pages(reviews)
+        if isinstance(record.get("user"), Mapping)
+        and record["user"].get("login") == reviewer
+        and record.get("commit_id") == head_sha
+    ]
+    if not matching:
+        return None
+    _, latest = max(
+        enumerate(matching), key=lambda item: (str(item[1].get("submitted_at", "")), item[0])
+    )
+    return _evidence_from_review(latest, comments, reviewer)
+
+
+def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
+    return any(
+        isinstance(record.get("user"), Mapping)
+        and record["user"].get("login") == reviewer
+        and record.get("commit_id") == head_sha
+        and str(record.get("state")) in _REVIEW_STATES
+        for record in flatten_pages(reviews)
+    )
+
+
+def _read_record(endpoint: str) -> Mapping[str, object]:
+    try:
+        payload = json.loads(run_gh(["api", endpoint]))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"gh api {endpoint} returned invalid JSON: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise RuntimeError(f"unexpected payload shape from {endpoint}: {type(payload).__name__}")
+    return payload
+
+
+def _clean_reaction_context(repository: str, pr_number: str, head_sha: str) -> str:
+    pull = _read_record(f"repos/{repository}/pulls/{pr_number}")
+    author = pull.get("user")
+    author_login = author.get("login") if isinstance(author, Mapping) else None
+    head = pull.get("head")
+    if (
+        not isinstance(author_login, str)
+        or not isinstance(head, Mapping)
+        or head.get("sha") != head_sha
+    ):
+        raise RuntimeError("live PR author or head SHA is unavailable")
+    return author_login
+
+
+def find_clean_reaction(
+    requests: object,
+    reactions_by_request: Mapping[object, object],
+    *,
+    author_login: str,
+    head_observed_at: str,
+    reviewer: str,
+) -> dict[str, object] | None:
+    """Accept only the native clean reaction tied to this author and head."""
+    for request in reversed(flatten_pages(requests)):
+        author = request.get("user")
+        if (
+            not isinstance(author, Mapping)
+            or author.get("login") != author_login
+            or request.get("body") != "@codex review"
+            or not isinstance(request.get("created_at"), str)
+            or request["created_at"] < head_observed_at
+        ):
+            continue
+        reactions = reactions_by_request.get(request.get("id"), [])
+        if any(
+            reaction.get("content") == "+1"
+            and isinstance(reaction.get("user"), Mapping)
+            and reaction["user"].get("login") == reviewer
+            for reaction in flatten_pages(reactions)
+        ):
+            return {"outcome": "clean", "findings": []}
+    return None
 
 
 def _fetch_reviews(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/pulls/{pr_number}/reviews?per_page=100")
+
+
+def _fetch_review_comments(repository: str, pr_number: str) -> object:
+    return slurp_records(f"repos/{repository}/pulls/{pr_number}/comments?per_page=100")
+
+
+def _fetch_request_comments(repository: str, pr_number: str) -> object:
+    return slurp_records(f"repos/{repository}/issues/{pr_number}/comments?per_page=100")
+
+
+def _fetch_reactions(repository: str, comment_id: object) -> object:
+    return slurp_records(f"repos/{repository}/issues/comments/{comment_id}/reactions?per_page=100")
 
 
 def poll_for_verdict(
@@ -69,42 +193,60 @@ def poll_for_verdict(
     pr_number: str,
     head_sha: str,
     *,
+    head_observed_at: str,
     reviewer: str = CODEX_REVIEWER,
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     poll_seconds: int = DEFAULT_POLL_SECONDS,
     sleep: Callable[[float], None] | None = None,
     monotonic: Callable[[], float] | None = None,
-) -> str | None:
-    """Request a review once, then wait for it until `timeout_seconds` elapses.
-
-    The first read happens before the request: automatic review is a repository
-    setting, so the carrier may have already answered for this head, and asking
-    again would spend a review of the subscription's budget to learn nothing.
-    """
+) -> dict[str, object] | None:
+    """Wait for a requested standard review, stopping on invalid evidence too."""
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
-
-    verdict = find_verdict(_fetch_reviews(repository, pr_number), head_sha, reviewer)
-    if verdict is not None:
-        return verdict
-
-    run_gh(["pr", "comment", pr_number, "--repo", repository, "--body", REVIEW_REQUEST])
-    print(f"requested a review from {reviewer} on {head_sha}")
-
     deadline = clock() + timeout_seconds
-    while clock() < deadline:
-        wait(poll_seconds)
-        verdict = find_verdict(_fetch_reviews(repository, pr_number), head_sha, reviewer)
-        if verdict is not None:
+    author_login: str | None = None
+    while True:
+        reviews = _fetch_reviews(repository, pr_number)
+        verdict = find_verdict(
+            reviews,
+            _fetch_review_comments(repository, pr_number),
+            head_sha,
+            reviewer,
+        )
+        if verdict is not None or _has_current_review(reviews, head_sha, reviewer):
             return verdict
-    return None
+        if author_login is None:
+            author_login = _clean_reaction_context(repository, pr_number, head_sha)
+        requests = _fetch_request_comments(repository, pr_number)
+        reactions = {
+            request.get("id"): _fetch_reactions(repository, request.get("id"))
+            for request in flatten_pages(requests)
+            if request.get("body") == "@codex review"
+        }
+        clean = find_clean_reaction(
+            requests,
+            reactions,
+            author_login=author_login,
+            head_observed_at=head_observed_at,
+            reviewer=reviewer,
+        )
+        if clean is not None:
+            return clean
+        if clock() >= deadline:
+            return None
+        wait(poll_seconds)
 
 
 def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", dest="repository", required=True, metavar="OWNER/REPO")
     parser.add_argument("--pr", dest="pr_number", required=True, metavar="NUMBER")
-    parser.add_argument("--head-sha", dest="head_sha", required=True)
+    parser.add_argument("--head-sha", required=True)
+    parser.add_argument(
+        "--head-observed-at",
+        required=True,
+        help="GitHub event timestamp for the current PR head transition.",
+    )
     parser.add_argument("--reviewer", default=CODEX_REVIEWER)
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--poll-seconds", type=int, default=DEFAULT_POLL_SECONDS)
@@ -112,35 +254,29 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Publish carrier 2's verdict as the payload the enforcement step reads.
-
-    Exit code 0 either way, on purpose: the enforcement step is the single place
-    that turns an outcome into a check result, and an empty payload already means
-    «no verdict» there. Failing here as well would split one verdict across two
-    steps and leave the log unable to answer who reviewed this head.
-    """
+    """Publish the requested review payload; enforcement owns the final result."""
     options = _parse_options(argv)
     verdict = poll_for_verdict(
         options.repository,
         options.pr_number,
         options.head_sha,
+        head_observed_at=options.head_observed_at,
         reviewer=options.reviewer,
         timeout_seconds=options.timeout_seconds,
         poll_seconds=options.poll_seconds,
     )
     if verdict is None:
         print(
-            f"::warning::{options.reviewer} left no review of {options.head_sha} within "
-            f"{options.timeout_seconds}s. Carrier 2 produced no verdict, so the enforcement "
-            "step below has no outcome to enforce. Check that this repository is connected "
-            "in Codex cloud settings with code review enabled, and that its subscription "
-            "quota is not exhausted."
+            f"::warning::{options.reviewer} left no usable review of {options.head_sha} within "
+            f"{options.timeout_seconds}s. The PR author must request `@codex review` "
+            "and wait for its GitHub review before this gate can pass."
         )
         publish_step_output("payload=")
         return
-    if verdict not in VALID_OUTCOMES:  # pragma: no cover - guarded by the mapping test
-        raise RuntimeError(f"carrier 2 produced an outcome the gate does not know: {verdict!r}")
-    publish_step_output(f"payload={json.dumps({'outcome': verdict})}")
+    outcome = verdict.get("outcome")
+    if outcome not in VALID_OUTCOMES:  # pragma: no cover - validated above
+        raise RuntimeError(f"Codex produced an outcome the gate does not know: {outcome!r}")
+    publish_step_output(f"payload={json.dumps(verdict, separators=(',', ':'))}")
 
 
 if __name__ == "__main__":
