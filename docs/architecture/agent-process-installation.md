@@ -42,7 +42,7 @@ Enable the copied local pre-push probe after reviewing it:
 git config core.hooksPath .githooks
 ```
 
-The caller permission grants (`contents: read`, `pull-requests: write` for
+The caller permission grants (`contents: read`, `pull-requests: read` for
 review) are part of the published contract. A release that requires a wider
 callee permission is breaking until callers are re-rendered.
 

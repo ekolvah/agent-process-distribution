@@ -235,7 +235,11 @@ class TestRunRoute:
     @pytest.mark.parametrize(
         ("overrides", "role", "adapter"),
         [
-            ({**_READY_FOR_REVIEW, "reviewed_heads": ()}, "pr_reviewer", "Claude code-review"),
+            (
+                {**_READY_FOR_REVIEW, "reviewed_heads": ()},
+                "pr_reviewer",
+                "Codex code review",
+            ),
             ({**_READY_FOR_REVIEW, "review_outcome": "clean"}, "human_merge", "Human reviewer"),
         ],
     )
@@ -350,40 +354,34 @@ class TestCarrierSelection:
     reviewed by Codex, which is confident misinformation of exactly the kind.
     """
 
-    def test_the_review_gate_declares_both_of_its_carriers(self) -> None:
+    def test_the_review_gate_declares_its_sole_carrier(self) -> None:
         role = load_catalog()["roles"]["pr_reviewer"]
 
-        assert len(role["adapters"]) == 2, (
-            "the second review carrier exists in CI but not in the catalogue, so the "
-            "control plane cannot name who reviewed a head"
-        )
-        assert role["carrier_selection"] == "ci_failover"
+        assert role["adapters"] == ["Codex code review (GitHub integration)"]
+        assert role["carrier_selection"] == "sole"
         assert role["adapter_routes"] is None
         assert set(role["adapter_files"]) == set(role["adapters"])
 
-    def test_a_runtime_selected_carrier_ignores_the_run_route(self) -> None:
+    def test_the_sole_carrier_ignores_the_run_route(self) -> None:
         """Both routes name the carrier that is asked first, because CI asks it first."""
         catalogue = load_catalog()
         overrides = {**_READY_FOR_REVIEW, "reviewed_heads": ()}
-
-        carriers = catalogue["roles"]["pr_reviewer"]["adapters"]
-        assert len(carriers) > 1, "with one carrier this asserts nothing about selection"
 
         claude = decide(_state(route="claude", **overrides), catalogue)
         codex = decide(_state(route="codex", **overrides), catalogue)
 
         assert claude.next_role == codex.next_role == "pr_reviewer"
-        assert claude.adapter == codex.adapter == carriers[0]
+        assert claude.adapter == codex.adapter == "Codex code review (GitHub integration)"
 
-    def test_the_carrier_asked_first_is_the_declared_default(self, tmp_path: Path) -> None:
+    def test_the_sole_carrier_is_the_declared_default(self, tmp_path: Path) -> None:
         """Otherwise `adapter` and the failover order tell two different stories."""
         catalogue = load_catalog()
         role = catalogue["roles"]["pr_reviewer"]
-        role["adapter"] = role["adapters"][1]
+        role["adapter"] = "Unknown reviewer"
         reordered = tmp_path / "roles.yaml"
         reordered.write_text(yaml.safe_dump(catalogue), encoding="utf-8")
 
-        with pytest.raises(ValueError, match="asked first"):
+        with pytest.raises(ValueError, match="adapter"):
             load_catalog(reordered)
 
     def test_a_second_carrier_cannot_arrive_without_saying_how_it_is_selected(

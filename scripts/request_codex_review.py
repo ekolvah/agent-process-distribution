@@ -75,16 +75,19 @@ def find_verdict(
     reviewer: str,
 ) -> dict[str, object] | None:
     """Return native Codex evidence for the current reviewed head, if present."""
-    verdict: dict[str, object] | None = None
-    for record in flatten_pages(reviews):
-        user = record.get("user")
-        login = user.get("login") if isinstance(user, Mapping) else None
-        if login != reviewer or record.get("commit_id") != head_sha:
-            continue
-        evidence = _evidence_from_review(record, comments)
-        if evidence is not None:
-            verdict = evidence
-    return verdict
+    matching = [
+        record
+        for record in flatten_pages(reviews)
+        if isinstance(record.get("user"), Mapping)
+        and record["user"].get("login") == reviewer
+        and record.get("commit_id") == head_sha
+    ]
+    if not matching:
+        return None
+    _, latest = max(
+        enumerate(matching), key=lambda item: (str(item[1].get("submitted_at", "")), item[0])
+    )
+    return _evidence_from_review(latest, comments)
 
 
 def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:

@@ -67,6 +67,18 @@ def test_only_current_head_codex_review_is_accepted() -> None:
     assert find_verdict([stale], [], _HEAD, _REVIEWER) is None
 
 
+def test_latest_current_head_review_overrides_an_older_clean_verdict() -> None:
+    assert (
+        find_verdict(
+            [_review("APPROVED"), _review("COMMENTED")],
+            [],
+            _HEAD,
+            _REVIEWER,
+        )
+        is None
+    )
+
+
 def test_poll_stops_when_a_current_head_review_is_malformed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
