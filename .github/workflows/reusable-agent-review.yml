@@ -73,6 +73,7 @@ jobs:
       - name: Read owner-requested Codex review
         id: codex-review
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
+        continue-on-error: true
         working-directory: ${{ steps.review-source.outputs.adapter_working_directory }}
         timeout-minutes: 12
         env:

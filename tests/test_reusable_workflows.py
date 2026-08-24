@@ -145,6 +145,7 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
     assert "Classify Codex review outcome" in steps
     assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
     assert "@codex review" not in str(steps["Read owner-requested Codex review"])
+    assert steps["Read owner-requested Codex review"]["continue-on-error"] is True
     assert steps["Read owner-requested Codex review"]["working-directory"] == (
         "${{ steps.review-source.outputs.adapter_working_directory }}"
     )
