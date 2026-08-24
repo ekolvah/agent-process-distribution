@@ -23,37 +23,36 @@ REQUIRED_GENERATED_PATHS = frozenset(
         "scripts/ci_check.py",
     }
 )
-NON_PAYLOAD_DIRECTORIES = frozenset(
+ROOT_ONLY_DIRECTORIES = frozenset(
     {
         ".claude-plugin",
-        ".git",
-        ".pytest_cache",
         ".render-bootstrap-probe",
-        ".ruff_cache",
-        "__pycache__",
         "agents",
         "commands",
+        "evidence",
         "template",
     }
 )
+# Build artefacts never belong to a payload at any depth.  The source-only
+# directories above exist only at the checkout root, so matching them at any
+# depth would hide nested payload paths such as .agents/skills/*/agents/.
+ARTIFACT_DIRECTORIES = frozenset({".git", ".pytest_cache", ".ruff_cache", "__pycache__"})
 COPIER_METADATA_PATHS = frozenset({".copier-answers.yml"})
 
 
 @dataclass(frozen=True)
 class DriftReport:
-    """Failures and non-failing source-only files found by the gate."""
+    """Failures found by the gate; every undeclared root-only path fails."""
 
     errors: tuple[str, ...]
-    reported_extras: tuple[str, ...]
 
     def format(self) -> str:
         """Describe failures with the one permitted repair direction."""
         parts = [*self.errors]
-        if self.reported_extras:
-            parts.append("reported non-strict extra paths: " + ", ".join(self.reported_extras))
         if self.errors:
             parts.append(
-                "Fix direction: edit template/ and re-render; never hand-edit the generated root copy."
+                "Fix direction: edit template/ and re-render; never hand-edit the generated "
+                "root copy. Declare genuine source-only paths in template-drift-allowlist.yml."
             )
         return "\n\n".join(parts)
 
@@ -64,7 +63,6 @@ class Allowlist:
 
     root_only_paths: frozenset[str]
     expected_to_differ_paths: frozenset[str]
-    strict_extra_directories: frozenset[str]
 
 
 def load_answers(root: Path) -> dict[str, object]:
@@ -76,7 +74,7 @@ def load_answers(root: Path) -> dict[str, object]:
 
 
 def load_allowlist(root: Path) -> Allowlist:
-    """Read the two exception kinds and the directories where extras are errors."""
+    """Read the two declared exception kinds."""
     data = yaml.safe_load((root / "template-drift-allowlist.yml").read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("template-drift-allowlist.yml must contain a mapping")
@@ -94,10 +92,7 @@ def load_allowlist(root: Path) -> Allowlist:
             result.add(row["path"])
         return frozenset(result)
 
-    strict = data.get("strict_extra_directories", [])
-    if not isinstance(strict, list) or not all(isinstance(path, str) for path in strict):
-        raise ValueError("strict_extra_directories must be a list of paths")
-    return Allowlist(paths("root_only_paths"), paths("expected_to_differ_paths"), frozenset(strict))
+    return Allowlist(paths("root_only_paths"), paths("expected_to_differ_paths"))
 
 
 def render_working_tree(root: Path, destination: Path) -> Path:
@@ -136,7 +131,9 @@ def _files(directory: Path) -> dict[str, Path]:
     return {
         path.relative_to(directory).as_posix(): path
         for path in directory.rglob("*")
-        if path.is_file() and not NON_PAYLOAD_DIRECTORIES & set(path.relative_to(directory).parts)
+        if path.is_file()
+        and path.relative_to(directory).parts[0] not in ROOT_ONLY_DIRECTORIES
+        and not ARTIFACT_DIRECTORIES & set(path.relative_to(directory).parts)
     }
 
 
@@ -155,10 +152,6 @@ def _diff(path: str, rendered: Path, root: Path) -> str:
     return "\n".join((f"content differs: {path}", *diff))
 
 
-def _is_strict_extra(path: str, directories: frozenset[str]) -> bool:
-    return any(path == directory or path.startswith(f"{directory}/") for directory in directories)
-
-
 def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
     """Compare rendered payload files with the self-applied root."""
     root_files = _files(root)
@@ -167,7 +160,6 @@ def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
         path: file for path, file in rendered_files.items() if path not in COPIER_METADATA_PATHS
     }
     errors: list[str] = []
-    reported_extras: list[str] = []
 
     missing_required = REQUIRED_GENERATED_PATHS - rendered_files.keys()
     if missing_required:
@@ -198,12 +190,9 @@ def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
     for path in sorted(root_files.keys() - rendered_files.keys()):
         if path in allowlist.root_only_paths:
             continue
-        if _is_strict_extra(path, allowlist.strict_extra_directories):
-            errors.append(f"undeclared extra file in strict directory: {path}")
-        else:
-            reported_extras.append(path)
+        errors.append(f"undeclared extra file: {path}")
 
-    return DriftReport(tuple(errors), tuple(reported_extras))
+    return DriftReport(tuple(errors))
 
 
 def check(root: Path) -> DriftReport:

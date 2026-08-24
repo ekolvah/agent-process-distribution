@@ -113,17 +113,53 @@ def test_declared_expected_difference_is_allowed(
     )
 
 
-def test_extra_file_in_a_strict_directory_is_red(
-    tmp_path: Path, rendered_self_applied: Path
-) -> None:
+def test_undeclared_extra_file_is_red(tmp_path: Path, rendered_self_applied: Path) -> None:
     source = checkout(tmp_path)
-    (source / ".githooks" / "unexpected").write_text("extra\n", encoding="utf-8")
+    (source / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
 
     report = template_drift.compare(
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    assert "undeclared extra file in strict directory: .githooks/unexpected" in report.errors
+    assert "undeclared extra file: scripts/stray.py" in report.errors, report.format()
+
+
+def test_orphaned_generated_copy_is_red(tmp_path: Path) -> None:
+    source = checkout(tmp_path)
+    (source / "template" / "tests" / "test_review_gate.py").unlink()
+
+    report = template_drift.check(source)
+
+    assert "undeclared extra file: tests/test_review_gate.py" in report.errors, report.format()
+
+
+def test_nested_payload_directory_is_compared(tmp_path: Path, rendered_self_applied: Path) -> None:
+    source = checkout(tmp_path)
+    skill = source / ".agents" / "skills" / "plan-issue" / "agents" / "openai.yaml"
+    skill.write_text("answer: drifted\n", encoding="utf-8")
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert any(
+        ".agents/skills/plan-issue/agents/openai.yaml" in error for error in report.errors
+    ), report.format()
+
+
+def test_artifact_directories_are_excluded_at_any_depth(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    source = checkout(tmp_path)
+    cache = source / "scripts" / "__pycache__"
+    cache.mkdir()
+    (cache / "junk.pyc").write_bytes(b"")
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert not any("__pycache__" in error for error in report.errors), report.format()
 
 
 def test_expected_path_set_is_not_vacuous(clean_drift_report: template_drift.DriftReport) -> None:

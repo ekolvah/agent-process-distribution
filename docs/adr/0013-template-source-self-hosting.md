@@ -35,8 +35,8 @@ The pytest drift gate copies `copier.yml` and `template/` into a git-free
 temporary directory, renders it with this checkout's non-volatile answers, and
 compares the result with the root. Generated files must match after CRLF/LF
 normalisation. The allowlist declares root-only files and files expected to
-differ; stale rows fail. Extra files are reported and fail only in declared
-strict directories.
+differ; stale rows fail. Every undeclared extra root file fails, while build
+artefacts are ignored at every depth.
 
 The repair direction is always to edit `template/` and re-render the root.
 
