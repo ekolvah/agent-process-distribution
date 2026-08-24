@@ -7,7 +7,7 @@ import json
 import pytest
 
 from scripts import request_codex_review
-from scripts.request_codex_review import find_verdict
+from scripts.request_codex_review import find_verdict, poll_for_verdict
 
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
@@ -68,6 +68,58 @@ def test_codex_evidence_outcome_must_match_its_review_state() -> None:
         )
         is None
     )
+
+
+def test_poll_for_verdict_never_posts_a_codex_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests: list[object] = []
+    clock = iter((0.0, 1.0))
+    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [])
+    monkeypatch.setattr(request_codex_review, "run_gh", requests.append)
+
+    verdict = poll_for_verdict(
+        "owner/repo",
+        "14",
+        _HEAD,
+        timeout_seconds=1,
+        poll_seconds=1,
+        sleep=lambda _seconds: None,
+        monotonic=lambda: next(clock),
+    )
+
+    assert verdict is None
+    assert requests == []
+
+
+def test_only_current_head_codex_evidence_is_accepted() -> None:
+    current = _review(
+        "APPROVED",
+        """<!-- agent-review-evidence
+{"outcome":"clean","findings":[]}
+-->""",
+    )[0]
+    stale = {**current, "commit_id": "b" * 40}
+    requests: list[object] = []
+    clock = iter((0.0, 1.0))
+
+    assert find_verdict([stale], _HEAD, _REVIEWER) is None
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [stale])
+    monkeypatch.setattr(request_codex_review, "run_gh", requests.append)
+    try:
+        assert poll_for_verdict(
+            "owner/repo",
+            "14",
+            _HEAD,
+            timeout_seconds=1,
+            poll_seconds=1,
+            sleep=lambda _seconds: None,
+            monotonic=lambda: next(clock),
+        ) is None
+    finally:
+        monkeypatch.undo()
+    assert requests == []
 
 
 def test_main_publishes_the_full_validated_codex_evidence(

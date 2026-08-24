@@ -126,6 +126,24 @@ def test_rendered_callers_pin_a_complete_reference_and_map_secrets_explicitly(
     assert "inherit" not in callers["agent-review"].get("secrets", {})
 
 
+def test_rendered_review_caller_uses_subscription_only_credentials(
+    rendered_default: Path,
+) -> None:
+    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-review.yml")["jobs"][
+        "agent-review"
+    ]
+
+    assert caller["secrets"] == {
+        "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
+    }
+    assert "OPENAI_API_KEY" not in str(caller)
+    installation = (
+        rendered_default / "docs" / "architecture" / "agent-process-installation.md"
+    ).read_text(encoding="utf-8")
+    assert "Automatic reviews" in installation
+    assert "On every push" in installation
+
+
 def test_non_default_context_answers_render_a_consistent_project(
     tmp_path: Path,
 ) -> None:

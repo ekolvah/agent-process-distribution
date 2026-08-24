@@ -187,6 +187,35 @@ def test_agent_review_requires_structured_review_evidence() -> None:
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
 
 
+def test_codex_automatic_review_precedes_claude_fallback() -> None:
+    steps = _steps("reusable-agent-review.yml")
+    names = list(steps)
+
+    assert names.index("Codex review") < names.index("Claude review")
+    assert "steps.pr-context.outcome == 'success'" in steps["Codex review"]["if"]
+    assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
+
+
+def test_valid_codex_blocking_does_not_run_claude() -> None:
+    steps = _steps("reusable-agent-review.yml")
+
+    assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
+    assert steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"] == (
+        "${{ steps.codex-classify.outputs.valid == 'true' && 'Codex review' || 'Claude review' }}"
+    )
+
+
+def test_claude_runs_only_when_codex_evidence_is_unavailable() -> None:
+    steps = _steps("reusable-agent-review.yml")
+
+    assert steps["Classify Codex review outcome"]["env"]["STRUCTURED_OUTCOME"] == (
+        "${{ steps.codex-review.outputs.payload }}"
+    )
+    assert steps["Classify Claude review outcome"]["if"] == (
+        "${{ always() && steps.codex-classify.outputs.valid != 'true' }}"
+    )
+
+
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
     contract = ROOT / "REVIEW_CONTRACT.md"
     template_contract = ROOT / "template" / "REVIEW_CONTRACT.md.jinja"
