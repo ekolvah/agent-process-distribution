@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Configure this repository's required GitHub Project.
+"""Configure this repository's Project and required branch protection.
 
 The Copier answer selected ``create``. Reusing a Project is
 read-only until all required fields have been verified. Creating a Project is
@@ -24,8 +24,10 @@ REPOSITORY = "ekolvah/agent-process-distribution"
 SETTINGS_PATH = Path(__file__).with_name("project_settings.py")
 
 
-def _checked(command: list[str]) -> str:
-    completed = subprocess.run(command, text=True, capture_output=True, encoding="utf-8")
+def _checked(command: list[str], *, input: str | None = None) -> str:
+    completed = subprocess.run(
+        command, text=True, input=input, capture_output=True, encoding="utf-8"
+    )
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr.strip() or f"failed: {' '.join(command)}")
     return completed.stdout
@@ -167,6 +169,64 @@ def _create() -> tuple[str, str]:
         _rollback_created_project(number, exc)
 
 
+def _repository() -> str:
+    if REPOSITORY:
+        return REPOSITORY
+    current = _run(["gh", "repo", "view", "--json", "nameWithOwner"])
+    repository = str(current.get("nameWithOwner", ""))
+    if not repository:
+        raise RuntimeError("cannot resolve github_repository from the current checkout")
+    return repository
+
+
+def _configure_branch_protection() -> None:
+    """Apply only the process-owned required contexts to the default branch.
+
+    A pre-existing protection rule may contain review, push, or deletion policy
+    owned by the repository.  Updating its status-check subresource preserves
+    those choices; a previously unprotected branch receives the complete safe
+    baseline needed for first activation.
+    """
+    from scripts.check_branch_protection import REQUIRED_CONTEXTS
+
+    repository = _repository()
+    viewed = _run(["gh", "repo", "view", repository, "--json", "defaultBranchRef"])
+    ref = viewed.get("defaultBranchRef")
+    branch = ref.get("name") if isinstance(ref, dict) else None
+    if not isinstance(branch, str) or not branch:
+        raise RuntimeError("`gh repo view` returned no default branch")
+    endpoint = f"repos/{repository}/branches/{branch}/protection"
+    contexts = list(REQUIRED_CONTEXTS)
+    try:
+        _checked(["gh", "api", endpoint])
+    except RuntimeError as exc:
+        if "HTTP 404" not in str(exc):
+            raise
+        payload = {
+            "required_status_checks": {"strict": True, "contexts": contexts},
+            "enforce_admins": True,
+            "required_pull_request_reviews": None,
+            "restrictions": None,
+            "required_linear_history": False,
+            "allow_force_pushes": False,
+            "allow_deletions": False,
+            "block_creations": False,
+            "required_conversation_resolution": False,
+            "lock_branch": False,
+            "allow_fork_syncing": False,
+        }
+        _checked(
+            ["gh", "api", "--method", "PUT", endpoint, "--input", "-"],
+            input=json.dumps(payload),
+        )
+        return
+    _checked(
+        ["gh", "api", "--method", "PATCH", f"{endpoint}/required_status_checks", "--input", "-"],
+        input=json.dumps({"strict": True, "contexts": contexts}),
+    )
+    _checked(["gh", "api", "--method", "POST", f"{endpoint}/enforce_admins"])
+
+
 def _already_configured() -> bool:
     try:
         import project_settings
@@ -186,15 +246,20 @@ def main(argv: list[str] | None = None) -> None:
         help="allow Project creation in create mode",
     )
     ns = parser.parse_args(argv)
-    if _already_configured():
-        print("ok: GitHub Project bootstrap is already configured")
-        return
     try:
+        already_configured = _already_configured()
+        if already_configured:
+            _configure_branch_protection()
+            print(
+                "ok: GitHub Project bootstrap is already configured; branch protection is current"
+            )
+            return
         if MODE == "create":
             if not ns.confirm_create:
                 parser.error("create mode needs --confirm-create")
             number, project_id = _create()
             try:
+                _configure_branch_protection()
                 _write(number, project_id, _fields(number))
             except (OSError, RuntimeError) as exc:
                 _rollback_created_project(number, exc)
@@ -216,6 +281,7 @@ def main(argv: list[str] | None = None) -> None:
             number, project_id = EXISTING_NUMBER, str(viewed.get("id", ""))
             if not project_id:
                 raise RuntimeError("`gh project view` returned no id")
+            _configure_branch_protection()
             _write(number, project_id, _fields(number))
     except (OSError, RuntimeError) as exc:
         print(

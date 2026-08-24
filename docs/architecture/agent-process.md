@@ -303,7 +303,9 @@ unchanged head spends none of it. The verdict goes into `## Agent record`.
 ## Review outcome enforcement
 
 `clean` and `rework` outcomes pass; `blocking`, empty, or malformed outcomes
-red the check. A valid result has an explicit empty finding list for `clean`, or
+red the check. Open Codex P0/P1 conversations are independently blocking: the
+same required check fails until each such thread is resolved. P2/P3 threads are
+advisory and do not fail it merely because they remain open. A valid result has an explicit empty finding list for `clean`, or
 one or more severity-, confidence-, and summary-bearing findings for `rework` or
 `blocking`; the workflow writes that validated evidence and the reviewed head SHA
 to its check summary. Once the reusable review workflow is invoked, it reads its
@@ -319,7 +321,9 @@ The target's thin caller invokes the publisher's pinned
 `reusable-agent-review.yml`. The PR author starts the Codex primary with
 `@codex review`; the workflow never posts that command or enables Automatic
 reviews. It waits for Codex's normal GitHub review on the current head, then
-translates its P0/P1/P2/P3 inline comments into the gate outcome. When Codex
+translates its P0/P1/P2/P3 inline comments into the gate outcome. Review text
+must say **BLOCKING — P0/P1** or **NON-BLOCKING — P2/P3** beside each finding.
+When Codex
 leaves no valid evidence, Claude runs as the structured-output fallback. A
 valid verdict from either carrier is final for that head.
 The workflow keeps an isolated checkout of the publisher's default branch in

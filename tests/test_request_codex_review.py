@@ -25,7 +25,11 @@ def _review(state: str) -> dict[str, object]:
 
 
 def _comment(body: str) -> dict[str, object]:
-    return {"pull_request_review_id": 42, "body": body}
+    return {
+        "pull_request_review_id": 42,
+        "body": body,
+        "user": {"login": _REVIEWER},
+    }
 
 
 def test_standard_codex_p1_comment_is_blocking_evidence() -> None:
@@ -59,6 +63,28 @@ def test_standard_codex_p2_comment_is_rework_evidence() -> None:
     assert verdict is not None
     assert verdict["outcome"] == "rework"
     assert verdict["findings"][0]["severity"] == "should-fix"
+
+
+def test_codex_comment_without_a_priority_is_invalid_evidence() -> None:
+    assert find_verdict([_review("COMMENTED")], [_comment("Fix this")], _HEAD, _REVIEWER) is None
+
+
+def test_human_reply_does_not_become_a_codex_finding() -> None:
+    reply = {
+        **_comment("P1 is not applicable here"),
+        "user": {"login": "author"},
+        "in_reply_to_id": 100,
+    }
+    verdict = find_verdict(
+        [_review("COMMENTED")],
+        [_comment("**![P2 Badge](https://example.test/p2) Update guidance"), reply],
+        _HEAD,
+        _REVIEWER,
+    )
+
+    assert verdict is not None
+    assert verdict["outcome"] == "rework"
+    assert len(verdict["findings"]) == 1
 
 
 def test_changes_requested_requires_a_blocking_codex_finding() -> None:
@@ -126,6 +152,7 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
     monkeypatch.setattr(
         request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
     )
+    monkeypatch.setattr(request_codex_review, "_fetch_changed_files", lambda *_args: [])
     monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
 
     assert (
@@ -138,6 +165,27 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
             poll_seconds=1,
             sleep=lambda _seconds: None,
             monotonic=lambda: next(clock),
+        )
+        is None
+    )
+
+
+def test_poll_defers_to_trusted_fallback_when_pr_changes_review_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        request_codex_review,
+        "_fetch_changed_files",
+        lambda *_args: [{"filename": "REVIEW_CONTRACT.md"}],
+    )
+
+    assert (
+        poll_for_verdict(
+            "owner/repo",
+            "14",
+            _HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            timeout_seconds=60,
         )
         is None
     )

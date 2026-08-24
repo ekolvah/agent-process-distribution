@@ -51,10 +51,9 @@ workflows run on every pull request.
    GitHub does not expose that policy to the common maintainer token (the live
    probe returned 404), so this is an explicit operator check rather than an
    unearned green result.
-4. Activate the GitHub Project with the bootstrap command below. It may write
-   remote Project configuration only in `create` mode with `--confirm-create`.
-5. Configure branch protection after bootstrap. This installation guide
-   reserves the step; the first real activation supplies its exact command.
+4. Activate the GitHub Project with the bootstrap command below. Bootstrap also
+   configures the default branch's canonical required checks and administrator
+   enforcement; it preserves any pre-existing review, push, and deletion policy.
 
 Enable the copied local pre-push probe after reviewing it:
 
@@ -83,11 +82,21 @@ untrusted contributor ran the publisher's policy.
 ## Activation
 
 `copier copy` copies the payload but does not create or alter GitHub resources.
-The copied process is inactive until its GitHub Project is configured. Run:
+The copied process is inactive until its GitHub Project and default-branch
+protection are configured. Run:
 
 ```bash
 python scripts/bootstrap_github_project.py{% if github_project_mode == "create" %} --confirm-create{% endif %}
 ```
+
+Bootstrap applies the canonical required checks (`quality / quality`, `pr-link /
+pr-link`, and `agent-review / agent-review`) to the repository's actual default
+branch with strict up-to-date checks and administrator coverage. For an existing
+classic protection rule it changes only its required-status checks and
+administrator enforcement, preserving the repository's review, push, and
+deletion policy. For an unprotected branch it creates that safe baseline.
+Re-running bootstrap repairs drift without rewriting the generated Project
+settings file.
 
 In `existing` mode, bootstrap reads the selected Project and verifies that it
 has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`

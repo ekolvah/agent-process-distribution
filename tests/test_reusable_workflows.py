@@ -144,17 +144,21 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
     assert "Classify Codex review outcome" in steps
     assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
     assert "@codex review" not in str(steps["Read owner-requested Codex review"])
+    assert steps["Read owner-requested Codex review"]["working-directory"] == (
+        "${{ steps.review-source.outputs.adapter_working_directory }}"
+    )
     for name in (
-        "Read owner-requested Codex review",
         "Classify Codex review outcome",
         "Classify Claude review outcome",
         "Publish validated review evidence",
         "Enforce selected review outcome",
+        "Enforce unresolved blocking Codex conversations",
     ):
-        assert steps[name]["working-directory"] == (
-            "${{ steps.review-source.outputs.working_directory }}"
-        )
+        assert steps[name]["working-directory"] == "trusted"
     assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
+    assert (
+        "contract_path=trusted/REVIEW_CONTRACT.md" in steps["Select trusted review source"]["run"]
+    )
     assert (
         "context.payload.pull_request.updated_at"
         in steps["Fetch current PR context"]["with"]["script"]
@@ -171,6 +175,10 @@ def test_agent_review_requires_structured_review_evidence() -> None:
     assert "Publish validated review evidence" in steps
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
     assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]
+    assert (
+        "check_blocking_review_threads"
+        in steps["Enforce unresolved blocking Codex conversations"]["run"]
+    )
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:

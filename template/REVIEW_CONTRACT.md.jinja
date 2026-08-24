@@ -25,6 +25,10 @@ Claude fallback PR-review carriers.
   never writes that command. Codex posts a standard GitHub review whose inline
   comments are the evidence for the current head SHA. If that evidence is absent
   or invalid, the workflow calls Claude as the fallback carrier.
+- State the merge effect in every inline finding, immediately after its priority:
+  **`BLOCKING — P0/P1`** or **`NON-BLOCKING — P2/P3`**. P0/P1 must be fixed and
+  their conversations resolved before merge; P2/P3 are visible maintainer
+  decisions and never block solely because of their priority.
 - The trusted gate translates Codex priorities: P0/P1 are `blocking`; P2 is
   `should-fix`; P3 is `nice-to-have`. Its published result contains `outcome` and
   `findings`: `clean` carries `findings: []`; `rework` carries non-blocking

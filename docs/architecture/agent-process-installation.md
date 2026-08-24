@@ -66,11 +66,21 @@ untrusted contributor ran the publisher's policy.
 ## Activation
 
 `copier copy` copies the payload but does not create or alter GitHub resources.
-The copied process is inactive until its GitHub Project is configured. Run:
+The copied process is inactive until its GitHub Project and default-branch
+protection are configured. Run:
 
 ```bash
 python scripts/bootstrap_github_project.py --confirm-create
 ```
+
+Bootstrap also applies the canonical required checks (`quality / quality`,
+`pr-link / pr-link`, and `agent-review / agent-review`) to the repository's
+actual default branch with strict up-to-date checks and administrator coverage.
+For an existing classic protection rule it changes only its required-status
+checks and administrator enforcement, preserving the repository's review,
+push, and deletion policy. For an unprotected branch it creates that safe
+baseline. Re-running bootstrap repairs drift without rewriting the generated
+Project settings file.
 
 In `existing` mode, bootstrap reads the selected Project and verifies that it
 has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`

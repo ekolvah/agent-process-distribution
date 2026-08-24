@@ -30,6 +30,7 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 _REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
+_TRUSTED_POLICY_PATHS = frozenset({"AGENTS.md", "REVIEW_CONTRACT.md"})
 
 
 def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
@@ -37,26 +38,40 @@ def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
     if not isinstance(body, str) or not (summary := body.strip()):
         return None
     priority = _PRIORITY.search(summary)
-    severity = _SEVERITIES[priority.group("number")] if priority else "should-fix"
+    if priority is None:
+        return None
+    severity = _SEVERITIES[priority.group("number")]
     return {"severity": severity, "confidence": "high", "summary": summary}
 
 
-def _findings_for_review(comments: object, review_id: object) -> list[dict[str, str]]:
+def _findings_for_review(
+    comments: object, review_id: object, reviewer: str
+) -> list[dict[str, str]] | None:
     findings: list[dict[str, str]] = []
     for comment in flatten_pages(comments):
         if comment.get("pull_request_review_id") != review_id:
             continue
+        author = comment.get("user")
+        if (
+            not isinstance(author, Mapping)
+            or author.get("login") != reviewer
+            or comment.get("in_reply_to_id") is not None
+        ):
+            continue
         finding = _finding(comment)
-        if finding is not None:
-            findings.append(finding)
+        if finding is None:
+            return None
+        findings.append(finding)
     return findings
 
 
 def _evidence_from_review(
-    record: Mapping[str, object], comments: object
+    record: Mapping[str, object], comments: object, reviewer: str
 ) -> dict[str, object] | None:
     state = str(record.get("state"))
-    findings = _findings_for_review(comments, record.get("id"))
+    findings = _findings_for_review(comments, record.get("id"), reviewer)
+    if findings is None:
+        return None
     if state == "APPROVED":
         return {"outcome": "clean", "findings": []} if not findings else None
     if state not in {"COMMENTED", "CHANGES_REQUESTED"} or not findings:
@@ -91,7 +106,7 @@ def find_verdict(
     _, latest = max(
         enumerate(matching), key=lambda item: (str(item[1].get("submitted_at", "")), item[0])
     )
-    return _evidence_from_review(latest, comments)
+    return _evidence_from_review(latest, comments, reviewer)
 
 
 def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
@@ -166,6 +181,17 @@ def _fetch_review_comments(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/pulls/{pr_number}/comments?per_page=100")
 
 
+def _fetch_changed_files(repository: str, pr_number: str) -> object:
+    return slurp_records(f"repos/{repository}/pulls/{pr_number}/files?per_page=100")
+
+
+def _changes_trusted_review_policy(changed_files: object) -> bool:
+    """A PR must not supply the policy that validates its own Codex verdict."""
+    return any(
+        record.get("filename") in _TRUSTED_POLICY_PATHS for record in flatten_pages(changed_files)
+    )
+
+
 def _fetch_request_comments(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/issues/{pr_number}/comments?per_page=100")
 
@@ -187,6 +213,12 @@ def poll_for_verdict(
     monotonic: Callable[[], float] | None = None,
 ) -> dict[str, object] | None:
     """Wait for a requested standard review, stopping on invalid evidence too."""
+    if _changes_trusted_review_policy(_fetch_changed_files(repository, pr_number)):
+        # The workflow will use its Claude fallback with REVIEW_CONTRACT.md from
+        # the default-branch checkout. Codex otherwise reads AGENTS.md from the
+        # reviewed worktree, so its result cannot be evidence for a PR that
+        # changes either policy file.
+        return None
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
     deadline = clock() + timeout_seconds

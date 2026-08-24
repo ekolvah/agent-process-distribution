@@ -239,6 +239,7 @@ def test_create_mode_links_fields_and_persists_real_ids(
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
     monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
+    monkeypatch.setattr(bootstrap, "_configure_branch_protection", lambda: None)
 
     bootstrap.main(["--confirm-create"])
 
@@ -280,6 +281,7 @@ def test_create_mode_rolls_back_a_project_when_activation_fails(
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
     monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
+    monkeypatch.setattr(bootstrap, "_configure_branch_protection", lambda: None)
 
     with pytest.raises(SystemExit) as exc:
         bootstrap.main(["--confirm-create"])
@@ -335,6 +337,7 @@ def test_create_mode_rolls_back_late_activation_failures(
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
     monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
+    monkeypatch.setattr(bootstrap, "_configure_branch_protection", lambda: None)
     if failure == "settings-write":
         monkeypatch.setattr(bootstrap, "_write", fail_write)
 
@@ -343,6 +346,45 @@ def test_create_mode_rolls_back_late_activation_failures(
 
     assert exc.value.code == 1
     assert ["gh", "project", "delete", "7", "--owner", "@me"] in calls
+
+
+def test_bootstrap_updates_only_process_owned_branch_protection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
+    bootstrap = bootstrap_module(destination)
+    calls: list[tuple[list[str], str | None]] = []
+
+    monkeypatch.setattr(
+        bootstrap,
+        "_run",
+        lambda command: {"defaultBranchRef": {"name": "trunk"}},
+    )
+
+    def checked(command: list[str], *, input: str | None = None) -> str:
+        calls.append((command, input))
+        return "{}"
+
+    monkeypatch.setattr(bootstrap, "_checked", checked)
+
+    bootstrap._configure_branch_protection()
+
+    assert calls[0] == (
+        ["gh", "api", "repos/example-org/example-repo/branches/trunk/protection"],
+        None,
+    )
+    assert any(part.endswith("/required_status_checks") for part in calls[1][0])
+    assert '"strict": true' in (calls[1][1] or "")
+    assert calls[2] == (
+        [
+            "gh",
+            "api",
+            "--method",
+            "POST",
+            "repos/example-org/example-repo/branches/trunk/protection/enforce_admins",
+        ],
+        None,
+    )
 
 
 def test_rendered_runtime_scripts_do_not_refer_to_removed_project_answers(

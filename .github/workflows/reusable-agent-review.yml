@@ -63,17 +63,17 @@ jobs:
         run: |
           if grep -Fq "STANDARD_REVIEW_PARSER = True" \
             "$GITHUB_WORKSPACE/trusted/scripts/request_codex_review.py" 2>/dev/null; then
-            echo "working_directory=trusted" >> "$GITHUB_OUTPUT"
-            echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "adapter_working_directory=trusted" >> "$GITHUB_OUTPUT"
           else
-            echo "working_directory=." >> "$GITHUB_OUTPUT"
-            echo "contract_path=REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "adapter_working_directory=." >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no owner-requested Codex parser yet"
           fi
+          test -f "$GITHUB_WORKSPACE/trusted/REVIEW_CONTRACT.md"
+          echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
       - name: Read owner-requested Codex review
         id: codex-review
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        working-directory: ${{ steps.review-source.outputs.adapter_working_directory }}
         timeout-minutes: 12
         env:
           GH_TOKEN: ${{ github.token }}
@@ -86,7 +86,7 @@ jobs:
       - name: Classify Codex review outcome
         id: codex-classify
         if: ${{ always() }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
         run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
@@ -113,19 +113,18 @@ jobs:
             </pr-body>
 
             First read `${{ steps.review-source.outputs.contract_path }}` in full.
-            It is the default-branch review contract unless this is the one-time
-            bootstrap fallback, when the default branch has no payload yet.
+            It is always the default-branch review contract.
             Review the checked-out PR worktree, not the trusted directory.
       - name: Classify Claude review outcome
         id: claude-classify
         if: ${{ always() && steps.codex-classify.outputs.valid != 'true' }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
         run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
       - name: Publish validated review evidence
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
@@ -134,7 +133,7 @@ jobs:
           --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
       - name: Enforce selected review outcome
         if: ${{ always() }}
-        working-directory: ${{ steps.review-source.outputs.working_directory }}
+        working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
@@ -142,3 +141,15 @@ jobs:
         run: >-
           python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "$REVIEW_PRODUCER"
+      - name: Enforce unresolved blocking Codex conversations
+        if: ${{ always() && steps.pr-context.outcome == 'success' }}
+        working-directory: trusted
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if test -f scripts/check_blocking_review_threads.py; then
+            python -m scripts.check_blocking_review_threads --repo "${{ github.repository }}" \
+              --pr "${{ steps.pr-context.outputs.number }}"
+          else
+            echo "::notice::bootstrap fallback: default branch has no blocking-thread gate yet"
+          fi

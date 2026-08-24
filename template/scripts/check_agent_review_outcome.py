@@ -35,6 +35,11 @@ VALID_OUTCOMES = frozenset({"clean", "rework", "blocking"})
 VALID_SEVERITIES = frozenset({"blocking", "should-fix", "nice-to-have"})
 VALID_CONFIDENCES = frozenset({"high", "medium", "low"})
 _DEFAULT_PRODUCER = "Codex review"
+_SEVERITY_LABELS = {
+    "blocking": "BLOCKING — P0/P1",
+    "should-fix": "NON-BLOCKING — P2",
+    "nice-to-have": "NON-BLOCKING — P3",
+}
 
 
 class _Options:
@@ -161,7 +166,8 @@ def _publish_summary(
     ]
     if findings:
         lines.extend(
-            f"- **{finding['severity']} ({finding['confidence']})**: {finding['summary']}"
+            f"- **{_SEVERITY_LABELS[finding['severity']]} ({finding['confidence']})**: "
+            f"{finding['summary']}"
             for finding in findings
         )
     else:
