@@ -30,7 +30,6 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 _REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
-_TRUSTED_POLICY_PATHS = frozenset({"AGENTS.md", "REVIEW_CONTRACT.md"})
 
 
 def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
@@ -187,9 +186,14 @@ def _fetch_changed_files(repository: str, pr_number: str) -> object:
 
 def _changes_trusted_review_policy(changed_files: object) -> bool:
     """A PR must not supply the policy that validates its own Codex verdict."""
-    return any(
-        record.get("filename") in _TRUSTED_POLICY_PATHS for record in flatten_pages(changed_files)
-    )
+    for record in flatten_pages(changed_files):
+        for key in ("filename", "previous_filename"):
+            path = record.get(key)
+            if isinstance(path, str) and (
+                path == "REVIEW_CONTRACT.md" or path == "AGENTS.md" or path.endswith("/AGENTS.md")
+            ):
+                return True
+    return False
 
 
 def _fetch_request_comments(repository: str, pr_number: str) -> object:

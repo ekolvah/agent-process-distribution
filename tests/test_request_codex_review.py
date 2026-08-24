@@ -170,13 +170,21 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
     )
 
 
+@pytest.mark.parametrize(
+    "changed_file",
+    [
+        {"filename": "REVIEW_CONTRACT.md"},
+        {"filename": "services/worker/AGENTS.md"},
+        {"filename": "README.md", "previous_filename": "legacy/AGENTS.md"},
+    ],
+)
 def test_poll_defers_to_trusted_fallback_when_pr_changes_review_policy(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, changed_file: dict[str, str]
 ) -> None:
     monkeypatch.setattr(
         request_codex_review,
         "_fetch_changed_files",
-        lambda *_args: [{"filename": "REVIEW_CONTRACT.md"}],
+        lambda *_args: [changed_file],
     )
 
     assert (

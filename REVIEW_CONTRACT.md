@@ -25,15 +25,17 @@ Claude fallback PR-review carriers.
   never writes that command. Codex posts a standard GitHub review whose inline
   comments are the evidence for the current head SHA. If that evidence is absent
   or invalid, the workflow calls Claude as the fallback carrier.
-- State the merge effect in every inline finding, immediately after its priority:
-  **`BLOCKING — P0/P1`** or **`NON-BLOCKING — P2/P3`**. P0/P1 must be fixed and
-  their conversations resolved before merge; P2/P3 are visible maintainer
-  decisions and never block solely because of their priority.
-- The trusted gate translates Codex priorities: P0/P1 are `blocking`; P2 is
-  `should-fix`; P3 is `nice-to-have`. Its published result contains `outcome` and
-  `findings`: `clean` carries `findings: []`; `rework` carries non-blocking
-  findings; `blocking` carries at least one blocking finding. Every translated
-  finding has `severity`, `confidence`, and a non-empty human-readable `summary`.
+- The user-facing merge classes are **`BLOCKING`** and **`NON-BLOCKING`**.
+  Every open Codex finding receives an automated reply with one of those exact
+  labels. `BLOCKING` findings must be fixed and their conversations resolved
+  before merge; `NON-BLOCKING` findings are visible maintainer decisions.
+- Codex's native UI still supplies P0–P3 transport priorities, which this
+  repository cannot rename. The trusted gate translates P0/P1 to `blocking`,
+  P2 to `should-fix`, and P3 to `nice-to-have`. Its published result contains
+  `outcome` and `findings`: `clean` carries `findings: []`; `rework` carries
+  non-blocking findings; `blocking` carries at least one blocking finding.
+  Every translated finding has `severity`, `confidence`, and a non-empty
+  human-readable `summary`.
 - Do not append an `agent-review-evidence` JSON block. Codex's normal GitHub
   review format is authoritative input; the trusted gate creates its own
   structured publication from that format. Claude's fallback result is instead
