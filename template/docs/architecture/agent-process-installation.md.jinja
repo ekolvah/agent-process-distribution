@@ -37,26 +37,11 @@ workflows run on every pull request.
    payload with the marketplace's `/plugin install` command. This is a local
    Claude configuration action; the plugin hooks rely on `scripts/hooks.py`
    copied in the previous step.
-3. Install the Codex GitHub connector and, in its Code review settings for this
-   repository, enable **Automatic reviews** with **On every push**. Configure
-   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude availability fallback, then run the
-   read-only preflight:
-
-   ```bash
-   python scripts/check_review_credentials.py --repo {{ github_repository | default('<owner>/<repository>', true) }}
-   ```
-
-   It checks only that `CLAUDE_CODE_OAUTH_TOKEN` is named in the repository or
-   inherited-organisation secret lists, and that the
-   `chatgpt-codex-connector` App covers this repository. It never reads a
-   secret value. A present but expired or revoked token therefore passes; the
-   later `agent-review` check is still the validity test.
-
-   | Exit | Meaning | Next action |
-   | --- | --- | --- |
-   | `0` | Both prerequisites are present. | Continue to bootstrap. |
-   | `1` | A secret or App repository grant is absent. | Follow the precise command or settings URL printed by the preflight, then rerun it. |
-   | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
+3. Install the Codex GitHub connector and set up Codex cloud for this repository.
+   On every PR head that needs review, the PR author comments `@codex review`.
+   The workflow never posts that command, enables Automatic reviews, or reads a
+   model credential. A missing or unavailable requested review deliberately reds
+   the required review check rather than silently skipping it.
 
    Also inspect the organisation Actions policy. If it uses "Allow specified
    actions and reusable workflows", permit the pinned

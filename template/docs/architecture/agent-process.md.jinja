@@ -319,14 +319,18 @@ tests and docs; never disable the required context or treat the PR body as
 merge authority.
 
 The target's thin caller invokes the publisher's pinned
-`reusable-agent-review.yml`. Codex Automatic reviews is carrier 1: the workflow
-waits for its current-head, structured verdict without posting `@codex review`.
-Only absent or invalid Codex evidence invokes the Claude availability fallback;
-a valid Codex `clean`, `rework`, or `blocking` verdict is final for that head.
+`reusable-agent-review.yml`. The PR author starts the sole carrier with
+`@codex review`; the workflow never posts that command and never invokes a
+fallback model. It waits for Codex's normal GitHub review on the current head,
+then translates its P0/P1/P2/P3 inline comments into the gate outcome. A valid
+Codex `clean`, `rework`, or `blocking` verdict is final for that head.
 The workflow keeps an isolated checkout of the publisher's default branch in
-`trusted/`: both carriers read the standalone `REVIEW_CONTRACT.md`, while the
-PR head remains the worktree being reviewed. The workflow therefore does not
-copy review rules into YAML or parse a section out of another document.
+`trusted/` for the adapter, evidence validator, and enforcement script, while
+the adapter reads the standard review from the PR's live GitHub API records.
+The one transition PR that introduces this adapter uses a visible bootstrap
+fallback when the default branch lacks its parser marker; its evidence is still
+validated by the default-branch validator. The manual owner request is review
+evidence, not a replacement for the platform workflow-definition trust anchor.
 
 ## Governance conventions
 1. Create issue branches only with `python scripts/issue_branch.py <N>` (starts

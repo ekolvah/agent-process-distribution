@@ -6,12 +6,10 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 
 jobs:
   agent-review:
     uses: {{ workflow_references["agent-review"] | tojson }}
     with:
       codex-timeout-seconds: 600
-    secrets:
-      claude_code_oauth_token: {% raw %}${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}{% endraw %}

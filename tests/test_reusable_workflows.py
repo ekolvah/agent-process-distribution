@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -60,21 +58,10 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
         )
 
 
-def test_source_review_caller_uses_the_preflight_secret() -> None:
-    preflight = (ROOT / "template" / "scripts" / "check_review_credentials.py").read_text(
-        encoding="utf-8"
-    )
-    match = re.search(
-        r'^REVIEW_SECRET = "([A-Za-z0-9_]+)"(?:  # pragma: allowlist secret)?$',
-        preflight,
-        re.MULTILINE,
-    )
-    assert match, "credential preflight declares no canonical secret name"
+def test_source_review_caller_has_no_provider_secret() -> None:
     caller = _workflow("agent-review.yml")["jobs"]["agent-review"]
 
-    assert caller["secrets"]["claude_code_oauth_token"].casefold() == (
-        f"${{{{ secrets.{match.group(1)} }}}}".casefold()
-    )
+    assert "secrets" not in caller
 
 
 def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
@@ -137,10 +124,10 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     )
 
 
-def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout() -> None:
+def test_agent_review_reads_manual_codex_evidence_from_trusted_source() -> None:
     steps = _steps("reusable-agent-review.yml")
 
-    trusted_checkout = steps["Checkout trusted review contract and enforcement source"]
+    trusted_checkout = steps["Checkout trusted review source"]
     assert trusted_checkout["with"] == {
         "ref": "${{ github.event.repository.default_branch }}",
         "path": "trusted",
@@ -150,23 +137,19 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
         "ref": "${{ steps.pr-context.outputs.head_sha }}",
     }
     names = list(steps)
-    assert names.index("Checkout reviewed PR head") < names.index(
-        "Checkout trusted review contract and enforcement source"
-    )
-    assert "Extract caller review prompt" not in steps
-    prompt = steps["Claude review"]["with"]["prompt"]
-    assert "${{ steps.review-source.outputs.contract_path }}" in prompt
-    assert "bootstrap fallback" in prompt
+    assert names.index("Checkout reviewed PR head") < names.index("Checkout trusted review source")
+    assert "Claude review" not in steps
+    assert "Classify Codex review outcome" not in steps
+    assert "@codex review" not in str(steps["Read owner-requested Codex review"])
     for name in (
-        "Codex review",
-        "Classify Codex review outcome",
-        "Classify Claude review outcome",
-        "Enforce selected review outcome",
+        "Read owner-requested Codex review",
+        "Publish validated Codex review evidence",
+        "Enforce Codex review outcome",
     ):
         assert steps[name]["working-directory"] == (
             "${{ steps.review-source.outputs.working_directory }}"
         )
-    assert "trusted/REVIEW_CONTRACT.md" in steps["Select review source"]["run"]
+    assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
     assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
         "./.github/workflows/reusable-agent-review.yml"
     )
@@ -175,45 +158,9 @@ def test_agent_review_reads_contract_and_enforces_outcomes_from_trusted_checkout
 def test_agent_review_requires_structured_review_evidence() -> None:
     steps = _steps("reusable-agent-review.yml")
 
-    schema_arg = steps["Claude review"]["with"]["claude_args"]
-    schema = json.loads(schema_arg.removeprefix("--json-schema ").strip("'"))
-    assert "findings" in schema["properties"]
-    assert {"severity", "confidence", "summary"} == set(
-        schema["properties"]["findings"]["items"]["properties"]
-    )
-    assert schema["required"] == ["outcome", "findings"]
-    assert len(schema["allOf"]) == 3
-    assert "Publish validated review evidence" in steps
-    assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
-
-
-def test_codex_automatic_review_precedes_claude_fallback() -> None:
-    steps = _steps("reusable-agent-review.yml")
-    names = list(steps)
-
-    assert names.index("Codex review") < names.index("Claude review")
-    assert "steps.pr-context.outcome == 'success'" in steps["Codex review"]["if"]
-    assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
-
-
-def test_valid_codex_blocking_does_not_run_claude() -> None:
-    steps = _steps("reusable-agent-review.yml")
-
-    assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
-    assert steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"] == (
-        "${{ steps.codex-classify.outputs.valid == 'true' && 'Codex review' || 'Claude review' }}"
-    )
-
-
-def test_claude_runs_only_when_codex_evidence_is_unavailable() -> None:
-    steps = _steps("reusable-agent-review.yml")
-
-    assert steps["Classify Codex review outcome"]["env"]["STRUCTURED_OUTCOME"] == (
-        "${{ steps.codex-review.outputs.payload }}"
-    )
-    assert steps["Classify Claude review outcome"]["if"] == (
-        "${{ always() && steps.codex-classify.outputs.valid != 'true' }}"
-    )
+    assert "Publish validated Codex review evidence" in steps
+    assert "--reviewed-head-sha" in steps["Publish validated Codex review evidence"]["run"]
+    assert steps["Enforce Codex review outcome"]["env"]["REVIEW_PRODUCER"] == "Codex review"
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:

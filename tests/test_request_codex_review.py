@@ -68,7 +68,9 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     clock = iter((0.0, 1.0))
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")])
+    monkeypatch.setattr(
+        request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
+    )
     monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
 
     assert (
@@ -83,4 +85,3 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
         )
         is None
     )
-

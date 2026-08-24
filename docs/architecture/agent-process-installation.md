@@ -28,12 +28,13 @@ ordinary consumer repositories.
 The payload installs three thin caller workflows. They reference the published
 reusable workflows pinned in `workflow_references`; Python enforcement scripts
 remain copied because they are parameterized by the target's answers and also
-run locally. Before the first PR, install the Codex GitHub connector and enable
-**Automatic reviews** with **On every push** for this repository in Codex Code
-review settings. Configure `CLAUDE_CODE_OAUTH_TOKEN` only for the Claude
-availability fallback, and ensure the organisation permits this publisher under
-its Actions "Allow specified actions and reusable workflows" policy. A missing
-or unavailable carrier is deliberately a red review check, not a skipped job.
+run locally. Before requesting a PR review, install the Codex GitHub connector
+and set up Codex cloud for the repository. The PR author comments
+`@codex review` on every head that needs review; the workflow never issues that
+comment, enables Automatic reviews, or uses a model credential. Ensure the
+organisation permits this publisher under its Actions "Allow specified actions
+and reusable workflows" policy. A missing or unavailable requested review is
+deliberately a red review check, not a skipped job.
 
 Enable the copied local pre-push probe after reviewing it:
 

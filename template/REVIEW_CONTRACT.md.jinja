@@ -1,9 +1,9 @@
 # Code review contract
 
-This is the authoritative contract for both automated PR-review carriers.
+This is the authoritative contract for the owner-requested Codex PR-review carrier.
 `AGENTS.md` points here; do not copy these rules into workflow YAML.
 
-- Read `CLAUDE.md` and the repository docs it links to first: repository
+- Read `AGENTS.md` and the repository documents it links to first: repository
   conventions take precedence over your defaults.
 - Look for bugs, logic errors, security issues, convention violations, and
   missing matching tests or an explicitly recorded coverage decision.
@@ -20,14 +20,16 @@ This is the authoritative contract for both automated PR-review carriers.
 - A deterministic-gate duplicate is `nice-to-have, duplicate of ci_check`.
 - In the review body group findings by severity and state `Reviewed head SHA:`.
   If there are no findings, say so exactly in one line.
-- A merge-affecting structured result contains `outcome` and `findings`. `clean`
-  carries `findings: []`; `rework` carries at least one non-blocking finding;
-  `blocking` carries at least one blocking finding. Every finding has `severity`,
-  `confidence` (`high` / `medium` / `low`), and a non-empty human-readable
-  `summary`. The check publishes only validated evidence with its reviewed head SHA.
-- A GitHub review carrier appends that JSON inside an exact
-  `<!-- agent-review-evidence` block. Its `outcome` must match its GitHub review
-  state: approved is `clean`, commented is `rework`, and changes requested is
-  `blocking`.
+- The PR author starts the sole carrier with `@codex review`; GitHub Actions
+  never writes that command. Codex posts a standard GitHub review whose inline
+  comments are the evidence for the current head SHA.
+- The trusted gate translates Codex priorities: P0/P1 are `blocking`; P2 is
+  `should-fix`; P3 is `nice-to-have`. Its published result contains `outcome` and
+  `findings`: `clean` carries `findings: []`; `rework` carries non-blocking
+  findings; `blocking` carries at least one blocking finding. Every translated
+  finding has `severity`, `confidence`, and a non-empty human-readable `summary`.
+- Do not append an `agent-review-evidence` JSON block. Codex's normal GitHub
+  review format is authoritative input; the trusted gate creates its own
+  structured publication from that format.
 - Request changes only for blocking findings; comment for lower findings;
   approve only when there are no findings. Never merge.

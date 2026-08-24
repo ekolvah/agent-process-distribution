@@ -6,11 +6,11 @@ reds the required check, `clean` and `rework` pass (the latter with a visible
 unknown outcome, or an unavailable live PR context — stays red. Absence of
 evidence must never read as success (§IV).
 
-The required check has two carriers, so this module also answers *whether*
-a carrier produced a usable verdict at all: `--classify` measures without judging,
-which is what the failover step gates on. That question lives here because the
-validity rule lives here; asked as a YAML `contains()`/`fromJSON()` expression it
-would become a second, untestable home for the same policy.
+The required check has one owner-requested Codex carrier. This module validates
+the verdict it translated from GitHub's standard review records before judging
+it. That question lives here because the validity rule lives here; asked as a
+YAML `contains()`/`fromJSON()` expression it would become a second, untestable
+home for the same policy.
 
 The rule has no path-based exception any more. A PR touching the review
 controller used to pass with a `::warning::` on an empty outcome, because the
@@ -29,12 +29,12 @@ from collections.abc import Sequence
 
 from scripts.gh_io import publish_step_output
 
-# Public: carrier 2 translates its own review states into this vocabulary,
-# and a second private copy there would be a second merge bar.
+# The Codex adapter translates GitHub review states into this vocabulary; a
+# second private copy there would be a second merge bar.
 VALID_OUTCOMES = frozenset({"clean", "rework", "blocking"})
 VALID_SEVERITIES = frozenset({"blocking", "should-fix", "nice-to-have"})
 VALID_CONFIDENCES = frozenset({"high", "medium", "low"})
-_DEFAULT_PRODUCER = "Claude review"
+_DEFAULT_PRODUCER = "Codex review"
 
 
 class _Options:
