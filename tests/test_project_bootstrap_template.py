@@ -385,6 +385,39 @@ def test_bootstrap_updates_only_process_owned_branch_protection(
         ],
         None,
     )
+    assert any(part.endswith("/required_pull_request_reviews") for part in calls[3][0])
+    assert '"required_approving_review_count": 0' in (calls[3][1] or "")
+
+
+def test_new_protection_baseline_requires_pull_requests(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
+    bootstrap = bootstrap_module(destination)
+    writes: list[tuple[list[str], str | None]] = []
+
+    monkeypatch.setattr(
+        bootstrap,
+        "_run",
+        lambda command: {"defaultBranchRef": {"name": "trunk"}},
+    )
+
+    def checked(command: list[str], *, input: str | None = None) -> str:
+        if command == [
+            "gh",
+            "api",
+            "repos/example-org/example-repo/branches/trunk/protection",
+        ]:
+            raise RuntimeError("HTTP 404: branch not protected")
+        writes.append((command, input))
+        return "{}"
+
+    monkeypatch.setattr(bootstrap, "_checked", checked)
+
+    bootstrap._configure_branch_protection()
+
+    payload = writes[0][1] or ""
+    assert '"required_pull_request_reviews": {"required_approving_review_count": 0}' in payload
 
 
 def test_rendered_runtime_scripts_do_not_refer_to_removed_project_answers(

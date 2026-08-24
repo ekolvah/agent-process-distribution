@@ -183,9 +183,9 @@ def _configure_branch_protection() -> None:
     """Apply only the process-owned required contexts to the default branch.
 
     A pre-existing protection rule may contain review, push, or deletion policy
-    owned by the repository.  Updating its status-check subresource preserves
-    those choices; a previously unprotected branch receives the complete safe
-    baseline needed for first activation.
+    owned by the repository. Updating its status-check subresource preserves
+    those details while ensuring that the branch requires pull requests; a
+    previously unprotected branch receives the complete safe baseline.
     """
     from scripts.check_branch_protection import REQUIRED_CONTEXTS
 
@@ -198,14 +198,18 @@ def _configure_branch_protection() -> None:
     endpoint = f"repos/{repository}/branches/{branch}/protection"
     contexts = list(REQUIRED_CONTEXTS)
     try:
-        _checked(["gh", "api", endpoint])
+        protection = json.loads(_checked(["gh", "api", endpoint]))
+        if not isinstance(protection, dict):
+            raise RuntimeError("branch protection response is not an object")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("branch protection response is invalid JSON") from exc
     except RuntimeError as exc:
         if "HTTP 404" not in str(exc):
             raise
         payload = {
             "required_status_checks": {"strict": True, "contexts": contexts},
             "enforce_admins": True,
-            "required_pull_request_reviews": None,
+            "required_pull_request_reviews": {"required_approving_review_count": 0},
             "restrictions": None,
             "required_linear_history": False,
             "allow_force_pushes": False,
@@ -225,6 +229,19 @@ def _configure_branch_protection() -> None:
         input=json.dumps({"strict": True, "contexts": contexts}),
     )
     _checked(["gh", "api", "--method", "POST", f"{endpoint}/enforce_admins"])
+    if protection.get("required_pull_request_reviews") is None:
+        _checked(
+            [
+                "gh",
+                "api",
+                "--method",
+                "PATCH",
+                f"{endpoint}/required_pull_request_reviews",
+                "--input",
+                "-",
+            ],
+            input=json.dumps({"required_approving_review_count": 0}),
+        )
 
 
 def _already_configured() -> bool:
@@ -250,7 +267,9 @@ def main(argv: list[str] | None = None) -> None:
         already_configured = _already_configured()
         if already_configured:
             _configure_branch_protection()
-            print("ok: GitHub Project bootstrap is already configured; branch protection is current")
+            print(
+                "ok: GitHub Project bootstrap is already configured; branch protection is current"
+            )
             return
         if MODE == "create":
             if not ns.confirm_create:

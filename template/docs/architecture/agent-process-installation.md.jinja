@@ -52,8 +52,9 @@ workflows run on every pull request.
    probe returned 404), so this is an explicit operator check rather than an
    unearned green result.
 4. Activate the GitHub Project with the bootstrap command below. Bootstrap also
-   configures the default branch's canonical required checks and administrator
-   enforcement; it preserves any pre-existing review, push, and deletion policy.
+   configures the default branch's canonical required checks, required
+   pull-request route, and administrator enforcement; it preserves existing
+   review details plus push and deletion policy.
 
 Enable the copied local pre-push probe after reviewing it:
 
@@ -92,11 +93,11 @@ python scripts/bootstrap_github_project.py{% if github_project_mode == "create" 
 Bootstrap applies the canonical required checks (`quality / quality`, `pr-link /
 pr-link`, and `agent-review / agent-review`) to the repository's actual default
 branch with strict up-to-date checks and administrator coverage. For an existing
-classic protection rule it changes only its required-status checks and
-administrator enforcement, preserving the repository's review, push, and
-deletion policy. For an unprotected branch it creates that safe baseline.
-Re-running bootstrap repairs drift without rewriting the generated Project
-settings file.
+classic protection rule it changes required-status checks and administrator
+enforcement and, when absent, enables the pull-request route with zero mandatory
+approvals. Existing review details plus push and deletion policy are preserved.
+For an unprotected branch it creates that safe baseline. Re-running bootstrap
+repairs drift without rewriting the generated Project settings file.
 
 In `existing` mode, bootstrap reads the selected Project and verifies that it
 has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`

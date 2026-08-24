@@ -76,11 +76,12 @@ python scripts/bootstrap_github_project.py --confirm-create
 Bootstrap also applies the canonical required checks (`quality / quality`,
 `pr-link / pr-link`, and `agent-review / agent-review`) to the repository's
 actual default branch with strict up-to-date checks and administrator coverage.
-For an existing classic protection rule it changes only its required-status
-checks and administrator enforcement, preserving the repository's review,
-push, and deletion policy. For an unprotected branch it creates that safe
-baseline. Re-running bootstrap repairs drift without rewriting the generated
-Project settings file.
+For an existing classic protection rule it changes required-status checks and
+administrator enforcement and, when absent, enables the pull-request route
+with zero mandatory approvals. Existing review details plus push and deletion
+policy are preserved. For an unprotected branch it creates that safe baseline.
+Re-running bootstrap repairs drift without rewriting the generated Project
+settings file.
 
 In `existing` mode, bootstrap reads the selected Project and verifies that it
 has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`
