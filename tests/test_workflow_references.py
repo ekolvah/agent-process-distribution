@@ -8,7 +8,6 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 _PIN = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 
