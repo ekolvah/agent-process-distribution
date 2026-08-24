@@ -1,8 +1,6 @@
-"""Codex fallback must carry the same structured evidence as Claude."""
+"""The manual Codex carrier translates GitHub-native review records."""
 
 from __future__ import annotations
-
-import json
 
 import pytest
 
@@ -13,146 +11,76 @@ _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
 
 
-def _review(state: str, body: str) -> list[dict[str, object]]:
-    return [
-        {
-            "user": {"login": _REVIEWER},
-            "commit_id": _HEAD,
-            "state": state,
-            "body": body,
-        }
-    ]
+def _review(state: str) -> dict[str, object]:
+    return {
+        "id": 42,
+        "user": {"login": _REVIEWER},
+        "commit_id": _HEAD,
+        "state": state,
+        "body": "### Codex Review",
+    }
 
 
-def test_codex_review_returns_the_same_structured_evidence() -> None:
-    evidence = find_verdict(
-        _review(
-            "CHANGES_REQUESTED",
-            """Found a merge-blocking defect.
+def _comment(body: str) -> dict[str, object]:
+    return {"pull_request_review_id": 42, "body": body}
 
-<!-- agent-review-evidence
-{"outcome":"blocking","findings":[{"severity":"blocking","confidence":"high","summary":"The verifier accepts a blocking outcome without a finding."}]}
--->""",
-        ),
+
+def test_standard_codex_p1_comment_is_blocking_evidence() -> None:
+    verdict = find_verdict(
+        [_review("COMMENTED")],
+        [_comment("**![P1 Badge](https://example.test/p1) Preserve trusted policy")],
         _HEAD,
         _REVIEWER,
     )
 
-    assert evidence == {
+    assert verdict == {
         "outcome": "blocking",
         "findings": [
             {
                 "severity": "blocking",
                 "confidence": "high",
-                "summary": "The verifier accepts a blocking outcome without a finding.",
+                "summary": "**![P1 Badge](https://example.test/p1) Preserve trusted policy",
             }
         ],
     }
 
 
-def test_codex_review_without_structured_evidence_is_unavailable() -> None:
-    assert find_verdict(_review("CHANGES_REQUESTED", "Please fix this."), _HEAD, _REVIEWER) is None
-
-
-def test_codex_evidence_outcome_must_match_its_review_state() -> None:
-    assert (
-        find_verdict(
-            _review(
-                "APPROVED",
-                """<!-- agent-review-evidence
-{"outcome":"blocking","findings":[{"severity":"blocking","confidence":"high","summary":"Mismatched evidence."}]}
--->""",
-            ),
-            _HEAD,
-            _REVIEWER,
-        )
-        is None
-    )
-
-
-def test_poll_for_verdict_never_posts_a_codex_request(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    requests: list[object] = []
-    clock = iter((0.0, 1.0))
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [])
-    monkeypatch.setattr(request_codex_review, "run_gh", requests.append, raising=False)
-
-    verdict = poll_for_verdict(
-        "owner/repo",
-        "14",
+def test_standard_codex_p2_comment_is_rework_evidence() -> None:
+    verdict = find_verdict(
+        [_review("COMMENTED")],
+        [_comment("**![P2 Badge](https://example.test/p2) Update guidance")],
         _HEAD,
-        timeout_seconds=1,
-        poll_seconds=1,
-        sleep=lambda _seconds: None,
-        monotonic=lambda: next(clock),
+        _REVIEWER,
     )
 
-    assert verdict is None
-    assert requests == []
-    assert not hasattr(request_codex_review, "REVIEW_REQUEST")
+    assert verdict is not None
+    assert verdict["outcome"] == "rework"
+    assert verdict["findings"][0]["severity"] == "should-fix"
 
 
-def test_only_current_head_codex_evidence_is_accepted(
+def test_only_current_head_codex_review_is_accepted() -> None:
+    stale = {**_review("APPROVED"), "commit_id": "b" * 40}
+
+    assert find_verdict([stale], [], _HEAD, _REVIEWER) is None
+
+
+def test_poll_stops_when_a_current_head_review_is_malformed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    current = _review(
-        "APPROVED",
-        """<!-- agent-review-evidence
-{"outcome":"clean","findings":[]}
--->""",
-    )[0]
-    stale = {**current, "commit_id": "b" * 40}
-    requests: list[object] = []
     clock = iter((0.0, 1.0))
+    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")])
+    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
 
-    assert find_verdict([stale], _HEAD, _REVIEWER) is None
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [stale])
-    monkeypatch.setattr(request_codex_review, "run_gh", requests.append, raising=False)
     assert (
         poll_for_verdict(
             "owner/repo",
             "14",
             _HEAD,
-            timeout_seconds=1,
+            timeout_seconds=60,
             poll_seconds=1,
             sleep=lambda _seconds: None,
             monotonic=lambda: next(clock),
         )
         is None
     )
-    assert requests == []
 
-
-def test_main_publishes_the_full_validated_codex_evidence(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    verdict = {
-        "outcome": "rework",
-        "findings": [
-            {
-                "severity": "should-fix",
-                "confidence": "high",
-                "summary": "The fallback must publish every finding.",
-            }
-        ],
-    }
-    published: list[str] = []
-    monkeypatch.setattr(request_codex_review, "poll_for_verdict", lambda *_args, **_kwargs: verdict)
-    monkeypatch.setattr(request_codex_review, "publish_step_output", published.append)
-
-    request_codex_review.main(["--repo", "owner/repo", "--pr", "14", "--head-sha", _HEAD])
-
-    assert published == [f"payload={json.dumps(verdict, separators=(',', ':'))}"]
-
-
-def test_main_publishes_an_empty_payload_when_codex_is_unavailable(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    published: list[str] = []
-    monkeypatch.setattr(request_codex_review, "poll_for_verdict", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(request_codex_review, "publish_step_output", published.append)
-
-    request_codex_review.main(["--repo", "owner/repo", "--pr", "14", "--head-sha", _HEAD])
-
-    assert published == ["payload="]
