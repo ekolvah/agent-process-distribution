@@ -26,8 +26,10 @@ Claude fallback PR-review carriers.
   If there are no findings, say so exactly in one line.
 - The PR author starts the Codex primary with `@codex review`; GitHub Actions
   never writes that command. Codex posts a standard GitHub review whose inline
-  comments are the evidence for the current head SHA. If that evidence is absent
-  or invalid, the workflow calls Claude as the fallback carrier.
+  comments are the evidence for the current head SHA. A valid Codex result is
+  final for every changed path, including agent-process policy files; it never
+  requires a mandatory second review. If that evidence is absent or invalid,
+  the workflow calls Claude as the fallback carrier.
 - The user-facing merge classes are **`BLOCKING`** and **`NON-BLOCKING`**.
   Every open Codex finding receives an automated reply with one of those exact
   labels. `BLOCKING` findings must be fixed and their conversations resolved

@@ -37,13 +37,31 @@ workflows run on every pull request.
    payload with the marketplace's `/plugin install` command. This is a local
    Claude configuration action; the plugin hooks rely on `scripts/hooks.py`
    copied in the previous step.
-3. Install the Codex GitHub connector and set up Codex cloud for this repository.
+3. Configure the two review credentials, including
+   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier, then run the
+   read-only preflight:
+
+   ```bash
+   python scripts/check_review_credentials.py --repo {{ github_repository | default('<owner>/<repository>', true) }}
+   ```
+
+   It checks only that `CLAUDE_CODE_OAUTH_TOKEN` is named in the repository or
+   inherited-organisation secret lists, and that the
+   `chatgpt-codex-connector` App covers this repository. It never reads a
+   secret value. A present but expired or revoked token therefore passes; the
+   later `agent-review` check is still the validity test.
+
+   | Exit | Meaning | Next action |
+   | --- | --- | --- |
+   | `0` | Both prerequisites are present. | Continue to bootstrap. |
+   | `1` | A secret or App repository grant is absent. | Follow the precise command or settings URL printed by the preflight, then rerun it. |
+   | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
+
    On every PR head that needs review, the PR author comments `@codex review`.
-   The workflow never posts that command or enables Automatic reviews. Configure
-   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier. If Codex leaves
-   no valid evidence, the workflow falls back to Claude. The required review
-   check is red only when neither carrier produces valid evidence, or when a
-   carrier reports blocking findings; it is never silently skipped.
+   The workflow never posts that command or enables Automatic reviews. If Codex
+   leaves no valid evidence, the workflow falls back to Claude. The required
+   review check is red only when neither carrier produces valid evidence, or
+   when a carrier reports blocking findings; it is never silently skipped.
 
    Also inspect the organisation Actions policy. If it uses "Allow specified
    actions and reusable workflows", permit the pinned
@@ -51,10 +69,11 @@ workflows run on every pull request.
    GitHub does not expose that policy to the common maintainer token (the live
    probe returned 404), so this is an explicit operator check rather than an
    unearned green result.
-4. Activate the GitHub Project with the bootstrap command below. Bootstrap also
-   configures the default branch's canonical required checks, required
-   pull-request route, and administrator enforcement; it preserves existing
-   review details plus push and deletion policy.
+4. Activate the GitHub Project with the bootstrap command below. It may write
+   remote Project configuration only in `create` mode with `--confirm-create`.
+5. Configure branch protection after bootstrap. This installation guide
+   reserves the step; [issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18)
+   supplies the safe, policy-preserving command.
 
 Enable the copied local pre-push probe after reviewing it:
 
@@ -83,21 +102,11 @@ untrusted contributor ran the publisher's policy.
 ## Activation
 
 `copier copy` copies the payload but does not create or alter GitHub resources.
-The copied process is inactive until its GitHub Project and default-branch
-protection are configured. Run:
+The copied process is inactive until its GitHub Project is configured. Run:
 
 ```bash
 python scripts/bootstrap_github_project.py{% if github_project_mode == "create" %} --confirm-create{% endif %}
 ```
-
-Bootstrap applies the canonical required checks (`quality / quality`, `pr-link /
-pr-link`, and `agent-review / agent-review`) to the repository's actual default
-branch with strict up-to-date checks and administrator coverage. For an existing
-classic protection rule it changes required-status checks and administrator
-enforcement and, when absent, enables the pull-request route with zero mandatory
-approvals. Existing review details plus push and deletion policy are preserved.
-For an unprotected branch it creates that safe baseline. Re-running bootstrap
-repairs drift without rewriting the generated Project settings file.
 
 In `existing` mode, bootstrap reads the selected Project and verifies that it
 has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`

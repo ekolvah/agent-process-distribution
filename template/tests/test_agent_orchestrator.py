@@ -365,7 +365,7 @@ class TestCarrierSelection:
         assert role["adapter_routes"] is None
         assert set(role["adapter_files"]) == set(role["adapters"])
 
-    def test_the_sole_carrier_ignores_the_run_route(self) -> None:
+    def test_ci_failover_ignores_the_interactive_run_route(self) -> None:
         """Both routes name the carrier that is asked first, because CI asks it first."""
         catalogue = load_catalog()
         overrides = {**_READY_FOR_REVIEW, "reviewed_heads": ()}

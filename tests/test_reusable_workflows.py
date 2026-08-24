@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -176,6 +177,14 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
 def test_agent_review_requires_structured_review_evidence() -> None:
     steps = _steps("reusable-agent-review.yml")
 
+    schema_arg = steps["Claude review"]["with"]["claude_args"]
+    schema = json.loads(schema_arg.removeprefix("--json-schema ").strip("'"))
+    assert "findings" in schema["properties"]
+    assert {"severity", "confidence", "summary"} == set(
+        schema["properties"]["findings"]["items"]["properties"]
+    )
+    assert schema["required"] == ["outcome", "findings"]
+    assert len(schema["allOf"]) == 3
     assert "Publish validated review evidence" in steps
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
     assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]

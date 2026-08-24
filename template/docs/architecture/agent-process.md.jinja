@@ -329,7 +329,8 @@ reviews. It waits for Codex's normal GitHub review on the current head, then
 translates the integration's native P0/P1/P2/P3 metadata into the gate outcome
 and adds the plain-language merge-class reply. When Codex
 leaves no valid evidence, Claude runs as the structured-output fallback. A
-valid verdict from either carrier is final for that head.
+valid verdict from either carrier is final for that head; changing agent-process
+policy files does not require both carriers.
 The workflow keeps an isolated checkout of the publisher's default branch in
 `trusted/` for the adapter, evidence validator, and enforcement script, while
 the adapter reads the standard review from the PR's live GitHub API records.

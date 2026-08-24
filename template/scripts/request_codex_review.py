@@ -30,15 +30,6 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 _REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
-_TRUSTED_POLICY_PATHS = frozenset(
-    {
-        "AGENTS.md",
-        "REVIEW_CONTRACT.md",
-        "docs/architecture/agent-process.md",
-        "docs/architecture/agent-process-installation.md",
-        "docs/architecture/principles.md",
-    }
-)
 
 
 def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
@@ -189,22 +180,6 @@ def _fetch_review_comments(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/pulls/{pr_number}/comments?per_page=100")
 
 
-def _fetch_changed_files(repository: str, pr_number: str) -> object:
-    return slurp_records(f"repos/{repository}/pulls/{pr_number}/files?per_page=100")
-
-
-def _changes_trusted_review_policy(changed_files: object) -> bool:
-    """A PR must not supply the policy that validates its own Codex verdict."""
-    for record in flatten_pages(changed_files):
-        for key in ("filename", "previous_filename"):
-            path = record.get(key)
-            if isinstance(path, str) and (
-                path in _TRUSTED_POLICY_PATHS or path.endswith("/AGENTS.md")
-            ):
-                return True
-    return False
-
-
 def _fetch_request_comments(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/issues/{pr_number}/comments?per_page=100")
 
@@ -226,12 +201,6 @@ def poll_for_verdict(
     monotonic: Callable[[], float] | None = None,
 ) -> dict[str, object] | None:
     """Wait for a requested standard review, stopping on invalid evidence too."""
-    if _changes_trusted_review_policy(_fetch_changed_files(repository, pr_number)):
-        # The workflow will use its Claude fallback with REVIEW_CONTRACT.md from
-        # the default-branch checkout. Codex otherwise reads AGENTS.md from the
-        # reviewed worktree, so its result cannot be evidence for a PR that
-        # changes either policy file.
-        return None
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
     deadline = clock() + timeout_seconds

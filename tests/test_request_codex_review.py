@@ -152,7 +152,6 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
     monkeypatch.setattr(
         request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
     )
-    monkeypatch.setattr(request_codex_review, "_fetch_changed_files", lambda *_args: [])
     monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
 
     assert (
@@ -170,36 +169,28 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
     )
 
 
-@pytest.mark.parametrize(
-    "changed_file",
-    [
-        {"filename": "REVIEW_CONTRACT.md"},
-        {"filename": "docs/architecture/agent-process.md"},
-        {"filename": "docs/architecture/agent-process-installation.md"},
-        {"filename": "docs/architecture/principles.md"},
-        {"filename": "services/worker/AGENTS.md"},
-        {"filename": "README.md", "previous_filename": "legacy/AGENTS.md"},
-    ],
-)
-def test_poll_defers_to_trusted_fallback_when_pr_changes_review_policy(
-    monkeypatch: pytest.MonkeyPatch, changed_file: dict[str, str]
+def test_poll_accepts_valid_codex_evidence_without_a_policy_path_exception(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
+        request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
+    )
+    monkeypatch.setattr(
         request_codex_review,
-        "_fetch_changed_files",
-        lambda *_args: [changed_file],
+        "_fetch_review_comments",
+        lambda *_args: [_comment("P1 review policy defect")],
     )
 
-    assert (
-        poll_for_verdict(
-            "owner/repo",
-            "14",
-            _HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            timeout_seconds=60,
-        )
-        is None
+    verdict = poll_for_verdict(
+        "owner/repo",
+        "14",
+        _HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        timeout_seconds=0,
     )
+
+    assert verdict is not None
+    assert verdict["outcome"] == "blocking"
 
 
 def test_module_entry_point_runs_the_cli() -> None:

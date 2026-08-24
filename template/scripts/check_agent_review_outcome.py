@@ -6,11 +6,11 @@ reds the required check, `clean` and `rework` pass (the latter with a visible
 unknown outcome, or an unavailable live PR context — stays red. Absence of
 evidence must never read as success (§IV).
 
-The required check has one owner-requested Codex carrier. This module validates
-the verdict it translated from GitHub's standard review records before judging
-it. That question lives here because the validity rule lives here; asked as a
-YAML `contains()`/`fromJSON()` expression it would become a second, untestable
-home for the same policy.
+The required check has an owner-requested Codex primary and a Claude availability
+fallback. This module validates whichever verdict the workflow selected before
+judging it. That question lives here because the validity rule lives here;
+asked as a YAML `contains()`/`fromJSON()` expression it would become a second,
+untestable home for the same policy.
 
 The rule has no path-based exception any more. A PR touching the review
 controller used to pass with a `::warning::` on an empty outcome, because the
