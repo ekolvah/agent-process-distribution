@@ -23,21 +23,57 @@ returns to the default-branch driver. This narrow fallback makes the first
 required checks executable without changing the pinned references copied to
 ordinary consumer repositories.
 
-## CI prerequisites
+## Installation order
 
-The payload installs three thin caller workflows. They reference the published
-reusable workflows pinned in `workflow_references`; Python enforcement scripts
-remain copied because they are parameterized by the target's answers and also
-run locally. Before requesting a PR review, install the Codex GitHub connector
-and set up Codex cloud for the repository. The PR author comments
-`@codex review` on every head that needs review; the workflow never issues that
-comment or enables Automatic reviews. Configure `CLAUDE_CODE_OAUTH_TOKEN` for
-the Claude fallback carrier. Ensure the
-organisation permits this publisher under its Actions "Allow specified actions
-and reusable workflows" policy. When Codex leaves no valid evidence, the
-workflow invokes Claude as its fallback carrier. The review check is red only
-when neither carrier produces valid evidence, or when either carrier reports
-blocking findings; it is never silently skipped.
+Complete these steps in order. The credential preflight is a hard precondition
+of Project bootstrap: from the merge that carries this payload, the review
+workflows run on every pull request.
+
+1. Copy the payload with `copier copy`. It writes files only in the local
+   checkout. Answering `claude_adapter_installed` consents to the Layer 1
+   deny-list and its `PreToolUse`/`PostToolUse` hooks, which run on every Bash,
+   Read, Edit, and Write call.
+2. If the Claude adapter is adopted, install its Layer 1 plugin after the
+   payload with the marketplace's `/plugin install` command. This is a local
+   Claude configuration action; the plugin hooks rely on `scripts/hooks.py`
+   copied in the previous step.
+3. Configure the two review credentials, including
+   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier, then run the
+   read-only preflight:
+
+   ```bash
+   python scripts/check_review_credentials.py --repo ekolvah/agent-process-distribution
+   ```
+
+   It checks only that `CLAUDE_CODE_OAUTH_TOKEN` is named in the repository or
+   inherited-organisation secret lists, and that the
+   `chatgpt-codex-connector` App covers this repository. It never reads a
+   secret value. A present but expired or revoked token therefore passes; the
+   later `agent-review` check is still the validity test.
+
+   | Exit | Meaning | Next action |
+   | --- | --- | --- |
+   | `0` | Both prerequisites are present. | Continue to bootstrap. |
+   | `1` | A secret or App repository grant is absent. | Follow the precise command or settings URL printed by the preflight, then rerun it. |
+   | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
+
+   On every PR head that needs review, the PR author comments `@codex review`.
+   The workflow never posts that command or enables Automatic reviews. If Codex
+   leaves no valid evidence, the workflow falls back to Claude. The required
+   review check is red only when neither carrier produces valid evidence, or
+   when a carrier reports blocking findings; it is never silently skipped.
+
+   Also inspect the organisation Actions policy. If it uses "Allow specified
+   actions and reusable workflows", permit the pinned
+   `ekolvah/agent-process-distribution/.github/workflows/*.yml` reference.
+   GitHub does not expose that policy to the common maintainer token (the live
+   probe returned 404), so this is an explicit operator check rather than an
+   unearned green result.
+4. Activate the GitHub Project with the bootstrap command below. It may write
+   remote Project configuration only in `create` mode with `--confirm-create`.
+5. Configure branch protection after bootstrap. This installation guide
+   reserves the step; [issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18)
+   supplies the safe, policy-preserving command.
 
 Enable the copied local pre-push probe after reviewing it:
 

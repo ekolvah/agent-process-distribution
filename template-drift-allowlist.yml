@@ -11,10 +11,6 @@ root_only_paths:
     reason: Publisher-owned reusable workflow; payload ships only its caller.
   - path: .github/workflows/reusable-quality.yml
     reason: Publisher-owned reusable workflow; payload ships only its caller.
-  - path: requirements-dev.in
-    reason: The source repository needs Copier to render and test its payload.
-  - path: requirements-dev.txt
-    reason: Lockfile companion for the source-only Copier development dependency.
   - path: template-drift-allowlist.yml
     reason: Source-specific input data for the future drift gate.
   - path: tests/test_project_bootstrap_template.py
@@ -27,3 +23,15 @@ root_only_paths:
     reason: Reserved for the root-only drift gate in issue #6.
   - path: docs/adr/0013-template-source-self-hosting.md
     reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
+  - path: copier.yml
+    reason: Defines this repository's Copier source; consumers receive only its rendered payload.
+  - path: tests/test_agent_review_outcome.py
+    reason: Verifies publisher review-evidence parsing rather than a rendered consumer.
+  - path: tests/test_blocking_review_threads.py
+    reason: Verifies publisher review-thread enforcement rather than a rendered consumer.
+  - path: tests/test_request_codex_review.py
+    reason: Verifies publisher Codex-review dispatch rather than a rendered consumer.
+  - path: tests/test_reusable_workflows.py
+    reason: Verifies publisher-owned reusable workflows rather than consumer callers.
+  - path: tests/test_workflow_references.py
+    reason: Verifies publisher workflow pins rather than rendered consumer behavior.

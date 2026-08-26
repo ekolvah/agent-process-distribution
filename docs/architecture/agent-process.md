@@ -316,8 +316,11 @@ the reviewed worktree cannot alter its own verifier. This does **not**
 authenticate the thin caller workflow: a PR can replace a name-only required
 context's caller before GitHub runs it. Treat the context as authoritative only
 after an external workflow-definition trust anchor is active; see the
-installation guide. Keep the controller to direct tests and docs; never disable
-the required context or treat the PR body as merge authority.
+installation guide. That guide's credential preflight establishes the two
+carrier prerequisites before these workflows are merged; it verifies presence,
+not whether the carrier-1 token is still valid. Keep the controller to direct
+tests and docs; never disable the required context or treat the PR body as
+merge authority.
 
 The target's thin caller invokes the publisher's pinned
 `reusable-agent-review.yml`. The PR author starts the Codex primary with
@@ -339,7 +342,16 @@ fallback when the default branch lacks its parser marker; its evidence is still
 validated by the default-branch validator. The manual owner request is review
 evidence, not a replacement for the platform workflow-definition trust anchor.
 
+## Maintaining this distribution
+
+This section applies only when maintaining `agent-process-distribution` itself,
+not when delivering an issue in a repository that received its payload.
+
+Edit a payload file in `template/` and re-render its root copy; never hand-edit
+the generated root copy.
+
 ## Governance conventions
+
 1. Create issue branches only with `python scripts/issue_branch.py <N>` (starts
    from fresh `origin/main`); never create a branch directly.
 2. Keep one PR to one logical unit. A temporary CI unblock for an unrelated

@@ -342,7 +342,16 @@ fallback when the default branch lacks its parser marker; its evidence is still
 validated by the default-branch validator. The manual owner request is review
 evidence, not a replacement for the platform workflow-definition trust anchor.
 
+## Maintaining this distribution
+
+This section applies only when maintaining `agent-process-distribution` itself,
+not when delivering an issue in a repository that received its payload.
+
+Edit a payload file in `template/` and re-render its root copy; never hand-edit
+the generated root copy.
+
 ## Governance conventions
+
 1. Create issue branches only with `python scripts/issue_branch.py <N>` (starts
    from fresh `origin/main`); never create a branch directly.
 2. Keep one PR to one logical unit. A temporary CI unblock for an unrelated
