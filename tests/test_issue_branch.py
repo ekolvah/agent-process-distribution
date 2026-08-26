@@ -7,10 +7,12 @@ assembly, the Cyrillic title decode, and in-process delegation to
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -50,9 +52,6 @@ class TestBuildBranchName:
         # Canonical-home guard: build_branch_name must derive its prefix
         # from new_branch.BRANCH_PREFIX, so a future prefix change can't drift
         # past new_branch.py's guard and break the issue_branch→new_branch pipe.
-        import importlib.util
-        from pathlib import Path
-
         spec = importlib.util.spec_from_file_location(
             "scripts.new_branch",
             Path(__file__).resolve().parent.parent / "scripts" / "new_branch.py",
@@ -260,9 +259,35 @@ class TestStatusTransition:
         assert "revoked project access" in error
 
 
+def _load_unconfigured_project_settings() -> ModuleType:
+    """Load a real, unconfigured `project_settings.py` — never a hand-written stand-in.
+
+    Prefers the template source's pristine copy, which stays blank even in this
+    repository's own activated self-hosted checkout; a rendered consumer under
+    test has no `template/` of its own, but there the sibling next to
+    `issue_branch.py` is blank too, because rendering has not run bootstrap.
+    """
+    start = Path(__file__).resolve()
+    module_path = None
+    for candidate in (start, *start.parents):
+        candidate_path = candidate / "template" / "scripts" / "project_settings.py"
+        if candidate_path.exists():
+            module_path = candidate_path
+            break
+    if module_path is None:
+        module_path = Path(issue_branch.__file__).with_name("project_settings.py")
+    spec = importlib.util.spec_from_file_location("project_settings", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_unconfigured_project_blocks_branch_creation(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    unconfigured = _load_unconfigured_project_settings()
+    monkeypatch.setattr(issue_branch, "_sibling_module", lambda name: unconfigured)
     monkeypatch.setattr(issue_branch, "_fetch_title", lambda n: "must not run")
     monkeypatch.setattr(sys, "argv", ["issue_branch.py", "519"])
 

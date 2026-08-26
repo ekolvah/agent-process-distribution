@@ -39,6 +39,10 @@ differ; stale rows fail. Every undeclared extra root file fails, while build
 artefacts are ignored at every depth.
 
 The repair direction is always to edit `template/` and re-render the root.
+`scripts/project_settings.py` is the one declared expected difference: the source
+checkout records its own activated Project IDs, while a newly rendered consumer starts
+unconfigured. The gate requires both copies to exist and to differ; an equal or missing
+pair leaves the declaration stale and red.
 
 ### Consequences
 

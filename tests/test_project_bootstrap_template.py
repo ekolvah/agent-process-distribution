@@ -231,6 +231,8 @@ def test_create_mode_links_fields_and_persists_real_ids(
 
     def fake_run(command: list[str]) -> dict[str, object]:
         calls.append(command)
+        if command == ["gh", "api", "user"]:
+            return {"login": "octocat"}
         if command[2] == "create":
             return {"number": 7, "id": "project-7"}
         if command[2] == "field-list":
@@ -243,8 +245,9 @@ def test_create_mode_links_fields_and_persists_real_ids(
     bootstrap.main(["--confirm-create"])
 
     settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
-    assert "PROJECT_NUMBER = '7'" in settings
-    assert "PROJECT_ID = 'project-7'" in settings
+    assert 'PROJECT_NUMBER = "7"' in settings
+    assert 'PROJECT_OWNER = "octocat"' in settings
+    assert 'PROJECT_ID = "project-7"' in settings
     assert "priority-high" in settings
     assert "status-progress" in settings
     assert [
@@ -253,7 +256,7 @@ def test_create_mode_links_fields_and_persists_real_ids(
         "link",
         "7",
         "--owner",
-        "@me",
+        "octocat",
         "--repo",
         "example-org/example-repo",
     ] in calls
@@ -261,6 +264,70 @@ def test_create_mode_links_fields_and_persists_real_ids(
     call_count = len(calls)
     bootstrap.main([])
     assert len(calls) == call_count
+
+
+def test_create_mode_with_literal_owner_skips_resolution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(
+        tmp_path,
+        "--data",
+        "github_repository=example-org/example-repo",
+        "--data",
+        "github_project_owner=example-org",
+    )
+    bootstrap = bootstrap_module(destination)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str]) -> dict[str, object]:
+        calls.append(command)
+        if command[2] == "create":
+            return {"number": 7, "id": "project-7"}
+        if command[2] == "field-list":
+            return {"fields": []}
+        return {}
+
+    monkeypatch.setattr(bootstrap, "_run", fake_run)
+    monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
+
+    with pytest.raises(SystemExit):
+        bootstrap.main(["--confirm-create"])
+
+    assert ["gh", "api", "user"] not in calls
+    assert [
+        "gh",
+        "project",
+        "link",
+        "7",
+        "--owner",
+        "example-org",
+        "--repo",
+        "example-org/example-repo",
+    ] in calls
+
+
+def test_create_mode_fails_before_create_when_owner_unresolvable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
+    bootstrap = bootstrap_module(destination)
+    calls: list[list[str]] = []
+
+    def fake_run(command: list[str]) -> dict[str, object]:
+        calls.append(command)
+        if command == ["gh", "api", "user"]:
+            return {"login": ""}
+        raise AssertionError(f"unexpected command: {command}")
+
+    monkeypatch.setattr(bootstrap, "_run", fake_run)
+    monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
+
+    with pytest.raises(SystemExit) as exc:
+        bootstrap.main(["--confirm-create"])
+
+    assert exc.value.code == 1
+    assert ["gh", "project", "create"] not in calls
+    assert "cannot resolve the authenticated login" in capsys.readouterr().err
 
 
 def test_create_mode_rolls_back_a_project_when_activation_fails(
@@ -272,6 +339,8 @@ def test_create_mode_rolls_back_a_project_when_activation_fails(
 
     def fake_run(command: list[str]) -> dict[str, object]:
         calls.append(command)
+        if command == ["gh", "api", "user"]:
+            return {"login": "octocat"}
         if command[2] == "create":
             return {"number": 7, "id": "project-7"}
         if command[2] == "field-create":
@@ -324,6 +393,8 @@ def test_create_mode_rolls_back_late_activation_failures(
 
     def fake_run(command: list[str]) -> dict[str, object]:
         calls.append(command)
+        if command == ["gh", "api", "user"]:
+            return {"login": "octocat"}
         if command[2] == "create":
             return {"number": 7, "id": "project-7"}
         if command[2] == "field-list":
