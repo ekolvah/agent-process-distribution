@@ -41,6 +41,10 @@ ARTIFACT_DIRECTORIES = frozenset(
 )
 ARTIFACT_DIRECTORY_PREFIXES = ("pytest-cache-files-",)
 COPIER_METADATA_PATHS = frozenset({".copier-answers.yml"})
+SOURCE_ONLY_COPIER_REQUIREMENTS = {
+    "requirements-dev.in": lambda line: line == "copier",
+    "requirements-dev.txt": lambda line: line.startswith("copier=="),
+}
 
 
 @dataclass(frozen=True)
@@ -65,7 +69,6 @@ class Allowlist:
     """Declared source-repository exceptions to byte-for-byte equality."""
 
     root_only_paths: frozenset[str]
-    expected_to_differ_paths: frozenset[str]
 
 
 def load_answers(root: Path) -> dict[str, object]:
@@ -95,7 +98,7 @@ def load_allowlist(root: Path) -> Allowlist:
             result.add(row["path"])
         return frozenset(result)
 
-    return Allowlist(paths("root_only_paths"), paths("expected_to_differ_paths"))
+    return Allowlist(paths("root_only_paths"))
 
 
 def render_working_tree(root: Path, destination: Path) -> Path:
@@ -151,10 +154,24 @@ def _normalised(path: Path) -> str:
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
 
 
-def _diff(path: str, rendered: Path, root: Path) -> str:
+def _normalised_root(path: str, root: Path) -> tuple[str, str | None]:
+    """Remove and validate the one source-only Copier dependency when applicable."""
+    content = _normalised(root)
+    requirement = SOURCE_ONLY_COPIER_REQUIREMENTS.get(path)
+    if requirement is None:
+        return content, None
+
+    lines = content.splitlines(keepends=True)
+    copier_lines = [line for line in lines if requirement(line.strip())]
+    if len(copier_lines) != 1:
+        return content, f"missing source-only Copier requirement: {path}"
+    return "".join(line for line in lines if not requirement(line.strip())), None
+
+
+def _diff(path: str, rendered: Path, root_content: str) -> str:
     diff = difflib.unified_diff(
         _normalised(rendered).splitlines(),
-        _normalised(root).splitlines(),
+        root_content.splitlines(),
         fromfile=f"rendered/{path}",
         tofile=f"root/{path}",
         lineterm="",
@@ -182,16 +199,12 @@ def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
         root_path = root_files.get(path)
         if root_path is None:
             errors.append(f"missing generated file: {path}")
-        elif path not in allowlist.expected_to_differ_paths and _normalised(
-            rendered_path
-        ) != _normalised(root_path):
-            errors.append(_diff(path, rendered_path, root_path))
-
-    for path in allowlist.expected_to_differ_paths:
-        if path not in root_files or path not in rendered_files:
-            errors.append(f"stale expected-to-differ allowlist entry: {path}")
-        elif _normalised(root_files[path]) == _normalised(rendered_files[path]):
-            errors.append(f"stale expected-to-differ allowlist entry: {path}")
+            continue
+        root_content, root_error = _normalised_root(path, root_path)
+        if root_error:
+            errors.append(root_error)
+        elif _normalised(rendered_path) != root_content:
+            errors.append(_diff(path, rendered_path, root_content))
 
     for path in allowlist.root_only_paths:
         if path not in root_files or path in rendered_files:

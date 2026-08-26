@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import shutil
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -86,16 +85,20 @@ def test_undeclared_deviation_is_red(tmp_path: Path, rendered_self_applied: Path
     assert any("scripts/ci_check.py" in error for error in report.errors), report.format()
 
 
-def test_stale_allowlist_entry_is_red(tmp_path: Path, rendered_self_applied: Path) -> None:
+def test_missing_source_only_copier_requirement_is_red(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
     source = checkout(tmp_path)
-    allowlist = replace(
-        template_drift.load_allowlist(source),
-        expected_to_differ_paths=frozenset({"scripts/check_red.py"}),
+    requirements = source / "requirements-dev.in"
+    requirements.write_text(
+        requirements.read_text(encoding="utf-8").replace("copier\n", ""), encoding="utf-8"
     )
 
-    report = template_drift.compare(source, rendered_self_applied, allowlist)
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
 
-    assert "stale expected-to-differ allowlist entry: scripts/check_red.py" in report.errors
+    assert "missing source-only Copier requirement: requirements-dev.in" in report.errors
 
 
 def test_root_only_entry_with_a_template_origin_is_red(
@@ -113,22 +116,30 @@ def test_root_only_entry_with_a_template_origin_is_red(
     assert "stale root-only allowlist entry: tests/test_template_drift.py" in report.errors
 
 
-def test_declared_expected_difference_is_allowed(
+def test_source_only_copier_requirement_is_allowed(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
     source = checkout(tmp_path)
-    settings = source / "scripts" / "project_settings.py"
-    settings.write_text(
-        settings.read_text(encoding="utf-8") + "\nSOURCE_ONLY = True\n", encoding="utf-8"
-    )
-    allowlist = replace(
-        template_drift.load_allowlist(source),
-        expected_to_differ_paths=frozenset({"scripts/project_settings.py"}),
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    report = template_drift.compare(source, rendered_self_applied, allowlist)
+    assert not any("requirements-dev" in error for error in report.errors), report.format()
 
-    assert not any("scripts/project_settings.py" in error for error in report.errors), (
+
+def test_unexpected_requirement_edit_is_red(tmp_path: Path, rendered_self_applied: Path) -> None:
+    source = checkout(tmp_path)
+    requirements = source / "requirements-dev.in"
+    requirements.write_text(
+        requirements.read_text(encoding="utf-8") + "unrelated-requirement\n",
+        encoding="utf-8",
+    )
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert any("content differs: requirements-dev.in" in error for error in report.errors), (
         report.format()
     )
 

@@ -35,10 +35,3 @@ root_only_paths:
     reason: Verifies publisher-owned reusable workflows rather than consumer callers.
   - path: tests/test_workflow_references.py
     reason: Verifies publisher workflow pins rather than rendered consumer behavior.
-
-# Paths generated in both locations but intentionally changed by source-only work.
-expected_to_differ_paths:
-  - path: requirements-dev.in
-    reason: The source repository needs Copier to render and test its payload.
-  - path: requirements-dev.txt
-    reason: Lockfile companion for the source-only Copier development dependency.
