@@ -263,6 +263,12 @@ class TestStatusTransition:
 def test_unconfigured_project_blocks_branch_creation(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    class UnconfiguredSettings:
+        @staticmethod
+        def require_configured() -> None:
+            raise RuntimeError("Agent process is installed but inactive")
+
+    monkeypatch.setattr(issue_branch, "_sibling_module", lambda name: UnconfiguredSettings)
     monkeypatch.setattr(issue_branch, "_fetch_title", lambda n: "must not run")
     monkeypatch.setattr(sys, "argv", ["issue_branch.py", "519"])
 

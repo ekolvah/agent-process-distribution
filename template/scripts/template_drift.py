@@ -69,6 +69,7 @@ class Allowlist:
     """Declared source-repository exceptions to byte-for-byte equality."""
 
     root_only_paths: frozenset[str]
+    expected_difference_paths: frozenset[str]
 
 
 def load_answers(root: Path) -> dict[str, object]:
@@ -98,7 +99,15 @@ def load_allowlist(root: Path) -> Allowlist:
             result.add(row["path"])
         return frozenset(result)
 
-    return Allowlist(paths("root_only_paths"))
+    root_only_paths = paths("root_only_paths")
+    expected_difference_paths = paths("expected_difference_paths")
+    overlap = root_only_paths & expected_difference_paths
+    if overlap:
+        raise ValueError(
+            "allowlist paths cannot be both root-only and expected-difference: "
+            + ", ".join(sorted(overlap))
+        )
+    return Allowlist(root_only_paths, expected_difference_paths)
 
 
 def render_working_tree(root: Path, destination: Path) -> Path:
@@ -203,12 +212,25 @@ def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
         root_content, root_error = _normalised_root(path, root_path)
         if root_error:
             errors.append(root_error)
-        elif _normalised(rendered_path) != root_content:
+        elif (
+            _normalised(rendered_path) != root_content
+            and path not in allowlist.expected_difference_paths
+        ):
             errors.append(_diff(path, rendered_path, root_content))
 
     for path in allowlist.root_only_paths:
         if path not in root_files or path in rendered_files:
             errors.append(f"stale root-only allowlist entry: {path}")
+
+    for path in allowlist.expected_difference_paths:
+        root_path = root_files.get(path)
+        rendered_path = rendered_files.get(path)
+        if root_path is None or rendered_path is None:
+            errors.append(f"stale expected-difference allowlist entry: {path}")
+            continue
+        root_content, root_error = _normalised_root(path, root_path)
+        if root_error or _normalised(rendered_path) == root_content:
+            errors.append(f"stale expected-difference allowlist entry: {path}")
 
     for path in sorted(root_files.keys() - rendered_files.keys()):
         if path in allowlist.root_only_paths:
