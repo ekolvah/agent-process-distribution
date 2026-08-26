@@ -185,7 +185,7 @@ def test_agent_review_requires_structured_review_evidence() -> None:
         schema["properties"]["findings"]["items"]["properties"]
     )
     assert schema["required"] == ["outcome", "findings"]
-    assert len(schema["allOf"]) == 3
+    assert not {"allOf", "oneOf", "anyOf"} & set(schema)
     assert "Publish validated review evidence" in steps
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
     assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]
