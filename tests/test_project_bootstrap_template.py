@@ -245,8 +245,8 @@ def test_create_mode_links_fields_and_persists_real_ids(
     bootstrap.main(["--confirm-create"])
 
     settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
-    assert "PROJECT_NUMBER = '7'" in settings
-    assert "PROJECT_ID = 'project-7'" in settings
+    assert 'PROJECT_NUMBER = "7"' in settings
+    assert 'PROJECT_ID = "project-7"' in settings
     assert "priority-high" in settings
     assert "status-progress" in settings
     assert [
