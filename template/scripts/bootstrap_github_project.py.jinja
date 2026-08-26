@@ -119,6 +119,12 @@ def _create() -> tuple[str, str]:
     if not repository:
         raise RuntimeError("cannot resolve github_repository from the current checkout")
     _checked(["gh", "auth", "status"])
+    link_owner = OWNER
+    if OWNER == "@me":
+        viewer = _run(["gh", "api", "user"])
+        link_owner = str(viewer.get("login", "")).strip()
+        if not link_owner:
+            raise RuntimeError("cannot resolve the authenticated login for `gh project link`")
     number = ""
     try:
         created = _run(
@@ -137,7 +143,9 @@ def _create() -> tuple[str, str]:
         number, project_id = str(created.get("number", "")), str(created.get("id", ""))
         if not number or not project_id:
             raise RuntimeError("`gh project create` returned no number or id")
-        _checked(["gh", "project", "link", number, "--owner", OWNER, "--repo", repository])
+        _checked(
+            ["gh", "project", "link", number, "--owner", link_owner, "--repo", repository]
+        )
         for name, options in (
             ("Priority", "High,Medium,Low"),
             ("Agent status", "Planned,In Progress"),
