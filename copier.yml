@@ -68,7 +68,7 @@ workflow_references:
   default:
     quality: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@d3f6d238891dbaee6af10b18609e7e07f8901921"
     pr-link: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@d3f6d238891dbaee6af10b18609e7e07f8901921"
-    agent-review: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@7cbf0371f13cf6c1f8d76db4706059b191a1f4b1"
+    agent-review: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@69db0363304b43a256deb02a0e2cbb11797118de"
 
 not_required_contexts:
   type: yaml
