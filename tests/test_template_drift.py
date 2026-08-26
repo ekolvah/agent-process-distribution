@@ -167,6 +167,21 @@ def test_nested_payload_directory_is_compared(tmp_path: Path, rendered_self_appl
     ), report.format()
 
 
+def test_top_level_payload_directory_is_compared(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    source = checkout(tmp_path)
+    rendered = tmp_path / "rendered"
+    shutil.copytree(rendered_self_applied, rendered)
+    generated = rendered / "agents" / "consumer.yaml"
+    generated.parent.mkdir(exist_ok=True)
+    generated.write_text("name: consumer\n", encoding="utf-8")
+
+    report = template_drift.compare(source, rendered, template_drift.load_allowlist(source))
+
+    assert "missing generated file: agents/consumer.yaml" in report.errors, report.format()
+
+
 def test_artifact_directories_are_excluded_at_any_depth(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:

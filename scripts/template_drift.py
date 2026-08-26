@@ -130,11 +130,13 @@ def render_working_tree(root: Path, destination: Path) -> Path:
     return destination
 
 
-def _files(directory: Path) -> dict[str, Path]:
+def _files(directory: Path, *, exclude_root_only_directories: bool = False) -> dict[str, Path]:
     files: dict[str, Path] = {}
     for path in directory.rglob("*"):
         relative_path = path.relative_to(directory)
-        if not path.is_file() or relative_path.parts[0] in ROOT_ONLY_DIRECTORIES:
+        if not path.is_file():
+            continue
+        if exclude_root_only_directories and relative_path.parts[0] in ROOT_ONLY_DIRECTORIES:
             continue
         if any(
             part in ARTIFACT_DIRECTORIES or part.startswith(ARTIFACT_DIRECTORY_PREFIXES)
@@ -162,7 +164,7 @@ def _diff(path: str, rendered: Path, root: Path) -> str:
 
 def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
     """Compare rendered payload files with the self-applied root."""
-    root_files = _files(root)
+    root_files = _files(root, exclude_root_only_directories=True)
     rendered_files = _files(rendered)
     rendered_files = {
         path: file for path, file in rendered_files.items() if path not in COPIER_METADATA_PATHS
