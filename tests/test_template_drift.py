@@ -146,6 +146,22 @@ def test_stale_expected_difference_entry_is_red(
     assert "stale expected-difference allowlist entry: scripts/project_settings.py" in report.errors
 
 
+def test_structural_deviation_in_expected_difference_path_is_red(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    source = checkout(tmp_path)
+    path = source / "scripts" / "project_settings.py"
+    path.write_text(path.read_text(encoding="utf-8") + "\nEXTRA_FIELD = True\n", encoding="utf-8")
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert any(
+        "content differs: scripts/project_settings.py" in error for error in report.errors
+    ), report.format()
+
+
 def test_source_only_copier_requirement_is_allowed(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:

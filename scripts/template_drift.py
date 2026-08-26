@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import difflib
 import shutil
 import subprocess
@@ -163,6 +164,27 @@ def _normalised(path: Path) -> str:
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
 
 
+def _top_level_names(content: str) -> frozenset[str]:
+    """Names a Python module defines at top level: assignments, defs, classes.
+
+    Bootstrap generates the activated `project_settings.py` from scratch, so an
+    `expected_difference_paths` entry can never require full-content equality
+    for it — the docstring and `require_configured` body legitimately differ.
+    Comparing this name set instead still catches a future template-only
+    change to the settings API (a renamed, added, or removed field or
+    function) that full suppression would otherwise hide.
+    """
+    names: set[str] = set()
+    for node in ast.parse(content).body:
+        if isinstance(node, ast.Assign):
+            names.update(target.id for target in node.targets if isinstance(target, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+    return frozenset(names)
+
+
 def _normalised_root(path: str, root: Path) -> tuple[str, str | None]:
     """Remove and validate the one source-only Copier dependency when applicable."""
     content = _normalised(root)
@@ -212,9 +234,15 @@ def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
         root_content, root_error = _normalised_root(path, root_path)
         if root_error:
             errors.append(root_error)
-        elif (
-            _normalised(rendered_path) != root_content
-            and path not in allowlist.expected_difference_paths
+            continue
+        rendered_content = _normalised(rendered_path)
+        if rendered_content == root_content:
+            continue
+        if path not in allowlist.expected_difference_paths:
+            errors.append(_diff(path, rendered_path, root_content))
+            continue
+        if path.endswith(".py") and _top_level_names(rendered_content) != _top_level_names(
+            root_content
         ):
             errors.append(_diff(path, rendered_path, root_content))
 
