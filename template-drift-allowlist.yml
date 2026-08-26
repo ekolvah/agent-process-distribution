@@ -35,3 +35,6 @@ root_only_paths:
     reason: Verifies publisher-owned reusable workflows rather than consumer callers.
   - path: tests/test_workflow_references.py
     reason: Verifies publisher workflow pins rather than rendered consumer behavior.
+expected_difference_paths:
+  - path: scripts/project_settings.py
+    reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.

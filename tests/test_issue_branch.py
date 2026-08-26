@@ -263,6 +263,10 @@ class TestStatusTransition:
 def test_unconfigured_project_blocks_branch_creation(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    def unconfigured() -> None:
+        raise RuntimeError("Agent process is installed but inactive")
+
+    monkeypatch.setattr(issue_branch, "_require_project_bootstrap", unconfigured)
     monkeypatch.setattr(issue_branch, "_fetch_title", lambda n: "must not run")
     monkeypatch.setattr(sys, "argv", ["issue_branch.py", "519"])
 

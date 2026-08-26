@@ -116,6 +116,36 @@ def test_root_only_entry_with_a_template_origin_is_red(
     assert "stale root-only allowlist entry: tests/test_template_drift.py" in report.errors
 
 
+def test_declared_expected_difference_is_allowed(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    source = checkout(tmp_path)
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert not any(
+        "content differs: scripts/project_settings.py" in error for error in report.errors
+    ), report.format()
+
+
+def test_stale_expected_difference_entry_is_red(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    source = checkout(tmp_path)
+    (source / "scripts" / "project_settings.py").write_text(
+        (rendered_self_applied / "scripts" / "project_settings.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert "stale expected-difference allowlist entry: scripts/project_settings.py" in report.errors
+
+
 def test_source_only_copier_requirement_is_allowed(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
