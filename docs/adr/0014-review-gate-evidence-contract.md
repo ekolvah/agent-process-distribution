@@ -55,3 +55,10 @@ now additionally publishes the same validated evidence as one sticky
 PR-conversation comment (never a `REQUEST_CHANGES`/`APPROVE` review state,
 keyed on the reviewed head SHA so a re-run does not duplicate it). The Codex
 primary path is untouched — it already leaves its own native review.
+
+The introducing PR cannot exercise `--publish-pr-comment` against its own
+change: the trusted checkout is the default branch, which does not have the
+new flag until this PR merges. The workflow feature-detects the
+`PUBLISH_PR_COMMENT_SUPPORTED` marker in the trusted script and skips the
+step with a visible notice when absent — the same bootstrap shape already
+used for the Codex-parser marker.

@@ -40,6 +40,14 @@ _SEVERITY_LABELS = {
     "should-fix": "NON-BLOCKING",
     "nice-to-have": "NON-BLOCKING",
 }
+_SEVERITY_ORDER = {"blocking": 0, "should-fix": 1, "nice-to-have": 2}
+# The reusable workflow greps the trusted checkout for this marker before
+# wiring `--publish-pr-comment`: on the introducing PR, the default branch is
+# still the pre-#35 script and does not have the flag yet (the trusted
+# checkout pattern means the PR's own worktree can never supply it — see
+# agent-process.md's transition-PR bootstrap note). A missing marker is a
+# visible skip, not a failure, exactly like `STANDARD_REVIEW_PARSER`.
+PUBLISH_PR_COMMENT_SUPPORTED = True
 # Marks the one sticky PR-conversation comment the Claude fallback owns, so a
 # re-run finds and updates it instead of leaving the carrier's own findings
 # invisible outside the check summary (issue #35). Distinct from
@@ -174,10 +182,11 @@ def _evidence_lines(
         "",
     ]
     if findings:
+        ordered = sorted(findings, key=lambda finding: _SEVERITY_ORDER[finding["severity"]])
         lines.extend(
             f"- **{_SEVERITY_LABELS[finding['severity']]} ({finding['confidence']})**: "
             f"{finding['summary']}"
-            for finding in findings
+            for finding in ordered
         )
     else:
         lines.append("No findings.")

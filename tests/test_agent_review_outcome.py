@@ -103,6 +103,38 @@ def test_valid_blocking_finding_is_reported_with_head_sha(
     )
 
 
+def test_findings_are_grouped_by_severity_regardless_of_payload_order(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    check_agent_review_outcome.main(
+        [
+            json.dumps(
+                {
+                    "outcome": "blocking",
+                    "findings": [
+                        {"severity": "nice-to-have", "confidence": "low", "summary": "style nit"},
+                        {"severity": "blocking", "confidence": "high", "summary": "the real bug"},
+                        {
+                            "severity": "should-fix",
+                            "confidence": "medium",
+                            "summary": "worth fixing",
+                        },
+                    ],
+                }
+            ),
+            "--publish-summary",
+            "--reviewed-head-sha",
+            "a" * 40,
+        ]
+    )
+
+    text = summary.read_text(encoding="utf-8")
+    assert text.index("the real bug") < text.index("worth fixing") < text.index("style nit")
+
+
 def test_fallback_findings_are_posted_to_the_pr(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[list[str]] = []
 

@@ -202,12 +202,19 @@ def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> N
     assert name in steps
     step = steps[name]
     assert "steps.codex-classify.outputs.valid != 'true'" in step["if"]
+    assert "steps.pr-comment-capability.outputs.supported == 'true'" in step["if"]
     assert step["working-directory"] == "trusted"
     assert step["env"]["STRUCTURED_OUTCOME"] == "${{ steps.review.outputs.structured_output }}"
     assert "--publish-pr-comment" in step["run"]
     assert "--reviewed-head-sha" in step["run"]
     names = list(steps)
     assert names.index("Publish validated review evidence") < names.index(name)
+
+    capability = steps["Select PR-comment publish capability"]
+    assert names.index("Select PR-comment publish capability") < names.index(name)
+    assert "PUBLISH_PR_COMMENT_SUPPORTED = True" in capability["run"]
+    assert "supported=true" in capability["run"]
+    assert "supported=false" in capability["run"]
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
