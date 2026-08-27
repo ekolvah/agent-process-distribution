@@ -34,13 +34,16 @@ Claude fallback PR-review carriers.
   Every open Codex finding receives an automated reply with one of those exact
   labels. `BLOCKING` findings must be fixed and their conversations resolved
   before merge; `NON-BLOCKING` findings are visible maintainer decisions.
+- `outcome` and `findings` are tied together for every carrier, with no
+  exception for low-severity findings: `clean` requires `findings: []`.
+  Attaching even a single `nice-to-have` finding means the outcome cannot be
+  `clean` — use `rework` instead. `rework` carries only non-blocking findings;
+  `blocking` carries at least one blocking finding. Every finding has
+  `severity`, `confidence`, and a non-empty human-readable `summary`.
 - Codex's native UI still supplies P0–P3 transport priorities, which this
   repository cannot rename. The trusted gate translates P0/P1 to `blocking`,
-  P2 to `should-fix`, and P3 to `nice-to-have`. Its published result contains
-  `outcome` and `findings`: `clean` carries `findings: []`; `rework` carries
-  non-blocking findings; `blocking` carries at least one blocking finding.
-  Every translated finding has `severity`, `confidence`, and a non-empty
-  human-readable `summary`.
+  P2 to `should-fix`, and P3 to `nice-to-have` before applying the same
+  `outcome`/`findings` rule above to publish Codex's result.
 - Do not append an `agent-review-evidence` JSON block. Codex's normal GitHub
   review format is authoritative input; the trusted gate creates its own
   structured publication from that format. Claude's fallback result is instead
