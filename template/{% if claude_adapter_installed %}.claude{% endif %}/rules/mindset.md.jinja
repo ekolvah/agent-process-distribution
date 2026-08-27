@@ -30,9 +30,7 @@ only when working with tests.
   substantive and avoid duplicate summaries.
 - **Waiting for a long command**: make one foreground invocation with a suitable
   timeout rather than repeatedly polling output.
-- **RED→GREEN boundary**: immediately after the RED commit for `/implement`,
-  ask the user to run `/compact <focus>`, naming the issue number, branch
-  (`git branch --show-current`), and RED commit. Recover state from those plus
-  one `gh issue view <N>`, not by re-reading work already recorded in the RED
-  commit. If compaction stops recurring, the recipe is confirmed; if it recurs,
-  fix the trigger — do not add a second remedy for the same phase.
+- **RED→GREEN boundary**: if a compaction lands between the RED commit for
+  `/implement` and GREEN, recover state from the issue number, branch
+  (`git branch --show-current`), and RED commit via one `gh issue view <N>`,
+  not by re-reading work already recorded in the RED commit.
