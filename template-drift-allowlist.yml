@@ -15,8 +15,6 @@ root_only_paths:
     reason: Source-specific input data for the future drift gate.
   - path: tests/test_project_bootstrap_template.py
     reason: Exercises this repository's Copier source, not a rendered consumer.
-  - path: tests/test_process_activation.py
-    reason: Guards this repository's own committed Project settings; a rendered consumer starts unconfigured, so this test has no consumer counterpart.
   - path: tests/conftest.py
     reason: Caches Copier renders for source-repository integration tests.
   - path: tests/test_self_installed_process.py
