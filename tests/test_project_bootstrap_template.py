@@ -143,6 +143,23 @@ def test_rendered_review_caller_uses_owner_requested_codex_review(
     assert "enable **Automatic reviews**" not in installation
 
 
+def test_rendered_implementer_requests_codex_for_every_reviewed_head(
+    rendered_default: Path,
+) -> None:
+    process = (rendered_default / "docs" / "architecture" / "agent-process.md").read_text(
+        encoding="utf-8"
+    )
+    implementer = (
+        rendered_default / ".agents" / "skills" / "implement-issue" / "SKILL.md"
+    ).read_text(encoding="utf-8")
+
+    request = "python -m scripts.request_codex_review --request <PR>"
+    assert request in process
+    assert request in implementer
+    assert process.index(request) < process.index("gh pr checks <PR> --watch")
+    assert implementer.index(request) < implementer.index("gh pr checks <PR> --watch")
+
+
 def test_non_default_context_answers_render_a_consistent_project(
     tmp_path: Path,
 ) -> None:
