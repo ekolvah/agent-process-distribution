@@ -34,16 +34,26 @@ Claude fallback PR-review carriers.
   Every open Codex finding receives an automated reply with one of those exact
   labels. `BLOCKING` findings must be fixed and their conversations resolved
   before merge; `NON-BLOCKING` findings are visible maintainer decisions.
+- `outcome` and `findings` are tied together for every carrier, with no
+  exception for low-severity findings: `clean` requires `findings: []`.
+  Attaching even a single `nice-to-have` finding means the outcome cannot be
+  `clean` — use `rework` instead. `rework` carries only non-blocking findings;
+  `blocking` carries at least one blocking finding. Every finding has
+  `severity`, `confidence`, and a non-empty human-readable `summary`.
 - Codex's native UI still supplies P0–P3 transport priorities, which this
   repository cannot rename. The trusted gate translates P0/P1 to `blocking`,
-  P2 to `should-fix`, and P3 to `nice-to-have`. Its published result contains
-  `outcome` and `findings`: `clean` carries `findings: []`; `rework` carries
-  non-blocking findings; `blocking` carries at least one blocking finding.
-  Every translated finding has `severity`, `confidence`, and a non-empty
-  human-readable `summary`.
+  P2 to `should-fix`, and P3 to `nice-to-have` before applying the same
+  `outcome`/`findings` rule above to publish Codex's result.
 - Do not append an `agent-review-evidence` JSON block. Codex's normal GitHub
   review format is authoritative input; the trusted gate creates its own
   structured publication from that format. Claude's fallback result is instead
   required to satisfy the workflow's structured-output schema.
-- Request changes only for blocking findings; comment for lower findings;
+- Codex's own native review is the merge-relevant verdict for its findings:
+  request changes only for blocking findings; comment for lower findings;
   approve only when there are no findings. Never merge.
+- The Claude fallback does not leave a GitHub review state at all — never
+  `REQUEST_CHANGES`, never `APPROVE`. It publishes its validated findings as
+  one plain PR-conversation comment, grouped by severity with the reviewed
+  head SHA, updated in place on a later head so a fallback run is never
+  invisible on the PR the way an Actions-run-summary-only publication would
+  be.

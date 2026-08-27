@@ -101,3 +101,176 @@ def test_valid_blocking_finding_is_reported_with_head_sha(
     assert "The required review result has no inspectable finding." in summary.read_text(
         encoding="utf-8"
     )
+
+
+def test_findings_are_grouped_by_severity_regardless_of_payload_order(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    check_agent_review_outcome.main(
+        [
+            json.dumps(
+                {
+                    "outcome": "blocking",
+                    "findings": [
+                        {"severity": "nice-to-have", "confidence": "low", "summary": "style nit"},
+                        {"severity": "blocking", "confidence": "high", "summary": "the real bug"},
+                        {
+                            "severity": "should-fix",
+                            "confidence": "medium",
+                            "summary": "worth fixing",
+                        },
+                    ],
+                }
+            ),
+            "--publish-summary",
+            "--reviewed-head-sha",
+            "a" * 40,
+        ]
+    )
+
+    text = summary.read_text(encoding="utf-8")
+    assert text.index("the real bug") < text.index("worth fixing") < text.index("style nit")
+
+
+def test_fallback_findings_are_posted_to_the_pr(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        if "--paginate" in args:
+            return "[[]]"
+        return "{}"
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    check_agent_review_outcome.main(
+        [
+            json.dumps(
+                {
+                    "outcome": "rework",
+                    "findings": [
+                        {
+                            "severity": "should-fix",
+                            "confidence": "high",
+                            "summary": "A real edge case in the drift-gate fix.",
+                        }
+                    ],
+                }
+            ),
+            "--publish-pr-comment",
+            "--reviewed-head-sha",
+            "a" * 40,
+            "--repo",
+            "owner/repo",
+            "--pr",
+            "42",
+        ]
+    )
+
+    assert len(calls) == 2
+    list_call, post_call = calls
+    assert "repos/owner/repo/issues/42/comments" in list_call
+    assert "--method" in post_call and "POST" in post_call
+    body_arg = post_call[post_call.index("-f") + 1]
+    assert body_arg.startswith("body=")
+    assert "a" * 40 in body_arg
+    assert "NON-BLOCKING" in body_arg
+    assert "A real edge case in the drift-gate fix." in body_arg
+
+
+def test_clean_outcome_still_posts_a_no_findings_comment(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        if "--paginate" in args:
+            return "[[]]"
+        return "{}"
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    check_agent_review_outcome.main(
+        [
+            json.dumps({"outcome": "clean", "findings": []}),
+            "--publish-pr-comment",
+            "--reviewed-head-sha",
+            "e" * 40,
+            "--repo",
+            "owner/repo",
+            "--pr",
+            "42",
+        ]
+    )
+
+    assert len(calls) == 2
+    post_call = calls[1]
+    assert "--method" in post_call and "POST" in post_call
+    body_arg = post_call[post_call.index("-f") + 1]
+    assert "No findings." in body_arg
+
+
+def test_rerun_on_the_same_head_does_not_duplicate(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+    sha = "b" * 40
+    existing_body = f"<!-- agent-review-claude-fallback -->\nReviewed head SHA: `{sha}`\n"
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        if "--paginate" in args:
+            return json.dumps([[{"id": 1, "body": existing_body}]])
+        raise AssertionError("must not write to the PR when the reviewed head is unchanged")
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    check_agent_review_outcome.main(
+        [
+            json.dumps({"outcome": "clean", "findings": []}),
+            "--publish-pr-comment",
+            "--reviewed-head-sha",
+            sha,
+            "--repo",
+            "owner/repo",
+            "--pr",
+            "42",
+        ]
+    )
+
+    assert len(calls) == 1
+
+
+def test_a_new_head_updates_the_existing_comment(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[list[str]] = []
+    old_sha = "c" * 40
+    new_sha = "d" * 40
+    existing_body = f"<!-- agent-review-claude-fallback -->\nReviewed head SHA: `{old_sha}`\n"
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        if "--paginate" in args:
+            return json.dumps([[{"id": 7, "body": existing_body}]])
+        return "{}"
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    check_agent_review_outcome.main(
+        [
+            json.dumps({"outcome": "clean", "findings": []}),
+            "--publish-pr-comment",
+            "--reviewed-head-sha",
+            new_sha,
+            "--repo",
+            "owner/repo",
+            "--pr",
+            "42",
+        ]
+    )
+
+    assert len(calls) == 2
+    patch_call = calls[1]
+    assert "--method" in patch_call and "PATCH" in patch_call
+    assert "repos/owner/repo/issues/comments/7" in patch_call
+    body_arg = patch_call[patch_call.index("-f") + 1]
+    assert new_sha in body_arg

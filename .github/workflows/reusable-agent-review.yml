@@ -134,6 +134,44 @@ jobs:
         run: >-
           python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
           --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
+      - name: Select PR-comment publish capability
+        # Feature-detect rather than assume: the trusted checkout is the
+        # default branch, so the PR that introduces --publish-pr-comment
+        # cannot supply it there yet (same bootstrap shape as
+        # "Select trusted review source" above). A missing marker is a
+        # visible skip, not a hard failure of the check.
+        id: pr-comment-capability
+        if: >-
+          ${{ always() && steps.pr-context.outcome == 'success'
+          && steps.codex-classify.outputs.valid != 'true' }}
+        run: |
+          if grep -Fq "PUBLISH_PR_COMMENT_SUPPORTED = True" \
+            "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py" 2>/dev/null; then
+            echo "supported=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch cannot publish Claude fallback findings to the PR yet"
+          fi
+      - name: Publish Claude fallback findings to the PR
+        # Only the Claude-fallback branch: the Codex primary already leaves its
+        # own native GitHub review, so this must not re-post its findings too.
+        # Assumes `pull-requests: write` (already granted above) covers the
+        # issue-comments endpoint for a PR number; confirm on the first live run.
+        if: >-
+          ${{ always() && steps.pr-context.outcome == 'success'
+          && steps.codex-classify.outputs.valid != 'true'
+          && steps.pr-comment-capability.outputs.supported == 'true' }}
+        working-directory: trusted
+        env:
+          STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
+          REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr-context.outputs.number }}
+        run: >-
+          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          --publish-pr-comment --reviewed-head-sha "$REVIEWED_HEAD_SHA"
+          --repo "$REPO" --pr "$PR_NUMBER"
       - name: Enforce selected review outcome
         if: ${{ always() }}
         working-directory: trusted

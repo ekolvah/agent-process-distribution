@@ -27,7 +27,7 @@ import os
 import sys
 from collections.abc import Sequence
 
-from scripts.gh_io import publish_step_output
+from scripts.gh_io import flatten_pages, publish_step_output, run_gh
 
 # The Codex adapter translates GitHub review states into this vocabulary; a
 # second private copy there would be a second merge bar.
@@ -40,6 +40,20 @@ _SEVERITY_LABELS = {
     "should-fix": "NON-BLOCKING",
     "nice-to-have": "NON-BLOCKING",
 }
+_SEVERITY_ORDER = {"blocking": 0, "should-fix": 1, "nice-to-have": 2}
+# The reusable workflow greps the trusted checkout for this marker before
+# wiring `--publish-pr-comment`: on the introducing PR, the default branch is
+# still the pre-#35 script and does not have the flag yet (the trusted
+# checkout pattern means the PR's own worktree can never supply it — see
+# agent-process.md's transition-PR bootstrap note). A missing marker is a
+# visible skip, not a failure, exactly like `STANDARD_REVIEW_PARSER`.
+PUBLISH_PR_COMMENT_SUPPORTED = True
+# Marks the one sticky PR-conversation comment the Claude fallback owns, so a
+# re-run finds and updates it instead of leaving the carrier's own findings
+# invisible outside the check summary. Distinct from
+# check_blocking_review_threads.py's `_CLASSIFICATION_MARKER`: that one
+# classifies individual Codex threads, this one owns one whole-review comment.
+_FALLBACK_MARKER = "<!-- agent-review-claude-fallback -->"
 
 
 class _Options:
@@ -50,7 +64,10 @@ class _Options:
         self.producer: str = _DEFAULT_PRODUCER
         self.classify: bool = False
         self.publish_summary: bool = False
+        self.publish_pr_comment: bool = False
         self.reviewed_head_sha: str | None = None
+        self.repo: str | None = None
+        self.pr: str | None = None
 
 
 def _parse_options(args: list[str]) -> _Options:
@@ -63,6 +80,9 @@ def _parse_options(args: list[str]) -> _Options:
         if option == "--publish-summary":
             options.publish_summary = True
             continue
+        if option == "--publish-pr-comment":
+            options.publish_pr_comment = True
+            continue
         if not args:
             print(f"error: expected a value after {option}", file=sys.stderr)
             raise SystemExit(2)
@@ -73,6 +93,10 @@ def _parse_options(args: list[str]) -> _Options:
             options.producer = value
         elif option == "--reviewed-head-sha":
             options.reviewed_head_sha = value
+        elif option == "--repo":
+            options.repo = value
+        elif option == "--pr":
+            options.pr = value
         else:
             print(f"error: unexpected argument {option}", file=sys.stderr)
             raise SystemExit(2)
@@ -144,6 +168,31 @@ def _report_validity(evidence: tuple[str, list[dict[str, str]]] | None) -> None:
     publish_step_output(f"valid={'true' if evidence is not None else 'false'}")
 
 
+def _evidence_lines(
+    evidence: tuple[str, list[dict[str, str]]], reviewed_head_sha: str
+) -> list[str]:
+    """Render validated evidence once, shared by the step summary and the PR comment."""
+    outcome, findings = evidence
+    lines = [
+        "## Validated agent-review evidence",
+        "",
+        f"Reviewed head SHA: `{reviewed_head_sha}`",
+        "",
+        f"Outcome: `{outcome}`",
+        "",
+    ]
+    if findings:
+        ordered = sorted(findings, key=lambda finding: _SEVERITY_ORDER[finding["severity"]])
+        lines.extend(
+            f"- **{_SEVERITY_LABELS[finding['severity']]} ({finding['confidence']})**: "
+            f"{finding['summary']}"
+            for finding in ordered
+        )
+    else:
+        lines.append("No findings.")
+    return lines
+
+
 def _publish_summary(
     evidence: tuple[str, list[dict[str, str]]], reviewed_head_sha: str | None
 ) -> None:
@@ -155,29 +204,85 @@ def _publish_summary(
     if not destination:
         print("error: GITHUB_STEP_SUMMARY is unavailable", file=sys.stderr)
         raise SystemExit(2)
-    outcome, findings = evidence
-    lines = [
-        "## Validated agent-review evidence",
-        "",
-        f"Reviewed head SHA: `{reviewed_head_sha}`",
-        "",
-        f"Outcome: `{outcome}`",
-        "",
-    ]
-    if findings:
-        lines.extend(
-            f"- **{_SEVERITY_LABELS[finding['severity']]} ({finding['confidence']})**: "
-            f"{finding['summary']}"
-            for finding in findings
-        )
-    else:
-        lines.append("No findings.")
+    lines = _evidence_lines(evidence, reviewed_head_sha)
     try:
         with open(destination, "a", encoding="utf-8") as handle:
             handle.write("\n".join(lines) + "\n")
     except OSError as exc:
         print(f"error: cannot write GITHUB_STEP_SUMMARY {destination!r}: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
+
+
+def _existing_pr_comments(repo: str, pr: str) -> list[dict[str, object]]:
+    """List a PR's conversation comments through the shared `run_gh` boundary.
+
+    Deliberately not `scripts.gh_io.slurp_records`: that helper calls its own
+    module-level `run_gh`, which a test here cannot substitute. Going through
+    this module's own `run_gh` name keeps one monkeypatch point, matching
+    `check_blocking_review_threads.py`'s pattern.
+    """
+    raw = run_gh(["api", f"repos/{repo}/issues/{pr}/comments", "--paginate", "--slurp"])
+    return list(flatten_pages(json.loads(raw)))
+
+
+def _publish_pr_comment(
+    evidence: tuple[str, list[dict[str, str]]],
+    reviewed_head_sha: str | None,
+    repo: str | None,
+    pr: str | None,
+) -> None:
+    """Publish the Claude fallback's validated evidence as a sticky PR comment.
+
+    Never a GitHub review (`REQUEST_CHANGES`/`APPROVE`): that verdict already
+    belongs to the required `agent-review` check, and only the Codex primary
+    carrier leaves its own native review. This is a plain, non-verdict
+    conversation comment, one per PR, updated in place — keyed on the
+    reviewed head SHA so a re-run on the same head is a no-op and a new head
+    replaces the stale findings rather than leaving them looking current.
+    """
+    if not reviewed_head_sha:
+        print("error: --publish-pr-comment needs --reviewed-head-sha", file=sys.stderr)
+        raise SystemExit(2)
+    if not repo or not pr:
+        print("error: --publish-pr-comment needs --repo and --pr", file=sys.stderr)
+        raise SystemExit(2)
+    body = "\n".join([_FALLBACK_MARKER, *_evidence_lines(evidence, reviewed_head_sha)])
+    head_line = f"Reviewed head SHA: `{reviewed_head_sha}`"
+
+    existing = [
+        comment
+        for comment in _existing_pr_comments(repo, pr)
+        if isinstance(comment.get("body"), str) and _FALLBACK_MARKER in comment["body"]
+    ]
+    if existing:
+        comment = existing[-1]
+        if head_line in str(comment.get("body", "")):
+            print("ok: fallback findings already posted for this reviewed head")
+            return
+        comment_id = comment.get("id")
+        if not isinstance(comment_id, int):
+            raise RuntimeError("an existing fallback PR comment has no numeric id")
+        run_gh(
+            [
+                "api",
+                "--method",
+                "PATCH",
+                f"repos/{repo}/issues/comments/{comment_id}",
+                "-f",
+                f"body={body}",
+            ]
+        )
+        return
+    run_gh(
+        [
+            "api",
+            "--method",
+            "POST",
+            f"repos/{repo}/issues/{pr}/comments",
+            "-f",
+            f"body={body}",
+        ]
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -208,6 +313,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         raise SystemExit(2)
     if options.publish_summary:
         _publish_summary(evidence, options.reviewed_head_sha)
+        return
+    if options.publish_pr_comment:
+        _publish_pr_comment(evidence, options.reviewed_head_sha, options.repo, options.pr)
         return
 
     outcome, _findings = evidence

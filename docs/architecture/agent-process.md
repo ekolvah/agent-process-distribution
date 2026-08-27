@@ -309,7 +309,12 @@ independently fails the same required check until it is resolved; an open
 NON-BLOCKING conversation is advisory. A valid result has an explicit empty
 finding list for `clean`, or one or more severity-, confidence-, and
 summary-bearing findings for `rework` or `blocking`; the workflow writes that
-validated evidence and the reviewed head SHA to its check summary. Once the
+validated evidence and the reviewed head SHA to its check summary. When the
+Claude fallback carrier is the one that ran, that same validated evidence is
+also published as a plain PR-conversation comment — never a review state —
+so a fallback verdict is not visible only in the Actions run summary; the
+Codex primary path is unchanged, since it already leaves its own native
+review. Once the
 reusable review workflow is invoked, it reads its
 verifier from the default branch and current PR body/head from the live API, so
 the reviewed worktree cannot alter its own verifier. This does **not**
