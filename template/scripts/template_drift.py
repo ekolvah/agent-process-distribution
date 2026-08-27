@@ -173,14 +173,13 @@ def _git_visible_files(root: Path) -> frozenset[str] | None:
     completed = subprocess.run(
         ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
         capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="surrogateescape",
     )
-    if completed.returncode or completed.stdout is None:
-        raise RuntimeError(
-            completed.stdout.decode("utf-8", "replace")
-            + completed.stderr.decode("utf-8", "replace")
-        )
-    listing = completed.stdout.decode("utf-8", "surrogateescape")
-    return frozenset(name for name in listing.split("\0") if name)
+    if completed.returncode:
+        raise RuntimeError(completed.stdout + completed.stderr)
+    return frozenset(name for name in completed.stdout.split("\0") if name)
 
 
 def _normalised(path: Path) -> str:
