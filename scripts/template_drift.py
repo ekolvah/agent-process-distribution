@@ -160,6 +160,29 @@ def _files(directory: Path, *, exclude_root_only_directories: bool = False) -> d
     return files
 
 
+def _git_visible_files(root: Path) -> frozenset[str] | None:
+    """The file set git itself would hand another checkout of `root`.
+
+    `None` means `root` is not a git working tree at all (this module's own
+    drift tests copy the source tree without `.git`) — the caller must fall
+    back to the unfiltered walk, never to treating this as an empty set.
+    `.exists()`, not `.is_dir()`: a linked worktree's `.git` is a file.
+    """
+    if not (root / ".git").exists():
+        return None
+    completed = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        capture_output=True,
+    )
+    if completed.returncode or completed.stdout is None:
+        raise RuntimeError(
+            completed.stdout.decode("utf-8", "replace")
+            + completed.stderr.decode("utf-8", "replace")
+        )
+    listing = completed.stdout.decode("utf-8", "surrogateescape")
+    return frozenset(name for name in listing.split("\0") if name)
+
+
 def _normalised(path: Path) -> str:
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
 
@@ -213,6 +236,9 @@ def _diff(path: str, rendered: Path, root_content: str) -> str:
 def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
     """Compare rendered payload files with the self-applied root."""
     root_files = _files(root, exclude_root_only_directories=True)
+    git_visible = _git_visible_files(root)
+    if git_visible is not None:
+        root_files = {path: file for path, file in root_files.items() if path in git_visible}
     rendered_files = _files(rendered)
     rendered_files = {
         path: file for path, file in rendered_files.items() if path not in COPIER_METADATA_PATHS

@@ -51,6 +51,14 @@ change and re-render can pass. The gate does not auto-fix drift, compare
 downstream consumers, or verify the LF-only pre-push contract after newline
 normalisation; `.gitattributes` and its dedicated test retain that safeguard.
 
+* The root-only walk is intersected with `git ls-files --cached --others
+  --exclude-standard` on `root`, so a path visible only through a local,
+  uncommitted ignore source (`.git/info/exclude`, `core.excludesFile`) never
+  fails the gate, matching what any other checkout of the same commit
+  receives. A `root` without a `.git` directory (the gate's own drift tests
+  copy the tree without one) falls back to the unfiltered walk instead of an
+  empty set (#32).
+
 ## Pros and Cons of the Options
 
 ### Working-tree render-and-compare gate

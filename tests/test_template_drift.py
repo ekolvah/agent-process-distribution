@@ -221,8 +221,9 @@ def test_git_ignored_local_only_file_is_not_flagged(
         check=True,
     )
     # Written only after `git add`: an exclude rule matching an already-staged
-    # path never un-tracks it, which is exactly the property `--cached` (not a
-    # raw ignore-match skip-list) exists to preserve.
+    # path never un-tracks it. `--cached` must keep the file comparable despite
+    # the later rule — unlike a naive ignore-match skip-list, which would drop
+    # it silently and hide a genuinely extra tracked file from the gate.
     exclude = source / ".git" / "info" / "exclude"
     exclude.write_text(
         "**/.claude/scheduled_tasks.lock\nscripts/tracked-and-ignored.txt\n",
@@ -241,7 +242,9 @@ def test_git_ignored_local_only_file_is_not_flagged(
     assert "stale root-only allowlist entry: .copier-answers.yml" not in report.errors, (
         report.format()
     )
-    assert not any("tracked-and-ignored.txt" in error for error in report.errors), report.format()
+    assert "undeclared extra file: scripts/tracked-and-ignored.txt" in report.errors, (
+        report.format()
+    )
     assert "undeclared extra file: scripts/stray.py" in report.errors, report.format()
 
 
