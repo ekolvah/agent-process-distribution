@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -198,6 +199,49 @@ def test_undeclared_extra_file_is_red(tmp_path: Path, rendered_self_applied: Pat
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
+    assert "undeclared extra file: scripts/stray.py" in report.errors, report.format()
+
+
+def test_git_ignored_local_only_file_is_not_flagged(
+    tmp_path: Path, rendered_self_applied: Path
+) -> None:
+    """A file listed only in a local `.git/info/exclude` never reaches another checkout."""
+    source = checkout(tmp_path)
+    subprocess.run(["git", "init", "--quiet"], cwd=source, check=True)
+
+    lock = source / ".claude" / "scheduled_tasks.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text("{}\n", encoding="utf-8")
+
+    tracked_and_ignored = source / "scripts" / "tracked-and-ignored.txt"
+    tracked_and_ignored.write_text("kept\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "add", ".copier-answers.yml", "scripts/tracked-and-ignored.txt"],
+        cwd=source,
+        check=True,
+    )
+    # Written only after `git add`: an exclude rule matching an already-staged
+    # path never un-tracks it, which is exactly the property `--cached` (not a
+    # raw ignore-match skip-list) exists to preserve.
+    exclude = source / ".git" / "info" / "exclude"
+    exclude.write_text(
+        "**/.claude/scheduled_tasks.lock\nscripts/tracked-and-ignored.txt\n",
+        encoding="utf-8",
+    )
+
+    (source / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
+
+    report = template_drift.compare(
+        source, rendered_self_applied, template_drift.load_allowlist(source)
+    )
+
+    assert "undeclared extra file: .claude/scheduled_tasks.lock" not in report.errors, (
+        report.format()
+    )
+    assert "stale root-only allowlist entry: .copier-answers.yml" not in report.errors, (
+        report.format()
+    )
+    assert not any("tracked-and-ignored.txt" in error for error in report.errors), report.format()
     assert "undeclared extra file: scripts/stray.py" in report.errors, report.format()
 
 
