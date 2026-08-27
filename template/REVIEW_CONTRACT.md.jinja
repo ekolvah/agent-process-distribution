@@ -45,5 +45,12 @@ Claude fallback PR-review carriers.
   review format is authoritative input; the trusted gate creates its own
   structured publication from that format. Claude's fallback result is instead
   required to satisfy the workflow's structured-output schema.
-- Request changes only for blocking findings; comment for lower findings;
+- Codex's own native review is the merge-relevant verdict for its findings:
+  request changes only for blocking findings; comment for lower findings;
   approve only when there are no findings. Never merge.
+- The Claude fallback does not leave a GitHub review state at all — never
+  `REQUEST_CHANGES`, never `APPROVE`. It publishes its validated findings as
+  one plain PR-conversation comment, grouped by severity with the reviewed
+  head SHA, updated in place on a later head so a fallback run is never
+  invisible on the PR the way an Actions-run-summary-only publication would
+  be.

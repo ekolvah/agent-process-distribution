@@ -44,3 +44,14 @@ declared outcome matches the review state GitHub recorded.
 `tests/test_agent_review_outcome.py` covers the conditional cardinality and
 summary output. `tests/test_reusable_workflows.py` checks the workflow schema
 and summary wiring.
+
+## Update (issue #35): also publish to the PR conversation
+
+The check summary alone left the Claude fallback's findings invisible on the
+PR itself whenever Codex never ran — a reviewer saw a green `agent-review`
+check with no indication findings existed. The validated evidence contract
+and the check-summary destination are unchanged; the Claude fallback branch
+now additionally publishes the same validated evidence as one sticky
+PR-conversation comment (never a `REQUEST_CHANGES`/`APPROVE` review state,
+keyed on the reviewed head SHA so a re-run does not duplicate it). The Codex
+primary path is untouched — it already leaves its own native review.

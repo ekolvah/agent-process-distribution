@@ -134,6 +134,25 @@ jobs:
         run: >-
           python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
           --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
+      - name: Publish Claude fallback findings to the PR
+        # Only the Claude-fallback branch: the Codex primary already leaves its
+        # own native GitHub review, so this must not re-post its findings too.
+        # Assumes `pull-requests: write` (already granted above) covers the
+        # issue-comments endpoint for a PR number; confirm on the first live run.
+        if: >-
+          ${{ always() && steps.pr-context.outcome == 'success'
+          && steps.codex-classify.outputs.valid != 'true' }}
+        working-directory: trusted
+        env:
+          STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
+          REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr-context.outputs.number }}
+        run: >-
+          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          --publish-pr-comment --reviewed-head-sha "$REVIEWED_HEAD_SHA"
+          --repo "$REPO" --pr "$PR_NUMBER"
       - name: Enforce selected review outcome
         if: ${{ always() }}
         working-directory: trusted
