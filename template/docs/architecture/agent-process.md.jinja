@@ -268,8 +268,11 @@ This is the per-issue flow. It applies only after the one-time repository
    a substantive UTF-8 report verifies the issue closing reference. Replace an
    existing PR body only with
    `python -m scripts.update_pr_body <PR> --body-file <path>`. Fix CI
-   findings for up to three iterations, then loop: after every push run
-   `gh pr checks <PR> --watch`, inspect a failed run with
+   findings for up to three iterations, then loop: after creating the PR and
+   after every successful push run
+   `python -m scripts.request_codex_review --request <PR>` through the local
+   authenticated PR-author session, then run `gh pr checks <PR> --watch`,
+   inspect a failed run with
    `gh run view <run-id> --log-failed`, and ask
    `python -m scripts.review_gate <PR>` whether to continue — its verdict
    decides, not the agent's own reading. `should-fix` findings are the
@@ -328,10 +331,10 @@ tests and docs; never disable the required context or treat the PR body as
 merge authority.
 
 The target's thin caller invokes the publisher's pinned
-`reusable-agent-review.yml`. The PR author starts the Codex primary with
-`@codex review`; the workflow never posts that command or enables Automatic
-reviews. It waits for Codex's normal GitHub review on the current head, then
-translates the integration's native P0/P1/P2/P3 metadata into the gate outcome
+`reusable-agent-review.yml`. The authenticated PR-author session starts the
+Codex primary with `@codex review`; the workflow never posts that command or
+enables Automatic reviews. It waits for Codex's normal GitHub review on the
+current head, then translates the integration's native P0/P1/P2/P3 metadata into the gate outcome
 and adds the plain-language merge-class reply. When Codex
 leaves no valid evidence, Claude runs as the structured-output fallback. A
 valid verdict from either carrier is final for that head; changing agent-process

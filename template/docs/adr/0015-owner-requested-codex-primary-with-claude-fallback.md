@@ -29,8 +29,8 @@ current-head or evidence validation.
 
 ## Decision Outcome
 
-Chosen: **the PR author requests `@codex review`; Codex is the primary carrier,
-and Claude remains the fallback**.
+Chosen: **the authenticated PR-author session requests `@codex review`; Codex
+is the primary carrier, and Claude remains the fallback**.
 
 The workflow never posts the Codex command or enables Automatic reviews. It
 waits for Codex's standard GitHub review on the current PR head and translates
@@ -46,22 +46,24 @@ Claude is not a mandatory second opinion on a valid Codex review.
 
 ### Consequences
 
-* Good, because the supported owner-authored trigger is visible and uses the
-  existing ChatGPT subscription without a paid OpenAI API route.
+* Good, because the delivery command posts the supported trigger through the
+  authenticated owner session, without a paid OpenAI API route or a workflow
+  bot identity.
 * Good, because one valid review is enough and a substantive Codex result cannot
   be overridden by a second model.
 * Good, because Claude still provides availability failover when Codex produces
   no usable current-head evidence.
 * Bad, because every PR head that needs Codex review requires a new owner
-  comment.
+  comment; the delivery flow must issue it after every successful push.
 * Bad, because the first installation cannot obtain its parser from the default
   branch until the payload has merged, so that transition needs an explicit
   bootstrap path.
 
 ### Confirmation
 
-`tests/test_request_codex_review.py` covers native priority translation,
-current-head binding, clean owner reactions, and malformed evidence.
+`tests/test_request_codex_review.py` covers owner-session dispatch, native
+priority translation, current-head binding, clean owner reactions, and malformed
+evidence.
 `tests/test_reusable_workflows.py` checks that Codex is primary, Claude runs
 only after invalid or unavailable evidence, and enforcement executes from the
 trusted checkout.
