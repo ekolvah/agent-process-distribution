@@ -50,7 +50,7 @@ _SEVERITY_ORDER = {"blocking": 0, "should-fix": 1, "nice-to-have": 2}
 PUBLISH_PR_COMMENT_SUPPORTED = True
 # Marks the one sticky PR-conversation comment the Claude fallback owns, so a
 # re-run finds and updates it instead of leaving the carrier's own findings
-# invisible outside the check summary (issue #35). Distinct from
+# invisible outside the check summary. Distinct from
 # check_blocking_review_threads.py's `_CLASSIFICATION_MARKER`: that one
 # classifies individual Codex threads, this one owns one whole-review comment.
 _FALLBACK_MARKER = "<!-- agent-review-claude-fallback -->"

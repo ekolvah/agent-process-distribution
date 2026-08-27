@@ -21,44 +21,37 @@ without an actionable defect.
 
 ## Decision Outcome
 
-Chosen: **validate conditional findings and publish them in the check summary**.
-`clean` explicitly has no findings. `rework` and `blocking` each require at
-least one finding with severity, confidence, and a human-readable summary. The
-summary includes the live reviewed head SHA, so an operator can relate the
-verdict to the exact diff.
+Chosen: **validate conditional findings and publish them in the check
+summary, and — when the Claude fallback is the carrier — also as a sticky
+PR-conversation comment**. `clean` explicitly has no findings. `rework` and
+`blocking` each require at least one finding with severity, confidence, and a
+human-readable summary. The summary includes the live reviewed head SHA, so
+an operator can relate the verdict to the exact diff.
 
 Both review carriers produce that same evidence shape. GitHub-review carriers
 place the JSON in a delimited HTML comment; the adapter also checks that its
-declared outcome matches the review state GitHub recorded.
+declared outcome matches the review state GitHub recorded. The Codex primary
+already leaves its own native GitHub review, so only the Claude fallback
+additionally publishes a plain PR-conversation comment (never a
+`REQUEST_CHANGES`/`APPROVE` state) — keyed on the reviewed head SHA so a
+re-run updates it in place instead of duplicating it.
 
 ### Consequences
 
 * Good, because a merge-blocking result is inspectable from the required check.
 * Good, because malformed or incomplete Claude output becomes unavailable
   evidence and permits the existing second carrier to be attempted.
+* Good, because the Claude fallback's findings are visible directly on the
+  PR, not only in the Actions run summary.
+* Good, because a new trusted-script capability is guarded by feature
+  detection (a marker grepped from the trusted checkout) and skips with a
+  notice when the default branch has not caught up yet, instead of failing.
 * Bad, because carrier output outside the schema deliberately leaves the check
   red rather than guessing at a finding.
 
 ### Confirmation
 
-`tests/test_agent_review_outcome.py` covers the conditional cardinality and
-summary output. `tests/test_reusable_workflows.py` checks the workflow schema
-and summary wiring.
-
-## Update (issue #35): also publish to the PR conversation
-
-The check summary alone left the Claude fallback's findings invisible on the
-PR itself whenever Codex never ran — a reviewer saw a green `agent-review`
-check with no indication findings existed. The validated evidence contract
-and the check-summary destination are unchanged; the Claude fallback branch
-now additionally publishes the same validated evidence as one sticky
-PR-conversation comment (never a `REQUEST_CHANGES`/`APPROVE` review state,
-keyed on the reviewed head SHA so a re-run does not duplicate it). The Codex
-primary path is untouched — it already leaves its own native review.
-
-The introducing PR cannot exercise `--publish-pr-comment` against its own
-change: the trusted checkout is the default branch, which does not have the
-new flag until this PR merges. The workflow feature-detects the
-`PUBLISH_PR_COMMENT_SUPPORTED` marker in the trusted script and skips the
-step with a visible notice when absent — the same bootstrap shape already
-used for the Codex-parser marker.
+`tests/test_agent_review_outcome.py` covers the conditional cardinality,
+summary output, and PR-comment publish/dedup behavior.
+`tests/test_reusable_workflows.py` checks the workflow schema, summary
+wiring, and the PR-comment step's gating.
