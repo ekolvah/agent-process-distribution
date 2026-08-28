@@ -393,6 +393,60 @@ def test_diagnose_execution_file_maps_known_patterns_to_a_closed_status_enum(
     assert expected_status in (out + err)
 
 
+def test_diagnose_execution_file_allowlists_subtype_and_drops_non_numeric_metadata(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    secret = "sk-ant-api03-FAKESECRETVALUE1234567890"  # pragma: allowlist secret
+    path = _execution_file(
+        tmp_path,
+        [
+            {
+                "type": "result",
+                "subtype": f"unexpected-{secret}",
+                "is_error": True,
+                "duration_ms": secret,
+                "num_turns": secret,
+                "result": "401 Unauthorized: invalid api key",
+                "errors": [],
+            }
+        ],
+    )
+
+    code, out, err = _diagnose(path, capsys)
+
+    assert code == 1
+    combined = out + err
+    assert secret not in combined
+    assert '"subtype": "unrecognized_subtype"' in combined
+    assert '"duration_ms": null' in combined
+    assert '"num_turns": null' in combined
+
+
+def test_diagnose_execution_file_classifies_malformed_nonempty_structured_output_as_schema_violation(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = _execution_file(
+        tmp_path,
+        [
+            {
+                "type": "result",
+                "subtype": "success",
+                "is_error": False,
+                "duration_ms": 100,
+                "num_turns": 1,
+                "structured_output": {"outcome": "clean", "findings": [{"severity": "blocking"}]},
+            }
+        ],
+    )
+
+    code, out, err = _diagnose(path, capsys)
+
+    assert code == 1
+    combined = out + err
+    assert "schema_violation" in combined
+    assert "unknown_provider_error" not in combined
+
+
 def test_diagnose_execution_file_missing_or_malformed_stays_actionable_and_red(
     tmp_path, capsys: pytest.CaptureFixture[str]
 ) -> None:
