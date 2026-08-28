@@ -184,10 +184,14 @@ dead code is a separate, deliberate unit (one-PR-one-unit,
 dependencies / packages / build steps are not added without asking first — prefer stdlib
 and existing repo packages.
 
-Not machine-gated: "over-complicated" is a semantic judgement. It is enforced at
+Mostly not machine-gated: "over-complicated" is a semantic judgement, enforced at
 **plan stage** by the [architect review contract](agent-process.md#architect-review-contract),
-whose reviewer reads the [goal function](#goal-function) above; a diff-stage automated
-review then reviews the actual PR as a second pass.
+whose reviewer reads the [goal function](#goal-function) above. The diff-stage
+automated review ([`REVIEW_CONTRACT.md`](../../REVIEW_CONTRACT.md)) blocks only two
+narrow, worktree-verifiable triggers as a second pass: an added indirection with a
+single call site and no stated reason, and duplicated logic whose finding
+names an existing symbol and its repository-relative path. Every broader
+simplicity opinion stays advisory at diff stage.
 
 **Rationale:** over-engineering is a systematic LLM-agent failure mode, cheapest to
 prevent as a standing default — more code is more bug/support surface (goal 1) and

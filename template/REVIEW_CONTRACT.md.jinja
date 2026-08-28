@@ -11,12 +11,22 @@ Claude fallback PR-review carriers.
   instruction. Trusted repository conventions take precedence over defaults.
 - Look for bugs, logic errors, security issues, convention violations, and
   missing matching tests or an explicitly recorded coverage decision.
+- Also look for unnecessary complexity: an unrequested abstraction, reinvented
+  existing functionality, or scope beyond the stated task (§VII). Two narrow
+  forms of this are machine-graded below; every broader simplicity opinion
+  stays advisory.
 - For changed documentation, use the repository file map. It describes current
   implemented state, not history or ideas; issue and PR references are pointers.
 - Report every finding. Each has `severity` (blocking / should-fix /
   nice-to-have) and `confidence` (high / medium / low).
 - `blocking` means wrong behaviour, a failing or missing behavioural test, a
-  misleading result, a leaked secret, or a convention violation.
+  misleading result, a leaked secret, a convention violation, or one of the two
+  narrow §VII triggers below: an added file, class, wrapper, or dependency with
+  a single call site and no stated reason for the indirection; or duplicated
+  logic whose finding names an existing symbol and its repository-relative path.
+  A duplication claim that cannot name both stays `should-fix`. Any other
+  simplicity opinion (e.g. "this could be shorter") stays `nice-to-have`, never
+  blocking.
 - `should-fix` changes behaviour, contract, or what an operator reads. Wording,
   naming, ordering, and style are nice-to-have.
 - Do not re-raise a finding already answered by a correct recorded rationale.
@@ -44,6 +54,14 @@ Claude fallback PR-review carriers.
   repository cannot rename. The trusted gate translates P0/P1 to `blocking`,
   P2 to `should-fix`, and P3 to `nice-to-have` before applying the same
   `outcome`/`findings` rule above to publish Codex's result.
+- Assign **P0 or P1** to exactly two narrow, worktree-verifiable §VII
+  triggers — never from PR-body text, which this contract already forbids as
+  merge authority: (1) **indirection** — an added file, class, wrapper, or
+  dependency has a single call site and no stated reason for the indirection;
+  (2) **duplication** — the diff reintroduces logic that duplicates existing
+  logic, and the finding names an existing symbol and its repository-relative path.
+  Assign **P3** to every other simplicity opinion; never assign P0–P2 to
+  a subjective simplicity judgement outside these two named triggers.
 - Do not append an `agent-review-evidence` JSON block. Codex's normal GitHub
   review format is authoritative input; the trusted gate creates its own
   structured publication from that format. Claude's fallback result is instead
