@@ -125,6 +125,40 @@ jobs:
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
         run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
+      - name: Select Claude-diagnostic capability
+        # Feature-detect rather than assume: the trusted checkout is the
+        # default branch, so the PR that introduces --diagnose-execution-file
+        # cannot supply it there yet (same bootstrap shape as "Select trusted
+        # review source" / "Select PR-comment publish capability" above). A
+        # missing marker is a visible skip, not a hard failure of the check.
+        id: claude-diagnostic-capability
+        if: >-
+          ${{ always() && steps.pr-context.outcome == 'success'
+          && steps.codex-classify.outputs.valid != 'true'
+          && steps.claude-classify.outputs.valid != 'true' }}
+        run: |
+          if grep -Fq "DIAGNOSE_EXECUTION_FILE_SUPPORTED = True" \
+            "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py" 2>/dev/null; then
+            echo "supported=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch cannot diagnose a failed Claude execution yet"
+          fi
+      - name: Diagnose Claude execution failure
+        # Never prints or uploads the raw execution file: the script behind
+        # this reports only an allowlisted provider status and always exits
+        # non-zero, so it can explain an unavailable Claude verdict but never
+        # turn it green. check_agent_review_outcome.py's classify/publish/
+        # enforce path below remains the sole structured-evidence merge gate.
+        if: >-
+          ${{ always() && steps.pr-context.outcome == 'success'
+          && steps.codex-classify.outputs.valid != 'true'
+          && steps.claude-classify.outputs.valid != 'true'
+          && steps.claude-diagnostic-capability.outputs.supported == 'true' }}
+        working-directory: trusted
+        env:
+          EXECUTION_FILE: ${{ steps.review.outputs.execution_file }}
+        run: python -m scripts.check_agent_review_outcome --diagnose-execution-file "$EXECUTION_FILE"
       - name: Publish validated review evidence
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
         working-directory: trusted

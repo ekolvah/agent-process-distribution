@@ -193,6 +193,55 @@ def test_agent_review_requires_structured_review_evidence() -> None:
         "check_blocking_review_threads"
         in steps["Enforce unresolved blocking Codex conversations"]["run"]
     )
+    assert "Diagnose Claude execution failure" in steps
+
+
+def test_valid_codex_evidence_skips_claude_fallback_and_diagnostic() -> None:
+    steps = _steps("reusable-agent-review.yml")
+
+    for name in (
+        "Claude review",
+        "Classify Claude review outcome",
+        "Diagnose Claude execution failure",
+    ):
+        assert "steps.codex-classify.outputs.valid != 'true'" in steps[name]["if"]
+
+
+def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_trusted_working_directory() -> (
+    None
+):
+    steps = _steps("reusable-agent-review.yml")
+
+    name = "Diagnose Claude execution failure"
+    assert name in steps
+    step = steps[name]
+    assert step["working-directory"] == "trusted"
+    assert "continue-on-error" not in step
+    assert "steps.claude-classify.outputs.valid != 'true'" in step["if"]
+    assert "steps.claude-diagnostic-capability.outputs.supported == 'true'" in step["if"]
+    assert step["env"]["EXECUTION_FILE"] == "${{ steps.review.outputs.execution_file }}"
+    assert "--diagnose-execution-file" in step["run"]
+
+    names = list(steps)
+    assert (
+        names.index("Classify Claude review outcome")
+        < names.index(name)
+        < names.index("Publish validated review evidence")
+    )
+
+
+def test_diagnostic_capability_is_feature_detected_on_a_default_branch_that_predates_it() -> None:
+    steps = _steps("reusable-agent-review.yml")
+
+    name = "Select Claude-diagnostic capability"
+    assert name in steps
+    capability = steps[name]
+    assert "DIAGNOSE_EXECUTION_FILE_SUPPORTED = True" in capability["run"]
+    assert "supported=true" in capability["run"]
+    assert "supported=false" in capability["run"]
+
+    names = list(steps)
+    assert names.index(name) < names.index("Diagnose Claude execution failure")
 
 
 def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> None:
