@@ -284,8 +284,23 @@ def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_trigge
     indirection_marker = "single call site and no stated reason"
     duplication_marker = "names an existing symbol and its repository-relative path"
 
+    def bullet_containing(text: str, anchor: str) -> str:
+        assert anchor in text, f"REVIEW_CONTRACT.md is missing the {anchor!r} clause"
+        anchor_index = text.index(anchor)
+        bullet_start = text.rindex("\n- ", 0, anchor_index) + 1
+        next_bullet = text.find("\n- ", anchor_index)
+        return text[bullet_start : next_bullet if next_bullet != -1 else len(text)]
+
+    codex_clause = bullet_containing(contract, "Assign **P0 or P1**")
+    fallback_clause = bullet_containing(contract, "`blocking` means wrong behaviour")
+
     for marker in (indirection_marker, duplication_marker):
-        assert marker in contract, f"REVIEW_CONTRACT.md is missing the {marker!r} trigger"
+        assert marker in codex_clause, (
+            f"Codex priority-assignment clause is missing the {marker!r} trigger"
+        )
+        assert marker in fallback_clause, (
+            f"Claude-fallback blocking clause is missing the {marker!r} trigger"
+        )
         assert marker in principles, f"principles.md §VII is missing the {marker!r} trigger"
 
 
