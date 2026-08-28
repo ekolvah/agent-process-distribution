@@ -330,7 +330,7 @@ def test_diagnose_execution_file_reports_only_allowlisted_provider_status(
 def test_diagnose_execution_file_never_echoes_raw_result_or_errors_text(
     tmp_path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    secret = "sk-ant-api03-FAKESECRETVALUE1234567890"
+    secret = "sk-ant-api03-FAKESECRETVALUE1234567890"  # pragma: allowlist secret
     path = _execution_file(
         tmp_path,
         [
