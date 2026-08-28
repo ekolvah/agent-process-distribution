@@ -1,10 +1,11 @@
-"""Read the standard GitHub review that a PR author requested from Codex.
+"""Request or read the standard GitHub review that a PR author requested from Codex.
 
 Codex's supported GitHub flow is an owner comment, ``@codex review``. The
 integration posts a normal GitHub review: its summary is generic and its actual
-findings are inline comments, marked P0 through P3. This adapter never writes a
-comment or invokes another model. It waits for a current-head Codex review and
-translates those native records into the gate's evidence vocabulary.
+findings are inline comments, marked P0 through P3. The ``--request`` mode uses
+the authenticated local PR-author session to post the exact trigger; the normal
+mode runs in CI, waits for a current-head Codex review, and translates those
+native records into the gate's evidence vocabulary.
 """
 
 from __future__ import annotations
@@ -30,6 +31,12 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 _REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
+REQUEST_BODY = "@codex review"
+
+
+def request_review(pr_number: str) -> None:
+    """Ask Codex to review ``pr_number`` through the authenticated local session."""
+    run_gh(["pr", "comment", pr_number, "--body", REQUEST_BODY])
 
 
 def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
@@ -239,23 +246,41 @@ def poll_for_verdict(
 
 def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--repo", dest="repository", required=True, metavar="OWNER/REPO")
-    parser.add_argument("--pr", dest="pr_number", required=True, metavar="NUMBER")
-    parser.add_argument("--head-sha", required=True)
+    parser.add_argument("--request", metavar="PR", help="post the Codex trigger to this PR")
+    parser.add_argument("--repo", dest="repository", metavar="OWNER/REPO")
+    parser.add_argument("--pr", dest="pr_number", metavar="NUMBER")
+    parser.add_argument("--head-sha")
     parser.add_argument(
         "--head-observed-at",
-        required=True,
         help="GitHub event timestamp for the current PR head transition.",
     )
     parser.add_argument("--reviewer", default=CODEX_REVIEWER)
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--poll-seconds", type=int, default=DEFAULT_POLL_SECONDS)
-    return parser.parse_args(argv)
+    options = parser.parse_args(argv)
+    if options.request is not None:
+        return options
+    missing = [
+        flag
+        for flag, value in (
+            ("--repo", options.repository),
+            ("--pr", options.pr_number),
+            ("--head-sha", options.head_sha),
+            ("--head-observed-at", options.head_observed_at),
+        )
+        if value is None
+    ]
+    if missing:
+        parser.error("the read mode requires " + ", ".join(missing))
+    return options
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     """Publish the requested review payload; enforcement owns the final result."""
     options = _parse_options(argv)
+    if options.request is not None:
+        request_review(options.request)
+        return
     verdict = poll_for_verdict(
         options.repository,
         options.pr_number,

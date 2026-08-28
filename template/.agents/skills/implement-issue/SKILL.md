@@ -37,7 +37,9 @@ Do not replace a missing plan with an invented implementation.
    does not replace the checks below or invoke a provider.
 8. Stay active through the review/fix loop, and let
    `python -m scripts.review_gate <PR>` end it — not your own reading of the
-   findings. After every push:
+   findings. After creating the PR and after every successful push:
+   - `python -m scripts.request_codex_review --request <PR>` — request the
+     current-head review through the authenticated PR-author session.
    - `gh pr checks <PR> --watch` — wait for the checks to finish.
    - `python -m scripts.review_gate <PR>` — its exit code is the decision.
      - `0` (`ready-for-human`): stop, report the PR ready. Any `should-fix` or
