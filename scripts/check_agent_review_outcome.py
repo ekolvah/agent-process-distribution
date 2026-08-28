@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from collections.abc import Sequence
 
@@ -54,6 +55,27 @@ PUBLISH_PR_COMMENT_SUPPORTED = True
 # check_blocking_review_threads.py's `_CLASSIFICATION_MARKER`: that one
 # classifies individual Codex threads, this one owns one whole-review comment.
 _FALLBACK_MARKER = "<!-- agent-review-claude-fallback -->"
+# The reusable workflow greps the trusted checkout for this marker before
+# wiring `--diagnose-execution-file`, the same bootstrap pattern as
+# `PUBLISH_PR_COMMENT_SUPPORTED` above.
+DIAGNOSE_EXECUTION_FILE_SUPPORTED = True
+
+# Closed set of known provider-failure signatures. `_classify_provider_status`
+# returns only the category name — never the matched text — so a secret or
+# other sensitive string embedded in `result`/`errors` cannot reach the log.
+_PROVIDER_STATUS_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "auth_or_account",
+        re.compile(
+            r"\b(401|unauthorized|invalid[ _-]?api[ _-]?key|authentication|oauth|account)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    ("rate_limited", re.compile(r"\b(429|rate[ _-]?limit(?:ed)?)\b", re.IGNORECASE)),
+    ("overloaded", re.compile(r"\b(529|overloaded)\b", re.IGNORECASE)),
+)
+_UNKNOWN_PROVIDER_STATUS = "unknown_provider_error"
+_SCHEMA_VIOLATION_STATUS = "schema_violation"
 
 
 class _Options:
@@ -285,12 +307,96 @@ def _publish_pr_comment(
     )
 
 
+def _classify_provider_status(texts: list[str]) -> str:
+    """Map free-form failure text to a fixed, safe category — never the text itself."""
+    for category, pattern in _PROVIDER_STATUS_PATTERNS:
+        if any(pattern.search(text) for text in texts):
+            return category
+    return _UNKNOWN_PROVIDER_STATUS
+
+
+def _safe_scalar(value: object) -> object:
+    return value if isinstance(value, (str, int, float, bool)) or value is None else None
+
+
+def _diagnose_execution_file(path: str) -> None:
+    """Report only an allowlisted provider status from a Claude execution file.
+
+    This is diagnosis, not a merge gate: it never emits `result`, `errors`,
+    prompts, tool/model messages, or any other raw execution-file field — only
+    a closed status category plus `subtype`/`duration_ms`/`num_turns` — and it
+    always exits non-zero. `check_agent_review_outcome.py`'s existing
+    classify/publish/enforce entry points remain the sole structured-evidence
+    merge gate; absence of evidence must never read as success (§IV).
+    """
+    try:
+        with open(path, encoding="utf-8") as handle:
+            messages = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(
+            f"error: Claude execution file {path!r} is unavailable or malformed: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
+
+    if not isinstance(messages, list):
+        print(
+            f"error: Claude execution file {path!r} is malformed: expected a message array",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    result: dict[str, object] | None = None
+    for message in messages:
+        if isinstance(message, dict) and message.get("type") == "result":
+            result = message
+    if result is None:
+        print(
+            f"error: Claude execution file {path!r} is malformed: no result message found",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+    is_error = result.get("is_error")
+    if is_error:
+        texts = [
+            text
+            for text in (
+                result.get("result"),
+                *(result.get("errors") if isinstance(result.get("errors"), list) else []),
+            )
+            if isinstance(text, str)
+        ]
+        status = _classify_provider_status(texts)
+    elif not result.get("structured_output"):
+        status = _SCHEMA_VIOLATION_STATUS
+    else:
+        status = _UNKNOWN_PROVIDER_STATUS
+
+    report = {
+        "status": status,
+        "subtype": _safe_scalar(result.get("subtype")),
+        "duration_ms": _safe_scalar(result.get("duration_ms")),
+        "num_turns": _safe_scalar(result.get("num_turns")),
+    }
+    print(
+        f"error: Claude fallback diagnosis: {json.dumps(report, sort_keys=True)}", file=sys.stderr
+    )
+    raise SystemExit(1)
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     """Exit non-zero unless the carrier's validated outcome is ``clean`` or ``rework``."""
     args = list(sys.argv[1:] if argv is None else argv)
     if not args:
         print("error: expected one structured review outcome JSON value", file=sys.stderr)
         raise SystemExit(2)
+    if args[0] == "--diagnose-execution-file":
+        if len(args) != 2:
+            print("error: --diagnose-execution-file needs exactly one path", file=sys.stderr)
+            raise SystemExit(2)
+        _diagnose_execution_file(args[1])
+        return
     payload_arg = args.pop(0)
     options = _parse_options(args)
 
