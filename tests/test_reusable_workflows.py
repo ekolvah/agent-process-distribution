@@ -277,6 +277,18 @@ def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
     assert not (ROOT / "template" / "scripts" / "extract_review_prompt.py").exists()
 
 
+def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:
+    contract = (ROOT / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
+    principles = (ROOT / "docs" / "architecture" / "principles.md").read_text(encoding="utf-8")
+
+    indirection_marker = "single call site and no stated reason"
+    duplication_marker = "names an existing symbol and its repository-relative path"
+
+    for marker in (indirection_marker, duplication_marker):
+        assert marker in contract, f"REVIEW_CONTRACT.md is missing the {marker!r} trigger"
+        assert marker in principles, f"principles.md §VII is missing the {marker!r} trigger"
+
+
 def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
     source_installation = (
         ROOT / "docs" / "architecture" / "agent-process-installation.md"
