@@ -77,13 +77,6 @@ _PROVIDER_STATUS_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 _UNKNOWN_PROVIDER_STATUS = "unknown_provider_error"
 _SCHEMA_VIOLATION_STATUS = "schema_violation"
 
-# The Claude Code Action's `result` message subtype, per its SDK. Pinned only
-# through the mutable `@v1` tag (see the installation guide), so an
-# unrecognized value is read as upstream shape drift, not echoed verbatim —
-# an attacker-controlled or drifted field must never reach the public log.
-_KNOWN_RESULT_SUBTYPES = frozenset({"success", "error_max_turns", "error_during_execution"})
-_UNRECOGNIZED_SUBTYPE = "unrecognized_subtype"
-
 
 class _Options:
     """Parsed CLI options; the payload itself is positional."""
@@ -322,33 +315,15 @@ def _classify_provider_status(texts: list[str]) -> str:
     return _UNKNOWN_PROVIDER_STATUS
 
 
-def _safe_subtype(value: object) -> str:
-    """Allowlist the known `result` subtypes; never pass through an arbitrary string."""
-    return (
-        value
-        if isinstance(value, str) and value in _KNOWN_RESULT_SUBTYPES
-        else _UNRECOGNIZED_SUBTYPE
-    )
-
-
-def _safe_count(value: object) -> int | float | None:
-    """Accept only a non-negative number; anything else (including a string) is dropped."""
-    if isinstance(value, bool):
-        return None
-    if isinstance(value, (int, float)) and value >= 0:
-        return value
-    return None
-
-
 def _diagnose_execution_file(path: str) -> None:
     """Report only an allowlisted provider status from a Claude execution file.
 
     This is diagnosis, not a merge gate: it never emits `result`, `errors`,
     prompts, tool/model messages, or any other raw execution-file field — only
-    a closed status category plus `subtype`/`duration_ms`/`num_turns` — and it
-    always exits non-zero. `check_agent_review_outcome.py`'s existing
-    classify/publish/enforce entry points remain the sole structured-evidence
-    merge gate; absence of evidence must never read as success (§IV).
+    a closed status category — and it always exits non-zero.
+    `check_agent_review_outcome.py`'s existing classify/publish/enforce entry
+    points remain the sole structured-evidence merge gate; absence of
+    evidence must never read as success (§IV).
     """
     try:
         with open(path, encoding="utf-8") as handle:
@@ -394,15 +369,7 @@ def _diagnose_execution_file(path: str) -> None:
     else:
         status = _UNKNOWN_PROVIDER_STATUS
 
-    report = {
-        "status": status,
-        "subtype": _safe_subtype(result.get("subtype")),
-        "duration_ms": _safe_count(result.get("duration_ms")),
-        "num_turns": _safe_count(result.get("num_turns")),
-    }
-    print(
-        f"error: Claude fallback diagnosis: {json.dumps(report, sort_keys=True)}", file=sys.stderr
-    )
+    print(f"error: Claude fallback diagnosis: status={status}", file=sys.stderr)
     raise SystemExit(1)
 
 

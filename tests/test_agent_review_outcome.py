@@ -319,9 +319,6 @@ def test_diagnose_execution_file_reports_only_allowlisted_provider_status(
     assert code == 1
     combined = out + err
     assert "auth_or_account" in combined
-    assert '"subtype": "success"' in combined
-    assert '"duration_ms": 472' in combined
-    assert '"num_turns": 1' in combined
     assert "tool_use" not in combined
     assert "Bash" not in combined
     assert "claude-sonnet-5" not in combined
@@ -391,35 +388,6 @@ def test_diagnose_execution_file_maps_known_patterns_to_a_closed_status_enum(
 
     assert code == 1
     assert expected_status in (out + err)
-
-
-def test_diagnose_execution_file_allowlists_subtype_and_drops_non_numeric_metadata(
-    tmp_path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    secret = "sk-ant-api03-FAKESECRETVALUE1234567890"  # pragma: allowlist secret
-    path = _execution_file(
-        tmp_path,
-        [
-            {
-                "type": "result",
-                "subtype": f"unexpected-{secret}",
-                "is_error": True,
-                "duration_ms": secret,
-                "num_turns": secret,
-                "result": "401 Unauthorized: invalid api key",
-                "errors": [],
-            }
-        ],
-    )
-
-    code, out, err = _diagnose(path, capsys)
-
-    assert code == 1
-    combined = out + err
-    assert secret not in combined
-    assert '"subtype": "unrecognized_subtype"' in combined
-    assert '"duration_ms": null' in combined
-    assert '"num_turns": null' in combined
 
 
 def test_diagnose_execution_file_classifies_malformed_nonempty_structured_output_as_schema_violation(
