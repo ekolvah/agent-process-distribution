@@ -238,7 +238,7 @@ _STAMP_PATH = Path(".ci_check_stamp")
 
 def _git_head() -> str:
     return subprocess.run(
-        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, encoding="utf-8", check=True
     ).stdout.strip()
 
 
@@ -250,7 +250,11 @@ def _working_tree_clean() -> bool:
     every run would call the tree dirty and never record anything.
     """
     status = subprocess.run(
-        ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+        ["git", "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
     ).stdout
     lines = [line for line in status.splitlines() if line[3:] != str(_STAMP_PATH)]
     return not lines

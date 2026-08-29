@@ -31,7 +31,12 @@ def _init_repo(tmp_path: Path) -> None:
 
 def _head(tmp_path: Path) -> str:
     return subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=tmp_path, capture_output=True, text=True, check=True
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
     ).stdout.strip()
 
 
