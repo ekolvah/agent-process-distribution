@@ -30,7 +30,6 @@ _SEVERITIES = {
     "2": "should-fix",
     "3": "nice-to-have",
 }
-_REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
 REQUEST_BODY = "@codex review"
 _CLEAN_COMMENT_MARKER = "Codex Review: Didn't find any major issues. :tada:"
 _REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
@@ -102,6 +101,16 @@ def find_verdict(
     reviewer: str,
 ) -> dict[str, object] | None:
     """Return native Codex evidence for the current reviewed head, if present."""
+    latest = _latest_native_review(reviews, head_sha, reviewer)
+    if latest is None:
+        return None
+    return _evidence_from_review(latest, comments, reviewer)
+
+
+def _latest_native_review(
+    reviews: object, head_sha: str, reviewer: str
+) -> Mapping[str, object] | None:
+    """Return the latest native review record for ``head_sha`` from ``reviewer``."""
     matching = [
         record
         for record in flatten_pages(reviews)
@@ -114,17 +123,7 @@ def find_verdict(
     _, latest = max(
         enumerate(matching), key=lambda item: (str(item[1].get("submitted_at", "")), item[0])
     )
-    return _evidence_from_review(latest, comments, reviewer)
-
-
-def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
-    return any(
-        isinstance(record.get("user"), Mapping)
-        and record["user"].get("login") == reviewer
-        and record.get("commit_id") == head_sha
-        and str(record.get("state")) in _REVIEW_STATES
-        for record in flatten_pages(reviews)
-    )
+    return latest
 
 
 def _latest_evidence(
@@ -142,29 +141,6 @@ def _latest_evidence(
             str(evidence.get("outcome")), -1
         ),
     )
-
-
-def _native_evidence_candidates(
-    reviews: object,
-    comments: object,
-    head_sha: str,
-    reviewer: str,
-) -> list[tuple[str, dict[str, object] | None]]:
-    matching: list[tuple[str, int, Mapping[str, object]]] = []
-    for index, record in enumerate(flatten_pages(reviews)):
-        if (
-            not isinstance(record.get("user"), Mapping)
-            or record["user"].get("login") != reviewer
-            or record.get("commit_id") != head_sha
-        ):
-            continue
-        submitted_at = record.get("submitted_at")
-        matching.append((submitted_at if isinstance(submitted_at, str) else "", index, record))
-    if not matching:
-        return []
-    submitted_at, _, latest = max(matching, key=lambda candidate: (candidate[0], candidate[1]))
-    evidence = _evidence_from_review(latest, comments, reviewer)
-    return [(submitted_at, evidence)]
 
 
 def _read_record(endpoint: str) -> Mapping[str, object]:
@@ -200,25 +176,15 @@ def find_clean_reaction(
     reviewer: str,
 ) -> dict[str, object] | None:
     """Accept only the native clean reaction tied to this author and head."""
-    for request in reversed(flatten_pages(requests)):
-        author = request.get("user")
-        if (
-            not isinstance(author, Mapping)
-            or author.get("login") != author_login
-            or request.get("body") != "@codex review"
-            or not isinstance(request.get("created_at"), str)
-            or request["created_at"] < head_observed_at
-        ):
-            continue
-        reactions = reactions_by_request.get(request.get("id"), [])
-        if any(
-            reaction.get("content") == "+1"
-            and isinstance(reaction.get("user"), Mapping)
-            and reaction["user"].get("login") == reviewer
-            for reaction in flatten_pages(reactions)
-        ):
-            return {"outcome": "clean", "findings": []}
-    return None
+    return _latest_evidence(
+        _clean_reaction_candidates(
+            requests,
+            reactions_by_request,
+            author_login=author_login,
+            head_observed_at=head_observed_at,
+            reviewer=reviewer,
+        )
+    )
 
 
 def _eligible_requests(
@@ -349,16 +315,27 @@ def poll_for_verdict(
     sleep: Callable[[float], None] | None = None,
     monotonic: Callable[[], float] | None = None,
 ) -> dict[str, object] | None:
-    """Wait for a requested standard review, stopping on invalid evidence too."""
+    """Wait for the newest supported review evidence for the current PR head."""
     wait = sleep or time.sleep
     clock = monotonic or time.monotonic
     deadline = clock() + timeout_seconds
     author_login: str | None = None
     while True:
         reviews = _fetch_reviews(repository, pr_number)
-        native_candidates = _native_evidence_candidates(
-            reviews, _fetch_review_comments(repository, pr_number), head_sha, reviewer
-        )
+        latest_native = _latest_native_review(reviews, head_sha, reviewer)
+        native_candidates = []
+        if latest_native is not None:
+            submitted_at = latest_native.get("submitted_at")
+            native_candidates.append(
+                (
+                    submitted_at if isinstance(submitted_at, str) else "",
+                    _evidence_from_review(
+                        latest_native,
+                        _fetch_review_comments(repository, pr_number),
+                        reviewer,
+                    ),
+                )
+            )
         if author_login is None:
             author_login = _clean_reaction_context(repository, pr_number, head_sha)
         requests = _fetch_request_comments(repository, pr_number)
