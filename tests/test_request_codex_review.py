@@ -8,7 +8,11 @@ import sys
 import pytest
 
 from scripts import request_codex_review
-from scripts.request_codex_review import find_clean_reaction, find_verdict, poll_for_verdict
+from scripts.request_codex_review import (
+    find_clean_reaction,
+    find_verdict,
+    poll_for_verdict,
+)
 
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
@@ -50,6 +54,30 @@ def _comment(body: str) -> dict[str, object]:
         "pull_request_review_id": 42,
         "body": body,
         "user": {"login": _REVIEWER},
+    }
+
+
+def _request(*, created_at: str = "2026-08-24T08:32:00Z") -> dict[str, object]:
+    return {
+        "id": 99,
+        "user": {"login": "author"},
+        "body": "@codex review",
+        "created_at": created_at,
+    }
+
+
+def _clean_comment(
+    *,
+    author: str = _REVIEWER,
+    body: str | None = None,
+    created_at: str = "2026-08-24T08:33:00Z",
+) -> dict[str, object]:
+    return {
+        "user": {"login": author},
+        "created_at": created_at,
+        "body": body
+        or "Codex Review: Didn't find any major issues. :tada:\n\n"
+        f"**Reviewed commit:** `{_HEAD[:10]}`",
     }
 
 
@@ -139,12 +167,7 @@ def test_latest_current_head_review_overrides_an_older_clean_verdict() -> None:
 
 
 def test_clean_reaction_must_follow_the_github_observed_head_transition() -> None:
-    request = {
-        "id": 99,
-        "user": {"login": "author"},
-        "body": "@codex review",
-        "created_at": "2026-08-24T08:32:00Z",
-    }
+    request = _request()
     reactions = {99: [{"content": "+1", "user": {"login": _REVIEWER}}]}
 
     assert find_clean_reaction(
@@ -163,6 +186,107 @@ def test_clean_reaction_must_follow_the_github_observed_head_transition() -> Non
             reviewer=_REVIEWER,
         )
         is None
+    )
+
+
+def test_sha_bound_clean_comment_is_clean_evidence() -> None:
+    assert (
+        request_codex_review.find_clean_comment(
+            [_request(), _clean_comment()],
+            author_login="author",
+            head_sha=_HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            reviewer=_REVIEWER,
+        )
+        == {"outcome": "clean", "findings": []}
+    )
+
+
+@pytest.mark.parametrize(
+    "comment",
+    [
+        _clean_comment(author="another-bot[bot]"),
+        _clean_comment(body="Codex Review: clean\n\n**Reviewed commit:** `aaaaaaaaaa`"),
+        _clean_comment(body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `not-a-sha`"),
+        _clean_comment(body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `bbbbbbbbbb`"),
+        _clean_comment(created_at="2026-08-24T08:30:00Z"),
+    ],
+)
+def test_clean_comment_rejects_wrong_author_marker_time_and_head(comment: dict[str, object]) -> None:
+    assert (
+        request_codex_review.find_clean_comment(
+            [_request(), comment],
+            author_login="author",
+            head_sha=_HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            reviewer=_REVIEWER,
+        )
+        is None
+    )
+
+
+def test_latest_current_head_evidence_wins_across_comment_and_native_review(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    earlier_p1 = {
+        **_review("COMMENTED"),
+        "submitted_at": "2026-08-24T08:33:00Z",
+    }
+    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [earlier_p1])
+    monkeypatch.setattr(
+        request_codex_review,
+        "_fetch_review_comments",
+        lambda *_args: [_comment("P1 later native finding")],
+    )
+    monkeypatch.setattr(
+        request_codex_review,
+        "_fetch_request_comments",
+        lambda *_args: [_request(), _clean_comment(created_at="2026-08-24T08:34:00Z")],
+    )
+    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
+
+    verdict = poll_for_verdict(
+        "owner/repo",
+        "14",
+        _HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        timeout_seconds=0,
+    )
+
+    assert verdict == {"outcome": "clean", "findings": []}
+
+    later_p1 = {**earlier_p1, "submitted_at": "2026-08-24T08:35:00Z"}
+    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [later_p1])
+
+    verdict = poll_for_verdict(
+        "owner/repo",
+        "14",
+        _HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        timeout_seconds=0,
+    )
+
+    assert verdict is not None
+    assert verdict["outcome"] == "blocking"
+
+
+def test_poll_checks_supported_clean_comment_before_declaring_current_head_evidence_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")])
+    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
+    monkeypatch.setattr(request_codex_review, "_fetch_request_comments", lambda *_args: [_request(), _clean_comment()])
+    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
+
+    assert (
+        poll_for_verdict(
+            "owner/repo",
+            "14",
+            _HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            timeout_seconds=0,
+        )
+        == {"outcome": "clean", "findings": []}
     )
 
 
