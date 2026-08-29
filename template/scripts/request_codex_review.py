@@ -32,6 +32,8 @@ _SEVERITIES = {
 }
 _REVIEW_STATES = frozenset({"APPROVED", "COMMENTED", "CHANGES_REQUESTED"})
 REQUEST_BODY = "@codex review"
+_CLEAN_COMMENT_MARKER = "Codex Review: Didn't find any major issues. :tada:"
+_REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
 
 
 def request_review(pr_number: str) -> None:
@@ -125,6 +127,37 @@ def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
     )
 
 
+def _latest_evidence(
+    candidates: Sequence[tuple[str, int, dict[str, object]]],
+) -> dict[str, object] | None:
+    if not candidates:
+        return None
+    return max(candidates, key=lambda candidate: (candidate[0], candidate[1]))[2]
+
+
+def _native_evidence_candidates(
+    reviews: object,
+    comments: object,
+    head_sha: str,
+    reviewer: str,
+) -> list[tuple[str, int, dict[str, object]]]:
+    candidates: list[tuple[str, int, dict[str, object]]] = []
+    for index, record in enumerate(flatten_pages(reviews)):
+        if (
+            not isinstance(record.get("user"), Mapping)
+            or record["user"].get("login") != reviewer
+            or record.get("commit_id") != head_sha
+        ):
+            continue
+        evidence = _evidence_from_review(record, comments, reviewer)
+        if evidence is not None:
+            submitted_at = record.get("submitted_at")
+            candidates.append(
+                (submitted_at if isinstance(submitted_at, str) else "", index, evidence)
+            )
+    return candidates
+
+
 def _read_record(endpoint: str) -> Mapping[str, object]:
     try:
         payload = json.loads(run_gh(["api", endpoint]))
@@ -179,6 +212,114 @@ def find_clean_reaction(
     return None
 
 
+def _eligible_requests(
+    requests: object,
+    *,
+    author_login: str,
+    head_observed_at: str,
+) -> list[Mapping[str, object]]:
+    return [
+        request
+        for request in flatten_pages(requests)
+        if isinstance(request.get("user"), Mapping)
+        and request["user"].get("login") == author_login
+        and request.get("body") == REQUEST_BODY
+        and isinstance(request.get("created_at"), str)
+        and request["created_at"] >= head_observed_at
+    ]
+
+
+def _clean_reaction_candidates(
+    requests: object,
+    reactions_by_request: Mapping[object, object],
+    *,
+    author_login: str,
+    head_observed_at: str,
+    reviewer: str,
+) -> list[tuple[str, int, dict[str, object]]]:
+    candidates: list[tuple[str, int, dict[str, object]]] = []
+    for request_index, request in enumerate(
+        _eligible_requests(requests, author_login=author_login, head_observed_at=head_observed_at)
+    ):
+        for reaction_index, reaction in enumerate(
+            flatten_pages(reactions_by_request.get(request.get("id"), []))
+        ):
+            if (
+                reaction.get("content") != "+1"
+                or not isinstance(reaction.get("user"), Mapping)
+                or reaction["user"].get("login") != reviewer
+            ):
+                continue
+            created_at = reaction.get("created_at")
+            timestamp = created_at if isinstance(created_at, str) else request["created_at"]
+            candidates.append(
+                (
+                    timestamp,
+                    request_index * 1000 + reaction_index,
+                    {"outcome": "clean", "findings": []},
+                )
+            )
+    return candidates
+
+
+def _clean_comment_candidates(
+    records: object,
+    *,
+    author_login: str,
+    head_sha: str,
+    head_observed_at: str,
+    reviewer: str,
+) -> list[tuple[str, int, dict[str, object]]]:
+    eligible_requests = _eligible_requests(
+        records, author_login=author_login, head_observed_at=head_observed_at
+    )
+    request_times = [request["created_at"] for request in eligible_requests]
+    candidates: list[tuple[str, int, dict[str, object]]] = []
+    for index, record in enumerate(flatten_pages(records)):
+        author = record.get("user")
+        body = record.get("body")
+        created_at = record.get("created_at")
+        if (
+            not isinstance(author, Mapping)
+            or author.get("login") != reviewer
+            or not isinstance(body, str)
+            or not isinstance(created_at, str)
+            or created_at <= head_observed_at
+            or not request_times
+            or not any(request_time < created_at for request_time in request_times)
+        ):
+            continue
+        lines = body.splitlines()
+        reviewed_lines = [line for line in lines if "Reviewed commit" in line]
+        if not lines or lines[0] != _CLEAN_COMMENT_MARKER or len(reviewed_lines) != 1:
+            continue
+        reviewed_commit = _REVIEWED_COMMIT.fullmatch(reviewed_lines[0])
+        if reviewed_commit is None or not head_sha.startswith(reviewed_commit["sha"]):
+            continue
+        candidates.append((created_at, index, {"outcome": "clean", "findings": []}))
+    return candidates
+
+
+def find_clean_comment(
+    records: object,
+    *,
+    author_login: str,
+    head_sha: str,
+    head_observed_at: str,
+    reviewer: str,
+) -> dict[str, object] | None:
+    """Accept only the observed SHA-bound clean Codex issue-comment transport."""
+    return _latest_evidence(
+        _clean_comment_candidates(
+            records,
+            author_login=author_login,
+            head_sha=head_sha,
+            head_observed_at=head_observed_at,
+            reviewer=reviewer,
+        )
+    )
+
+
 def _fetch_reviews(repository: str, pr_number: str) -> object:
     return slurp_records(f"repos/{repository}/pulls/{pr_number}/reviews?per_page=100")
 
@@ -214,14 +355,9 @@ def poll_for_verdict(
     author_login: str | None = None
     while True:
         reviews = _fetch_reviews(repository, pr_number)
-        verdict = find_verdict(
-            reviews,
-            _fetch_review_comments(repository, pr_number),
-            head_sha,
-            reviewer,
+        native_candidates = _native_evidence_candidates(
+            reviews, _fetch_review_comments(repository, pr_number), head_sha, reviewer
         )
-        if verdict is not None or _has_current_review(reviews, head_sha, reviewer):
-            return verdict
         if author_login is None:
             author_login = _clean_reaction_context(repository, pr_number, head_sha)
         requests = _fetch_request_comments(repository, pr_number)
@@ -230,15 +366,28 @@ def poll_for_verdict(
             for request in flatten_pages(requests)
             if request.get("body") == "@codex review"
         }
-        clean = find_clean_reaction(
-            requests,
-            reactions,
-            author_login=author_login,
-            head_observed_at=head_observed_at,
-            reviewer=reviewer,
+        candidates = [
+            *native_candidates,
+            *_clean_reaction_candidates(
+                requests,
+                reactions,
+                author_login=author_login,
+                head_observed_at=head_observed_at,
+                reviewer=reviewer,
+            ),
+        ]
+        candidates.extend(
+            _clean_comment_candidates(
+                requests,
+                author_login=author_login,
+                head_sha=head_sha,
+                head_observed_at=head_observed_at,
+                reviewer=reviewer,
+            )
         )
-        if clean is not None:
-            return clean
+        verdict = _latest_evidence(candidates)
+        if verdict is not None:
+            return verdict
         if clock() >= deadline:
             return None
         wait(poll_seconds)

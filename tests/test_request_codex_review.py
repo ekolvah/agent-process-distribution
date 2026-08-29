@@ -190,16 +190,13 @@ def test_clean_reaction_must_follow_the_github_observed_head_transition() -> Non
 
 
 def test_sha_bound_clean_comment_is_clean_evidence() -> None:
-    assert (
-        request_codex_review.find_clean_comment(
-            [_request(), _clean_comment()],
-            author_login="author",
-            head_sha=_HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            reviewer=_REVIEWER,
-        )
-        == {"outcome": "clean", "findings": []}
-    )
+    assert request_codex_review.find_clean_comment(
+        [_request(), _clean_comment()],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
 
 
 @pytest.mark.parametrize(
@@ -207,12 +204,25 @@ def test_sha_bound_clean_comment_is_clean_evidence() -> None:
     [
         _clean_comment(author="another-bot[bot]"),
         _clean_comment(body="Codex Review: clean\n\n**Reviewed commit:** `aaaaaaaaaa`"),
-        _clean_comment(body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `not-a-sha`"),
-        _clean_comment(body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `bbbbbbbbbb`"),
+        _clean_comment(
+            body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `not-a-sha`"
+        ),
+        _clean_comment(
+            body=(
+                "Codex Review: Didn't find any major issues. :tada:\n\n"
+                "**Reviewed commit:** `aaaaaaaaaa`\n"
+                "**Reviewed commit:** `aaaaaaaaaa`"
+            )
+        ),
+        _clean_comment(
+            body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `bbbbbbbbbb`"
+        ),
         _clean_comment(created_at="2026-08-24T08:30:00Z"),
     ],
 )
-def test_clean_comment_rejects_wrong_author_marker_time_and_head(comment: dict[str, object]) -> None:
+def test_clean_comment_rejects_wrong_author_marker_time_and_head(
+    comment: dict[str, object],
+) -> None:
     assert (
         request_codex_review.find_clean_comment(
             [_request(), comment],
@@ -244,6 +254,7 @@ def test_latest_current_head_evidence_wins_across_comment_and_native_review(
         lambda *_args: [_request(), _clean_comment(created_at="2026-08-24T08:34:00Z")],
     )
     monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
+    monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
 
     verdict = poll_for_verdict(
         "owner/repo",
@@ -273,10 +284,36 @@ def test_latest_current_head_evidence_wins_across_comment_and_native_review(
 def test_poll_checks_supported_clean_comment_before_declaring_current_head_evidence_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")])
+    monkeypatch.setattr(
+        request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
+    )
     monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
-    monkeypatch.setattr(request_codex_review, "_fetch_request_comments", lambda *_args: [_request(), _clean_comment()])
+    monkeypatch.setattr(
+        request_codex_review,
+        "_fetch_request_comments",
+        lambda *_args: [_request(), _clean_comment()],
+    )
     monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
+    monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
+
+    assert poll_for_verdict(
+        "owner/repo",
+        "14",
+        _HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        timeout_seconds=0,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_poll_stops_when_a_current_head_review_is_malformed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
+    )
+    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
+    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
+    monkeypatch.setattr(request_codex_review, "_fetch_request_comments", lambda *_args: [])
 
     assert (
         poll_for_verdict(
@@ -285,30 +322,6 @@ def test_poll_checks_supported_clean_comment_before_declaring_current_head_evide
             _HEAD,
             head_observed_at="2026-08-24T08:31:00Z",
             timeout_seconds=0,
-        )
-        == {"outcome": "clean", "findings": []}
-    )
-
-
-def test_poll_stops_when_a_current_head_review_is_malformed(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    clock = iter((0.0, 1.0))
-    monkeypatch.setattr(
-        request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
-    )
-    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
-
-    assert (
-        poll_for_verdict(
-            "owner/repo",
-            "14",
-            _HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            timeout_seconds=60,
-            poll_seconds=1,
-            sleep=lambda _seconds: None,
-            monotonic=lambda: next(clock),
         )
         is None
     )
@@ -325,6 +338,8 @@ def test_poll_accepts_valid_codex_evidence_without_a_policy_path_exception(
         "_fetch_review_comments",
         lambda *_args: [_comment("P1 review policy defect")],
     )
+    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
+    monkeypatch.setattr(request_codex_review, "_fetch_request_comments", lambda *_args: [])
 
     verdict = poll_for_verdict(
         "owner/repo",
