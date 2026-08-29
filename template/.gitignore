@@ -6,3 +6,4 @@ __pycache__/
 .audit-tmp/
 pytest-cache-files-*/
 evidence/
+.ci_check_stamp

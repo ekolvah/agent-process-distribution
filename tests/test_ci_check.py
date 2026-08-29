@@ -243,7 +243,7 @@ class TestStamp:
         assert not self._stamp(tmp_path).exists()
         assert _head(tmp_path) != original_head
 
-    def test_full_run_ignores_stamp_under_ci_environment(
+    def test_full_run_ignores_an_existing_stamp_under_ci_environment(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _init_repo(tmp_path)
@@ -256,6 +256,22 @@ class TestStamp:
         run_selected()
 
         assert called == ["first", "second"]
+
+    def test_full_run_does_not_record_a_stamp_under_ci_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("CI", "true")
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected()
+
+        assert called == ["first", "second"]
+        # A fresh stamp appearing here would prove the record path ran despite
+        # the CI guard — no stamp existed beforehand.
+        assert not self._stamp(tmp_path).exists()
 
     def test_only_mode_neither_reads_nor_writes_the_stamp(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

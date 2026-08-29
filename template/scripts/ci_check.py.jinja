@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""Single source of truth for quality checks. Run before every commit:
+"""Single source of truth for quality checks. Run before pushing:
 
-    python scripts/ci_check.py            # run every check (pre-commit / pre-push)
+    python scripts/ci_check.py            # run every check (pre-push)
     python scripts/ci_check.py --only X   # run one check by name locally
 
 CI runs this program without `--only` from the trusted default branch, so the
 same registry (CHECKS) defines its complete check set and the local full run.
+A full run remembers the last clean, verified HEAD in `.ci_check_stamp` and
+skips straight to "already verified" when nothing has changed — see
+`_already_verified`. `CI` env var set disables this entirely.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -229,6 +233,54 @@ CHECKS: dict[str, Callable[[], None]] = {
 }
 
 
+_STAMP_PATH = Path(".ci_check_stamp")
+
+
+def _git_head() -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def _working_tree_clean() -> bool:
+    """Whether the tree is clean, ignoring the stamp file itself.
+
+    The stamp normally sits in `.gitignore`, but a repo that has not adopted
+    that yet would otherwise see its own bookkeeping file as permanent dirt —
+    every run would call the tree dirty and never record anything.
+    """
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], capture_output=True, text=True, check=True
+    ).stdout
+    lines = [line for line in status.splitlines() if line[3:] != str(_STAMP_PATH)]
+    return not lines
+
+
+def _already_verified() -> bool:
+    """A prior full run already passed at this exact, unmodified commit."""
+    if not _STAMP_PATH.exists():
+        return False
+    if not _working_tree_clean():
+        return False
+    return _STAMP_PATH.read_text(encoding="utf-8").strip() == _git_head()
+
+
+def _record_verified(head_before: str | None, clean_before: bool) -> None:
+    """Record HEAD as verified — but only if it is still the exact commit that was checked.
+
+    A moved HEAD or a tree dirtied mid-run means the code that just passed may not be
+    the code now on disk, so recording anything here would let an untested change
+    reuse the stamp of the run before it.
+    """
+    if head_before is None or not clean_before:
+        return
+    if _git_head() != head_before:
+        return
+    if not _working_tree_clean():
+        return
+    _STAMP_PATH.write_text(head_before + "\n", encoding="utf-8")
+
+
 def run_selected(only: str | None = None) -> None:
     if only is not None:
         if only not in CHECKS:
@@ -236,8 +288,16 @@ def run_selected(only: str | None = None) -> None:
             sys.exit(1)
         CHECKS[only]()
         return
+    in_ci = bool(os.environ.get("CI"))
+    if not in_ci and _already_verified():
+        print(f"==> already verified at {_git_head()} (see {_STAMP_PATH}); skipping")
+        return
+    head_before = None if in_ci else _git_head()
+    clean_before = False if in_ci else _working_tree_clean()
     for fn in CHECKS.values():
         fn()
+    if not in_ci:
+        _record_verified(head_before, clean_before)
     print("==> all checks passed")
 
 
