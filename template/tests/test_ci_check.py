@@ -139,6 +139,13 @@ class TestStamp:
     normal green run after implementation.
     """
 
+    @pytest.fixture(autouse=True)
+    def _no_ci_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # GitHub Actions sets `CI=true` for every job step, including this test
+        # run itself — without clearing it, "not in CI" tests would silently pick
+        # up the real CI branch and never observe the stamp read/write they check.
+        monkeypatch.delenv("CI", raising=False)
+
     @staticmethod
     def _stamp(tmp_path: Path) -> Path:
         return tmp_path / ".ci_check_stamp"
