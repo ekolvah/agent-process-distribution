@@ -41,7 +41,8 @@ exact first-line marker, one `**Reviewed commit:**` label followed by one
 SHA-bound 10-hex value in backticks, eligible owner request, and
 head/request/comment timestamps all bind it to the current head. The gate
 orders valid native reviews, clean reactions, and clean comments by GitHub
-timestamp; no arbitrary bot prose can infer a clean result.
+timestamp, with the stricter non-clean outcome winning an equal-time tie; no
+arbitrary bot prose can infer a clean result.
 A valid Codex verdict is final for that head, including when the PR changes
 agent-process policy files. Only missing, stale, or malformed Codex evidence
 invokes Claude.

@@ -44,7 +44,8 @@ Claude fallback PR-review carriers.
   request. Native reviews,
   clean request reactions, and this narrow clean-comment transport are ordered
   by their GitHub timestamps, so a later valid native finding overrides an
-  earlier clean comment. A valid Codex result is final for every changed path,
+  earlier clean comment; equal timestamps resolve to the stricter non-clean
+  outcome. A valid Codex result is final for every changed path,
   including agent-process policy files; it never requires a mandatory second
   review. If that evidence is absent or invalid, the workflow calls Claude as
   the fallback carrier.

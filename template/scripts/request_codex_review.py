@@ -128,11 +128,18 @@ def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
 
 
 def _latest_evidence(
-    candidates: Sequence[tuple[str, int, dict[str, object]]],
+    candidates: Sequence[tuple[str, dict[str, object]]],
 ) -> dict[str, object] | None:
     if not candidates:
         return None
-    return max(candidates, key=lambda candidate: (candidate[0], candidate[1]))[2]
+    latest_timestamp = max(candidate[0] for candidate in candidates)
+    latest = [candidate[1] for candidate in candidates if candidate[0] == latest_timestamp]
+    return max(
+        latest,
+        key=lambda evidence: {"clean": 0, "rework": 1, "blocking": 2}.get(
+            str(evidence.get("outcome")), -1
+        ),
+    )
 
 
 def _native_evidence_candidates(
@@ -140,8 +147,8 @@ def _native_evidence_candidates(
     comments: object,
     head_sha: str,
     reviewer: str,
-) -> list[tuple[str, int, dict[str, object]]]:
-    candidates: list[tuple[str, int, dict[str, object]]] = []
+) -> list[tuple[str, dict[str, object]]]:
+    matching: list[tuple[str, int, Mapping[str, object]]] = []
     for index, record in enumerate(flatten_pages(reviews)):
         if (
             not isinstance(record.get("user"), Mapping)
@@ -149,13 +156,13 @@ def _native_evidence_candidates(
             or record.get("commit_id") != head_sha
         ):
             continue
-        evidence = _evidence_from_review(record, comments, reviewer)
-        if evidence is not None:
-            submitted_at = record.get("submitted_at")
-            candidates.append(
-                (submitted_at if isinstance(submitted_at, str) else "", index, evidence)
-            )
-    return candidates
+        submitted_at = record.get("submitted_at")
+        matching.append((submitted_at if isinstance(submitted_at, str) else "", index, record))
+    if not matching:
+        return []
+    submitted_at, _, latest = max(matching, key=lambda candidate: (candidate[0], candidate[1]))
+    evidence = _evidence_from_review(latest, comments, reviewer)
+    return [] if evidence is None else [(submitted_at, evidence)]
 
 
 def _read_record(endpoint: str) -> Mapping[str, object]:
@@ -236,14 +243,12 @@ def _clean_reaction_candidates(
     author_login: str,
     head_observed_at: str,
     reviewer: str,
-) -> list[tuple[str, int, dict[str, object]]]:
-    candidates: list[tuple[str, int, dict[str, object]]] = []
-    for request_index, request in enumerate(
-        _eligible_requests(requests, author_login=author_login, head_observed_at=head_observed_at)
+) -> list[tuple[str, dict[str, object]]]:
+    candidates: list[tuple[str, dict[str, object]]] = []
+    for request in _eligible_requests(
+        requests, author_login=author_login, head_observed_at=head_observed_at
     ):
-        for reaction_index, reaction in enumerate(
-            flatten_pages(reactions_by_request.get(request.get("id"), []))
-        ):
+        for reaction in flatten_pages(reactions_by_request.get(request.get("id"), [])):
             if (
                 reaction.get("content") != "+1"
                 or not isinstance(reaction.get("user"), Mapping)
@@ -252,13 +257,7 @@ def _clean_reaction_candidates(
                 continue
             created_at = reaction.get("created_at")
             timestamp = created_at if isinstance(created_at, str) else request["created_at"]
-            candidates.append(
-                (
-                    timestamp,
-                    request_index * 1000 + reaction_index,
-                    {"outcome": "clean", "findings": []},
-                )
-            )
+            candidates.append((timestamp, {"outcome": "clean", "findings": []}))
     return candidates
 
 
@@ -269,13 +268,13 @@ def _clean_comment_candidates(
     head_sha: str,
     head_observed_at: str,
     reviewer: str,
-) -> list[tuple[str, int, dict[str, object]]]:
+) -> list[tuple[str, dict[str, object]]]:
     eligible_requests = _eligible_requests(
         records, author_login=author_login, head_observed_at=head_observed_at
     )
     request_times = [request["created_at"] for request in eligible_requests]
-    candidates: list[tuple[str, int, dict[str, object]]] = []
-    for index, record in enumerate(flatten_pages(records)):
+    candidates: list[tuple[str, dict[str, object]]] = []
+    for record in flatten_pages(records):
         author = record.get("user")
         body = record.get("body")
         created_at = record.get("created_at")
@@ -296,7 +295,7 @@ def _clean_comment_candidates(
         reviewed_commit = _REVIEWED_COMMIT.fullmatch(reviewed_lines[0])
         if reviewed_commit is None or not head_sha.startswith(reviewed_commit["sha"]):
             continue
-        candidates.append((created_at, index, {"outcome": "clean", "findings": []}))
+        candidates.append((created_at, {"outcome": "clean", "findings": []}))
     return candidates
 
 
