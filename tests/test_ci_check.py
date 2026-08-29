@@ -19,6 +19,27 @@ from scripts.ci_check import _find_modules, _run, _tracked_files, run_selected
 _CI_YML = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
 
 
+def _init_repo(tmp_path: Path) -> None:
+    """A committed, clean repo — enough for `git rev-parse HEAD` and a stable status."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    (tmp_path / "tracked.py").write_text("tracked = True\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "init"], cwd=tmp_path, check=True)
+
+
+def _head(tmp_path: Path) -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.strip()
+
+
 def _quality_caller() -> dict[str, Any]:
     """Return the thin quality caller without letting it select checks."""
     spec = yaml.safe_load(_CI_YML.read_text(encoding="utf-8"))
@@ -34,8 +55,13 @@ class TestStepParity:
         assert "with" not in _quality_caller()
 
     def test_full_runner_visits_every_registered_check(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # A temporary repo, not the real one: `run_selected()` now consults
+        # `.ci_check_stamp` at cwd, and this test must not read or write the
+        # maintainer's own stamp file.
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
         called: list[str] = []
         monkeypatch.setattr(
             ci_check,
@@ -101,6 +127,177 @@ class TestFindModules:
         monkeypatch.chdir(tmp_path)
 
         assert "tracked.py" not in _find_modules()
+
+
+class TestStamp:
+    """`.ci_check_stamp` lets a full run skip checks already verified for this
+    exact, clean tree — see issue #43. Every test runs in a temporary repo
+    (never the real one) since `run_selected()` now touches a stamp file at
+    cwd.
+
+    Not every case here is provable RED against unmodified `ci_check.py`:
+    a "must not record" assertion is trivially true before the recording
+    mechanism exists at all. Only the three positive-behavior tests
+    (skip-when-verified, record-when-none, record-updates-on-mismatch) are
+    run through `check_red.py`; the rest are regression guards for the
+    control-flow guards added alongside the base mechanism, confirmed by a
+    normal green run after implementation.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _no_ci_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # GitHub Actions sets `CI=true` for every job step, including this test
+        # run itself — without clearing it, "not in CI" tests would silently pick
+        # up the real CI branch and never observe the stamp read/write they check.
+        monkeypatch.delenv("CI", raising=False)
+
+    @staticmethod
+    def _stamp(tmp_path: Path) -> Path:
+        return tmp_path / ".ci_check_stamp"
+
+    @staticmethod
+    def _spy_checks() -> tuple[dict[str, Any], list[str]]:
+        called: list[str] = []
+        checks = {
+            "first": lambda: called.append("first"),
+            "second": lambda: called.append("second"),
+        }
+        return checks, called
+
+    def test_full_run_skips_registered_checks_when_stamp_matches_clean_head(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        self._stamp(tmp_path).write_text(_head(tmp_path), encoding="utf-8")
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected()
+
+        assert called == []
+
+    def test_full_run_executes_and_records_stamp_when_none_exists(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected()
+
+        assert called == ["first", "second"]
+        assert self._stamp(tmp_path).read_text(encoding="utf-8").strip() == _head(tmp_path)
+
+    def test_full_run_executes_when_stamp_head_does_not_match(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        self._stamp(tmp_path).write_text("0" * 40, encoding="utf-8")
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected()
+
+        assert called == ["first", "second"]
+        assert self._stamp(tmp_path).read_text(encoding="utf-8").strip() == _head(tmp_path)
+
+    def test_full_run_executes_when_working_tree_is_dirty_and_records_nothing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "tracked.py").write_text("tracked = False\n", encoding="utf-8")
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected()
+
+        assert called == ["first", "second"]
+        assert not self._stamp(tmp_path).exists()
+
+    def test_full_run_does_not_record_stamp_when_a_check_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        def failing() -> None:
+            raise SystemExit(1)
+
+        monkeypatch.setattr(ci_check, "CHECKS", {"first": failing})
+
+        with pytest.raises(SystemExit):
+            run_selected()
+
+        assert not self._stamp(tmp_path).exists()
+
+    def test_full_run_does_not_record_stamp_when_head_moves_during_run(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        original_head = _head(tmp_path)
+
+        def moves_head() -> None:
+            subprocess.run(
+                ["git", "commit", "--quiet", "--allow-empty", "-m", "concurrent"],
+                cwd=tmp_path,
+                check=True,
+            )
+
+        monkeypatch.setattr(ci_check, "CHECKS", {"first": moves_head})
+
+        run_selected()
+
+        assert not self._stamp(tmp_path).exists()
+        assert _head(tmp_path) != original_head
+
+    def test_full_run_ignores_an_existing_stamp_under_ci_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        self._stamp(tmp_path).write_text(_head(tmp_path), encoding="utf-8")
+        monkeypatch.setenv("CI", "true")
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected()
+
+        assert called == ["first", "second"]
+
+    def test_full_run_does_not_record_a_stamp_under_ci_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("CI", "true")
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected()
+
+        assert called == ["first", "second"]
+        # A fresh stamp appearing here would prove the record path ran despite
+        # the CI guard — no stamp existed beforehand.
+        assert not self._stamp(tmp_path).exists()
+
+    def test_only_mode_neither_reads_nor_writes_the_stamp(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        self._stamp(tmp_path).write_text("0" * 40, encoding="utf-8")
+        checks, called = self._spy_checks()
+        monkeypatch.setattr(ci_check, "CHECKS", checks)
+
+        run_selected(only="first")
+
+        assert called == ["first"]
+        assert self._stamp(tmp_path).read_text(encoding="utf-8").strip() == "0" * 40
 
 
 class TestMypyManifest:

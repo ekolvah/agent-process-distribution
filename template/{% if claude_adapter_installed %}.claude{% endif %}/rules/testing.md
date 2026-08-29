@@ -24,7 +24,7 @@ only when working with `tests/**`).
 2. **No mocks of internal logic** —
    [`principles.md §II`](../../docs/architecture/principles.md) applies.
 3. Choose the test level from the target project's testing strategy.
-4. **Run** `python -m pytest` incrementally; before commit run
+4. **Run** `python -m pytest` incrementally; before pushing run
    `python scripts/ci_check.py`.
 5. Record a consciously rejected coverage decision in the target project's
    accepted-gaps ledger, so it is not reopened as work-for-work.
