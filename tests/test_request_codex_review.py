@@ -329,6 +329,32 @@ def test_poll_stops_when_a_current_head_review_is_malformed(
     )
 
 
+def test_later_malformed_native_review_invalidates_older_clean_comment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    malformed = {**_review("COMMENTED"), "submitted_at": "2026-08-24T08:34:00Z"}
+    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [malformed])
+    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
+    monkeypatch.setattr(
+        request_codex_review,
+        "_fetch_request_comments",
+        lambda *_args: [_request(), _clean_comment(created_at="2026-08-24T08:33:00Z")],
+    )
+    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
+    monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
+
+    assert (
+        poll_for_verdict(
+            "owner/repo",
+            "14",
+            _HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            timeout_seconds=0,
+        )
+        is None
+    )
+
+
 def test_poll_accepts_valid_codex_evidence_without_a_policy_path_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

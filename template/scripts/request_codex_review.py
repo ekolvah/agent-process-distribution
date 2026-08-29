@@ -128,14 +128,16 @@ def _has_current_review(reviews: object, head_sha: str, reviewer: str) -> bool:
 
 
 def _latest_evidence(
-    candidates: Sequence[tuple[str, dict[str, object]]],
+    candidates: Sequence[tuple[str, dict[str, object] | None]],
 ) -> dict[str, object] | None:
     if not candidates:
         return None
     latest_timestamp = max(candidate[0] for candidate in candidates)
     latest = [candidate[1] for candidate in candidates if candidate[0] == latest_timestamp]
+    if any(evidence is None for evidence in latest):
+        return None
     return max(
-        latest,
+        [evidence for evidence in latest if evidence is not None],
         key=lambda evidence: {"clean": 0, "rework": 1, "blocking": 2}.get(
             str(evidence.get("outcome")), -1
         ),
@@ -147,7 +149,7 @@ def _native_evidence_candidates(
     comments: object,
     head_sha: str,
     reviewer: str,
-) -> list[tuple[str, dict[str, object]]]:
+) -> list[tuple[str, dict[str, object] | None]]:
     matching: list[tuple[str, int, Mapping[str, object]]] = []
     for index, record in enumerate(flatten_pages(reviews)):
         if (
@@ -162,7 +164,7 @@ def _native_evidence_candidates(
         return []
     submitted_at, _, latest = max(matching, key=lambda candidate: (candidate[0], candidate[1]))
     evidence = _evidence_from_review(latest, comments, reviewer)
-    return [] if evidence is None else [(submitted_at, evidence)]
+    return [(submitted_at, evidence)]
 
 
 def _read_record(endpoint: str) -> Mapping[str, object]:
