@@ -31,7 +31,12 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 REQUEST_BODY = "@codex review"
-_CLEAN_COMMENT_MARKER = "Codex Review: Didn't find any major issues. :tada:"
+_CLEAN_COMMENT_MARKERS = frozenset(
+    {
+        "Codex Review: Didn't find any major issues. :tada:",
+        "Codex Review: Didn't find any major issues. What shall we delve into next?",
+    }
+)
 _REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
 
 
@@ -258,7 +263,7 @@ def _clean_comment_candidates(
             continue
         lines = body.splitlines()
         reviewed_lines = [line for line in lines if "Reviewed commit" in line]
-        if not lines or lines[0] != _CLEAN_COMMENT_MARKER or len(reviewed_lines) != 1:
+        if not lines or lines[0] not in _CLEAN_COMMENT_MARKERS or len(reviewed_lines) != 1:
             continue
         reviewed_commit = _REVIEWED_COMMIT.fullmatch(reviewed_lines[0])
         if reviewed_commit is None or not head_sha.startswith(reviewed_commit["sha"]):
