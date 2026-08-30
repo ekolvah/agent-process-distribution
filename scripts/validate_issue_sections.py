@@ -482,7 +482,7 @@ def find_gaps(body: str, required: Sequence[str] = REQUIRED_SECTIONS) -> list[st
     """Empty or missing sections from `required`.
 
     The set is a parameter rather than a module constant: the parser's other consumers are
-    the MADR-record guard (`tests/test_adr_records.py`) with its own h2 list, and `main()`
+    the MADR-record guard (`tests/agent_process/test_adr_records.py`) with its own h2 list, and `main()`
     with the set resolved from the issue's change class. Forking it would create a second
     definition of an empty section.
 

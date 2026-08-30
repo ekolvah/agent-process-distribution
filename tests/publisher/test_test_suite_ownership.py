@@ -186,6 +186,8 @@ def test_reserved_consumer_test_path_collision_is_visible(tmp_path: Path) -> Non
             sys.executable,
             "scripts/check_consumer_test_collision.py",
             str(destination),
+            "--vcs-ref",
+            "HEAD",
         ],
         cwd=ROOT,
     )
