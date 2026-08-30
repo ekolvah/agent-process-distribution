@@ -24,7 +24,7 @@ class PreflightReport:
 CONFLICT_MARKERS = _Markers()
 _OWNERSHIP_FILE = ".agent-process/ownership.json"
 _RESERVED_PREFIXES = (".agent-process/", ".github/workflows/agent-process-")
-_PROCESS_EXCLUSIVE_PREFIXES = (".agents/", ".codex/", ".githooks/", "scripts/")
+_PROCESS_EXCLUSIVE_PREFIXES = (".agents/", ".claude/", ".codex/", ".githooks/", "scripts/")
 _ALLOWED_PREFIXES = _RESERVED_PREFIXES + _PROCESS_EXCLUSIVE_PREFIXES
 _UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
 
