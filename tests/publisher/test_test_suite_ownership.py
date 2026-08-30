@@ -52,23 +52,40 @@ def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
 def _resolve_pre_migration_baseline() -> str:
     """Make ``_PRE_MIGRATION_BASELINE_SHA`` locally available and return it.
 
-    A CI checkout of the PR alone is shallow and single-ref: that commit
-    object is absent locally until fetched directly. A silent absence here
-    would previously reach copier as ``--vcs-ref ""``, which copier accepts
-    as "no ref" (i.e. the current worktree) — so the fetch result is asserted
-    rather than swallowed, and the two migration tests below run against the
-    intended flat-layout baseline or fail loud, never a silently wrong one.
+    A CI checkout of the PR alone is shallow and single-ref: the pinned
+    commit's tree is absent locally until a full fetch brings in the rest of
+    main's history. The check below asks for the *tree* object specifically
+    (``<sha>^{tree}``), not just the commit object: a bare ``git fetch
+    --depth=1 origin <sha>`` (no destref) was found to leave the commit
+    object reachable while still omitting its tree/blob closure, so `copier`'s
+    internal `git checkout -f <sha>` failed with "unable to read tree" even
+    though the commit itself resolved. `git fetch --unshallow` pulls the full
+    history for every branch and was verified to leave the tree intact; its
+    result is asserted rather than swallowed, so the two migration tests below
+    run against the intended flat-layout baseline or fail loud, never a
+    silently wrong one.
     """
-    if (
-        _run(
-            ["git", "cat-file", "-e", f"{_PRE_MIGRATION_BASELINE_SHA}^{{commit}}"], cwd=ROOT
-        ).returncode
-        != 0
-    ):
-        completed = _run(
-            ["git", "fetch", "--depth=1", "origin", _PRE_MIGRATION_BASELINE_SHA], cwd=ROOT
+    tree_ref = f"{_PRE_MIGRATION_BASELINE_SHA}^{{tree}}"
+    if _run(["git", "cat-file", "-e", tree_ref], cwd=ROOT).returncode != 0:
+        is_shallow = _run(["git", "rev-parse", "--is-shallow-repository"], cwd=ROOT).stdout.strip()
+        fetch_command = (
+            ["git", "fetch", "--unshallow", "origin"]
+            if is_shallow == "true"
+            else [
+                "git",
+                "fetch",
+                "origin",
+            ]
         )
+        completed = _run(fetch_command, cwd=ROOT)
         assert completed.returncode == 0, completed.stdout + completed.stderr
+
+        completed = _run(["git", "cat-file", "-e", tree_ref], cwd=ROOT)
+        assert completed.returncode == 0, (
+            f"pinned baseline {_PRE_MIGRATION_BASELINE_SHA} tree still unavailable after fetch: "
+            + completed.stdout
+            + completed.stderr
+        )
     return _PRE_MIGRATION_BASELINE_SHA
 
 
