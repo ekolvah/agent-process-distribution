@@ -82,6 +82,20 @@ def _validate_payload(payload: dict[str, bytes]) -> None:
         raise ValueError("payload has non-reserved destination(s): " + ", ".join(invalid))
 
 
+def _has_conflict_block(content: str) -> bool:
+    """Whether ``content`` contains a coherent opener/separator/closer conflict block."""
+    opener, separator, closer = _UNRESOLVED_MARKERS
+    stage = 0
+    for line in content.splitlines():
+        if line.startswith(opener):
+            stage = 1
+        elif stage == 1 and line.startswith(separator):
+            stage = 2
+        elif stage == 2 and line.startswith(closer):
+            return True
+    return False
+
+
 def _unresolved(destination: Path) -> tuple[str, ...]:
     problems = []
     for path in destination.rglob("*"):
@@ -95,7 +109,7 @@ def _unresolved(destination: Path) -> tuple[str, ...]:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        if any(line.startswith(_UNRESOLVED_MARKERS) for line in content.splitlines()):
+        if _has_conflict_block(content):
             problems.append(relative)
     return tuple(sorted(problems))
 
@@ -150,7 +164,7 @@ def _path_conflicts(
         return True
     parent = path.parent
     while parent != destination:
-        if parent.exists() and not parent.is_dir():
+        if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
             return True
         parent = parent.parent
     return path.is_file() and path.read_bytes() != content and relative not in owned_paths
