@@ -240,6 +240,12 @@ def test_full_sha_clean_comment_is_clean_evidence() -> None:
         _clean_comment(
             body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `bbbbbbbbbb`"
         ),
+        _clean_comment(body=f"No findings.\n\nReviewed head SHA: `{'b' * 40}`"),
+        _clean_comment(
+            body=(
+                f"No findings.\n\nReviewed head SHA: `{_HEAD}`\n**Reviewed commit:** `{_HEAD[:10]}`"
+            )
+        ),
         _clean_comment(created_at="2026-08-24T08:30:00Z"),
     ],
 )

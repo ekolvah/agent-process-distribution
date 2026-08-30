@@ -37,11 +37,12 @@ Claude fallback PR-review carriers.
 - The PR author starts the Codex primary with `@codex review`; GitHub Actions
   never writes that command. Codex's inline comments on its standard GitHub
   review are evidence for the current head SHA. A clean issue comment is also
-  accepted only when the configured Codex reviewer posts one of the exact
-  supported observed clean-marker first lines and one `**Reviewed commit:**`
-  label followed by a 10-hex SHA in backticks; that SHA must prefix the current
-  full head, and the comment must follow both the observed head transition and
-  an eligible owner request. Native reviews,
+  accepted only when the configured Codex reviewer posts one of two exact
+  supported observed shapes: a known `Codex Review` clean-marker first line
+  with one `**Reviewed commit:**` 10-hex prefix, or `No findings.` with one
+  `Reviewed head SHA:` full SHA in backticks. The SHA must bind to the current
+  head, and the comment must follow both the observed head transition and an
+  eligible owner request. Native reviews,
   clean request reactions, and this narrow clean-comment transport are ordered
   by their GitHub timestamps, so a later valid native finding overrides an
   earlier clean comment; equal timestamps resolve to the stricter non-clean
