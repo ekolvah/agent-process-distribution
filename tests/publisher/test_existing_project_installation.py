@@ -122,6 +122,16 @@ def test_normal_render_stages_an_installable_reserved_payload(tmp_path: Path) ->
     assert staged[".github/workflows/agent-process-quality.yml"] == b"jobs: {quality: {}}\n"
 
 
+def test_normal_render_installs_the_selected_claude_adapter_at_the_root(tmp_path: Path) -> None:
+    rendered = tmp_path / "rendered"
+    (rendered / ".claude").mkdir(parents=True)
+    (rendered / ".claude/settings.json").write_bytes(b'{"deny": []}\n')
+
+    staged = stage_payload(rendered)
+
+    assert staged[".claude/settings.json"] == b'{"deny": []}\n'
+
+
 def test_preflight_rejects_a_directory_at_a_payload_file_path(tmp_path: Path) -> None:
     (tmp_path / ".agent-process/payload/entry.py").mkdir(parents=True)
 
