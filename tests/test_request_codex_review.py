@@ -189,9 +189,32 @@ def test_clean_reaction_must_follow_the_github_observed_head_transition() -> Non
     )
 
 
-def test_sha_bound_clean_comment_is_clean_evidence() -> None:
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "Codex Review: Didn't find any major issues. :tada:",
+        "Codex Review: Didn't find any major issues. What shall we delve into next?",
+    ],
+)
+def test_sha_bound_clean_comment_is_clean_evidence(marker: str) -> None:
     assert request_codex_review.find_clean_comment(
-        [_request(), _clean_comment()],
+        [
+            _request(),
+            _clean_comment(body=f"{marker}\n\n**Reviewed commit:** `{_HEAD[:10]}`"),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_full_sha_clean_comment_is_clean_evidence() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(body=f"No findings.\n\nReviewed head SHA: `{_HEAD}`"),
+        ],
         author_login="author",
         head_sha=_HEAD,
         head_observed_at="2026-08-24T08:31:00Z",
@@ -216,6 +239,12 @@ def test_sha_bound_clean_comment_is_clean_evidence() -> None:
         ),
         _clean_comment(
             body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `bbbbbbbbbb`"
+        ),
+        _clean_comment(body=f"No findings.\n\nReviewed head SHA: `{'b' * 40}`"),
+        _clean_comment(
+            body=(
+                f"No findings.\n\nReviewed head SHA: `{_HEAD}`\n**Reviewed commit:** `{_HEAD[:10]}`"
+            )
         ),
         _clean_comment(created_at="2026-08-24T08:30:00Z"),
     ],

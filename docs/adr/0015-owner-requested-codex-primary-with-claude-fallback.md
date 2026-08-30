@@ -37,8 +37,10 @@ waits for Codex's standard GitHub review on the current PR head and translates
 native priorities into the shared contract: P0/P1 are blocking, P2 is
 should-fix, and P3 is nice-to-have. The observed clean connector comment is
 also a narrow accepted transport only when its configured reviewer identity,
-exact first-line marker, one `**Reviewed commit:**` label followed by one
-SHA-bound 10-hex value in backticks, eligible owner request, and
+one of two exact supported observed shapes — a known `Codex Review`
+clean-marker first line with one SHA-bound 10-hex `**Reviewed commit:**`, or
+`No findings.` with one full `Reviewed head SHA:` — plus an eligible owner
+request and
 head/request/comment timestamps all bind it to the current head. The gate
 orders valid native reviews, clean reactions, and clean comments by GitHub
 timestamp, with the stricter non-clean outcome winning an equal-time tie; no

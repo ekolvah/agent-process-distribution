@@ -31,8 +31,14 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 REQUEST_BODY = "@codex review"
-_CLEAN_COMMENT_MARKER = "Codex Review: Didn't find any major issues. :tada:"
+_CLEAN_COMMENT_MARKERS = frozenset(
+    {
+        "Codex Review: Didn't find any major issues. :tada:",
+        "Codex Review: Didn't find any major issues. What shall we delve into next?",
+    }
+)
 _REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
+_REVIEWED_HEAD = re.compile(r"^Reviewed head SHA: `(?P<sha>[0-9a-f]{40})`$")
 
 
 def request_review(pr_number: str) -> None:
@@ -257,11 +263,27 @@ def _clean_comment_candidates(
         ):
             continue
         lines = body.splitlines()
-        reviewed_lines = [line for line in lines if "Reviewed commit" in line]
-        if not lines or lines[0] != _CLEAN_COMMENT_MARKER or len(reviewed_lines) != 1:
+        reviewed_commits = [line for line in lines if "Reviewed commit" in line]
+        reviewed_heads = [line for line in lines if "Reviewed head SHA" in line]
+        if (
+            lines
+            and lines[0] in _CLEAN_COMMENT_MARKERS
+            and len(reviewed_commits) == 1
+            and not reviewed_heads
+        ):
+            reviewed = _REVIEWED_COMMIT.fullmatch(reviewed_commits[0])
+            matches_head = reviewed is not None and head_sha.startswith(reviewed["sha"])
+        elif (
+            lines
+            and lines[0] == "No findings."
+            and len(reviewed_heads) == 1
+            and not reviewed_commits
+        ):
+            reviewed = _REVIEWED_HEAD.fullmatch(reviewed_heads[0])
+            matches_head = reviewed is not None and head_sha == reviewed["sha"]
+        else:
             continue
-        reviewed_commit = _REVIEWED_COMMIT.fullmatch(reviewed_lines[0])
-        if reviewed_commit is None or not head_sha.startswith(reviewed_commit["sha"]):
+        if not matches_head:
             continue
         candidates.append((created_at, {"outcome": "clean", "findings": []}))
     return candidates
