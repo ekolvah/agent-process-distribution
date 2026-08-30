@@ -59,3 +59,14 @@ def test_update_does_not_treat_scanner_source_as_an_inline_conflict(tmp_path: Pa
     assert (
         tmp_path / ".agent-process/payload/scripts/adopt_agent_process.py"
     ).read_bytes() == payload[".agent-process/payload/scripts/adopt_agent_process.py"]
+
+
+def test_update_does_not_treat_a_setext_heading_as_an_inline_conflict(tmp_path: Path) -> None:
+    payload = {".agent-process/payload/docs/note.md": b"Title\n=======\n\nBody text.\n"}
+    install_payload(tmp_path, payload)
+
+    update_payload(tmp_path, payload)
+
+    assert (tmp_path / ".agent-process/payload/docs/note.md").read_bytes() == payload[
+        ".agent-process/payload/docs/note.md"
+    ]

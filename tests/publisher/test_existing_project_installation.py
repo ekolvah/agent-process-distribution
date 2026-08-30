@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from scripts.adopt_agent_process import (
@@ -127,3 +128,19 @@ def test_preflight_rejects_a_directory_at_a_payload_file_path(tmp_path: Path) ->
     report = preflight(tmp_path, {".agent-process/payload/entry.py": b"process\n"})
 
     assert report.collisions == (".agent-process/payload/entry.py",)
+
+
+def test_preflight_rejects_a_symlinked_destination_parent(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    try:
+        (destination / "scripts").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation not permitted in this environment")
+
+    report = preflight(destination, {"scripts/entry.py": b"process\n"})
+
+    assert report.collisions == ("scripts/entry.py",)
+    assert not (outside / "entry.py").exists()
