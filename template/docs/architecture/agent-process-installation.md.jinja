@@ -149,13 +149,17 @@ Installation and update place every process conformance test under the
 reserved `tests/agent_process/` subtree — the only path a copied test occupies
 in the target repository; product tests elsewhere are never touched. Before
 running `copier update` on a repository that predates this reserved subtree,
-run `python scripts/check_consumer_test_collision.py <path>`: it renders the
-target's current template and reports, by exact relative path, any file
-already occupying a location `tests/agent_process/` reserves for itself.
-Copier's own `--conflict` handling does not catch this case, since it only
-marks a conflict for a path it previously tracked through a prior render's
-diff, so a brand-new template path colliding with pre-existing, unrelated
-content would otherwise be silently overwritten. See
+clone the `agent-process-distribution` source separately and, from that
+checkout, run `python scripts/check_consumer_test_collision.py <path>` with
+`<path>` pointing at the target repository — this script itself ships only
+through the update it is meant to run ahead of, so a pre-existing target
+checkout does not have it yet. It renders the target's current template and
+reports, by exact relative path, any file already occupying a location
+`tests/agent_process/` reserves for itself. Copier's own `--conflict`
+handling does not catch this case, since it only marks a conflict for a path
+it previously tracked through a prior render's diff, so a brand-new template
+path colliding with pre-existing, unrelated content would otherwise be
+silently overwritten. See
 [`agent-process.md`'s "Test suite ownership"](agent-process.md#test-suite-ownership)
 for the full publisher/consumer split.
 

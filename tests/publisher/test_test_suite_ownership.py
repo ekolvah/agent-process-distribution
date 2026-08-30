@@ -19,6 +19,14 @@ RECLASSIFIED_PUBLISHER_BASENAMES = (
     "test_hooks.py",
     "test_codex_hooks.py",
 )
+# main's tip immediately before issue #20's publisher/consumer split
+# (c89457c "ci: recognize current Codex clean-comment wording (#51)") — the
+# last commit with every process test loose under a flat tests/ root. Pinned
+# rather than computed via `git merge-base HEAD origin/main`: once this PR
+# merges, a later PR's origin/main already contains the split, so a dynamic
+# merge-base would silently resolve to an already-migrated commit and stop
+# exercising the flat-layout migration these tests exist to cover.
+_PRE_MIGRATION_BASELINE_SHA = "c89457c06915d403fe40fa92c1cd6838da53a899"  # pragma: allowlist secret
 
 
 def _direct_test_files(directory: Path) -> list[Path]:
@@ -42,22 +50,26 @@ def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
 
 
 def _resolve_pre_migration_baseline() -> str:
-    """The commit before issue #20's publisher/consumer test split.
+    """Make ``_PRE_MIGRATION_BASELINE_SHA`` locally available and return it.
 
-    A CI checkout of the PR alone is shallow and single-ref: it has neither a
-    local ``origin/main`` nor HEAD's own parent history, so plain
-    ``git merge-base`` cannot find a common ancestor there. Unshallowing once
-    (a no-op on a local, already-complete checkout) fetches both, so the
-    two migration tests below run against the intended flat-layout baseline
-    instead of silently degrading to ``--vcs-ref ""`` (which copier accepts
-    as "no ref", i.e. the current worktree) when ``merge-base`` fails.
+    A CI checkout of the PR alone is shallow and single-ref: that commit
+    object is absent locally until fetched directly. A silent absence here
+    would previously reach copier as ``--vcs-ref ""``, which copier accepts
+    as "no ref" (i.e. the current worktree) — so the fetch result is asserted
+    rather than swallowed, and the two migration tests below run against the
+    intended flat-layout baseline or fail loud, never a silently wrong one.
     """
-    if _run(["git", "rev-parse", "--is-shallow-repository"], cwd=ROOT).stdout.strip() == "true":
-        completed = _run(["git", "fetch", "--unshallow", "origin"], cwd=ROOT)
+    if (
+        _run(
+            ["git", "cat-file", "-e", f"{_PRE_MIGRATION_BASELINE_SHA}^{{commit}}"], cwd=ROOT
+        ).returncode
+        != 0
+    ):
+        completed = _run(
+            ["git", "fetch", "--depth=1", "origin", _PRE_MIGRATION_BASELINE_SHA], cwd=ROOT
+        )
         assert completed.returncode == 0, completed.stdout + completed.stderr
-    completed = _run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT)
-    assert completed.returncode == 0, completed.stdout + completed.stderr
-    return completed.stdout.strip()
+    return _PRE_MIGRATION_BASELINE_SHA
 
 
 def _git_commit_all(destination: Path) -> None:

@@ -103,8 +103,10 @@ template-owned ones into the subtree, and a foreign file already occupying a
 reserved-subtree path is visible to `scripts/check_consumer_test_collision.py`
 before the update runs. This file itself is publisher-only and is not part of
 a rendered consumer's own test suite; a consumer confirms the split holds for
-its own repository by running `python -m pytest tests/agent_process` and, before
-an update, `python scripts/check_consumer_test_collision.py <path>`.
+its own repository by running `python -m pytest tests/agent_process`. Before
+an update, the collision check itself runs from a distribution checkout, not
+the consumer's own — a pre-split consumer does not yet have the script that
+`copier update` is about to install.
 Relates to [ADR 0011](0011-agentic-process-distribution-mechanism.md) (the
 copier distribution mechanism this split rides on) and this repository's own
 ADR 0013, not shipped to consumers (the drift gate whose per-file allowlist

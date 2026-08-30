@@ -374,12 +374,16 @@ Run either suite independently — `python -m pytest tests/publisher` or
 `python -m pytest tests/agent_process` — or both together with the documented
 full command, `python -m pytest` (also what `python scripts/ci_check.py`
 runs). Before running `copier update` against a repository that predates this
-split, run `python scripts/check_consumer_test_collision.py <path>`: it
-renders the current template and reports, with the exact colliding relative
-path, any file already occupying a location the template's
-`tests/agent_process/` subtree reserves for itself — a case Copier's own
-`--conflict` handling does not catch, since it only marks conflicts for paths
-it previously tracked through a prior render's diff.
+split, run `python scripts/check_consumer_test_collision.py <path>` **from an
+up-to-date checkout of this distribution repository**, with `<path>` pointing
+at the target repository — not from inside the target repository itself,
+since a pre-split consumer does not yet have this script (`copier update`
+only installs it once the update completes). The check renders the current
+template against the target's own recorded answers and reports, with the
+exact colliding relative path, any file already occupying a location the
+template's `tests/agent_process/` subtree reserves for itself — a case
+Copier's own `--conflict` handling does not catch, since it only marks
+conflicts for paths it previously tracked through a prior render's diff.
 
 ## Maintaining this distribution
 
