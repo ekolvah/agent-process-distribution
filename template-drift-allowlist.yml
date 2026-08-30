@@ -37,6 +37,10 @@ root_only_paths:
     reason: Verifies publisher workflow pins rather than rendered consumer behavior.
   - path: tests/publisher/test_test_suite_ownership.py
     reason: Verifies the publisher/consumer test-suite split itself (issue #20), not a rendered consumer.
+  - path: tests/publisher/test_existing_project_installation.py
+    reason: Verifies source-side established-project adoption (issue #21), not a rendered consumer.
+  - path: tests/publisher/test_existing_project_update.py
+    reason: Verifies source-side established-project updates (issue #21), not a rendered consumer.
   - path: tests/publisher/test_hooks.py
     reason: Reclassified publisher-only (issue #20) — exercises scripts/hooks.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_codex_hooks.py

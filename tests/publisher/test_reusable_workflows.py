@@ -33,10 +33,10 @@ def test_callees_declare_workflow_call_without_pull_request_trigger() -> None:
 
 def test_callee_schema_matches_local_callers_in_both_directions() -> None:
     pairs = (
-        ("ci.yml", "quality", "reusable-quality.yml", "quality"),
-        ("pr-link.yml", "pr-link", "reusable-pr-link.yml", "pr-link"),
+        ("agent-process-quality.yml", "quality", "reusable-quality.yml", "quality"),
+        ("agent-process-pr-link.yml", "pr-link", "reusable-pr-link.yml", "pr-link"),
         (
-            "agent-review.yml",
+            "agent-process-review.yml",
             "agent-review",
             "reusable-agent-review.yml",
             "agent-review",
@@ -60,7 +60,7 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
 
 
 def test_source_review_caller_passes_only_the_claude_fallback_secret() -> None:
-    caller = _workflow("agent-review.yml")["jobs"]["agent-review"]
+    caller = _workflow("agent-process-review.yml")["jobs"]["agent-review"]
 
     assert caller["secrets"] == {
         "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
@@ -69,9 +69,9 @@ def test_source_review_caller_passes_only_the_claude_fallback_secret() -> None:
 
 def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
     for caller_file, caller_job, callee_file in (
-        ("ci.yml", "quality", "reusable-quality.yml"),
-        ("pr-link.yml", "pr-link", "reusable-pr-link.yml"),
-        ("agent-review.yml", "agent-review", "reusable-agent-review.yml"),
+        ("agent-process-quality.yml", "quality", "reusable-quality.yml"),
+        ("agent-process-pr-link.yml", "pr-link", "reusable-pr-link.yml"),
+        ("agent-process-review.yml", "agent-review", "reusable-agent-review.yml"),
     ):
         caller_permissions = _workflow(caller_file)["permissions"]
         callee_permissions = _workflow(callee_file)["permissions"]
@@ -96,7 +96,7 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
     }
     assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
     assert _trigger(_workflow("reusable-quality.yml"))["workflow_call"] is None
-    assert _workflow("ci.yml")["jobs"]["quality"]["uses"] == (
+    assert _workflow("agent-process-quality.yml")["jobs"]["quality"]["uses"] == (
         "./.github/workflows/reusable-quality.yml"
     )
     assert steps["Install consumer dependencies"]["working-directory"] == "pr"
@@ -122,7 +122,7 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     assert "trusted/scripts/verify_pr_link.py" in steps["Select PR-link driver"]["run"]
     checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
     assert len(checkouts) == 2
-    assert _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"] == (
+    assert _workflow("agent-process-pr-link.yml")["jobs"]["pr-link"]["uses"] == (
         "./.github/workflows/reusable-pr-link.yml"
     )
 
@@ -170,7 +170,7 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
         in steps["Fetch current PR context"]["with"]["script"]
     )
     assert "--head-observed-at" in steps["Read owner-requested Codex review"]["run"]
-    assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
+    assert _workflow("agent-process-review.yml")["jobs"]["agent-review"]["uses"] == (
         "./.github/workflows/reusable-agent-review.yml"
     )
 
