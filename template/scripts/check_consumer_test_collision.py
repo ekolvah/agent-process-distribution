@@ -9,8 +9,10 @@ colliding with pre-existing, unrelated content at that exact destination
 path is invisible to it and would otherwise be silently overwritten by
 `copier update`. This script reads `<destination>/.copier-answers.yml` for
 the template origin (`_src_path`) and the destination's own recorded
-answers, renders that same source fresh, and reports every reserved-subtree
-path whose content already differs before the update runs.
+answers, renders that same source fresh via the `copier` executable on
+`PATH` (the one a consumer installs separately, e.g. through pipx; this
+project's own Copier dependency is publisher-only), and reports every
+reserved-subtree path whose content already differs before the update runs.
 
 `--vcs-ref` mirrors `copier update`'s own flag: omitted, the target is
 whatever a plain `copier update` would pick (the template's latest release
@@ -21,6 +23,7 @@ changes when testing against a working checkout of the template itself.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,10 +55,14 @@ def _render_current_template(
     rendered = work / "rendered"
     answers_path = work / "answers.yml"
     answers_path.write_text(yaml.safe_dump(answers, sort_keys=True), encoding="utf-8")
+    copier_executable = shutil.which("copier")
+    if copier_executable is None:
+        raise RuntimeError(
+            "copier executable not found on PATH; install it (e.g. `pipx install copier`) "
+            "before running this check."
+        )
     command = [
-        sys.executable,
-        "-m",
-        "copier",
+        copier_executable,
         "copy",
         src_path,
         str(rendered),

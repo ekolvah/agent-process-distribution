@@ -18,7 +18,6 @@ ROOT = Path(__file__).resolve().parents[2]
 RECLASSIFIED_PUBLISHER_BASENAMES = (
     "test_hooks.py",
     "test_codex_hooks.py",
-    "test_ruff_silence_rules.py",
 )
 
 

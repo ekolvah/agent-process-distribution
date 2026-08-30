@@ -41,8 +41,6 @@ root_only_paths:
     reason: Reclassified publisher-only (issue #20) — exercises scripts/hooks.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_codex_hooks.py
     reason: Reclassified publisher-only (issue #20) — exercises scripts/codex_hooks.py, byte-static across renders and not owed to consumers as a separate copy.
-  - path: tests/publisher/test_ruff_silence_rules.py
-    reason: Reclassified publisher-only (issue #20) — exercises this repository's own pyproject.toml ruff-silence list, not a rendered consumer's.
 expected_difference_paths:
   - path: scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.
