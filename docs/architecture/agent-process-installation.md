@@ -180,9 +180,11 @@ conflict marker in one report, and exits non-zero without changing the target.
 A passing report can be applied with `install` (first adoption) or `update`
 (a prior reserved install). The ownership manifest records each installed path,
 so an update may replace only that exact path; a consumer-created future path
-remains a collision. The only safe full-file destinations are
-`.agent-process/**` and `.github/workflows/agent-process-*.yml`; product
-configuration stays consumer-owned. The three callers retain the composed
+remains a collision. Process-exclusive `.agents/**`, `.codex/**`,
+`.githooks/**`, and `scripts/**` may install only after the same collision
+preflight; additive/reserved destinations are `.agent-process/**` and
+`.github/workflows/agent-process-*.yml`. Product configuration stays
+consumer-owned. The three callers retain the composed
 contexts `quality / quality`, `pr-link / pr-link`, and `agent-review / agent-review`
 without replacing a consumer's own workflow files.
 

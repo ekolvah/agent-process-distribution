@@ -24,6 +24,8 @@ class PreflightReport:
 CONFLICT_MARKERS = _Markers()
 _OWNERSHIP_FILE = ".agent-process/ownership.json"
 _RESERVED_PREFIXES = (".agent-process/", ".github/workflows/agent-process-")
+_PROCESS_EXCLUSIVE_PREFIXES = (".agents/", ".codex/", ".githooks/", "scripts/")
+_ALLOWED_PREFIXES = _RESERVED_PREFIXES + _PROCESS_EXCLUSIVE_PREFIXES
 _UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
 
 
@@ -34,9 +36,7 @@ def preflight(
     collisions = tuple(
         relative
         for relative, content in sorted(payload.items())
-        if (existing := destination / relative).is_file()
-        and existing.read_bytes() != content
-        and relative not in owned_paths
+        if _path_conflicts(destination, relative, content, owned_paths)
     )
     return PreflightReport(collisions)
 
@@ -76,7 +76,7 @@ def _validate_payload(payload: dict[str, bytes]) -> None:
         for relative in payload
         if Path(relative).is_absolute()
         or ".." in Path(relative).parts
-        or not relative.startswith(_RESERVED_PREFIXES)
+        or not relative.startswith(_ALLOWED_PREFIXES)
     )
     if invalid:
         raise ValueError("payload has non-reserved destination(s): " + ", ".join(invalid))
@@ -95,7 +95,7 @@ def _unresolved(destination: Path) -> tuple[str, ...]:
             content = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        if any(marker in content for marker in _UNRESOLVED_MARKERS):
+        if any(line.startswith(_UNRESOLVED_MARKERS) for line in content.splitlines()):
             problems.append(relative)
     return tuple(sorted(problems))
 
@@ -141,6 +141,21 @@ def _atomic_write(path: Path, content: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _path_conflicts(
+    destination: Path, relative: str, content: bytes, owned_paths: frozenset[str]
+) -> bool:
+    """Whether a path or one of its parents prevents an atomic payload write."""
+    path = destination / relative
+    if path.exists() and not path.is_file():
+        return True
+    parent = path.parent
+    while parent != destination:
+        if parent.exists() and not parent.is_dir():
+            return True
+        parent = parent.parent
+    return path.is_file() and path.read_bytes() != content and relative not in owned_paths
+
+
 def _payload_from_directory(directory: Path) -> dict[str, bytes]:
     return {
         path.relative_to(directory).as_posix(): path.read_bytes()
@@ -150,14 +165,14 @@ def _payload_from_directory(directory: Path) -> dict[str, bytes]:
 
 
 def stage_payload(directory: Path) -> dict[str, bytes]:
-    """Relocate a normal Copier render into the two process-owned namespaces."""
+    """Relocate a normal render while retaining declared process-exclusive paths."""
     staged: dict[str, bytes] = {}
     for relative, content in _payload_from_directory(directory).items():
         if relative == ".copier-answers.yml":
             continue
         destination = (
             relative
-            if relative.startswith(".github/workflows/agent-process-")
+            if relative.startswith(_ALLOWED_PREFIXES)
             else f".agent-process/payload/{relative}"
         )
         staged[destination] = content
@@ -178,9 +193,7 @@ def main() -> int:
         print(str(exc))
         return 1
     report = preflight(args.destination, payload, owned_paths=owned_paths)
-    invalid = sorted(
-        relative for relative in payload if not relative.startswith(_RESERVED_PREFIXES)
-    )
+    invalid = sorted(relative for relative in payload if not relative.startswith(_ALLOWED_PREFIXES))
     unresolved = _unresolved(args.destination)
     if invalid or report.collisions or unresolved:
         print("adoption preflight rejected; destination was not changed:")
