@@ -167,17 +167,20 @@ for the full publisher/consumer split.
 
 Do not use `copier copy --force` against a non-empty repository. It can replace
 product CI, dependency, ignore, or contributor files before an operator can
-review the remaining conflicts. Stage the release's reserved payload, then run
-the adoption preflight before making any write:
+review the remaining conflicts. Render the release into a disposable staging
+directory, then run the adoption preflight before making any write:
 
 ```bash
 python scripts/adopt_agent_process.py preflight <target-repository> <staged-payload>
 ```
 
-The command inventories every collision, `.rej` file, and inline conflict
-marker in one report and exits non-zero without changing the target. A passing
-report can be applied with `install` (first adoption) or `update` (a prior
-reserved install). The only safe full-file destinations are
+The command relocates the normal render into its reserved payload before it
+inspects the target, inventories every collision, `.rej` file, and inline
+conflict marker in one report, and exits non-zero without changing the target.
+A passing report can be applied with `install` (first adoption) or `update`
+(a prior reserved install). The ownership manifest records each installed path,
+so an update may replace only that exact path; a consumer-created future path
+remains a collision. The only safe full-file destinations are
 `.agent-process/**` and `.github/workflows/agent-process-*.yml`; product
 configuration stays consumer-owned. The three callers retain the composed
 contexts `quality / quality`, `pr-link / pr-link`, and `agent-review / agent-review`

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import tempfile
 from dataclasses import dataclass
@@ -21,17 +22,21 @@ class PreflightReport:
 
 
 CONFLICT_MARKERS = _Markers()
-_OWNERSHIP_FILE = ".agent-process/ownership.yml"
+_OWNERSHIP_FILE = ".agent-process/ownership.json"
 _RESERVED_PREFIXES = (".agent-process/", ".github/workflows/agent-process-")
 _UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
 
 
-def preflight(destination: Path, payload: dict[str, bytes]) -> PreflightReport:
+def preflight(
+    destination: Path, payload: dict[str, bytes], *, owned_paths: frozenset[str] = frozenset()
+) -> PreflightReport:
     """Inventory every foreign payload path without changing ``destination``."""
     collisions = tuple(
         relative
         for relative, content in sorted(payload.items())
-        if (existing := destination / relative).is_file() and existing.read_bytes() != content
+        if (existing := destination / relative).is_file()
+        and existing.read_bytes() != content
+        and relative not in owned_paths
     )
     return PreflightReport(collisions)
 
@@ -95,8 +100,18 @@ def _unresolved(destination: Path) -> tuple[str, ...]:
     return tuple(sorted(problems))
 
 
-def _is_prior_install(destination: Path) -> bool:
-    return (destination / _OWNERSHIP_FILE).is_file()
+def _owned_paths(destination: Path) -> frozenset[str]:
+    path = destination / _OWNERSHIP_FILE
+    if not path.is_file():
+        return frozenset()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"unreadable ownership manifest: {path}") from exc
+    paths = data.get("paths") if isinstance(data, dict) else None
+    if not isinstance(paths, list) or not all(isinstance(item, str) for item in paths):
+        raise ValueError(f"malformed ownership manifest: {path}")
+    return frozenset(paths)
 
 
 def _apply(destination: Path, payload: dict[str, bytes], *, updating: bool) -> None:
@@ -104,16 +119,15 @@ def _apply(destination: Path, payload: dict[str, bytes], *, updating: bool) -> N
     unresolved = _unresolved(destination)
     if unresolved:
         raise ValueError("unresolved Copier conflict artifact(s): " + ", ".join(unresolved))
-    report = preflight(destination, payload)
+    owned_paths = _owned_paths(destination) if updating else frozenset()
+    report = preflight(destination, payload, owned_paths=owned_paths)
     collisions = report.collisions
-    if updating and _is_prior_install(destination):
-        collisions = tuple(
-            relative for relative in collisions if not relative.startswith(_RESERVED_PREFIXES)
-        )
     if collisions:
         raise ValueError("payload collides with consumer-owned file(s): " + ", ".join(collisions))
     for relative, content in sorted(payload.items()):
         _atomic_write(destination / relative, content)
+    manifest = json.dumps({"paths": sorted(payload)}, indent=2) + "\n"
+    _atomic_write(destination / _OWNERSHIP_FILE, manifest.encode("utf-8"))
 
 
 def _atomic_write(path: Path, content: bytes) -> None:
@@ -136,8 +150,18 @@ def _payload_from_directory(directory: Path) -> dict[str, bytes]:
 
 
 def stage_payload(directory: Path) -> dict[str, bytes]:
-    """Return a release payload (implemented by the blocking-finding fix)."""
-    return _payload_from_directory(directory)
+    """Relocate a normal Copier render into the two process-owned namespaces."""
+    staged: dict[str, bytes] = {}
+    for relative, content in _payload_from_directory(directory).items():
+        if relative == ".copier-answers.yml":
+            continue
+        destination = (
+            relative
+            if relative.startswith(".github/workflows/agent-process-")
+            else f".agent-process/payload/{relative}"
+        )
+        staged[destination] = content
+    return staged
 
 
 def main() -> int:
@@ -147,8 +171,13 @@ def main() -> int:
     parser.add_argument("destination", type=Path)
     parser.add_argument("payload", type=Path, help="directory containing the release payload")
     args = parser.parse_args()
-    payload = _payload_from_directory(args.payload)
-    report = preflight(args.destination, payload)
+    payload = stage_payload(args.payload)
+    try:
+        owned_paths = _owned_paths(args.destination) if args.operation == "update" else frozenset()
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    report = preflight(args.destination, payload, owned_paths=owned_paths)
     invalid = sorted(
         relative for relative in payload if not relative.startswith(_RESERVED_PREFIXES)
     )
