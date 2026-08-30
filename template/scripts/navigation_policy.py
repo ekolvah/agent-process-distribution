@@ -218,7 +218,7 @@ def navigation_hint(command: str) -> str | None:
 # Derived from a measurement over the 203 tracked files on 2026-08-15, not from taste. The
 # text corpus ran p50/p75/p90/p95 = 6457 / 13311 / 25694 / 41000 bytes; `principles.md` (16108)
 # and `testing.md` (24113) are the two documents this repository orders read *whole*, and the
-# smallest driver of the incident below was `tests/test_agent_orchestrator.py` (31410). 28000
+# smallest driver of the incident below was `tests/agent_process/test_agent_orchestrator.py` (31410). 28000
 # is the corridor between them: above everything prescribed whole, below every driver. A
 # 16000 threshold was rejected for missing `principles.md` by 108 bytes — pure friction on the
 # hottest agent route, saving nothing, since that content is prescribed in full.

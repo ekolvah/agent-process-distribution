@@ -13,28 +13,34 @@ root_only_paths:
     reason: Publisher-owned reusable workflow; payload ships only its caller.
   - path: template-drift-allowlist.yml
     reason: Source-specific input data for the future drift gate.
-  - path: tests/test_project_bootstrap_template.py
+  - path: tests/publisher/test_project_bootstrap_template.py
     reason: Exercises this repository's Copier source, not a rendered consumer.
-  - path: tests/conftest.py
+  - path: tests/publisher/conftest.py
     reason: Caches Copier renders for source-repository integration tests.
-  - path: tests/test_self_installed_process.py
+  - path: tests/publisher/test_self_installed_process.py
     reason: Verifies this repository's self-application rather than consumer behavior.
-  - path: tests/test_template_drift.py
+  - path: tests/publisher/test_template_drift.py
     reason: Reserved for the root-only drift gate in issue #6.
   - path: docs/adr/0013-template-source-self-hosting.md
     reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
   - path: copier.yml
     reason: Defines this repository's Copier source; consumers receive only its rendered payload.
-  - path: tests/test_agent_review_outcome.py
+  - path: tests/publisher/test_agent_review_outcome.py
     reason: Verifies publisher review-evidence parsing rather than a rendered consumer.
-  - path: tests/test_blocking_review_threads.py
+  - path: tests/publisher/test_blocking_review_threads.py
     reason: Verifies publisher review-thread enforcement rather than a rendered consumer.
-  - path: tests/test_request_codex_review.py
+  - path: tests/publisher/test_request_codex_review.py
     reason: Verifies publisher Codex-review dispatch rather than a rendered consumer.
-  - path: tests/test_reusable_workflows.py
+  - path: tests/publisher/test_reusable_workflows.py
     reason: Verifies publisher-owned reusable workflows rather than consumer callers.
-  - path: tests/test_workflow_references.py
+  - path: tests/publisher/test_workflow_references.py
     reason: Verifies publisher workflow pins rather than rendered consumer behavior.
+  - path: tests/publisher/test_test_suite_ownership.py
+    reason: Verifies the publisher/consumer test-suite split itself (issue #20), not a rendered consumer.
+  - path: tests/publisher/test_hooks.py
+    reason: Reclassified publisher-only (issue #20) — exercises scripts/hooks.py, byte-static across renders and not owed to consumers as a separate copy.
+  - path: tests/publisher/test_codex_hooks.py
+    reason: Reclassified publisher-only (issue #20) — exercises scripts/codex_hooks.py, byte-static across renders and not owed to consumers as a separate copy.
 expected_difference_paths:
   - path: scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.
