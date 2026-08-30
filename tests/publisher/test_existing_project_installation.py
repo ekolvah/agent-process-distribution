@@ -116,6 +116,14 @@ def test_normal_render_stages_an_installable_reserved_payload(tmp_path: Path) ->
 
     staged = stage_payload(rendered)
 
-    assert staged[".agent-process/payload/scripts/issue_branch.py"] == b"process entrypoint\n"
+    assert staged["scripts/issue_branch.py"] == b"process entrypoint\n"
     assert staged[".agent-process/payload/docs/agent-process.md"] == b"process docs\n"
     assert staged[".github/workflows/agent-process-quality.yml"] == b"jobs: {quality: {}}\n"
+
+
+def test_preflight_rejects_a_directory_at_a_payload_file_path(tmp_path: Path) -> None:
+    (tmp_path / ".agent-process/payload/entry.py").mkdir(parents=True)
+
+    report = preflight(tmp_path, {".agent-process/payload/entry.py": b"process\n"})
+
+    assert report.collisions == (".agent-process/payload/entry.py",)
