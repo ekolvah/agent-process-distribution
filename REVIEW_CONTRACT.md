@@ -35,11 +35,22 @@ Claude fallback PR-review carriers.
 - In the review body group findings by severity and state `Reviewed head SHA:`.
   If there are no findings, say so exactly in one line.
 - The PR author starts the Codex primary with `@codex review`; GitHub Actions
-  never writes that command. Codex posts a standard GitHub review whose inline
-  comments are the evidence for the current head SHA. A valid Codex result is
-  final for every changed path, including agent-process policy files; it never
-  requires a mandatory second review. If that evidence is absent or invalid,
-  the workflow calls Claude as the fallback carrier.
+  never writes that command. Codex's inline comments on its standard GitHub
+  review are evidence for the current head SHA. A clean issue comment is also
+  accepted only when the configured Codex reviewer posts the exact observed
+  clean marker first line and one `**Reviewed commit:**` label followed by a
+  10-hex SHA in backticks; that SHA must prefix the current full head, and the
+  comment must follow both the observed head transition and an eligible owner
+  request. Native reviews,
+  clean request reactions, and this narrow clean-comment transport are ordered
+  by their GitHub timestamps, so a later valid native finding overrides an
+  earlier clean comment; equal timestamps resolve to the stricter non-clean
+  outcome. A malformed current-head native review also invalidates every older
+  transport, so the gate waits or uses the fallback rather than passing stale
+  clean evidence. A valid Codex result is final for every changed path,
+  including agent-process policy files; it never requires a mandatory second
+  review. If that evidence is absent or invalid, the workflow calls Claude as
+  the fallback carrier.
 - The user-facing merge classes are **`BLOCKING`** and **`NON-BLOCKING`**.
   Every open Codex finding receives an automated reply with one of those exact
   labels. `BLOCKING` findings must be fixed and their conversations resolved

@@ -35,9 +35,18 @@ is the primary carrier, and Claude remains the fallback**.
 The workflow never posts the Codex command or enables Automatic reviews. It
 waits for Codex's standard GitHub review on the current PR head and translates
 native priorities into the shared contract: P0/P1 are blocking, P2 is
-should-fix, and P3 is nice-to-have. A valid Codex verdict is final for that
-head, including when the PR changes agent-process policy files. Only missing,
-stale, or malformed Codex evidence invokes Claude.
+should-fix, and P3 is nice-to-have. The observed clean connector comment is
+also a narrow accepted transport only when its configured reviewer identity,
+exact first-line marker, one `**Reviewed commit:**` label followed by one
+SHA-bound 10-hex value in backticks, eligible owner request, and
+head/request/comment timestamps all bind it to the current head. The gate
+orders valid native reviews, clean reactions, and clean comments by GitHub
+timestamp, with the stricter non-clean outcome winning an equal-time tie; no
+arbitrary bot prose can infer a clean result. A malformed current-head native
+review invalidates older clean transports instead of reviving a stale result.
+A valid Codex verdict is final for that head, including when the PR changes
+agent-process policy files. Only missing, stale, or malformed Codex evidence
+invokes Claude.
 
 The default branch still owns parsing, outcome enforcement, and the required
 workflow contract where the installed version is available. Human-only merge
@@ -62,8 +71,8 @@ Claude is not a mandatory second opinion on a valid Codex review.
 ### Confirmation
 
 `tests/test_request_codex_review.py` covers owner-session dispatch, native
-priority translation, current-head binding, clean owner reactions, and malformed
-evidence.
+priority translation, current-head binding, clean owner reactions, the
+SHA-bound clean-comment transport, timestamp precedence, and malformed evidence.
 `tests/test_reusable_workflows.py` checks that Codex is primary, Claude runs
 only after invalid or unavailable evidence, and enforcement executes from the
 trusted checkout.
