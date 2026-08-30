@@ -32,13 +32,19 @@ def _product(destination: Path) -> dict[str, bytes]:
 def _payload() -> dict[str, bytes]:
     return {
         ".github/workflows/agent-process-quality.yml": (
-            b"name: Agent process quality\non: [pull_request]\njobs:\n  quality:\n    uses: owner/process/.github/workflows/reusable-quality.yml@" + b"0" * 40 + b"\n"
+            b"name: Agent process quality\non: [pull_request]\njobs:\n  quality:\n    uses: owner/process/.github/workflows/reusable-quality.yml@"
+            + b"0" * 40
+            + b"\n"
         ),
         ".github/workflows/agent-process-pr-link.yml": (
-            b"name: Agent process PR link\non: [pull_request]\njobs:\n  pr-link:\n    uses: owner/process/.github/workflows/reusable-pr-link.yml@" + b"0" * 40 + b"\n"
+            b"name: Agent process PR link\non: [pull_request]\njobs:\n  pr-link:\n    uses: owner/process/.github/workflows/reusable-pr-link.yml@"
+            + b"0" * 40
+            + b"\n"
         ),
         ".github/workflows/agent-process-review.yml": (
-            b"name: Agent process review\non: [pull_request]\njobs:\n  agent-review:\n    uses: owner/process/.github/workflows/reusable-agent-review.yml@" + b"0" * 40 + b"\n"
+            b"name: Agent process review\non: [pull_request]\njobs:\n  agent-review:\n    uses: owner/process/.github/workflows/reusable-agent-review.yml@"
+            + b"0" * 40
+            + b"\n"
         ),
         ".agent-process/ownership.yml": b"version: 1\n",
     }
@@ -75,10 +81,16 @@ def test_process_callers_use_reserved_paths_without_replacing_product_ci(tmp_pat
     names = ("agent-process-quality.yml", "agent-process-pr-link.yml", "agent-process-review.yml")
     assert all((workflows / name).is_file() for name in names)
     callers = [yaml.safe_load((workflows / name).read_text(encoding="utf-8")) for name in names]
-    assert [next(iter(caller["jobs"])) for caller in callers] == ["quality", "pr-link", "agent-review"]
+    assert [next(iter(caller["jobs"])) for caller in callers] == [
+        "quality",
+        "pr-link",
+        "agent-review",
+    ]
 
 
-def test_shared_singleton_update_is_idempotent_and_preserves_surrounding_content(tmp_path: Path) -> None:
+def test_shared_singleton_update_is_idempotent_and_preserves_surrounding_content(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "AGENTS.md"
     path.write_text("# Product instructions\n", encoding="utf-8")
 

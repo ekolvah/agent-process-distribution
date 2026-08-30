@@ -17,7 +17,7 @@ def test_repository_carries_the_rendered_payload() -> None:
         ".agents/skills/implement-issue/SKILL.md",
         ".codex/hooks.json",
         ".claude/settings.json",
-        ".github/workflows/ci.yml",
+        ".github/workflows/agent-process-quality.yml",
         ".githooks/pre-push",
         "AGENTS.md",
         "docs/architecture/agent-process.md",

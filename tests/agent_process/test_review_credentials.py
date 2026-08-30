@@ -184,7 +184,7 @@ def test_documented_script_command_imports_from_a_checkout() -> None:
 
 
 def _assert_workflow_uses_the_preflight_secret(workflows: Path) -> None:
-    assert list(workflows.glob("agent-review.y*ml")), "no rendered review caller matched"
+    assert list(workflows.glob("agent-process-review.y*ml")), "no rendered review caller matched"
     references = credentials.workflow_secret_references(workflows)
     assert references, "rendered review caller has no explicit secrets. reference"
     assert {name.casefold() for name in references} == {credentials.REVIEW_SECRET.casefold()}
@@ -197,7 +197,7 @@ def test_workflow_and_script_name_the_same_secret() -> None:
 
 
 def test_inherited_secrets_mapping_is_red(tmp_path: Path) -> None:
-    workflow = tmp_path / "agent-review.yml"
+    workflow = tmp_path / "agent-process-review.yml"
     workflow.write_text("jobs:\n  agent-review:\n    secrets: inherit\n", encoding="utf-8")
 
     with pytest.raises(AssertionError, match="no explicit secrets"):

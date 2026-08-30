@@ -83,9 +83,15 @@ def test_rendered_project_ships_thin_required_context_callers(rendered_default: 
     workflows = destination / ".github" / "workflows"
     contexts = tuple(answers["required_status_contexts"])
 
-    assert {"ci.yml", "pr-link.yml", "agent-review.yml"} <= {p.name for p in workflows.iterdir()}
+    assert {
+        "agent-process-quality.yml",
+        "agent-process-pr-link.yml",
+        "agent-process-review.yml",
+    } <= {p.name for p in workflows.iterdir()}
     for context, filename in zip(
-        contexts, ("ci.yml", "pr-link.yml", "agent-review.yml"), strict=True
+        contexts,
+        ("agent-process-quality.yml", "agent-process-pr-link.yml", "agent-process-review.yml"),
+        strict=True,
     ):
         job_key = context.split(" / ", 1)[0]
         job = _workflow(workflows / filename)["jobs"][job_key]
@@ -111,9 +117,9 @@ def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
     destination = rendered_default
     workflows = destination / ".github" / "workflows"
     callers = {
-        "quality": _workflow(workflows / "ci.yml")["jobs"]["quality"],
-        "pr-link": _workflow(workflows / "pr-link.yml")["jobs"]["pr-link"],
-        "agent-review": _workflow(workflows / "agent-review.yml")["jobs"]["agent-review"],
+        "quality": _workflow(workflows / "agent-process-quality.yml")["jobs"]["quality"],
+        "pr-link": _workflow(workflows / "agent-process-pr-link.yml")["jobs"]["pr-link"],
+        "agent-review": _workflow(workflows / "agent-process-review.yml")["jobs"]["agent-review"],
     }
     for name, job in callers.items():
         reference = job["uses"]
@@ -128,9 +134,9 @@ def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
 def test_rendered_review_caller_uses_owner_requested_codex_review(
     rendered_default: Path,
 ) -> None:
-    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-review.yml")["jobs"][
-        "agent-review"
-    ]
+    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-process-review.yml")[
+        "jobs"
+    ]["agent-review"]
 
     assert caller["secrets"] == {
         "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"

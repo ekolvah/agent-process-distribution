@@ -163,6 +163,32 @@ silently overwritten. See
 [`agent-process.md`'s "Test suite ownership"](agent-process.md#test-suite-ownership)
 for the full publisher/consumer split.
 
+## Established-project adoption
+
+Do not use `copier copy --force` against a non-empty repository. It can replace
+product CI, dependency, ignore, or contributor files before an operator can
+review the remaining conflicts. Stage the release's reserved payload, then run
+the adoption preflight before making any write:
+
+```bash
+python scripts/adopt_agent_process.py preflight <target-repository> <staged-payload>
+```
+
+The command inventories every collision, `.rej` file, and inline conflict
+marker in one report and exits non-zero without changing the target. A passing
+report can be applied with `install` (first adoption) or `update` (a prior
+reserved install). The only safe full-file destinations are
+`.agent-process/**` and `.github/workflows/agent-process-*.yml`; product
+configuration stays consumer-owned. The three callers retain the composed
+contexts `quality / quality`, `pr-link / pr-link`, and `agent-review / agent-review`
+without replacing a consumer's own workflow files.
+
+An unavoidable shared text file uses one explicit `<!-- agent-process:begin -->`
+through `<!-- agent-process:end -->` fragment. Duplicate or malformed markers
+are a conflict, not an opportunity for automatic recovery. Perform adoption or
+an update on a clean branch and submit its resulting diff for review. Remote
+branch-protection changes remain the separate responsibility of issue #18.
+
 ## Incomplete activation
 
 If bootstrap exits with an error, the process remains inactive: its prior
