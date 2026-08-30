@@ -187,7 +187,8 @@ An unavoidable shared text file uses one explicit `<!-- agent-process:begin -->`
 through `<!-- agent-process:end -->` fragment. Duplicate or malformed markers
 are a conflict, not an opportunity for automatic recovery. Perform adoption or
 an update on a clean branch and submit its resulting diff for review. Remote
-branch-protection changes remain the separate responsibility of issue #18.
+branch-protection changes remain the separate responsibility of
+[issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18).
 
 ## Incomplete activation
 

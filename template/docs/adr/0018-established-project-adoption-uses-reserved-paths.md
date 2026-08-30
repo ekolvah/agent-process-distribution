@@ -13,6 +13,14 @@ The Copier payload began as a root overlay. In an established repository,
 request guidance, and agent instructions. Copier conflict handling is not a
 transaction: an update can leave `.rej` files or inline conflict markers.
 
+## Considered Options
+
+* Keep the whole-root Copier overlay and rely on its interactive prompts.
+* Skip colliding files and require manual integration after every release.
+* Build a generic syntax-aware merger for YAML, TOML, and text files.
+* Reserve dedicated process paths, preflight collisions, and permit only an
+  explicitly delimited fragment for a named shared text file.
+
 ## Decision Outcome
 
 The distribution owns only `.agent-process/**` and
