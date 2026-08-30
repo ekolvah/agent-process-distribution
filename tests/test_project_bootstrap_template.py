@@ -267,6 +267,24 @@ def test_create_mode_links_fields_and_persists_real_ids(
     assert 'PROJECT_ID = "project-7"' in settings
     assert "priority-high" in settings
     assert "status-progress" in settings
+
+    settings_path = destination / "scripts" / "project_settings.py"
+    spec = importlib.util.spec_from_file_location("generated_project_settings", settings_path)
+    assert spec is not None and spec.loader is not None
+    generated_settings = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generated_settings)
+    generated_settings.require_configured()
+
+    for name, value in (
+        ("PROJECT_ID", ""),
+        ("PRIORITY_OPTION_IDS", {"high": "priority-high"}),
+        ("STATUS_OPTION_IDS", {"planned": "status-planned"}),
+    ):
+        with monkeypatch.context() as corrupted:
+            corrupted.setattr(generated_settings, name, value)
+            with pytest.raises(RuntimeError, match="bootstrap is incomplete"):
+                generated_settings.require_configured()
+
     assert [
         "gh",
         "project",
