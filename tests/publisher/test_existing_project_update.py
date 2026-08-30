@@ -44,3 +44,18 @@ def test_successful_update_is_idempotent(tmp_path: Path) -> None:
     update_payload(tmp_path, payload)
 
     assert entry.read_bytes() == first
+
+
+def test_update_does_not_treat_scanner_source_as_an_inline_conflict(tmp_path: Path) -> None:
+    payload = {
+        ".agent-process/payload/scripts/adopt_agent_process.py": (
+            b'_UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")\n'
+        )
+    }
+    install_payload(tmp_path, payload)
+
+    update_payload(tmp_path, payload)
+
+    assert (
+        tmp_path / ".agent-process/payload/scripts/adopt_agent_process.py"
+    ).read_bytes() == payload[".agent-process/payload/scripts/adopt_agent_process.py"]
