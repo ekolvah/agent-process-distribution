@@ -135,6 +135,11 @@ def _payload_from_directory(directory: Path) -> dict[str, bytes]:
     }
 
 
+def stage_payload(directory: Path) -> dict[str, bytes]:
+    """Return a release payload (implemented by the blocking-finding fix)."""
+    return _payload_from_directory(directory)
+
+
 def main() -> int:
     """Run an explicit, reviewable adoption operation from a staged payload."""
     parser = argparse.ArgumentParser(description=__doc__)

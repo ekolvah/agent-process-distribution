@@ -10,6 +10,7 @@ from scripts.adopt_agent_process import (
     CONFLICT_MARKERS,
     install_payload,
     preflight,
+    stage_payload,
     update_managed_fragment,
 )
 
@@ -101,3 +102,20 @@ def test_shared_singleton_update_is_idempotent_and_preserves_surrounding_content
     assert path.read_text(encoding="utf-8") == first
     assert first.startswith("# Product instructions\n")
     assert all(marker in first for marker in CONFLICT_MARKERS.managed)
+
+
+def test_normal_render_stages_an_installable_reserved_payload(tmp_path: Path) -> None:
+    rendered = tmp_path / "rendered"
+    (rendered / "scripts").mkdir(parents=True)
+    (rendered / "docs").mkdir()
+    (rendered / ".github/workflows").mkdir(parents=True)
+    (rendered / "scripts/issue_branch.py").write_bytes(b"process entrypoint\n")
+    (rendered / "docs/agent-process.md").write_bytes(b"process docs\n")
+    caller = rendered / ".github/workflows/agent-process-quality.yml"
+    caller.write_bytes(b"jobs: {quality: {}}\n")
+
+    staged = stage_payload(rendered)
+
+    assert staged[".agent-process/payload/scripts/issue_branch.py"] == b"process entrypoint\n"
+    assert staged[".agent-process/payload/docs/agent-process.md"] == b"process docs\n"
+    assert staged[".github/workflows/agent-process-quality.yml"] == b"jobs: {quality: {}}\n"
