@@ -41,6 +41,25 @@ def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _resolve_pre_migration_baseline() -> str:
+    """The commit before issue #20's publisher/consumer test split.
+
+    A CI checkout of the PR alone is shallow and single-ref: it has neither a
+    local ``origin/main`` nor HEAD's own parent history, so plain
+    ``git merge-base`` cannot find a common ancestor there. Unshallowing once
+    (a no-op on a local, already-complete checkout) fetches both, so the
+    two migration tests below run against the intended flat-layout baseline
+    instead of silently degrading to ``--vcs-ref ""`` (which copier accepts
+    as "no ref", i.e. the current worktree) when ``merge-base`` fails.
+    """
+    if _run(["git", "rev-parse", "--is-shallow-repository"], cwd=ROOT).stdout.strip() == "true":
+        completed = _run(["git", "fetch", "--unshallow", "origin"], cwd=ROOT)
+        assert completed.returncode == 0, completed.stdout + completed.stderr
+    completed = _run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    return completed.stdout.strip()
+
+
 def _git_commit_all(destination: Path) -> None:
     for command in (
         ["git", "init", "-q"],
@@ -105,7 +124,7 @@ def test_rendered_consumer_suite_passes(tmp_path: Path) -> None:
 
 
 def test_update_from_flat_layout_preserves_unrelated_product_tests(tmp_path: Path) -> None:
-    baseline = _run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT).stdout.strip()
+    baseline = _resolve_pre_migration_baseline()
     destination = tmp_path / "consumer"
     completed = _run(
         [
@@ -154,7 +173,7 @@ def test_update_from_flat_layout_preserves_unrelated_product_tests(tmp_path: Pat
 
 
 def test_reserved_consumer_test_path_collision_is_visible(tmp_path: Path) -> None:
-    baseline = _run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT).stdout.strip()
+    baseline = _resolve_pre_migration_baseline()
     destination = tmp_path / "consumer"
     completed = _run(
         [
