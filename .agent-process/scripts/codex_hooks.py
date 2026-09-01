@@ -12,7 +12,10 @@ try:
     from scripts.agent_policy import denied_reason
 except ModuleNotFoundError:  # documented direct script entry point
     from agent_policy import denied_reason
-from scripts.hooks import run_on_paths
+try:
+    from scripts.hooks import run_on_paths
+except ModuleNotFoundError:  # documented direct script entry point
+    from hooks import run_on_paths
 
 _PATCH_PATH = re.compile(r"^\*\*\* (?:Add|Update) File: (.+)$", re.MULTILINE)
 _MOVE_TO_PATH = re.compile(r"^\*\*\* Move to: (.+)$", re.MULTILINE)
