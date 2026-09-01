@@ -16,8 +16,12 @@ import re
 import time
 from collections.abc import Callable, Mapping, Sequence
 
-from scripts.check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
-from scripts.gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
+try:
+    from scripts.check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
+    from scripts.gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
+except ModuleNotFoundError:  # documented direct script entry point
+    from check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
+    from gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
 
 CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
 STANDARD_REVIEW_PARSER = True
