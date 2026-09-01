@@ -9,9 +9,9 @@ import yaml
 
 from scripts.adopt_agent_process import (
     CONFLICT_MARKERS,
+    _payload_from_directory,
     install_payload,
     preflight,
-    _payload_from_directory,
     update_managed_fragment,
 )
 

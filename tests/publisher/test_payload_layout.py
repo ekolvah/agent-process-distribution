@@ -7,7 +7,6 @@ from pathlib import Path
 
 from test_project_bootstrap_template import render
 
-
 _CLOSED_ROOT_FILES = frozenset(
     {
         ".github/workflows/ci.yml",

@@ -30,9 +30,9 @@ import tempfile
 from pathlib import Path
 
 import yaml
+from adopt_agent_process import _CLOSED_ROOT_FILES, _CLOSED_ROOT_PREFIXES
 
 _VOLATILE_ANSWER_KEYS = frozenset({"_src_path", "_commit"})
-from adopt_agent_process import _CLOSED_ROOT_FILES, _CLOSED_ROOT_PREFIXES
 
 
 def _load_answers_file(destination: Path) -> tuple[str, dict[str, object]]:
