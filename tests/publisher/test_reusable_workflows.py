@@ -190,7 +190,7 @@ def test_agent_review_requires_structured_review_evidence() -> None:
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
     assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]
     assert (
-        "check_blocking_review_threads"
+        "${{ steps.review-source.outputs.blocking_threads_invocation }}"
         in steps["Enforce unresolved blocking Codex conversations"]["run"]
     )
     assert "Diagnose Claude execution failure" in steps
@@ -286,6 +286,27 @@ def test_review_contract_location_is_feature_detected_on_a_default_branch_that_p
     assert "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" in selector
     assert "contract_path=trusted/REVIEW_CONTRACT.md" in selector
     assert "bootstrap fallback: default branch has no relocated review contract yet" in selector
+
+
+def test_blocking_threads_invocation_is_feature_detected_on_a_default_branch_that_predates_it() -> (
+    None
+):
+    steps = _steps("reusable-agent-review.yml")
+
+    selector = steps["Select trusted review source"]["run"]
+    assert (
+        "blocking_threads_invocation=python .agent-process/scripts/check_blocking_review_threads.py"
+        in selector
+    )
+    assert "blocking_threads_invocation=python -m scripts.check_blocking_review_threads" in selector
+    assert (
+        "bootstrap fallback: default branch has no relocated blocking-thread gate yet" in selector
+    )
+
+    assert (
+        "${{ steps.review-source.outputs.blocking_threads_invocation }}"
+        in steps["Enforce unresolved blocking Codex conversations"]["run"]
+    )
 
 
 def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> None:
