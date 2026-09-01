@@ -252,9 +252,14 @@ def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_p
     selector = steps["Select trusted review source"]["run"]
     assert "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" in selector
     assert "outcome_checker_path=scripts/check_agent_review_outcome.py" in selector
+    assert (
+        "outcome_checker_invocation=python .agent-process/scripts/check_agent_review_outcome.py"
+        in selector
+    )
+    assert "outcome_checker_invocation=python -m scripts.check_agent_review_outcome" in selector
     assert "bootstrap fallback: default branch has no relocated outcome checker yet" in selector
 
-    resolved = "${{ steps.review-source.outputs.outcome_checker_path }}"
+    invocation = "${{ steps.review-source.outputs.outcome_checker_invocation }}"
     for name in (
         "Classify Codex review outcome",
         "Classify Claude review outcome",
@@ -263,13 +268,14 @@ def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_p
         "Publish Claude fallback findings to the PR",
         "Enforce selected review outcome",
     ):
-        assert resolved in steps[name]["run"]
+        assert invocation in steps[name]["run"]
 
+    path = "${{ steps.review-source.outputs.outcome_checker_path }}"
     for name in (
         "Select Claude-diagnostic capability",
         "Select PR-comment publish capability",
     ):
-        assert f"trusted/{resolved}" in steps[name]["run"]
+        assert f"trusted/{path}" in steps[name]["run"]
 
 
 def test_review_contract_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
