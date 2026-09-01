@@ -41,9 +41,7 @@ def checkout(tmp_path: Path, *, root: Path = ROOT) -> Path:
                 visible = candidate in visible_paths or any(
                     path.startswith(candidate + "/") for path in visible_paths
                 )
-                if not visible and not any(
-                    part in CHECKOUT_IGNORES for part in (relative / name).parts
-                ):
+                if not visible or any(part in CHECKOUT_IGNORES for part in (relative / name).parts):
                     excluded.add(name)
             return excluded
 
@@ -316,9 +314,7 @@ def test_git_ignored_local_only_file_is_not_flagged(
 
 def test_orphaned_generated_copy_is_red(tmp_path: Path) -> None:
     source = checkout(tmp_path)
-    (
-        source / "template" / ".agent-process" / "tests" / "agent_process" / "test_review_gate.py"
-    ).unlink()
+    (source / "template" / "tests" / "agent_process" / "test_review_gate.py").unlink()
 
     report = template_drift.check(source)
 

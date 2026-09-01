@@ -238,7 +238,7 @@ class TestEvidence:
         Now that review works, keeping the exception would yield `escalate` on
         every agent-process PR.
         """
-        payload = _pr_payload(files=[{"path": ".github/workflows/agent-process-review.yml"}])
+        payload = _pr_payload(files=[{"path": ".github/workflows/agent-review.yml"}])
         monkeypatch.setattr(subprocess, "run", _gh_double(payload, _runs_payload(_ROUND_2)))
 
         verdict = evaluate(collect_evidence("465"), fixer_budget=3)

@@ -1,9 +1,11 @@
 """Structural ownership contract for the publisher/consumer test split (issue #20).
 
 Publisher-only tests live under ``tests/publisher/`` and never render to a
-consumer. Consumer tests originate under ``template/.agent-process/tests/agent_process/``
-and render below the reserved ``tests/agent_process/`` subtree. No process
-test may remain loose directly under either ``tests/`` root.
+consumer. Consumer tests originate under ``template/tests/agent_process/``
+(kept outside ``template/.agent-process/`` so ADR-0017's reserved subtree
+still renders unprefixed) and render below the reserved ``tests/agent_process/``
+subtree. No process test may remain loose directly under either ``tests/``
+root.
 """
 
 from __future__ import annotations
@@ -19,14 +21,6 @@ RECLASSIFIED_PUBLISHER_BASENAMES = (
     "test_hooks.py",
     "test_codex_hooks.py",
 )
-# main's tip immediately before issue #20's publisher/consumer split
-# (c89457c "ci: recognize current Codex clean-comment wording (#51)") — the
-# last commit with every process test loose under a flat tests/ root. Pinned
-# rather than computed via `git merge-base HEAD origin/main`: once this PR
-# merges, a later PR's origin/main already contains the split, so a dynamic
-# merge-base would silently resolve to an already-migrated commit and stop
-# exercising the flat-layout migration these tests exist to cover.
-_PRE_MIGRATION_BASELINE_SHA = "c89457c06915d403fe40fa92c1cd6838da53a899"  # pragma: allowlist secret
 
 
 def _direct_test_files(directory: Path) -> list[Path]:
@@ -49,46 +43,6 @@ def _run(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _resolve_pre_migration_baseline() -> str:
-    """Make ``_PRE_MIGRATION_BASELINE_SHA`` locally available and return it.
-
-    A CI checkout of the PR alone is shallow and single-ref: the pinned
-    commit's tree is absent locally until a full fetch brings in the rest of
-    main's history. The check below asks for the *tree* object specifically
-    (``<sha>^{tree}``), not just the commit object: a bare ``git fetch
-    --depth=1 origin <sha>`` (no destref) was found to leave the commit
-    object reachable while still omitting its tree/blob closure, so `copier`'s
-    internal `git checkout -f <sha>` failed with "unable to read tree" even
-    though the commit itself resolved. `git fetch --unshallow` pulls the full
-    history for every branch and was verified to leave the tree intact; its
-    result is asserted rather than swallowed, so the two migration tests below
-    run against the intended flat-layout baseline or fail loud, never a
-    silently wrong one.
-    """
-    tree_ref = f"{_PRE_MIGRATION_BASELINE_SHA}^{{tree}}"
-    if _run(["git", "cat-file", "-e", tree_ref], cwd=ROOT).returncode != 0:
-        is_shallow = _run(["git", "rev-parse", "--is-shallow-repository"], cwd=ROOT).stdout.strip()
-        fetch_command = (
-            ["git", "fetch", "--unshallow", "origin"]
-            if is_shallow == "true"
-            else [
-                "git",
-                "fetch",
-                "origin",
-            ]
-        )
-        completed = _run(fetch_command, cwd=ROOT)
-        assert completed.returncode == 0, completed.stdout + completed.stderr
-
-        completed = _run(["git", "cat-file", "-e", tree_ref], cwd=ROOT)
-        assert completed.returncode == 0, (
-            f"pinned baseline {_PRE_MIGRATION_BASELINE_SHA} tree still unavailable after fetch: "
-            + completed.stdout
-            + completed.stderr
-        )
-    return _PRE_MIGRATION_BASELINE_SHA
-
-
 def _git_commit_all(destination: Path) -> None:
     for command in (
         ["git", "init", "-q"],
@@ -103,14 +57,14 @@ def _git_commit_all(destination: Path) -> None:
 
 def test_every_process_test_has_exactly_one_physical_owner() -> None:
     loose_root = _direct_test_files(ROOT / "tests")
-    loose_template = _direct_test_files(ROOT / "template" / ".agent-process" / "tests")
+    loose_template = _direct_test_files(ROOT / "template" / "tests")
     assert loose_root == [], f"loose process test files directly under tests/: {loose_root}"
     assert loose_template == [], (
-        f"loose process test files directly under template/.agent-process/tests/: {loose_template}"
+        f"loose process test files directly under template/tests/: {loose_template}"
     )
     assert (ROOT / "tests" / "publisher").is_dir(), "tests/publisher/ must exist"
-    assert (ROOT / "template" / ".agent-process" / "tests" / "agent_process").is_dir(), (
-        "template/.agent-process/tests/agent_process/ must exist"
+    assert (ROOT / "template" / "tests" / "agent_process").is_dir(), (
+        "template/tests/agent_process/ must exist"
     )
 
 
@@ -148,79 +102,28 @@ def test_rendered_consumer_suite_passes(tmp_path: Path) -> None:
         "reserved consumer subtree must exist in the render"
     )
     _git_commit_all(destination)
-    completed = _run([sys.executable, "-m", "pytest", "-q"], cwd=destination)
-    assert completed.returncode == 0, completed.stdout + completed.stderr
-
-
-def test_update_from_flat_layout_preserves_unrelated_product_tests(tmp_path: Path) -> None:
-    baseline = _resolve_pre_migration_baseline()
-    destination = tmp_path / "consumer"
+    # A bare consumer render never gets a root pyproject.toml (issue #55
+    # criterion 6), so bare `pytest` has nothing to resolve `scripts.*`
+    # imports from. Invoke it the way `ci_check.py` itself does.
     completed = _run(
-        [
-            sys.executable,
-            "-m",
-            "copier",
-            "copy",
-            str(ROOT),
-            str(destination),
-            "--vcs-ref",
-            baseline,
-            "--defaults",
-            "--trust",
-            "-q",
-        ],
-        cwd=ROOT,
-    )
-    assert completed.returncode == 0, completed.stdout + completed.stderr
-
-    product_test = destination / "tests" / "test_my_product_feature.py"
-    product_test.write_text("def test_ok():\n    assert True\n", encoding="utf-8")
-    _git_commit_all(destination)
-
-    completed = _run(
-        [
-            sys.executable,
-            "-m",
-            "copier",
-            "update",
-            "--vcs-ref",
-            "HEAD",
-            "--defaults",
-            "--trust",
-            "--conflict",
-            "rej",
-            "-q",
-        ],
+        [sys.executable, "-m", "pytest", "-q", "-c", ".agent-process/pyproject.toml"],
         cwd=destination,
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
 
-    assert product_test.is_file()
-    assert product_test.read_text(encoding="utf-8") == "def test_ok():\n    assert True\n"
-    assert not (destination / "tests" / "test_adr_records.py").exists()
-    assert (destination / "tests" / "agent_process" / "test_adr_records.py").is_file()
+
+# `copier update` from the pre-`.agent-process/` flat layout to this
+# template's current layout is not exercised here: issue #55 criterion 11
+# states no such migration path is defined ("no adopter exists yet on the
+# old layout... only fresh `copier copy` is supported going in"), an
+# architect-reviewed, accepted scope boundary. A prior version of this test
+# asserted that update path across the exact `.agent-process/` relocation
+# boundary; it is removed rather than weakened to a moving, undocumented
+# intermediate pin, consistent with that accepted gap.
 
 
 def test_reserved_consumer_test_path_collision_is_visible(tmp_path: Path) -> None:
-    baseline = _resolve_pre_migration_baseline()
-    destination = tmp_path / "consumer"
-    completed = _run(
-        [
-            sys.executable,
-            "-m",
-            "copier",
-            "copy",
-            str(ROOT),
-            str(destination),
-            "--vcs-ref",
-            baseline,
-            "--defaults",
-            "--trust",
-            "-q",
-        ],
-        cwd=ROOT,
-    )
-    assert completed.returncode == 0, completed.stdout + completed.stderr
+    destination = render(tmp_path)
 
     colliding_dir = destination / "tests" / "agent_process"
     colliding_dir.mkdir(parents=True, exist_ok=True)
@@ -231,7 +134,7 @@ def test_reserved_consumer_test_path_collision_is_visible(tmp_path: Path) -> Non
     completed = _run(
         [
             sys.executable,
-            "scripts/check_consumer_test_collision.py",
+            ".agent-process/scripts/check_consumer_test_collision.py",
             str(destination),
             "--vcs-ref",
             "HEAD",

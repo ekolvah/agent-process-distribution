@@ -40,7 +40,10 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # Mapped Markdown directories; this project's own file-map document defines the canonical
 # boundary. `.claude/rules` is a Layer 1 (Claude adapter) directory: it only exists, and is
 # only scanned, when that adapter is installed.
-_SCOPED_DIRS = (_REPO_ROOT / "docs" / "architecture",)
+_SCOPED_DIRS = (
+    _REPO_ROOT / ".agent-process" / "docs" / "architecture",
+    _REPO_ROOT / ".claude" / "rules",
+)
 # English is the repository documentation language; the marker set is closed.
 _MARKERS = ("**Question this document answers:**",)
 

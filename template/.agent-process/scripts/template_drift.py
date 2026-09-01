@@ -26,7 +26,6 @@ REQUIRED_GENERATED_PATHS = frozenset(
 ROOT_ONLY_DIRECTORIES = frozenset(
     {
         ".claude-plugin",
-        ".claude",
         ".render-bootstrap-probe",
         "agents",
         "commands",

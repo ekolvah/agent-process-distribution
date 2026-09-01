@@ -17,23 +17,24 @@ ci_checks:
     name: pip-audit-dev
 -   function: check_requirements
     name: requirements
-claude_adapter_installed: false
-doc_guard_excluded_prefixes: []
+claude_adapter_installed: true
+doc_guard_excluded_prefixes:
+- template/
 fixture_routes:
 - stdin
 - github
 github_project_mode: create
 github_project_owner: '@me'
-github_project_title: my-project agent process
-github_repository: ''
+github_project_title: agent-process-distribution agent process
+github_repository: ekolvah/agent-process-distribution
 not_required_contexts: {}
-repo_name: my-project
+repo_name: agent-process-distribution
 required_status_contexts:
 - quality / quality
 - pr-link / pr-link
 - agent-review / agent-review
 workflow_references:
-    agent-review: ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@69db0363304b43a256deb02a0e2cbb11797118de
-    pr-link: ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@d3f6d238891dbaee6af10b18609e7e07f8901921
-    quality: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@d3f6d238891dbaee6af10b18609e7e07f8901921
+    agent-review: ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@4d079a58c1392d0de4e4a060fa33f8b9f4ebedeb
+    pr-link: ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@4d079a58c1392d0de4e4a060fa33f8b9f4ebedeb
+    quality: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@4d079a58c1392d0de4e4a060fa33f8b9f4ebedeb
 

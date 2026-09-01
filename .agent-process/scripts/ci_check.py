@@ -45,14 +45,45 @@ def _find_modules() -> list[str]:
     return modules
 
 
+_PROCESS_CONFIG = ".agent-process/pyproject.toml"
+_PROCESS_PATHS = [".agent-process", "tests/agent_process"]
+
+
+def _has_product_config() -> bool:
+    """Whether this checkout also carries its own root-level pyproject.toml.
+
+    A bare consumer render never gets one (criterion 6 of #55): the process
+    config alone covers it. The publisher's own self-hosted checkout, and an
+    adopted existing project (criterion 10), keep theirs — so their own
+    lint/test scope keeps running exactly as it did before the process
+    config moved under `.agent-process/`.
+    """
+    return Path("pyproject.toml").exists()
+
+
 def check_format() -> None:
     print("==> ruff format")
-    _run([sys.executable, "-m", "ruff", "format", "--check", "."])
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "format",
+            "--config",
+            _PROCESS_CONFIG,
+            "--check",
+            *_PROCESS_PATHS,
+        ]
+    )
+    if _has_product_config():
+        _run([sys.executable, "-m", "ruff", "format", "--check", "."])
 
 
 def check_lint() -> None:
     print("==> ruff lint")
-    _run([sys.executable, "-m", "ruff", "check", "."])
+    _run([sys.executable, "-m", "ruff", "check", "--config", _PROCESS_CONFIG, *_PROCESS_PATHS])
+    if _has_product_config():
+        _run([sys.executable, "-m", "ruff", "check", "."])
 
 
 # Captured third-party HTML kept as test fixtures: asset digests and cache-busting
@@ -126,7 +157,14 @@ def _secrets_cmd(files: list[str]) -> list[str]:
 
 def check_pytest() -> None:
     print("==> pytest")
-    _run([sys.executable, "-m", "pytest"])
+    # `-c` alone leaves rootdir at .agent-process/ (the ini file's own
+    # directory), so its rootdir-relative `testpaths` can't reach
+    # tests/agent_process/ at the checkout root; passing the path explicitly
+    # resolves it against the cwd instead and keeps template/'s same-named
+    # test modules out of collection.
+    _run([sys.executable, "-m", "pytest", "-c", _PROCESS_CONFIG, "tests/agent_process"])
+    if _has_product_config():
+        _run([sys.executable, "-m", "pytest"])
 
 
 def check_pip_audit() -> None:

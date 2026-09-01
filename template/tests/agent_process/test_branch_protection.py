@@ -42,7 +42,7 @@ from scripts.check_branch_protection import (
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
-_HOOK = _REPO_ROOT / ".githooks" / "pre-push"
+_HOOK = _REPO_ROOT / ".agent-process" / ".githooks" / "pre-push"
 
 
 class TestDriftDetection:

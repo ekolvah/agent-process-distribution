@@ -17,7 +17,7 @@ _CLOSED_ROOT_FILES = frozenset(
         ".gitignore",
     }
 )
-_CLOSED_ROOT_PREFIXES = (".agents/", ".claude/", ".codex/")
+_CLOSED_ROOT_PREFIXES = (".agents/", ".claude/", ".codex/", "tests/agent_process/")
 
 
 def _is_closed_root_path(relative: str) -> bool:

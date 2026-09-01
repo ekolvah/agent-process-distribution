@@ -54,7 +54,10 @@ class TestBuildBranchName:
         # past new_branch.py's guard and break the issue_branch→new_branch pipe.
         spec = importlib.util.spec_from_file_location(
             "scripts.new_branch",
-            Path(__file__).resolve().parent.parent.parent / "scripts" / "new_branch.py",
+            Path(__file__).resolve().parent.parent.parent
+            / ".agent-process"
+            / "scripts"
+            / "new_branch.py",
         )
         assert spec is not None and spec.loader is not None
         mod = importlib.util.module_from_spec(spec)
@@ -270,7 +273,9 @@ def _load_unconfigured_project_settings() -> ModuleType:
     start = Path(__file__).resolve()
     module_path = None
     for candidate in (start, *start.parents):
-        candidate_path = candidate / "template" / "scripts" / "project_settings.py"
+        candidate_path = (
+            candidate / "template" / ".agent-process" / "scripts" / "project_settings.py"
+        )
         if candidate_path.exists():
             module_path = candidate_path
             break

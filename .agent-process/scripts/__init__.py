@@ -1,1 +1,1 @@
-"""Dev/CI helper scripts for my-project (packaged so tests can import them)."""
+"""Dev/CI helper scripts for agent-process-distribution (packaged so tests can import them)."""

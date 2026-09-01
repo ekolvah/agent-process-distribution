@@ -19,8 +19,8 @@ from typing import Any
 MODE = "create"
 OWNER = "@me"
 EXISTING_NUMBER = ""
-PROJECT_TITLE = "my-project agent process"
-REPOSITORY = ""
+PROJECT_TITLE = "agent-process-distribution agent process"
+REPOSITORY = "ekolvah/agent-process-distribution"
 SETTINGS_PATH = Path(__file__).with_name("project_settings.py")
 
 

@@ -16,12 +16,7 @@ import yaml
 from scripts import ci_check
 from scripts.ci_check import _find_modules, _run, _tracked_files, run_selected
 
-_CI_YML = (
-    Path(__file__).resolve().parent.parent.parent
-    / ".github"
-    / "workflows"
-    / "agent-process-quality.yml"
-)
+_CI_YML = Path(__file__).resolve().parent.parent.parent / ".github" / "workflows" / "ci.yml"
 
 
 def _init_repo(tmp_path: Path) -> None:

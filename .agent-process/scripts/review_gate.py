@@ -55,7 +55,7 @@ except ModuleNotFoundError:  # documented direct script entry point
     from agent_orchestrator import load_catalog
     from check_branch_protection import REQUIRED_CONTEXTS, REVIEW_CONTEXT
 
-REVIEW_WORKFLOW_FILE = "agent-process-review.yml"
+REVIEW_WORKFLOW_FILE = "agent-review.yml"
 VERDICT_EXIT_CODES: dict[str, int] = {
     "ready-for-human": 0,
     "fix-blocking": 10,

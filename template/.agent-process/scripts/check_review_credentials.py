@@ -43,7 +43,7 @@ def codex_app_slug() -> str:
 def workflow_secret_references(workflows: Path) -> set[str]:
     """Return explicitly mapped repository-secret names from rendered callers."""
     references: set[str] = set()
-    for path in workflows.glob("agent-process-review.y*ml"):
+    for path in workflows.glob("agent-review.y*ml"):
         references.update(re.findall(r"secrets\.([A-Za-z0-9_]+)", path.read_text(encoding="utf-8")))
     return references
 

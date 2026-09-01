@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local enforcement is supplementary: GitHub branch protection is the final
-# barrier. `core.hooksPath .githooks` activates this hook after installation.
+# barrier. `core.hooksPath .agent-process/.githooks` activates this hook after installation.
 set -u
 
 if ! GIT_LOCAL_ENV_VARS=$(git rev-parse --local-env-vars); then
@@ -30,10 +30,10 @@ fi
 
 if [ "${BRANCH_PROTECTION_ALLOW_DRIFT+x}" = x ]; then
     # shellcheck disable=SC2086
-    $PY scripts/check_branch_protection.py --allow-drift "$BRANCH_PROTECTION_ALLOW_DRIFT" || exit $?
+    $PY .agent-process/scripts/check_branch_protection.py --allow-drift "$BRANCH_PROTECTION_ALLOW_DRIFT" || exit $?
 else
     # shellcheck disable=SC2086
-    $PY scripts/check_branch_protection.py || exit $?
+    $PY .agent-process/scripts/check_branch_protection.py || exit $?
 fi
 # shellcheck disable=SC2086
-$PY scripts/ci_check.py || exit $?
+$PY .agent-process/scripts/ci_check.py || exit $?

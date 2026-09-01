@@ -86,16 +86,13 @@ _ISSUE_REF = re.compile(r"(?<!\w)#\d+\b")
 # Opaque-zone placeholder: retains length so offsets remain accurate.
 _OPAQUE = "\x00"
 
-{% if claude_adapter_installed %}_EXPECTED_SCOPE_DIRS = (
-    "docs/architecture",
+_EXPECTED_SCOPE_DIRS = (
+    ".agent-process/docs/architecture",
     ".claude/rules",
 )
-{% else %}_EXPECTED_SCOPE_DIRS = ("docs/architecture",)
-{% endif -%}
-
 # See `test_doc_links.py`: a source repository can declare source-only documentation
 # prefixes without giving ordinary rendered projects a silent opt-out.
-_EXCLUDED_PREFIXES = tuple({{ doc_guard_excluded_prefixes | tojson }})
+_EXCLUDED_PREFIXES = tuple(["template/"])
 
 # Non-issue uses of the sigil: rule number and board number. The dictionary is **closed**—the exact
 # condition for rejecting the date branch (ledger **AC**) and selecting this one. It does not live only in
@@ -113,7 +110,7 @@ _NON_ISSUE_SIGIL = re.compile(r"(?:workflow(?:\.md)?|project)[`)\]*_]*\s+#\d", r
 
 # MADR records directory is outside scope by genre (docstring §Scope). Pinned by
 # `test_adr_records_are_out_of_scope`, so the carve-out remains conscious.
-_EXCLUDED_DIR = "docs/adr/"
+_EXCLUDED_DIR = ".agent-process/docs/adr/"
 
 
 def readable_stream(inline: Token) -> str:
@@ -253,7 +250,7 @@ class TestDocsCarryNoNarrative:
     def test_adr_records_are_out_of_scope(self) -> None:
         """The carve-out is conscious, not degenerate: MADR records exist and are outside scope."""
         result = subprocess.run(
-            ["git", "ls-files", "-z", "docs/adr"],
+            ["git", "ls-files", "-z", ".agent-process/docs/adr"],
             cwd=_REPO_ROOT,
             capture_output=True,
             text=True,

@@ -1,5 +1,5 @@
 <!--
-PR template for my-project. All sections are required.
+PR template for agent-process-distribution. All sections are required.
 
 The PR is a REPORT on the issue plan (what was actually done + evidence), not a copy of the
 issue. `Test plan` and `Docs touched` mirror the identically named issue sections as PLAN→FACT

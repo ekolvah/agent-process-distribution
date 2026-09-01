@@ -442,7 +442,7 @@ def test_timestamp_tie_prefers_blocking_native_evidence(
 
 def test_module_entry_point_runs_the_cli() -> None:
     result = subprocess.run(
-        [sys.executable, "-m", "scripts.request_codex_review", "--help"],
+        [sys.executable, ".agent-process/scripts/request_codex_review.py", "--help"],
         capture_output=True,
         check=False,
         encoding="utf-8",

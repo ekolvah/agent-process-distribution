@@ -256,7 +256,7 @@ class TestClaudeHookWiring:
         matching = [entry for entry in entries if entry.get("matcher") == "Bash"]
         assert len(matching) == 1
         commands = [hook["command"] for hook in matching[0]["hooks"]]
-        assert any(re.search(r"scripts\.hooks pre-bash", command) for command in commands)
+        assert any(re.search(r"hooks\.py pre-bash", command) for command in commands)
 
     def test_no_static_deny_shadows_the_hook(self) -> None:
         """A matching `permissions.deny` rule blocks before the hook runs, so a static
@@ -272,7 +272,7 @@ class TestClaudeHookWiring:
         matching = [entry for entry in entries if entry.get("matcher") == "Read"]
         assert len(matching) == 1
         commands = [hook["command"] for hook in matching[0]["hooks"]]
-        assert any(re.search(r"scripts\.hooks pre-read", command) for command in commands)
+        assert any(re.search(r"hooks\.py pre-read", command) for command in commands)
 
     def test_no_static_deny_shadows_the_read_hook(self) -> None:
         """A `Read(...)` deny rule would block before the hook runs and drop the budget
