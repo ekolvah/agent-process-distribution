@@ -66,7 +66,7 @@ workflow_references:
   type: yaml
   help: Complete reusable-workflow references, pinned to this Copier release (or local self-apply paths).
   default:
-    quality: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@2bdd924dca3626db3daca7cfbab843c50c0e26c9"
+    quality: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@99345da3a4249c64052743d19ef6af4a932afbd6"
     pr-link: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@2bdd924dca3626db3daca7cfbab843c50c0e26c9"
     agent-review: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@2bdd924dca3626db3daca7cfbab843c50c0e26c9"
 
