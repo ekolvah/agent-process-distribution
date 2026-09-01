@@ -10,9 +10,9 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 _PIN = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 _PUBLISHED_REVISIONS = {
-    "quality": "f6f446a801e71c6afe52e091c0112dd531a954e0",  # pragma: allowlist secret
-    "pr-link": "f6f446a801e71c6afe52e091c0112dd531a954e0",  # pragma: allowlist secret
-    "agent-review": "f6f446a801e71c6afe52e091c0112dd531a954e0",  # pragma: allowlist secret
+    "quality": "2bdd924dca3626db3daca7cfbab843c50c0e26c9",  # pragma: allowlist secret
+    "pr-link": "2bdd924dca3626db3daca7cfbab843c50c0e26c9",  # pragma: allowlist secret
+    "agent-review": "2bdd924dca3626db3daca7cfbab843c50c0e26c9",  # pragma: allowlist secret
 }
 
 
