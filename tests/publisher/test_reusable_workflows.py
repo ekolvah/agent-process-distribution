@@ -123,15 +123,14 @@ def test_quality_installs_product_dependencies_when_present() -> None:
     # fix only ever recognized requirements.txt (#57 fresh finding).
     assert "pyproject.toml" in step["run"]
     assert "pip install -e ." in step["run"]
-    # A consumer packaged via `setup.cfg`/`setup.py`, or a non-PEP-621
-    # `pyproject.toml` (e.g. Poetry, with no `[project]` table), still has no
-    # installation path: the earlier fix only recognized a literal `[project]`
-    # table, so `ci_check.py`'s broader product-scope detection (any of
-    # `_PRODUCT_CONFIG_FILES`) runs pytest against dependencies pip never
-    # installed (#57 fresh finding).
-    assert "setup.cfg" in step["run"]
-    assert "setup.py" in step["run"]
-    assert "grep" not in step["run"]
+    # Only a packaging-capable pyproject.toml (a literal `[project]` table)
+    # counts: this repository's own root pyproject.toml holds tool config
+    # only, with no installable package, and running `pip install -e .`
+    # against it fails setuptools' flat-layout auto-discovery (regression
+    # caught live on #57's own self-applied quality gate). setup.cfg/setup.py/
+    # Poetry-style pyproject.toml support is deferred to a dedicated issue.
+    assert "grep" in step["run"]
+    assert r"^\[project\]" in step["run"]
     names = list(steps)
     assert (
         names.index("Install consumer dependencies")
