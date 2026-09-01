@@ -47,18 +47,32 @@ def _find_modules() -> list[str]:
 
 _PROCESS_CONFIG = ".agent-process/pyproject.toml"
 _PROCESS_PATHS = [".agent-process", "tests/agent_process"]
+_PRODUCT_CONFIG_FILES = ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini")
 
 
-def _has_product_config() -> bool:
-    """Whether this checkout also carries its own root-level pyproject.toml.
+def _is_process_path(name: str) -> bool:
+    posix = PurePosixPath(name.replace("\\", "/"))
+    return any(
+        posix == PurePosixPath(prefix) or PurePosixPath(prefix) in posix.parents
+        for prefix in _PROCESS_PATHS
+    )
 
-    A bare consumer render never gets one (criterion 6 of #55): the process
-    config alone covers it. The publisher's own self-hosted checkout, and an
-    adopted existing project (criterion 10), keep theirs — so their own
-    lint/test scope keeps running exactly as it did before the process
-    config moved under `.agent-process/`.
+
+def _has_product_scope() -> bool:
+    """Whether this checkout has its own product test/lint scope to run.
+
+    A bare consumer render has neither a recognized product config file nor
+    any Python source outside `_PROCESS_PATHS` (criterion 6 of #55): the
+    process config alone covers it. The publisher's own self-hosted checkout,
+    and an adopted existing project (criterion 10), have one or the other —
+    so their own lint/test scope keeps running exactly as it did before the
+    process config moved under `.agent-process/`. A single config filename is
+    not a reliable proxy for either case: a consumer may use `pytest.ini` or
+    `setup.cfg`, or have product Python files with no config file at all.
     """
-    return Path("pyproject.toml").exists()
+    if any(Path(name).exists() for name in _PRODUCT_CONFIG_FILES):
+        return True
+    return any(not _is_process_path(name) for name in _find_modules())
 
 
 def check_format() -> None:
@@ -75,14 +89,14 @@ def check_format() -> None:
             *_PROCESS_PATHS,
         ]
     )
-    if _has_product_config():
+    if _has_product_scope():
         _run([sys.executable, "-m", "ruff", "format", "--check", "."])
 
 
 def check_lint() -> None:
     print("==> ruff lint")
     _run([sys.executable, "-m", "ruff", "check", "--config", _PROCESS_CONFIG, *_PROCESS_PATHS])
-    if _has_product_config():
+    if _has_product_scope():
         _run([sys.executable, "-m", "ruff", "check", "."])
 
 
@@ -163,7 +177,7 @@ def check_pytest() -> None:
     # resolves it against the cwd instead and keeps template/'s same-named
     # test modules out of collection.
     _run([sys.executable, "-m", "pytest", "-c", _PROCESS_CONFIG, "tests/agent_process"])
-    if _has_product_config():
+    if _has_product_scope():
         _run([sys.executable, "-m", "pytest"])
 
 

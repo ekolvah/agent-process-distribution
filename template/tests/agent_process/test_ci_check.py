@@ -14,7 +14,7 @@ import pytest
 import yaml
 
 from scripts import ci_check
-from scripts.ci_check import _find_modules, _run, _tracked_files, run_selected
+from scripts.ci_check import _find_modules, _has_product_scope, _run, _tracked_files, run_selected
 
 _CI_YML = Path(__file__).resolve().parent.parent.parent / ".github" / "workflows" / "ci.yml"
 
@@ -72,6 +72,64 @@ class TestStepParity:
         run_selected()
 
         assert called == ["first", "second"]
+
+
+class TestHasProductScope:
+    """`_has_product_scope()` decides whether the bare product ruff/pytest pass
+    runs at all. A bare consumer render (nothing but the rendered process
+    payload) must read as no scope; anything with product configuration or
+    product source outside `_PROCESS_PATHS` must read as having scope — even
+    when the consumer uses a config filename other than `pyproject.toml`
+    (`pytest.ini`, `setup.cfg`, `tox.ini`).
+    """
+
+    @staticmethod
+    def _bare_process_render(tmp_path: Path) -> None:
+        subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+        process = tmp_path / ".agent-process" / "scripts"
+        process.mkdir(parents=True)
+        (process / "ci_check.py").write_text("process = True\n", encoding="utf-8")
+        owned_test = tmp_path / "tests" / "agent_process"
+        owned_test.mkdir(parents=True)
+        (owned_test / "test_ci_check.py").write_text("owned = True\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+
+    def test_false_for_a_bare_render_with_only_reserved_process_paths(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bare_process_render(tmp_path)
+        monkeypatch.chdir(tmp_path)
+
+        assert _has_product_scope() is False
+
+    def test_true_when_root_pyproject_toml_exists(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bare_process_render(tmp_path)
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'p'\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        assert _has_product_scope() is True
+
+    @pytest.mark.parametrize("config_name", ["pytest.ini", "setup.cfg", "tox.ini"])
+    def test_true_for_a_non_pyproject_product_config_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config_name: str
+    ) -> None:
+        self._bare_process_render(tmp_path)
+        (tmp_path / config_name).write_text("[pytest]\n", encoding="utf-8")
+        monkeypatch.chdir(tmp_path)
+
+        assert _has_product_scope() is True
+
+    def test_true_when_a_product_python_file_exists_without_any_config_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._bare_process_render(tmp_path)
+        (tmp_path / "product.py").write_text("product = True\n", encoding="utf-8")
+        subprocess.run(["git", "add", "product.py"], cwd=tmp_path, check=True)
+        monkeypatch.chdir(tmp_path)
+
+        assert _has_product_scope() is True
 
 
 class TestFindModules:
