@@ -75,6 +75,18 @@ def _has_product_scope() -> bool:
     return any(not _is_process_path(name) for name in _find_modules())
 
 
+def _product_scope_excludes(flag: str) -> list[str]:
+    """Keep the bare product-scoped pass from re-touching `_PROCESS_PATHS`.
+
+    A consumer with no config of its own (no `testpaths`, no `exclude`)
+    would otherwise re-collect/re-lint `tests/agent_process` and
+    `.agent-process` under its own root config — which has neither the
+    process's `pythonpath` nor its formatting rules — producing failures
+    that have nothing to do with product code (#57 findings).
+    """
+    return [f"{flag}={path}" for path in _PROCESS_PATHS]
+
+
 def check_format() -> None:
     print("==> ruff format")
     _run(
@@ -90,14 +102,24 @@ def check_format() -> None:
         ]
     )
     if _has_product_scope():
-        _run([sys.executable, "-m", "ruff", "format", "--check", "."])
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "ruff",
+                "format",
+                "--check",
+                ".",
+                *_product_scope_excludes("--exclude"),
+            ]
+        )
 
 
 def check_lint() -> None:
     print("==> ruff lint")
     _run([sys.executable, "-m", "ruff", "check", "--config", _PROCESS_CONFIG, *_PROCESS_PATHS])
     if _has_product_scope():
-        _run([sys.executable, "-m", "ruff", "check", "."])
+        _run([sys.executable, "-m", "ruff", "check", ".", *_product_scope_excludes("--exclude")])
 
 
 # Captured third-party HTML kept as test fixtures: asset digests and cache-busting
@@ -178,7 +200,7 @@ def check_pytest() -> None:
     # test modules out of collection.
     _run([sys.executable, "-m", "pytest", "-c", _PROCESS_CONFIG, "tests/agent_process"])
     if _has_product_scope():
-        _run([sys.executable, "-m", "pytest"])
+        _run([sys.executable, "-m", "pytest", *_product_scope_excludes("--ignore")])
 
 
 def check_pip_audit() -> None:

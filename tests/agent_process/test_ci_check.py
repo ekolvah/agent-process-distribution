@@ -132,6 +132,60 @@ class TestHasProductScope:
         assert _has_product_scope() is True
 
 
+class TestProductScopeExcludesProcessPaths:
+    """The bare (unscoped) product-side pass must not re-touch `_PROCESS_PATHS`.
+
+    A consumer with no config of its own re-collects/re-lints
+    `tests/agent_process` and `.agent-process` under its own root config —
+    which has neither the process's `pythonpath` nor its formatting rules —
+    producing failures that have nothing to do with product code (#57
+    findings: the second `pytest` pass re-collected the process suite and
+    failed to import `scripts`)."""
+
+    @pytest.fixture(autouse=True)
+    def _force_product_scope(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(ci_check, "_has_product_scope", lambda: True)
+
+    @staticmethod
+    def _capture(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
+        calls: list[list[str]] = []
+        monkeypatch.setattr(ci_check, "_run", calls.append)
+        return calls
+
+    def test_bare_pytest_pass_ignores_the_process_paths(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls = self._capture(monkeypatch)
+
+        ci_check.check_pytest()
+
+        bare = calls[1]
+        assert "--ignore=.agent-process" in bare
+        assert "--ignore=tests/agent_process" in bare
+
+    def test_bare_format_pass_excludes_the_process_paths(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls = self._capture(monkeypatch)
+
+        ci_check.check_format()
+
+        bare = calls[1]
+        assert "--exclude=.agent-process" in bare
+        assert "--exclude=tests/agent_process" in bare
+
+    def test_bare_lint_pass_excludes_the_process_paths(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls = self._capture(monkeypatch)
+
+        ci_check.check_lint()
+
+        bare = calls[1]
+        assert "--exclude=.agent-process" in bare
+        assert "--exclude=tests/agent_process" in bare
+
+
 class TestFindModules:
     @staticmethod
     def _repository_with_mypy_candidates(tmp_path: Path) -> None:
