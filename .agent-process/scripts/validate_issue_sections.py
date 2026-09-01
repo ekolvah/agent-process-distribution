@@ -115,7 +115,7 @@ MIN_CONTENT_CHARS = 5
 
 _MD = MarkdownIt("commonmark")
 
-_ORCHESTRATION = Path(__file__).resolve().parents[1] / ".agents" / "orchestration"
+_ORCHESTRATION = Path(__file__).resolve().parents[2] / ".agents" / "orchestration"
 _ROLE_CATALOGUE = _ORCHESTRATION / "roles.yaml"
 _CHANGE_CLASS_CATALOGUE = _ORCHESTRATION / "change-classes.yaml"
 _REVIEWER_ROLE = "architect_reviewer"

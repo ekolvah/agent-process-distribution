@@ -17,7 +17,7 @@ from typing import Any
 
 import yaml
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 _DEFAULT_CATALOG = _REPO_ROOT / ".agents" / "orchestration" / "roles.yaml"
 _REQUIRED_ROLE_FIELDS = frozenset(
     {
