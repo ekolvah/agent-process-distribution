@@ -43,7 +43,7 @@ def render(tmp_path: Path, *data: str) -> Path:
 
 
 def bootstrap_module(destination: Path) -> ModuleType:
-    path = destination / "scripts" / "bootstrap_github_project.py"
+    path = destination / ".agent-process" / "scripts" / "bootstrap_github_project.py"
     spec = importlib.util.spec_from_file_location("bootstrap_github_project", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -59,7 +59,7 @@ def generated_suite_passes(destination: Path) -> None:
     for command in (
         ["git", "init"],
         ["git", "add", "--all"],
-        [sys.executable, "-m", "pytest", "-q"],
+        [sys.executable, "-m", "pytest", "-q", "-c", ".agent-process/pyproject.toml"],
     ):
         completed = subprocess.run(
             command,
@@ -84,13 +84,13 @@ def test_rendered_project_ships_thin_required_context_callers(rendered_default: 
     contexts = tuple(answers["required_status_contexts"])
 
     assert {
-        "agent-process-quality.yml",
-        "agent-process-pr-link.yml",
-        "agent-process-review.yml",
+        "ci.yml",
+        "pr-link.yml",
+        "agent-review.yml",
     } <= {p.name for p in workflows.iterdir()}
     for context, filename in zip(
         contexts,
-        ("agent-process-quality.yml", "agent-process-pr-link.yml", "agent-process-review.yml"),
+        ("ci.yml", "pr-link.yml", "agent-review.yml"),
         strict=True,
     ):
         job_key = context.split(" / ", 1)[0]
@@ -104,11 +104,11 @@ def test_rendered_project_ships_thin_required_context_callers(rendered_default: 
 def test_rendered_project_ships_the_standalone_review_contract(rendered_default: Path) -> None:
     destination = rendered_default
 
-    assert (destination / "REVIEW_CONTRACT.md").is_file()
-    assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (destination / "AGENTS.md").read_text(
+    assert (destination / ".agent-process" / "REVIEW_CONTRACT.md").is_file()
+    assert "[REVIEW_CONTRACT.md](.agent-process/REVIEW_CONTRACT.md)" in (destination / "AGENTS.md").read_text(
         encoding="utf-8"
     )
-    assert not (destination / "scripts" / "extract_review_prompt.py").exists()
+    assert not (destination / ".agent-process" / "scripts" / "extract_review_prompt.py").exists()
 
 
 def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
@@ -117,9 +117,9 @@ def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
     destination = rendered_default
     workflows = destination / ".github" / "workflows"
     callers = {
-        "quality": _workflow(workflows / "agent-process-quality.yml")["jobs"]["quality"],
-        "pr-link": _workflow(workflows / "agent-process-pr-link.yml")["jobs"]["pr-link"],
-        "agent-review": _workflow(workflows / "agent-process-review.yml")["jobs"]["agent-review"],
+        "quality": _workflow(workflows / "ci.yml")["jobs"]["quality"],
+        "pr-link": _workflow(workflows / "pr-link.yml")["jobs"]["pr-link"],
+        "agent-review": _workflow(workflows / "agent-review.yml")["jobs"]["agent-review"],
     }
     for name, job in callers.items():
         reference = job["uses"]
@@ -134,7 +134,7 @@ def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
 def test_rendered_review_caller_uses_owner_requested_codex_review(
     rendered_default: Path,
 ) -> None:
-    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-process-review.yml")[
+    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-review.yml")[
         "jobs"
     ]["agent-review"]
 
@@ -143,7 +143,7 @@ def test_rendered_review_caller_uses_owner_requested_codex_review(
     }
     assert "OPENAI_API_KEY" not in str(caller)
     installation = (
-        rendered_default / "docs" / "architecture" / "agent-process-installation.md"
+        rendered_default / ".agent-process" / "docs" / "architecture" / "agent-process-installation.md"
     ).read_text(encoding="utf-8")
     assert "@codex review" in installation
     assert "enable **Automatic reviews**" not in installation
@@ -152,7 +152,7 @@ def test_rendered_review_caller_uses_owner_requested_codex_review(
 def test_rendered_implementer_requests_codex_for_every_reviewed_head(
     rendered_default: Path,
 ) -> None:
-    process = (rendered_default / "docs" / "architecture" / "agent-process.md").read_text(
+    process = (rendered_default / ".agent-process" / "docs" / "architecture" / "agent-process.md").read_text(
         encoding="utf-8"
     )
     implementer = (
@@ -184,10 +184,10 @@ def test_create_mode_requires_explicit_confirmation_and_no_placeholder_ids(
 ) -> None:
     destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
 
-    settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
     assert "PVT_" not in settings
     assert "REPLACE_ME" not in settings
-    bootstrap = destination / "scripts" / "bootstrap_github_project.py"
+    bootstrap = destination / ".agent-process" / "scripts" / "bootstrap_github_project.py"
     completed = subprocess.run(
         [sys.executable, str(bootstrap)],
         cwd=destination,
@@ -213,7 +213,7 @@ def test_existing_mode_bakes_only_the_selected_project_number(tmp_path: Path) ->
         "existing_github_project_number=42",
     )
 
-    bootstrap = (destination / "scripts" / "bootstrap_github_project.py").read_text(
+    bootstrap = (destination / ".agent-process" / "scripts" / "bootstrap_github_project.py").read_text(
         encoding="utf-8"
     )
     assert 'MODE = "existing"' in bootstrap
@@ -227,7 +227,7 @@ def test_create_mode_links_fields_and_persists_real_ids(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
-    monkeypatch.syspath_prepend(str(destination / "scripts"))
+    monkeypatch.syspath_prepend(str(destination / ".agent-process" / "scripts"))
     bootstrap = bootstrap_module(destination)
     calls: list[list[str]] = []
     fields = {
@@ -267,14 +267,14 @@ def test_create_mode_links_fields_and_persists_real_ids(
 
     bootstrap.main(["--confirm-create"])
 
-    settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
     assert 'PROJECT_NUMBER = "7"' in settings
     assert 'PROJECT_OWNER = "octocat"' in settings
     assert 'PROJECT_ID = "project-7"' in settings
     assert "priority-high" in settings
     assert "status-progress" in settings
 
-    settings_path = destination / "scripts" / "project_settings.py"
+    settings_path = destination / ".agent-process" / "scripts" / "project_settings.py"
     spec = importlib.util.spec_from_file_location("generated_project_settings", settings_path)
     assert spec is not None and spec.loader is not None
     generated_settings = importlib.util.module_from_spec(spec)
@@ -396,7 +396,7 @@ def test_create_mode_rolls_back_a_project_when_activation_fails(
 
     assert exc.value.code == 1
     assert ["gh", "project", "delete", "7", "--owner", "@me"] in calls
-    settings = (destination / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
     assert 'PROJECT_ID = ""' in settings
     assert "did not activate" in capsys.readouterr().err
 
@@ -463,10 +463,10 @@ def test_rendered_runtime_scripts_do_not_refer_to_removed_project_answers(
     destination = rendered_default
 
     for path in (
-        destination / "scripts" / "set_issue_priority.py",
-        destination / "scripts" / "set_issue_status.py",
-        destination / "scripts" / "issue_branch.py",
-        destination / "scripts" / "validate_issue_sections.py",
+        destination / ".agent-process" / "scripts" / "set_issue_priority.py",
+        destination / ".agent-process" / "scripts" / "set_issue_status.py",
+        destination / ".agent-process" / "scripts" / "issue_branch.py",
+        destination / ".agent-process" / "scripts" / "validate_issue_sections.py",
     ):
         text = path.read_text(encoding="utf-8")
         assert "github_project_number" not in text

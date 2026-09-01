@@ -12,24 +12,24 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_repository_carries_the_rendered_payload() -> None:
     """Keep one representative artifact from every delivered process layer."""
     expected = (
-        ".copier-answers.yml",
+        ".agent-process/copier-answers.yml",
         ".agents/orchestration/roles.yaml",
         ".agents/skills/implement-issue/SKILL.md",
         ".codex/hooks.json",
         ".claude/settings.json",
-        ".github/workflows/agent-process-quality.yml",
-        ".githooks/pre-push",
+        ".github/workflows/ci.yml",
+        ".agent-process/.githooks/pre-push",
         "AGENTS.md",
-        "docs/architecture/agent-process.md",
-        "scripts/ci_check.py",
+        ".agent-process/docs/architecture/agent-process.md",
+        ".agent-process/scripts/ci_check.py",
     )
     missing = [path for path in expected if not (ROOT / path).is_file()]
     assert not missing, f"self-applied payload is missing: {', '.join(missing)}"
 
 
 def test_pytest_has_a_single_configuration_home() -> None:
-    """A bare pytest invocation needs the rendered root import path."""
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    """Consumer pytest configuration belongs to the process root."""
+    pyproject = (ROOT / ".agent-process" / "pyproject.toml").read_text(encoding="utf-8")
     assert not (ROOT / "pytest.ini").exists()
     assert "[tool.pytest.ini_options]" in pyproject
     assert 'pythonpath = ["."]' in pyproject
@@ -37,5 +37,7 @@ def test_pytest_has_a_single_configuration_home() -> None:
 
 def test_default_render_keeps_document_guards_enabled(rendered_default: Path) -> None:
     """Only the self-hosting answers exclude its template source from document guards."""
-    answers = yaml.safe_load((rendered_default / ".copier-answers.yml").read_text(encoding="utf-8"))
+    answers = yaml.safe_load(
+        (rendered_default / ".agent-process" / "copier-answers.yml").read_text(encoding="utf-8")
+    )
     assert answers["doc_guard_excluded_prefixes"] == []

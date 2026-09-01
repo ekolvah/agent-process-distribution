@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$(git rev-parse --show-toplevel)\" && python -m scripts.codex_hooks pre-tool",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && python .agent-process/scripts/codex_hooks.py pre-tool",
             "timeout": 30,
             "statusMessage": "Checking repository command policy"
           }
@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$(git rev-parse --show-toplevel)\" && python -m scripts.codex_hooks on-edit",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && python .agent-process/scripts/codex_hooks.py on-edit",
             "timeout": 30,
             "statusMessage": "Checking edited files"
           }

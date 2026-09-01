@@ -1,0 +1,39 @@
+# Managed by Copier. This in-tree build records its source path and selected answers.
+_commit: v0.1.1-35-gdf97f87
+_src_path: .
+agent_review_context: agent-review / agent-review
+ci_checks:
+-   function: check_format
+    name: format
+-   function: check_lint
+    name: lint
+-   function: check_secrets
+    name: secrets
+-   function: check_pytest
+    name: pytest
+-   function: check_pip_audit
+    name: pip-audit
+-   function: check_pip_audit_dev
+    name: pip-audit-dev
+-   function: check_requirements
+    name: requirements
+claude_adapter_installed: false
+doc_guard_excluded_prefixes: []
+fixture_routes:
+- stdin
+- github
+github_project_mode: create
+github_project_owner: '@me'
+github_project_title: my-project agent process
+github_repository: ''
+not_required_contexts: {}
+repo_name: my-project
+required_status_contexts:
+- quality / quality
+- pr-link / pr-link
+- agent-review / agent-review
+workflow_references:
+    agent-review: ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@69db0363304b43a256deb02a0e2cbb11797118de
+    pr-link: ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@d3f6d238891dbaee6af10b18609e7e07f8901921
+    quality: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@d3f6d238891dbaee6af10b18609e7e07f8901921
+

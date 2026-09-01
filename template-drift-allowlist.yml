@@ -3,8 +3,6 @@
 # Every entry is intentionally absent from template/ or differs from its rendered
 # counterpart. Add a path only with the reason that makes a generated copy wrong.
 root_only_paths:
-  - path: .copier-answers.yml
-    reason: Records this source checkout's selected answers, including Copier metadata.
   - path: .github/workflows/reusable-agent-review.yml
     reason: Publisher-owned reusable workflow; payload ships only its caller.
   - path: .github/workflows/reusable-pr-link.yml
@@ -25,6 +23,8 @@ root_only_paths:
     reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
   - path: copier.yml
     reason: Defines this repository's Copier source; consumers receive only its rendered payload.
+  - path: pyproject.toml
+    reason: Configures publisher-only tests; consumers receive process configuration below .agent-process.
   - path: tests/publisher/test_agent_review_outcome.py
     reason: Verifies publisher review-evidence parsing rather than a rendered consumer.
   - path: tests/publisher/test_blocking_review_threads.py
@@ -45,6 +45,8 @@ root_only_paths:
     reason: Reclassified publisher-only (issue #20) — exercises scripts/hooks.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_codex_hooks.py
     reason: Reclassified publisher-only (issue #20) — exercises scripts/codex_hooks.py, byte-static across renders and not owed to consumers as a separate copy.
+  - path: tests/publisher/test_payload_layout.py
+    reason: Verifies the single-root payload invariant in the publisher source (issue #55).
 expected_difference_paths:
-  - path: scripts/project_settings.py
+  - path: .agent-process/scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.

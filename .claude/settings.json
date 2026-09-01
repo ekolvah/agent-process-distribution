@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python -m scripts.hooks pre-bash",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python .agent-process/scripts/hooks.py pre-bash",
             "timeout": 10
           }
         ]
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python -m scripts.hooks pre-read",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python .agent-process/scripts/hooks.py pre-read",
             "timeout": 10
           }
         ]
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python -m scripts.hooks on-edit"
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python .agent-process/scripts/hooks.py on-edit"
           }
         ]
       }

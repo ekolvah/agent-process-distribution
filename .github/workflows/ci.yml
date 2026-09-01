@@ -8,4 +8,4 @@ permissions:
 
 jobs:
   quality:
-    uses: "./.github/workflows/reusable-quality.yml"
+    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@d3f6d238891dbaee6af10b18609e7e07f8901921"

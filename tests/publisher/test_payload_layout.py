@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
-from scripts.adopt_agent_process import stage_payload
 from test_project_bootstrap_template import render
 
 
@@ -47,9 +47,13 @@ def test_rendered_payload_is_confined_to_the_single_root(tmp_path: Path) -> None
 
 
 def test_rendered_payload_contains_no_legacy_archive(tmp_path: Path) -> None:
-    rendered = render(tmp_path)
+    del tmp_path
+    source = (Path(__file__).resolve().parents[2] / "scripts" / "adopt_agent_process.py").read_text(
+        encoding="utf-8"
+    )
 
-    assert not any(relative.startswith(".agent-process/payload/") for relative in stage_payload(rendered))
+    assert "stage_payload" not in source
+    assert ".agent-process/payload/" not in source
 
 
 def test_rendered_commands_use_the_process_root(tmp_path: Path) -> None:
@@ -59,7 +63,7 @@ def test_rendered_commands_use_the_process_root(tmp_path: Path) -> None:
         if not path.is_file() or path.suffix not in {".md", ".py", ".yml", ".yaml"}:
             continue
         text = path.read_text(encoding="utf-8")
-        if "python scripts/" in text or "docs/architecture/" in text:
+        if "python scripts/" in text or re.search(r"(?<!\.agent-process/)docs/architecture/", text):
             stale.append(path.relative_to(rendered).as_posix())
 
     assert not stale

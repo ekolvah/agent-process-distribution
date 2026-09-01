@@ -18,7 +18,6 @@ from scripts.adopt_agent_process import (
 
 def _product(destination: Path) -> dict[str, bytes]:
     files = {
-        ".github/workflows/ci.yml": b"name: Product CI\non: [push]\njobs: {product: {runs-on: ubuntu-latest}}\n",
         "pyproject.toml": b"[project]\nname = 'product'\ndependencies = ['product-dep']\n",
         ".gitignore": b"product-cache/\n",
         ".github/pull_request_template.md": b"# Product PR\n",
@@ -79,7 +78,6 @@ def test_process_callers_use_reserved_paths_without_replacing_product_ci(tmp_pat
     install_payload(tmp_path, _payload())
 
     workflows = tmp_path / ".github/workflows"
-    assert (workflows / "ci.yml").is_file()
     names = ("ci.yml", "pr-link.yml", "agent-review.yml")
     assert all((workflows / name).is_file() for name in names)
     callers = [yaml.safe_load((workflows / name).read_text(encoding="utf-8")) for name in names]

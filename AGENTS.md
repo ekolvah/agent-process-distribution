@@ -1,22 +1,22 @@
 # Repository agent guidance
 
-Use [the agent development process](docs/architecture/agent-process.md) as the
+Use [the agent development process](.agent-process/docs/architecture/agent-process.md) as the
 source of truth. Roles are interchangeable: do not assume that the current
 Claude or Codex adapter is the only permitted executor.
 
 ## Codex adapter
 
 - A repository must be activated once before its first delivery. Follow
-  [the installation guide](docs/architecture/agent-process-installation.md),
-  then commit its generated `scripts/project_settings.py`. Until activation
+  [the installation guide](.agent-process/docs/architecture/agent-process-installation.md),
+  then commit its generated `.agent-process/scripts/project_settings.py`. Until activation
   succeeds, `issue_branch.py` refuses to create a branch.
-- Follow the canonical [per-issue delivery flow](docs/architecture/agent-process.md#deterministic-delivery-flow).
+- Follow the canonical [per-issue delivery flow](.agent-process/docs/architecture/agent-process.md#deterministic-delivery-flow).
   That document is the sole source of task gates, commands, and status
   transitions; this file does not restate them.
 - Use `$plan-issue #N` for the Codex planner entry point and
   `$implement-issue #N` for the Codex implementer entry point. They execute
   the canonical role contracts; they do not replace any gate in that document.
-- The advisory control plane (`scripts/agent_orchestrator.py` plus
+- The advisory control plane (`.agent-process/scripts/agent_orchestrator.py` plus
   `.agents/orchestration/roles.yaml`) reports evidence-based routing and budget
   escalation. It never authorizes bypassing its required delivery gates.
 
@@ -29,7 +29,7 @@ Claude or Codex adapter is the only permitted executor.
   `None` stdout or stderr into an empty string.
 - Keep a PR to one logical unit. Update planned docs and ADRs, or explicitly
   record why they do not apply.
-- Follow [Principle V](docs/architecture/principles.md#v-root-cause-before-fix):
+- Follow [Principle V](.agent-process/docs/architecture/principles.md#v-root-cause-before-fix):
   instrument before patching, and observe the live external system when a plan
   depends on how that system is read or classified.
 - Never bypass hooks, push directly to `main`, force-push, hard-reset,
@@ -42,6 +42,6 @@ Codex code review is the primary carrier: the PR author starts it with
 `@codex review`, and workflows validate its standard GitHub review on the
 current head. Claude remains the fallback carrier only when Codex leaves no
 valid current-head evidence. Their reporting contract is
-[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md). The gate's parser and enforcement code
+[REVIEW_CONTRACT.md](.agent-process/REVIEW_CONTRACT.md). The gate's parser and enforcement code
 come from the default branch, but either review is evidence, not a substitute
 for the platform workflow-definition trust anchor.

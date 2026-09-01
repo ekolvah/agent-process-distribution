@@ -56,7 +56,7 @@ normalisation; `.gitattributes` and its dedicated test retain that safeguard.
   uncommitted ignore source (`.git/info/exclude`, `core.excludesFile`) never
   fails the gate, matching what any other checkout of the same commit
   receives. A `root` without a `.git` directory (the gate's own drift tests
-  copy the tree without one) falls back to the unfiltered walk instead of an
+  copy the tree without `.git`) falls back to the unfiltered walk instead of an
   empty set (#32).
 
 ## Pros and Cons of the Options
