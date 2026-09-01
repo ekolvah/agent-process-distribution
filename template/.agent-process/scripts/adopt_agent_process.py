@@ -12,16 +12,12 @@ from pathlib import Path
 
 
 @dataclass(frozen=True)
-class _Markers:
-    managed: tuple[str, str] = ("<!-- agent-process:begin -->", "<!-- agent-process:end -->")
-
-
-@dataclass(frozen=True)
 class PreflightReport:
     collisions: tuple[str, ...]
 
 
-CONFLICT_MARKERS = _Markers()
+_MANAGED_FRAGMENT_BEGIN = "<!-- agent-process:begin -->"
+_MANAGED_FRAGMENT_END = "<!-- agent-process:end -->"
 _OWNERSHIP_FILE = ".agent-process/ownership.json"
 _PROCESS_ROOT = ".agent-process/"
 _CLOSED_ROOT_FILES = frozenset(
@@ -36,6 +32,10 @@ _CLOSED_ROOT_FILES = frozenset(
 )
 _CLOSED_ROOT_PREFIXES = (".agents/", ".claude/", ".codex/", "tests/agent_process/")
 _UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
+# ADR-0019: a consumer's own content coexists with the process's delimited
+# fragment in the same file, so these two never collide on differing bytes —
+# they merge instead.
+_MANAGED_FRAGMENT_TARGETS = frozenset({"AGENTS.md", ".gitignore"})
 
 
 def _is_process_path(relative: str) -> bool:
@@ -70,7 +70,7 @@ def update_payload(destination: Path, payload: dict[str, bytes]) -> None:
 
 def update_managed_fragment(path: Path, content: str) -> None:
     """Insert or replace one explicit fragment while preserving all other bytes."""
-    begin, end = CONFLICT_MARKERS.managed
+    begin, end = _MANAGED_FRAGMENT_BEGIN, _MANAGED_FRAGMENT_END
     original = path.read_text(encoding="utf-8") if path.exists() else ""
     begin_count = original.count(begin)
     end_count = original.count(end)
@@ -156,7 +156,10 @@ def _apply(destination: Path, payload: dict[str, bytes], *, updating: bool) -> N
     if collisions:
         raise ValueError("payload collides with consumer-owned file(s): " + ", ".join(collisions))
     for relative, content in sorted(payload.items()):
-        _atomic_write(destination / relative, content)
+        if relative in _MANAGED_FRAGMENT_TARGETS:
+            update_managed_fragment(destination / relative, content.decode("utf-8"))
+        else:
+            _atomic_write(destination / relative, content)
     manifest = json.dumps({"paths": sorted(payload)}, indent=2) + "\n"
     _atomic_write(destination / _OWNERSHIP_FILE, manifest.encode("utf-8"))
 
@@ -184,6 +187,8 @@ def _path_conflicts(
         if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
             return True
         parent = parent.parent
+    if relative in _MANAGED_FRAGMENT_TARGETS:
+        return False
     return path.is_file() and path.read_bytes() != content and relative not in owned_paths
 
 

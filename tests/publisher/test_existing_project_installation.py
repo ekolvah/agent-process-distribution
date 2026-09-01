@@ -8,7 +8,8 @@ import pytest
 import yaml
 
 from scripts.adopt_agent_process import (
-    CONFLICT_MARKERS,
+    _MANAGED_FRAGMENT_BEGIN,
+    _MANAGED_FRAGMENT_END,
     _payload_from_directory,
     install_payload,
     preflight,
@@ -53,12 +54,38 @@ def _payload() -> dict[str, bytes]:
 
 def test_preflight_reports_all_collisions_before_writing(tmp_path: Path) -> None:
     product = _product(tmp_path)
-    payload = _payload() | {"pyproject.toml": b"process config\n", "AGENTS.md": b"process\n"}
+    payload = _payload() | {"pyproject.toml": b"process config\n"}
 
     report = preflight(tmp_path, payload)
 
-    assert report.collisions == ("AGENTS.md", "pyproject.toml")
+    assert report.collisions == ("pyproject.toml",)
     assert {relative: (tmp_path / relative).read_bytes() for relative in product} == product
+
+
+def test_preflight_never_reports_a_managed_fragment_target_as_a_collision(tmp_path: Path) -> None:
+    _product(tmp_path)
+    payload = _payload() | {
+        "AGENTS.md": b"process instructions\n",
+        ".gitignore": b"process-cache/\n",
+    }
+
+    report = preflight(tmp_path, payload)
+
+    assert report.collisions == ()
+
+
+def test_install_merges_agents_md_into_a_differing_product_file(tmp_path: Path) -> None:
+    _product(tmp_path)
+    payload = _payload() | {"AGENTS.md": b"process instructions"}
+
+    install_payload(tmp_path, payload)
+
+    installed = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert installed.startswith("# Product instructions\n")
+    assert (
+        "<!-- agent-process:begin -->\nprocess instructions\n<!-- agent-process:end -->"
+        in installed
+    )
 
 
 def test_install_preserves_product_gates_and_configuration(tmp_path: Path) -> None:
@@ -100,7 +127,8 @@ def test_shared_singleton_update_is_idempotent_and_preserves_surrounding_content
 
     assert path.read_text(encoding="utf-8") == first
     assert first.startswith("# Product instructions\n")
-    assert all(marker in first for marker in CONFLICT_MARKERS.managed)
+    assert _MANAGED_FRAGMENT_BEGIN in first
+    assert _MANAGED_FRAGMENT_END in first
 
 
 def test_normal_render_stages_an_installable_reserved_payload(tmp_path: Path) -> None:
