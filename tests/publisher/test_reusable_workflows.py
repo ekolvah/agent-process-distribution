@@ -244,6 +244,34 @@ def test_diagnostic_capability_is_feature_detected_on_a_default_branch_that_pred
     assert names.index(name) < names.index("Diagnose Claude execution failure")
 
 
+def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
+    None
+):
+    steps = _steps("reusable-agent-review.yml")
+
+    selector = steps["Select trusted review source"]["run"]
+    assert "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" in selector
+    assert "outcome_checker_path=scripts/check_agent_review_outcome.py" in selector
+    assert "bootstrap fallback: default branch has no relocated outcome checker yet" in selector
+
+    resolved = "${{ steps.review-source.outputs.outcome_checker_path }}"
+    for name in (
+        "Classify Codex review outcome",
+        "Classify Claude review outcome",
+        "Diagnose Claude execution failure",
+        "Publish validated review evidence",
+        "Publish Claude fallback findings to the PR",
+        "Enforce selected review outcome",
+    ):
+        assert resolved in steps[name]["run"]
+
+    for name in (
+        "Select Claude-diagnostic capability",
+        "Select PR-comment publish capability",
+    ):
+        assert f"trusted/{resolved}" in steps[name]["run"]
+
+
 def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> None:
     steps = _steps("reusable-agent-review.yml")
 

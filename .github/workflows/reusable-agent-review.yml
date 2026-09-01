@@ -70,6 +70,12 @@ jobs:
           fi
           test -f "$GITHUB_WORKSPACE/trusted/.agent-process/REVIEW_CONTRACT.md"
           echo "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_agent_review_outcome.py"; then
+            echo "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome_checker_path=scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated outcome checker yet, using its pre-migration path"
+          fi
       - name: Read owner-requested Codex review
         id: codex-review
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
@@ -90,7 +96,7 @@ jobs:
         working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
-        run: python .agent-process/scripts/check_agent_review_outcome.py "$STRUCTURED_OUTCOME" --classify
+        run: python "${{ steps.review-source.outputs.outcome_checker_path }}" "$STRUCTURED_OUTCOME" --classify
       - name: Claude review
         id: review
         if: >-
@@ -124,7 +130,7 @@ jobs:
         working-directory: trusted
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
-        run: python .agent-process/scripts/check_agent_review_outcome.py "$STRUCTURED_OUTCOME" --classify
+        run: python "${{ steps.review-source.outputs.outcome_checker_path }}" "$STRUCTURED_OUTCOME" --classify
       - name: Select Claude-diagnostic capability
         # Feature-detect rather than assume: the trusted checkout is the
         # default branch, so the PR that introduces --diagnose-execution-file
@@ -138,7 +144,7 @@ jobs:
           && steps.claude-classify.outputs.valid != 'true' }}
         run: |
           if grep -Fq "DIAGNOSE_EXECUTION_FILE_SUPPORTED = True" \
-            "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_agent_review_outcome.py" 2>/dev/null; then
+            "$GITHUB_WORKSPACE/trusted/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
             echo "supported=true" >> "$GITHUB_OUTPUT"
           else
             echo "supported=false" >> "$GITHUB_OUTPUT"
@@ -158,7 +164,7 @@ jobs:
         working-directory: trusted
         env:
           EXECUTION_FILE: ${{ steps.review.outputs.execution_file }}
-        run: python .agent-process/scripts/check_agent_review_outcome.py --diagnose-execution-file "$EXECUTION_FILE"
+        run: python "${{ steps.review-source.outputs.outcome_checker_path }}" --diagnose-execution-file "$EXECUTION_FILE"
       - name: Publish validated review evidence
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
         working-directory: trusted
@@ -166,7 +172,7 @@ jobs:
           STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
         run: >-
-          python .agent-process/scripts/check_agent_review_outcome.py "$STRUCTURED_OUTCOME"
+          python "${{ steps.review-source.outputs.outcome_checker_path }}" "$STRUCTURED_OUTCOME"
           --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
       - name: Select PR-comment publish capability
         # Feature-detect rather than assume: the trusted checkout is the
@@ -180,7 +186,7 @@ jobs:
           && steps.codex-classify.outputs.valid != 'true' }}
         run: |
           if grep -Fq "PUBLISH_PR_COMMENT_SUPPORTED = True" \
-            "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_agent_review_outcome.py" 2>/dev/null; then
+            "$GITHUB_WORKSPACE/trusted/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
             echo "supported=true" >> "$GITHUB_OUTPUT"
           else
             echo "supported=false" >> "$GITHUB_OUTPUT"
@@ -203,7 +209,7 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ steps.pr-context.outputs.number }}
         run: >-
-          python .agent-process/scripts/check_agent_review_outcome.py "$STRUCTURED_OUTCOME"
+          python "${{ steps.review-source.outputs.outcome_checker_path }}" "$STRUCTURED_OUTCOME"
           --publish-pr-comment --reviewed-head-sha "$REVIEWED_HEAD_SHA"
           --repo "$REPO" --pr "$PR_NUMBER"
       - name: Enforce selected review outcome
@@ -214,7 +220,7 @@ jobs:
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
           REVIEW_PRODUCER: ${{ steps.codex-classify.outputs.valid == 'true' && 'Codex review' || 'Claude review' }}
         run: >-
-          python .agent-process/scripts/check_agent_review_outcome.py "$STRUCTURED_OUTCOME"
+          python "${{ steps.review-source.outputs.outcome_checker_path }}" "$STRUCTURED_OUTCOME"
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "$REVIEW_PRODUCER"
       - name: Enforce unresolved blocking Codex conversations
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
