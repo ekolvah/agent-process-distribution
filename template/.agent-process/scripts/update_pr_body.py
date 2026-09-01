@@ -20,7 +20,10 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from scripts.open_pr import _linkage_confirmed, ensure_closes_line, issue_number_from_branch
+try:
+    from scripts.open_pr import _linkage_confirmed, ensure_closes_line, issue_number_from_branch
+except ModuleNotFoundError:  # Direct execution from the relocated payload.
+    from open_pr import _linkage_confirmed, ensure_closes_line, issue_number_from_branch
 
 
 def normalized_body(body: str, issue_number: int) -> str:

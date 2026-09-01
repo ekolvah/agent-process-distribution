@@ -15,7 +15,10 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
-from scripts.gh_io import run_gh
+try:
+    from scripts.gh_io import run_gh
+except ModuleNotFoundError:  # Direct execution from the relocated payload.
+    from gh_io import run_gh
 
 _CODEX_REVIEWER = "chatgpt-codex-connector"
 _PRIORITY = re.compile(r"\bP(?P<number>[0-3])\b", re.IGNORECASE)

@@ -17,8 +17,12 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scripts.gh_io import slurp_named_records
-from scripts.request_codex_review import CODEX_REVIEWER
+try:
+    from scripts.gh_io import slurp_named_records
+    from scripts.request_codex_review import CODEX_REVIEWER
+except ModuleNotFoundError:  # Direct execution from the relocated payload.
+    from gh_io import slurp_named_records
+    from request_codex_review import CODEX_REVIEWER
 
 REVIEW_SECRET = "CLAUDE_CODE_OAUTH_TOKEN"  # pragma: allowlist secret
 _SETTINGS_URL = "https://github.com/settings/installations"

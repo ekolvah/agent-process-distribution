@@ -31,12 +31,20 @@ import subprocess
 import sys
 import time
 
-from scripts.open_pr import (
-    LINKAGE_ATTEMPTS,
-    LINKAGE_DELAY_S,
-    has_closing_reference,
-    issue_number_from_branch,
-)
+try:
+    from scripts.open_pr import (
+        LINKAGE_ATTEMPTS,
+        LINKAGE_DELAY_S,
+        has_closing_reference,
+        issue_number_from_branch,
+    )
+except ModuleNotFoundError:  # Direct execution from the relocated payload.
+    from open_pr import (
+        LINKAGE_ATTEMPTS,
+        LINKAGE_DELAY_S,
+        has_closing_reference,
+        issue_number_from_branch,
+    )
 
 
 def link_required_but_missing(branch: str, refs_json: str) -> bool:
