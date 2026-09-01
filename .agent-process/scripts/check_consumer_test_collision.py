@@ -30,7 +30,17 @@ import tempfile
 from pathlib import Path
 
 import yaml
-from adopt_agent_process import _CLOSED_ROOT_FILES, _CLOSED_ROOT_PREFIXES
+
+_SCRIPT_DIR = str(Path(__file__).resolve().parent)
+sys.path.insert(0, _SCRIPT_DIR)
+try:
+    from adopt_agent_process import (
+        _CLOSED_ROOT_FILES,
+        _CLOSED_ROOT_PREFIXES,
+        _MANAGED_FRAGMENT_TARGETS,
+    )
+finally:
+    sys.path.remove(_SCRIPT_DIR)
 
 _VOLATILE_ANSWER_KEYS = frozenset({"_src_path", "_commit"})
 
@@ -97,6 +107,12 @@ def find_collisions(destination: Path, *, vcs_ref: str | None = None) -> list[st
             if relative not in _CLOSED_ROOT_FILES and not relative.startswith(
                 _CLOSED_ROOT_PREFIXES
             ):
+                continue
+            if relative in _MANAGED_FRAGMENT_TARGETS:
+                # ADR-0019: a consumer's own content coexists with the process's
+                # delimited fragment in the same file, so these never collide on
+                # differing bytes — they merge instead (adopt_agent_process._path_conflicts
+                # applies the same exemption).
                 continue
             existing = destination / relative
             if existing.is_file() and existing.read_bytes() != path.read_bytes():
