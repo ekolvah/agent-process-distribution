@@ -106,6 +106,26 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
     assert 'echo "path=pr"' in steps["Select quality driver"]["run"]
 
 
+def test_quality_installs_product_dependencies_when_present() -> None:
+    """A consumer's own product dependencies must be installed before its
+    checks run — the trusted-driver step only ever installed the process's
+    own two lockfiles, so a consumer whose product tests import a dependency
+    outside those locks failed for reasons unrelated to its code (#57)."""
+    steps = _steps("reusable-quality.yml")
+
+    name = "Install product dependencies"
+    assert name in steps
+    step = steps[name]
+    assert step["working-directory"] == "pr"
+    assert "requirements.txt" in step["run"]
+    names = list(steps)
+    assert (
+        names.index("Install consumer dependencies")
+        < names.index(name)
+        < names.index("Run trusted quality checks")
+    )
+
+
 def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> None:
     steps = _steps("reusable-pr-link.yml")
 

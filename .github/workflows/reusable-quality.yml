@@ -46,6 +46,16 @@ jobs:
       - name: Install consumer dependencies
         working-directory: pr
         run: python -m pip install -r .agent-process/requirements.txt -r .agent-process/requirements-dev.txt
+      # Feature-detected: a bare consumer render has no product dependencies
+      # of its own, and the thin caller (ci.yml) cannot prepend a setup step
+      # of its own to a job it only `uses:` — this is the one place able to
+      # install them before the product-scoped checks run.
+      - name: Install product dependencies
+        working-directory: pr
+        run: |
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          fi
       # One step keeps the externally required context stable. The trusted
       # driver's registry decides the full set of checks; it runs in the PR
       # worktree so its commands inspect the change, not the trusted checkout.
