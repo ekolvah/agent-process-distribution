@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   agent-review:
-    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@731d8f0b3b64744e757bc302a9f2acd2fd59b947"
+    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@0035dada3b43a5e31e47328ad2756038a7b1cbe4"
     with:
       codex-timeout-seconds: 600
     secrets:
