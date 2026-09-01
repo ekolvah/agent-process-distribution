@@ -79,7 +79,9 @@ def _workflow(path: Path) -> dict[object, object]:
 
 def test_rendered_project_ships_thin_required_context_callers(rendered_default: Path) -> None:
     destination = rendered_default
-    answers = yaml.safe_load((destination / ".copier-answers.yml").read_text(encoding="utf-8"))
+    answers = yaml.safe_load(
+        (destination / ".agent-process" / "copier-answers.yml").read_text(encoding="utf-8")
+    )
     workflows = destination / ".github" / "workflows"
     contexts = tuple(answers["required_status_contexts"])
 
@@ -163,7 +165,7 @@ def test_rendered_implementer_requests_codex_for_every_reviewed_head(
         rendered_default / ".agents" / "skills" / "implement-issue" / "SKILL.md"
     ).read_text(encoding="utf-8")
 
-    request = "python -m scripts.request_codex_review --request <PR>"
+    request = "python .agent-process/scripts/request_codex_review.py --request <PR>"
     assert request in process
     assert request in implementer
     assert process.index(request) < process.index("gh pr checks <PR> --watch")

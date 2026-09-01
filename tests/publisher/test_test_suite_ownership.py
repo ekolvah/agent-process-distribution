@@ -1,7 +1,7 @@
 """Structural ownership contract for the publisher/consumer test split (issue #20).
 
 Publisher-only tests live under ``tests/publisher/`` and never render to a
-consumer. Consumer tests originate under ``template/tests/agent_process/``
+consumer. Consumer tests originate under ``template/.agent-process/tests/agent_process/``
 and render below the reserved ``tests/agent_process/`` subtree. No process
 test may remain loose directly under either ``tests/`` root.
 """
@@ -103,14 +103,14 @@ def _git_commit_all(destination: Path) -> None:
 
 def test_every_process_test_has_exactly_one_physical_owner() -> None:
     loose_root = _direct_test_files(ROOT / "tests")
-    loose_template = _direct_test_files(ROOT / "template" / "tests")
+    loose_template = _direct_test_files(ROOT / "template" / ".agent-process" / "tests")
     assert loose_root == [], f"loose process test files directly under tests/: {loose_root}"
     assert loose_template == [], (
-        f"loose process test files directly under template/tests/: {loose_template}"
+        f"loose process test files directly under template/.agent-process/tests/: {loose_template}"
     )
     assert (ROOT / "tests" / "publisher").is_dir(), "tests/publisher/ must exist"
-    assert (ROOT / "template" / "tests" / "agent_process").is_dir(), (
-        "template/tests/agent_process/ must exist"
+    assert (ROOT / "template" / ".agent-process" / "tests" / "agent_process").is_dir(), (
+        "template/.agent-process/tests/agent_process/ must exist"
     )
 
 

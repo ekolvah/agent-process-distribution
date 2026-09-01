@@ -18,7 +18,6 @@ REQUIRED_GENERATED_PATHS = frozenset(
     {
         "AGENTS.md",
         ".agents/skills/implement-issue/SKILL.md",
-        ".claude/settings.json",
         ".codex/hooks.json",
         ".agent-process/docs/architecture/agent-process.md",
         ".agent-process/scripts/ci_check.py",
@@ -27,6 +26,7 @@ REQUIRED_GENERATED_PATHS = frozenset(
 ROOT_ONLY_DIRECTORIES = frozenset(
     {
         ".claude-plugin",
+        ".claude",
         ".render-bootstrap-probe",
         "agents",
         "commands",
@@ -234,6 +234,9 @@ def _diff(path: str, rendered: Path, root_content: str) -> str:
 def compare(root: Path, rendered: Path, allowlist: Allowlist) -> DriftReport:
     """Compare rendered payload files with the self-applied root."""
     root_files = _files(root, exclude_root_only_directories=True)
+    root_files = {
+        path: file for path, file in root_files.items() if path not in COPIER_METADATA_PATHS
+    }
     git_visible = _git_visible_files(root)
     if git_visible is not None:
         root_files = {path: file for path, file in root_files.items() if path in git_visible}

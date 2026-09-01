@@ -233,10 +233,15 @@ def test_git_ignored_local_only_file_is_not_flagged(
     lock.parent.mkdir(parents=True, exist_ok=True)
     lock.write_text("{}\n", encoding="utf-8")
 
-    tracked_and_ignored = source / "scripts" / "tracked-and-ignored.txt"
+    tracked_and_ignored = source / ".agent-process" / "scripts" / "tracked-and-ignored.txt"
     tracked_and_ignored.write_text("kept\n", encoding="utf-8")
     subprocess.run(
-        ["git", "add", ".copier-answers.yml", "scripts/tracked-and-ignored.txt"],
+        [
+            "git",
+            "add",
+            ".agent-process/copier-answers.yml",
+            ".agent-process/scripts/tracked-and-ignored.txt",
+        ],
         cwd=source,
         check=True,
     )
@@ -246,11 +251,11 @@ def test_git_ignored_local_only_file_is_not_flagged(
     # it silently and hide a genuinely extra tracked file from the gate.
     exclude = source / ".git" / "info" / "exclude"
     exclude.write_text(
-        "**/.claude/scheduled_tasks.lock\nscripts/tracked-and-ignored.txt\n",
+        "**/.claude/scheduled_tasks.lock\n.agent-process/scripts/tracked-and-ignored.txt\n",
         encoding="utf-8",
     )
 
-    (source / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
+    (source / ".agent-process" / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
 
     report = template_drift.compare(
         source, rendered_self_applied, template_drift.load_allowlist(source)
@@ -259,18 +264,22 @@ def test_git_ignored_local_only_file_is_not_flagged(
     assert "undeclared extra file: .claude/scheduled_tasks.lock" not in report.errors, (
         report.format()
     )
-    assert "stale root-only allowlist entry: .copier-answers.yml" not in report.errors, (
+    assert (
+        "stale root-only allowlist entry: .agent-process/copier-answers.yml" not in report.errors
+    ), report.format()
+    assert (
+        "undeclared extra file: .agent-process/scripts/tracked-and-ignored.txt" in report.errors
+    ), report.format()
+    assert "undeclared extra file: .agent-process/scripts/stray.py" in report.errors, (
         report.format()
     )
-    assert "undeclared extra file: scripts/tracked-and-ignored.txt" in report.errors, (
-        report.format()
-    )
-    assert "undeclared extra file: scripts/stray.py" in report.errors, report.format()
 
 
 def test_orphaned_generated_copy_is_red(tmp_path: Path) -> None:
     source = checkout(tmp_path)
-    (source / "template" / "tests" / "agent_process" / "test_review_gate.py").unlink()
+    (
+        source / "template" / ".agent-process" / "tests" / "agent_process" / "test_review_gate.py"
+    ).unlink()
 
     report = template_drift.check(source)
 

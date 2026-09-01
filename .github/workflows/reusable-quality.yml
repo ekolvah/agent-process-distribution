@@ -41,6 +41,8 @@ jobs:
           cache-dependency-path: |
             pr/.agent-process/requirements.txt
             pr/.agent-process/requirements-dev.txt
+      - name: Install publisher render dependency
+        run: python -m pip install copier==9.17.2
       - name: Install consumer dependencies
         working-directory: pr
         run: python -m pip install -r .agent-process/requirements.txt -r .agent-process/requirements-dev.txt
