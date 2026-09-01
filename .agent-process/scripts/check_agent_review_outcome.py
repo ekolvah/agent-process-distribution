@@ -28,7 +28,10 @@ import re
 import sys
 from collections.abc import Sequence
 
-from scripts.gh_io import flatten_pages, publish_step_output, run_gh
+try:
+    from scripts.gh_io import flatten_pages, publish_step_output, run_gh
+except ModuleNotFoundError:  # documented direct script entry point
+    from gh_io import flatten_pages, publish_step_output, run_gh
 
 # The Codex adapter translates GitHub review states into this vocabulary; a
 # second private copy there would be a second merge bar.
