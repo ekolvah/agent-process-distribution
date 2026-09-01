@@ -11,7 +11,7 @@ from scripts.adopt_agent_process import (
     CONFLICT_MARKERS,
     install_payload,
     preflight,
-    stage_payload,
+    _payload_from_directory,
     update_managed_fragment,
 )
 
@@ -33,17 +33,17 @@ def _product(destination: Path) -> dict[str, bytes]:
 
 def _payload() -> dict[str, bytes]:
     return {
-        ".github/workflows/agent-process-quality.yml": (
+        ".github/workflows/ci.yml": (
             b"name: Agent process quality\non: [pull_request]\njobs:\n  quality:\n    uses: owner/process/.github/workflows/reusable-quality.yml@"
             + b"0" * 40
             + b"\n"
         ),
-        ".github/workflows/agent-process-pr-link.yml": (
+        ".github/workflows/pr-link.yml": (
             b"name: Agent process PR link\non: [pull_request]\njobs:\n  pr-link:\n    uses: owner/process/.github/workflows/reusable-pr-link.yml@"
             + b"0" * 40
             + b"\n"
         ),
-        ".github/workflows/agent-process-review.yml": (
+        ".github/workflows/agent-review.yml": (
             b"name: Agent process review\non: [pull_request]\njobs:\n  agent-review:\n    uses: owner/process/.github/workflows/reusable-agent-review.yml@"
             + b"0" * 40
             + b"\n"
@@ -80,7 +80,7 @@ def test_process_callers_use_reserved_paths_without_replacing_product_ci(tmp_pat
 
     workflows = tmp_path / ".github/workflows"
     assert (workflows / "ci.yml").is_file()
-    names = ("agent-process-quality.yml", "agent-process-pr-link.yml", "agent-process-review.yml")
+    names = ("ci.yml", "pr-link.yml", "agent-review.yml")
     assert all((workflows / name).is_file() for name in names)
     callers = [yaml.safe_load((workflows / name).read_text(encoding="utf-8")) for name in names]
     assert [next(iter(caller["jobs"])) for caller in callers] == [
@@ -107,19 +107,19 @@ def test_shared_singleton_update_is_idempotent_and_preserves_surrounding_content
 
 def test_normal_render_stages_an_installable_reserved_payload(tmp_path: Path) -> None:
     rendered = tmp_path / "rendered"
-    (rendered / "scripts").mkdir(parents=True)
-    (rendered / "docs").mkdir()
+    (rendered / ".agent-process/scripts").mkdir(parents=True)
+    (rendered / ".agent-process/docs").mkdir()
     (rendered / ".github/workflows").mkdir(parents=True)
-    (rendered / "scripts/issue_branch.py").write_bytes(b"process entrypoint\n")
-    (rendered / "docs/agent-process.md").write_bytes(b"process docs\n")
-    caller = rendered / ".github/workflows/agent-process-quality.yml"
+    (rendered / ".agent-process/scripts/issue_branch.py").write_bytes(b"process entrypoint\n")
+    (rendered / ".agent-process/docs/agent-process.md").write_bytes(b"process docs\n")
+    caller = rendered / ".github/workflows/ci.yml"
     caller.write_bytes(b"jobs: {quality: {}}\n")
 
-    staged = stage_payload(rendered)
+    staged = _payload_from_directory(rendered)
 
-    assert staged["scripts/issue_branch.py"] == b"process entrypoint\n"
-    assert staged[".agent-process/payload/docs/agent-process.md"] == b"process docs\n"
-    assert staged[".github/workflows/agent-process-quality.yml"] == b"jobs: {quality: {}}\n"
+    assert staged[".agent-process/scripts/issue_branch.py"] == b"process entrypoint\n"
+    assert staged[".agent-process/docs/agent-process.md"] == b"process docs\n"
+    assert staged[".github/workflows/ci.yml"] == b"jobs: {quality: {}}\n"
 
 
 def test_normal_render_installs_the_selected_claude_adapter_at_the_root(tmp_path: Path) -> None:
@@ -127,17 +127,17 @@ def test_normal_render_installs_the_selected_claude_adapter_at_the_root(tmp_path
     (rendered / ".claude").mkdir(parents=True)
     (rendered / ".claude/settings.json").write_bytes(b'{"deny": []}\n')
 
-    staged = stage_payload(rendered)
+    staged = _payload_from_directory(rendered)
 
     assert staged[".claude/settings.json"] == b'{"deny": []}\n'
 
 
 def test_preflight_rejects_a_directory_at_a_payload_file_path(tmp_path: Path) -> None:
-    (tmp_path / ".agent-process/payload/entry.py").mkdir(parents=True)
+    (tmp_path / ".agent-process/entry.py").mkdir(parents=True)
 
-    report = preflight(tmp_path, {".agent-process/payload/entry.py": b"process\n"})
+    report = preflight(tmp_path, {".agent-process/entry.py": b"process\n"})
 
-    assert report.collisions == (".agent-process/payload/entry.py",)
+    assert report.collisions == (".agent-process/entry.py",)
 
 
 def test_preflight_rejects_a_symlinked_destination_parent(tmp_path: Path) -> None:
@@ -146,11 +146,11 @@ def test_preflight_rejects_a_symlinked_destination_parent(tmp_path: Path) -> Non
     destination = tmp_path / "destination"
     destination.mkdir()
     try:
-        (destination / "scripts").symlink_to(outside, target_is_directory=True)
+        (destination / ".agent-process").symlink_to(outside, target_is_directory=True)
     except OSError:
         pytest.skip("symlink creation not permitted in this environment")
 
-    report = preflight(destination, {"scripts/entry.py": b"process\n"})
+    report = preflight(destination, {".agent-process/scripts/entry.py": b"process\n"})
 
-    assert report.collisions == ("scripts/entry.py",)
+    assert report.collisions == (".agent-process/scripts/entry.py",)
     assert not (outside / "entry.py").exists()

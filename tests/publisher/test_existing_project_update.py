@@ -12,19 +12,19 @@ from scripts.adopt_agent_process import install_payload, update_payload
 def test_previous_release_update_preserves_consumer_owned_bytes(tmp_path: Path) -> None:
     product = tmp_path / "pyproject.toml"
     product.write_bytes(b"[project]\nname = 'product'\n")
-    install_payload(tmp_path, {".agent-process/payload/entry.py": b"version: 1\n"})
+    install_payload(tmp_path, {".agent-process/entry.py": b"version: 1\n"})
 
-    update_payload(tmp_path, {".agent-process/payload/entry.py": b"version: 2\n"})
+    update_payload(tmp_path, {".agent-process/entry.py": b"version: 2\n"})
 
     assert product.read_bytes() == b"[project]\nname = 'product'\n"
-    assert (tmp_path / ".agent-process/payload/entry.py").read_bytes() == b"version: 2\n"
+    assert (tmp_path / ".agent-process/entry.py").read_bytes() == b"version: 2\n"
 
 
 def test_new_template_path_collision_fails_without_rejection_artifacts(tmp_path: Path) -> None:
     foreign = tmp_path / ".agent-process/new.yml"
     foreign.parent.mkdir()
     foreign.write_bytes(b"consumer bytes\n")
-    install_payload(tmp_path, {".agent-process/payload/entry.py": b"version: 1\n"})
+    install_payload(tmp_path, {".agent-process/entry.py": b"version: 1\n"})
 
     with pytest.raises(ValueError, match=r"\.agent-process/new.yml"):
         update_payload(tmp_path, {".agent-process/new.yml": b"process bytes\n"})
@@ -34,11 +34,11 @@ def test_new_template_path_collision_fails_without_rejection_artifacts(tmp_path:
 
 
 def test_successful_update_is_idempotent(tmp_path: Path) -> None:
-    payload = {".agent-process/payload/entry.py": b"version: 2\n"}
-    install_payload(tmp_path, {".agent-process/payload/entry.py": b"version: 1\n"})
+    payload = {".agent-process/entry.py": b"version: 2\n"}
+    install_payload(tmp_path, {".agent-process/entry.py": b"version: 1\n"})
 
     update_payload(tmp_path, payload)
-    entry = tmp_path / ".agent-process/payload/entry.py"
+    entry = tmp_path / ".agent-process/entry.py"
     assert entry.is_file()
     first = entry.read_bytes()
     update_payload(tmp_path, payload)
@@ -48,7 +48,7 @@ def test_successful_update_is_idempotent(tmp_path: Path) -> None:
 
 def test_update_does_not_treat_scanner_source_as_an_inline_conflict(tmp_path: Path) -> None:
     payload = {
-        ".agent-process/payload/scripts/adopt_agent_process.py": (
+        ".agent-process/scripts/adopt_agent_process.py": (
             b'_UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")\n'
         )
     }
@@ -57,16 +57,16 @@ def test_update_does_not_treat_scanner_source_as_an_inline_conflict(tmp_path: Pa
     update_payload(tmp_path, payload)
 
     assert (
-        tmp_path / ".agent-process/payload/scripts/adopt_agent_process.py"
-    ).read_bytes() == payload[".agent-process/payload/scripts/adopt_agent_process.py"]
+        tmp_path / ".agent-process/scripts/adopt_agent_process.py"
+    ).read_bytes() == payload[".agent-process/scripts/adopt_agent_process.py"]
 
 
 def test_update_does_not_treat_a_setext_heading_as_an_inline_conflict(tmp_path: Path) -> None:
-    payload = {".agent-process/payload/docs/note.md": b"Title\n=======\n\nBody text.\n"}
+    payload = {".agent-process/docs/note.md": b"Title\n=======\n\nBody text.\n"}
     install_payload(tmp_path, payload)
 
     update_payload(tmp_path, payload)
 
-    assert (tmp_path / ".agent-process/payload/docs/note.md").read_bytes() == payload[
-        ".agent-process/payload/docs/note.md"
+    assert (tmp_path / ".agent-process/docs/note.md").read_bytes() == payload[
+        ".agent-process/docs/note.md"
     ]

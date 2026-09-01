@@ -23,26 +23,10 @@ class PreflightReport:
 
 CONFLICT_MARKERS = _Markers()
 _OWNERSHIP_FILE = ".agent-process/ownership.json"
-_PROCESS_ROOT = ".agent-process/"
-_CLOSED_ROOT_FILES = frozenset(
-    {
-        ".github/workflows/ci.yml",
-        ".github/workflows/agent-review.yml",
-        ".github/workflows/pr-link.yml",
-        ".github/pull_request_template.md",
-        "AGENTS.md",
-        ".gitignore",
-    }
-)
-_CLOSED_ROOT_PREFIXES = (".agents/", ".claude/", ".codex/")
+_RESERVED_PREFIXES = (".agent-process/", ".github/workflows/agent-process-")
+_PROCESS_EXCLUSIVE_PREFIXES = (".agents/", ".claude/", ".codex/", ".githooks/", ".agent-process/scripts/")
+_ALLOWED_PREFIXES = _RESERVED_PREFIXES + _PROCESS_EXCLUSIVE_PREFIXES
 _UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
-
-
-def _is_process_path(relative: str) -> bool:
-    """Whether a rendered path is in the one process root or a documented exception."""
-    return relative.startswith(_PROCESS_ROOT) or relative in _CLOSED_ROOT_FILES or relative.startswith(
-        _CLOSED_ROOT_PREFIXES
-    )
 
 
 def preflight(
@@ -92,7 +76,7 @@ def _validate_payload(payload: dict[str, bytes]) -> None:
         for relative in payload
         if Path(relative).is_absolute()
         or ".." in Path(relative).parts
-        or not _is_process_path(relative)
+        or not relative.startswith(_ALLOWED_PREFIXES)
     )
     if invalid:
         raise ValueError("payload has non-reserved destination(s): " + ", ".join(invalid))
@@ -194,6 +178,21 @@ def _payload_from_directory(directory: Path) -> dict[str, bytes]:
     }
 
 
+def stage_payload(directory: Path) -> dict[str, bytes]:
+    """Relocate a normal render while retaining declared process-exclusive paths."""
+    staged: dict[str, bytes] = {}
+    for relative, content in _payload_from_directory(directory).items():
+        if relative == ".copier-answers.yml":
+            continue
+        destination = (
+            relative
+            if relative.startswith(_ALLOWED_PREFIXES)
+            else f".agent-process/payload/{relative}"
+        )
+        staged[destination] = content
+    return staged
+
+
 def main() -> int:
     """Run an explicit, reviewable adoption operation from a staged payload."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -201,14 +200,14 @@ def main() -> int:
     parser.add_argument("destination", type=Path)
     parser.add_argument("payload", type=Path, help="directory containing the release payload")
     args = parser.parse_args()
-    payload = _payload_from_directory(args.payload)
+    payload = stage_payload(args.payload)
     try:
         owned_paths = _owned_paths(args.destination) if args.operation == "update" else frozenset()
     except ValueError as exc:
         print(str(exc))
         return 1
     report = preflight(args.destination, payload, owned_paths=owned_paths)
-    invalid = sorted(relative for relative in payload if not _is_process_path(relative))
+    invalid = sorted(relative for relative in payload if not relative.startswith(_ALLOWED_PREFIXES))
     unresolved = _unresolved(args.destination)
     if invalid or report.collisions or unresolved:
         print("adoption preflight rejected; destination was not changed:")
