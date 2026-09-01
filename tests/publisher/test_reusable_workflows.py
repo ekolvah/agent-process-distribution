@@ -152,9 +152,13 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
         "Classify Claude review outcome",
         "Publish validated review evidence",
         "Enforce selected review outcome",
-        "Enforce unresolved blocking Codex conversations",
     ):
-        assert steps[name]["working-directory"] == "trusted"
+        assert steps[name]["working-directory"] == (
+            "${{ steps.review-source.outputs.outcome_checker_root }}"
+        )
+    assert steps["Enforce unresolved blocking Codex conversations"]["working-directory"] == (
+        "${{ steps.review-source.outputs.blocking_threads_root }}"
+    )
     assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
     assert (
         "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md"
@@ -207,7 +211,7 @@ def test_valid_codex_evidence_skips_claude_fallback_and_diagnostic() -> None:
         assert "steps.codex-classify.outputs.valid != 'true'" in steps[name]["if"]
 
 
-def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_trusted_working_directory() -> (
+def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_the_selected_outcome_checker_root() -> (
     None
 ):
     steps = _steps("reusable-agent-review.yml")
@@ -215,7 +219,7 @@ def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_trusted_wo
     name = "Diagnose Claude execution failure"
     assert name in steps
     step = steps[name]
-    assert step["working-directory"] == "trusted"
+    assert step["working-directory"] == "${{ steps.review-source.outputs.outcome_checker_root }}"
     assert "continue-on-error" not in step
     assert "steps.claude-classify.outputs.valid != 'true'" in step["if"]
     assert "steps.claude-diagnostic-capability.outputs.supported == 'true'" in step["if"]
@@ -258,8 +262,15 @@ def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_p
     )
     assert "outcome_checker_invocation=python -m scripts.check_agent_review_outcome" in selector
     assert "bootstrap fallback: default branch has no relocated outcome checker yet" in selector
+    assert (
+        "bootstrap fallback: default branch has no process installed yet, "
+        "using this PR's own outcome checker" in selector
+    )
+    assert selector.count("outcome_checker_root=trusted") == 2
+    assert "outcome_checker_root=." in selector
 
     invocation = "${{ steps.review-source.outputs.outcome_checker_invocation }}"
+    root = "${{ steps.review-source.outputs.outcome_checker_root }}"
     for name in (
         "Classify Codex review outcome",
         "Classify Claude review outcome",
@@ -269,13 +280,14 @@ def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_p
         "Enforce selected review outcome",
     ):
         assert invocation in steps[name]["run"]
+        assert steps[name]["working-directory"] == root
 
     path = "${{ steps.review-source.outputs.outcome_checker_path }}"
     for name in (
         "Select Claude-diagnostic capability",
         "Select PR-comment publish capability",
     ):
-        assert f"trusted/{path}" in steps[name]["run"]
+        assert f"{root}/{path}" in steps[name]["run"]
 
 
 def test_review_contract_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
@@ -285,7 +297,12 @@ def test_review_contract_location_is_feature_detected_on_a_default_branch_that_p
 
     assert "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" in selector
     assert "contract_path=trusted/REVIEW_CONTRACT.md" in selector
+    assert "contract_path=.agent-process/REVIEW_CONTRACT.md" in selector
     assert "bootstrap fallback: default branch has no relocated review contract yet" in selector
+    assert (
+        "bootstrap fallback: default branch has no process installed yet, "
+        "using this PR's own review contract" in selector
+    )
 
 
 def test_blocking_threads_invocation_is_feature_detected_on_a_default_branch_that_predates_it() -> (
@@ -302,10 +319,19 @@ def test_blocking_threads_invocation_is_feature_detected_on_a_default_branch_tha
     assert (
         "bootstrap fallback: default branch has no relocated blocking-thread gate yet" in selector
     )
+    assert (
+        "bootstrap fallback: default branch has no process installed yet, "
+        "using this PR's own blocking-thread gate" in selector
+    )
+    assert selector.count("blocking_threads_root=trusted") == 2
+    assert "blocking_threads_root=." in selector
 
     assert (
         "${{ steps.review-source.outputs.blocking_threads_invocation }}"
         in steps["Enforce unresolved blocking Codex conversations"]["run"]
+    )
+    assert steps["Enforce unresolved blocking Codex conversations"]["working-directory"] == (
+        "${{ steps.review-source.outputs.blocking_threads_root }}"
     )
 
 
@@ -317,7 +343,7 @@ def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> N
     step = steps[name]
     assert "steps.codex-classify.outputs.valid != 'true'" in step["if"]
     assert "steps.pr-comment-capability.outputs.supported == 'true'" in step["if"]
-    assert step["working-directory"] == "trusted"
+    assert step["working-directory"] == "${{ steps.review-source.outputs.outcome_checker_root }}"
     assert step["env"]["STRUCTURED_OUTCOME"] == "${{ steps.review.outputs.structured_output }}"
     assert "--publish-pr-comment" in step["run"]
     assert "--reviewed-head-sha" in step["run"]

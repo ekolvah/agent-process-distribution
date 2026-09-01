@@ -70,26 +70,42 @@ jobs:
           fi
           if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/REVIEW_CONTRACT.md"; then
             echo "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
-          else
+          elif test -f "$GITHUB_WORKSPACE/trusted/REVIEW_CONTRACT.md"; then
             echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no relocated review contract yet, using its pre-migration path"
+          else
+            echo "contract_path=.agent-process/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no process installed yet, using this PR's own review contract"
           fi
           if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_agent_review_outcome.py"; then
+            echo "outcome_checker_root=trusted" >> "$GITHUB_OUTPUT"
             echo "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
             echo "outcome_checker_invocation=python .agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
-          else
+          elif test -f "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py"; then
+            echo "outcome_checker_root=trusted" >> "$GITHUB_OUTPUT"
             echo "outcome_checker_path=scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
             # The pre-migration script has no direct-entry-point import fallback
             # (that was added by this same migration), so it only resolves its
             # `scripts.gh_io` import run as a module, not as a bare file path.
             echo "outcome_checker_invocation=python -m scripts.check_agent_review_outcome" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no relocated outcome checker yet, using its pre-migration module invocation"
+          else
+            echo "outcome_checker_root=." >> "$GITHUB_OUTPUT"
+            echo "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+            echo "outcome_checker_invocation=python .agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no process installed yet, using this PR's own outcome checker"
           fi
           if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_blocking_review_threads.py"; then
+            echo "blocking_threads_root=trusted" >> "$GITHUB_OUTPUT"
             echo "blocking_threads_invocation=python .agent-process/scripts/check_blocking_review_threads.py" >> "$GITHUB_OUTPUT"
-          else
+          elif test -f "$GITHUB_WORKSPACE/trusted/scripts/check_blocking_review_threads.py"; then
+            echo "blocking_threads_root=trusted" >> "$GITHUB_OUTPUT"
             echo "blocking_threads_invocation=python -m scripts.check_blocking_review_threads" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no relocated blocking-thread gate yet, using its pre-migration module invocation"
+          else
+            echo "blocking_threads_root=." >> "$GITHUB_OUTPUT"
+            echo "blocking_threads_invocation=python .agent-process/scripts/check_blocking_review_threads.py" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no process installed yet, using this PR's own blocking-thread gate"
           fi
       - name: Read owner-requested Codex review
         id: codex-review
@@ -108,7 +124,7 @@ jobs:
       - name: Classify Codex review outcome
         id: codex-classify
         if: ${{ always() }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
         run: ${{ steps.review-source.outputs.outcome_checker_invocation }} "$STRUCTURED_OUTCOME" --classify
@@ -142,7 +158,7 @@ jobs:
       - name: Classify Claude review outcome
         id: claude-classify
         if: ${{ always() && steps.codex-classify.outputs.valid != 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
         run: ${{ steps.review-source.outputs.outcome_checker_invocation }} "$STRUCTURED_OUTCOME" --classify
@@ -159,7 +175,7 @@ jobs:
           && steps.claude-classify.outputs.valid != 'true' }}
         run: |
           if grep -Fq "DIAGNOSE_EXECUTION_FILE_SUPPORTED = True" \
-            "$GITHUB_WORKSPACE/trusted/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
+            "$GITHUB_WORKSPACE/${{ steps.review-source.outputs.outcome_checker_root }}/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
             echo "supported=true" >> "$GITHUB_OUTPUT"
           else
             echo "supported=false" >> "$GITHUB_OUTPUT"
@@ -176,13 +192,13 @@ jobs:
           && steps.codex-classify.outputs.valid != 'true'
           && steps.claude-classify.outputs.valid != 'true'
           && steps.claude-diagnostic-capability.outputs.supported == 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           EXECUTION_FILE: ${{ steps.review.outputs.execution_file }}
         run: ${{ steps.review-source.outputs.outcome_checker_invocation }} --diagnose-execution-file "$EXECUTION_FILE"
       - name: Publish validated review evidence
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
@@ -201,7 +217,7 @@ jobs:
           && steps.codex-classify.outputs.valid != 'true' }}
         run: |
           if grep -Fq "PUBLISH_PR_COMMENT_SUPPORTED = True" \
-            "$GITHUB_WORKSPACE/trusted/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
+            "$GITHUB_WORKSPACE/${{ steps.review-source.outputs.outcome_checker_root }}/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
             echo "supported=true" >> "$GITHUB_OUTPUT"
           else
             echo "supported=false" >> "$GITHUB_OUTPUT"
@@ -216,7 +232,7 @@ jobs:
           ${{ always() && steps.pr-context.outcome == 'success'
           && steps.codex-classify.outputs.valid != 'true'
           && steps.pr-comment-capability.outputs.supported == 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
           REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
@@ -229,7 +245,7 @@ jobs:
           --repo "$REPO" --pr "$PR_NUMBER"
       - name: Enforce selected review outcome
         if: ${{ always() }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
@@ -239,7 +255,7 @@ jobs:
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "$REVIEW_PRODUCER"
       - name: Enforce unresolved blocking Codex conversations
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.blocking_threads_root }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
