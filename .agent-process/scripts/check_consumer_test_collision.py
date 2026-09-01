@@ -45,7 +45,7 @@ finally:
 _VOLATILE_ANSWER_KEYS = frozenset({"_src_path", "_commit"})
 
 
-def _load_answers_file(destination: Path) -> tuple[str, dict[str, object]]:
+def _load_answers_file(destination: Path) -> tuple[str, str | None, dict[str, object]]:
     answers_path = destination / ".agent-process" / "copier-answers.yml"
     if not answers_path.is_file():
         raise FileNotFoundError(
@@ -55,8 +55,11 @@ def _load_answers_file(destination: Path) -> tuple[str, dict[str, object]]:
     if not isinstance(data, dict) or not isinstance(data.get("_src_path"), str):
         raise ValueError(f"{answers_path} must record _src_path")
     src_path = data["_src_path"]
+    previous_commit = data.get("_commit")
+    if not isinstance(previous_commit, str):
+        previous_commit = None
     answers = {key: value for key, value in data.items() if key not in _VOLATILE_ANSWER_KEYS}
-    return src_path, answers
+    return src_path, previous_commit, answers
 
 
 def _render_current_template(
@@ -92,11 +95,46 @@ def _render_current_template(
     return rendered
 
 
+def _previously_rendered_paths(
+    work: Path, src_path: str, answers: dict[str, object], previous_commit: str | None
+) -> frozenset[str]:
+    """Closed-root paths the template already owned as of the consumer's last render.
+
+    Without this, an ordinary release that legitimately changes an
+    already-rendered closed-root file (e.g. `.github/workflows/ci.yml`) reads
+    as a foreign collision, because the raw byte comparison never distinguishes
+    it from a brand-new template path landing on pre-existing, unrelated
+    content — the only case this scanner exists to catch (#57 fresh finding).
+    """
+    if previous_commit is None:
+        return frozenset()
+    try:
+        previous_rendered = _render_current_template(work, src_path, answers, previous_commit)
+    except RuntimeError:
+        # The previous ref may be unresolvable (e.g. a shallow local clone);
+        # fail toward still reporting every closed-root path as potentially
+        # new rather than silently skipping a genuine collision.
+        return frozenset()
+    return frozenset(
+        path.relative_to(previous_rendered).as_posix()
+        for path in previous_rendered.rglob("*")
+        if path.is_file()
+    )
+
+
 def find_collisions(destination: Path, *, vcs_ref: str | None = None) -> list[str]:
     """Closed-root paths already present at `destination` with foreign content."""
-    src_path, answers = _load_answers_file(destination)
+    src_path, previous_commit, answers = _load_answers_file(destination)
     with tempfile.TemporaryDirectory() as temporary:
-        rendered = _render_current_template(Path(temporary), src_path, answers, vcs_ref)
+        work = Path(temporary)
+        new_work = work / "new"
+        old_work = work / "old"
+        new_work.mkdir()
+        old_work.mkdir()
+        rendered = _render_current_template(new_work, src_path, answers, vcs_ref)
+        previously_rendered = _previously_rendered_paths(
+            old_work, src_path, answers, previous_commit
+        )
         collisions = []
         for path in sorted(rendered.rglob("*")):
             if not path.is_file() or path.relative_to(rendered).as_posix().startswith(
@@ -113,6 +151,10 @@ def find_collisions(destination: Path, *, vcs_ref: str | None = None) -> list[st
                 # delimited fragment in the same file, so these never collide on
                 # differing bytes — they merge instead (adopt_agent_process._path_conflicts
                 # applies the same exemption).
+                continue
+            if relative in previously_rendered:
+                # Already template-owned as of the consumer's last render;
+                # copier's own update merge handles an ordinary content change.
                 continue
             existing = destination / relative
             if existing.is_file() and existing.read_bytes() != path.read_bytes():
