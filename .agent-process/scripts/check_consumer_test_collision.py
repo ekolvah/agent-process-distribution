@@ -95,31 +95,36 @@ def _render_current_template(
     return rendered
 
 
-def _previously_rendered_paths(
+def _previously_rendered_contents(
     work: Path, src_path: str, answers: dict[str, object], previous_commit: str | None
-) -> frozenset[str]:
-    """Closed-root paths the template already owned as of the consumer's last render.
+) -> dict[str, bytes]:
+    """Content the template rendered for each closed-root path at the consumer's last render.
 
     Without this, an ordinary release that legitimately changes an
     already-rendered closed-root file (e.g. `.github/workflows/ci.yml`) reads
     as a foreign collision, because the raw byte comparison never distinguishes
     it from a brand-new template path landing on pre-existing, unrelated
     content — the only case this scanner exists to catch (#57 fresh finding).
+    Presence alone is not enough to exempt a path: a file the consumer
+    overwrote with foreign content since that last render is still a genuine
+    collision even though the template already owned that path, so callers
+    must compare the destination's current bytes against what is returned
+    here, not merely check membership.
     """
     if previous_commit is None:
-        return frozenset()
+        return {}
     try:
         previous_rendered = _render_current_template(work, src_path, answers, previous_commit)
     except RuntimeError:
         # The previous ref may be unresolvable (e.g. a shallow local clone);
         # fail toward still reporting every closed-root path as potentially
         # new rather than silently skipping a genuine collision.
-        return frozenset()
-    return frozenset(
-        path.relative_to(previous_rendered).as_posix()
+        return {}
+    return {
+        path.relative_to(previous_rendered).as_posix(): path.read_bytes()
         for path in previous_rendered.rglob("*")
         if path.is_file()
-    )
+    }
 
 
 def find_collisions(destination: Path, *, vcs_ref: str | None = None) -> list[str]:
@@ -132,7 +137,7 @@ def find_collisions(destination: Path, *, vcs_ref: str | None = None) -> list[st
         new_work.mkdir()
         old_work.mkdir()
         rendered = _render_current_template(new_work, src_path, answers, vcs_ref)
-        previously_rendered = _previously_rendered_paths(
+        previously_rendered = _previously_rendered_contents(
             old_work, src_path, answers, previous_commit
         )
         collisions = []
@@ -152,13 +157,15 @@ def find_collisions(destination: Path, *, vcs_ref: str | None = None) -> list[st
                 # differing bytes — they merge instead (adopt_agent_process._path_conflicts
                 # applies the same exemption).
                 continue
-            if relative in previously_rendered:
-                # Already template-owned as of the consumer's last render;
-                # copier's own update merge handles an ordinary content change.
-                continue
             existing = destination / relative
-            if existing.is_file() and existing.read_bytes() != path.read_bytes():
-                collisions.append(relative)
+            if not existing.is_file() or existing.read_bytes() == path.read_bytes():
+                continue
+            if existing.read_bytes() == previously_rendered.get(relative):
+                # Untouched since the consumer's last render; the difference
+                # from the new render is an ordinary upstream content change,
+                # not foreign content colliding with a newly introduced path.
+                continue
+            collisions.append(relative)
         return collisions
 
 
