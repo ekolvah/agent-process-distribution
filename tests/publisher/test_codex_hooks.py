@@ -80,10 +80,10 @@ class TestPostToolUse:
     def test_apply_patch_rename_checks_destination(self) -> None:
         payload = {
             "tool_input": {
-                "command": "*** Begin Patch\n*** Move to: scripts/new_name.py\n*** End Patch"
+                "command": "*** Begin Patch\n*** Move to: .agent-process/scripts/new_name.py\n*** End Patch"
             }
         }
-        assert edited_paths(payload) == ["scripts/new_name.py"]
+        assert edited_paths(payload) == [".agent-process/scripts/new_name.py"]
 
     def test_python_edit_uses_shared_ruff_feedback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import scripts.codex_hooks as codex_hooks

@@ -28,7 +28,7 @@ def _files(directory: Path) -> set[str]:
     return {
         path.relative_to(directory).as_posix()
         for path in directory.rglob("*")
-        if path.is_file() and path.name != ".copier-answers.yml"
+        if path.is_file() and path.as_posix() != ".agent-process/copier-answers.yml"
     }
 
 
@@ -47,7 +47,12 @@ def test_rendered_payload_is_confined_to_the_single_root(tmp_path: Path) -> None
 
 def test_rendered_payload_contains_no_legacy_archive(tmp_path: Path) -> None:
     del tmp_path
-    source = (Path(__file__).resolve().parents[2] / "scripts" / "adopt_agent_process.py").read_text(
+    source = (
+        Path(__file__).resolve().parents[2]
+        / ".agent-process"
+        / "scripts"
+        / "adopt_agent_process.py"
+    ).read_text(
         encoding="utf-8"
     )
 
