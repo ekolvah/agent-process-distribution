@@ -38,7 +38,7 @@ class TestPreToolUse:
 
     def test_malformed_payload_fails_closed(self) -> None:
         result = subprocess.run(
-            [sys.executable, "-m", "scripts.codex_hooks", "pre-tool"],
+            [sys.executable, ".agent-process/scripts/codex_hooks.py", "pre-tool"],
             cwd=_REPO,
             input="not json",
             text=True,
@@ -51,7 +51,7 @@ class TestPreToolUse:
 
     def test_module_invocation_imports_shared_policy_from_repo_root(self) -> None:
         result = subprocess.run(
-            [sys.executable, "-m", "scripts.codex_hooks", "pre-tool"],
+            [sys.executable, ".agent-process/scripts/codex_hooks.py", "pre-tool"],
             cwd=_REPO,
             input=json.dumps({"tool_input": {"command": "git push origin main"}}),
             text=True,
