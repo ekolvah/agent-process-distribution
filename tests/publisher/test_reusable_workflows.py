@@ -118,6 +118,11 @@ def test_quality_installs_product_dependencies_when_present() -> None:
     step = steps[name]
     assert step["working-directory"] == "pr"
     assert "requirements.txt" in step["run"]
+    # A consumer that declares dependencies only in a package `pyproject.toml`
+    # (no root requirements.txt) needs its own installation path — the earlier
+    # fix only ever recognized requirements.txt (#57 fresh finding).
+    assert "pyproject.toml" in step["run"]
+    assert "pip install -e ." in step["run"]
     names = list(steps)
     assert (
         names.index("Install consumer dependencies")
@@ -137,8 +142,16 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     assert steps["Verify PR closes its issue"]["working-directory"] == (
         "${{ steps.pr-link-driver.outputs.path }}"
     )
-    assert (
-        "trusted/.agent-process/scripts/verify_pr_link.py" in steps["Select PR-link driver"]["run"]
+    driver_run = steps["Select PR-link driver"]["run"]
+    assert "trusted/.agent-process/scripts/verify_pr_link.py" in driver_run
+    # The default branch may still carry only the pre-migration root path
+    # (relocation not yet merged there); that must resolve to the trusted
+    # driver too, via its module invocation, not fall through to the PR's
+    # own untrusted copy (#57 fresh finding).
+    assert "trusted/scripts/verify_pr_link.py" in driver_run
+    assert "python -m scripts.verify_pr_link" in driver_run
+    assert steps["Verify PR closes its issue"]["run"] == (
+        '${{ steps.pr-link-driver.outputs.invocation }} --branch "$HEAD_REF" --pr "$PR_NUMBER"'
     )
     checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
     assert len(checkouts) == 2

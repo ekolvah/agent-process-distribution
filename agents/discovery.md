@@ -23,8 +23,8 @@ Procedure:
 3. Run the capture the contract selects, and write the `## Evidence` block in the shape defined
    there — opening with the provenance line `discovery: Claude discovery subagent` — to a file
    outside the repository.
-4. Run `python scripts/validate_issue_sections.py <N> --evidence-only --body-file <path>` on that
-   file, and return the block only once it exits 0.
+4. Run `python .agent-process/scripts/validate_issue_sections.py <N> --evidence-only --body-file <path>`
+   on that file, and return the block only once it exits 0.
 
 Adapter-specific rules:
 

@@ -55,6 +55,8 @@ jobs:
         run: |
           if [ -f requirements.txt ]; then
             python -m pip install -r requirements.txt
+          elif [ -f pyproject.toml ] && grep -Eq '^\[project\]' pyproject.toml; then
+            python -m pip install -e .
           fi
       # One step keeps the externally required context stable. The trusted
       # driver's registry decides the full set of checks; it runs in the PR
