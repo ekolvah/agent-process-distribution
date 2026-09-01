@@ -34,7 +34,7 @@ required_status_contexts:
 - pr-link / pr-link
 - agent-review / agent-review
 workflow_references:
-    agent-review: ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@4d079a58c1392d0de4e4a060fa33f8b9f4ebedeb
-    pr-link: ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@4d079a58c1392d0de4e4a060fa33f8b9f4ebedeb
-    quality: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@4d079a58c1392d0de4e4a060fa33f8b9f4ebedeb
+    agent-review: ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@ffed356b7817540cd000c5eae5744ddb8e078194
+    pr-link: ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@ffed356b7817540cd000c5eae5744ddb8e078194
+    quality: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@ffed356b7817540cd000c5eae5744ddb8e078194
 
