@@ -36,6 +36,10 @@ _UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
 # fragment in the same file, so these two never collide on differing bytes —
 # they merge instead.
 _MANAGED_FRAGMENT_TARGETS = frozenset({"AGENTS.md", ".gitignore"})
+# bootstrap_github_project.py rewrites this placeholder in place with the
+# repository's generated Project number and field IDs; an update must not
+# replace that live state with the release's empty template again.
+_PRESERVED_ON_UPDATE_TARGETS = frozenset({".agent-process/scripts/project_settings.py"})
 
 
 def _is_process_path(relative: str) -> bool:
@@ -158,6 +162,12 @@ def _apply(destination: Path, payload: dict[str, bytes], *, updating: bool) -> N
     for relative, content in sorted(payload.items()):
         if relative in _MANAGED_FRAGMENT_TARGETS:
             update_managed_fragment(destination / relative, content.decode("utf-8"))
+        elif (
+            updating
+            and relative in _PRESERVED_ON_UPDATE_TARGETS
+            and (destination / relative).is_file()
+        ):
+            continue
         else:
             _atomic_write(destination / relative, content)
     manifest = json.dumps({"paths": sorted(payload)}, indent=2) + "\n"

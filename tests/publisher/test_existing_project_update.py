@@ -70,3 +70,14 @@ def test_update_does_not_treat_a_setext_heading_as_an_inline_conflict(tmp_path: 
     assert (tmp_path / ".agent-process/docs/note.md").read_bytes() == payload[
         ".agent-process/docs/note.md"
     ]
+
+
+def test_update_preserves_a_bootstrap_generated_project_settings_file(tmp_path: Path) -> None:
+    placeholder = {".agent-process/scripts/project_settings.py": b"PROJECT_NUMBER = None\n"}
+    install_payload(tmp_path, placeholder)
+    settings = tmp_path / ".agent-process/scripts/project_settings.py"
+    settings.write_bytes(b"PROJECT_NUMBER = 42\n")
+
+    update_payload(tmp_path, placeholder)
+
+    assert settings.read_bytes() == b"PROJECT_NUMBER = 42\n"
