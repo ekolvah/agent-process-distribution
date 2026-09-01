@@ -64,8 +64,15 @@ jobs:
           if grep -Fq "STANDARD_REVIEW_PARSER = True" \
             "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/request_codex_review.py" 2>/dev/null; then
             echo "adapter_working_directory=trusted" >> "$GITHUB_OUTPUT"
+            echo "adapter_invocation=python .agent-process/scripts/request_codex_review.py" >> "$GITHUB_OUTPUT"
+          elif grep -Fq "STANDARD_REVIEW_PARSER = True" \
+            "$GITHUB_WORKSPACE/trusted/scripts/request_codex_review.py" 2>/dev/null; then
+            echo "adapter_working_directory=trusted" >> "$GITHUB_OUTPUT"
+            echo "adapter_invocation=python -m scripts.request_codex_review" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated Codex parser yet, using its pre-migration module invocation"
           else
             echo "adapter_working_directory=." >> "$GITHUB_OUTPUT"
+            echo "adapter_invocation=python .agent-process/scripts/request_codex_review.py" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no owner-requested Codex parser yet"
           fi
           if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/REVIEW_CONTRACT.md"; then
@@ -116,7 +123,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python .agent-process/scripts/request_codex_review.py --repo "${{ github.repository }}"
+          ${{ steps.review-source.outputs.adapter_invocation }} --repo "${{ github.repository }}"
           --pr "${{ steps.pr-context.outputs.number }}"
           --head-sha "${{ steps.pr-context.outputs.head_sha }}"
           --head-observed-at "${{ steps.pr-context.outputs.head_observed_at }}"

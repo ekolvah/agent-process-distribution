@@ -290,6 +290,22 @@ def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_p
         assert f"{root}/{path}" in steps[name]["run"]
 
 
+def test_review_parser_location_is_feature_detected_on_a_default_branch_that_predates_it() -> None:
+    steps = _steps("reusable-agent-review.yml")
+
+    selector = steps["Select trusted review source"]["run"]
+    assert "adapter_invocation=python .agent-process/scripts/request_codex_review.py" in selector
+    assert "adapter_invocation=python -m scripts.request_codex_review" in selector
+    assert "bootstrap fallback: default branch has no relocated Codex parser yet" in selector
+    assert selector.count("adapter_working_directory=trusted") == 2
+    assert "adapter_working_directory=." in selector
+
+    assert (
+        "${{ steps.review-source.outputs.adapter_invocation }}"
+        in steps["Read owner-requested Codex review"]["run"]
+    )
+
+
 def test_review_contract_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
     None
 ):
