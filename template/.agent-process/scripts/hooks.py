@@ -54,7 +54,10 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from scripts.navigation_policy import navigation_hint, read_budget_hint
+try:
+    from scripts.navigation_policy import navigation_hint, read_budget_hint
+except ModuleNotFoundError:  # documented direct script entry point
+    from navigation_policy import navigation_hint, read_budget_hint
 
 # ruff exit codes: 0 = clean, 1 = lint findings, >=2 = ruff itself errored.
 _RUFF_EXEC_ERROR = 2

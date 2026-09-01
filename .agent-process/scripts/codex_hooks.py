@@ -8,7 +8,10 @@ import sys
 from collections.abc import Sequence
 from typing import Any
 
-from scripts.agent_policy import denied_reason
+try:
+    from scripts.agent_policy import denied_reason
+except ModuleNotFoundError:  # documented direct script entry point
+    from agent_policy import denied_reason
 from scripts.hooks import run_on_paths
 
 _PATCH_PATH = re.compile(r"^\*\*\* (?:Add|Update) File: (.+)$", re.MULTILINE)
