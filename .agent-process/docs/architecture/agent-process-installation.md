@@ -42,7 +42,7 @@ workflows run on every pull request.
    read-only preflight:
 
    ```bash
-   python .agent-process/scripts/check_review_credentials.py --repo <owner>/<repository>
+   python .agent-process/scripts/check_review_credentials.py --repo ekolvah/agent-process-distribution
    ```
 
    It checks only that `CLAUDE_CODE_OAUTH_TOKEN` is named in the repository or
@@ -93,7 +93,7 @@ workflows run on every pull request.
 Enable the copied local pre-push probe after reviewing it:
 
 ```bash
-git config core.hooksPath .githooks
+git config core.hooksPath .agent-process/.githooks
 ```
 
 The caller permission grants (`contents: read`, `issues: read`, and
@@ -145,6 +145,11 @@ contexts to GitHub's composed `caller / callee` names, so after updating run
 the activation/protection step again; existing v0.1.x protection otherwise
 points at contexts that no workflow publishes.
 
+No adopter installed the pre-`.agent-process/` layout before it moved
+under one root, so this release defines no `copier update` migration path
+from that older layout — only a fresh `copier copy` is supported going in
+([ADR 0019](../adr/0019-single-root-agent-process-layout.md)).
+
 Installation and update place every process conformance test under the
 reserved `tests/agent_process/` subtree — the only path a copied test occupies
 in the target repository; product tests elsewhere are never touched. Before
@@ -174,19 +179,24 @@ directory, then run the adoption preflight before making any write:
 python .agent-process/scripts/adopt_agent_process.py preflight <target-repository> <staged-payload>
 ```
 
-The command relocates the normal render into its reserved payload before it
-inspects the target, inventories every collision, `.rej` file, and inline
-conflict marker in one report, and exits non-zero without changing the target.
-A passing report can be applied with `install` (first adoption) or `update`
-(a prior reserved install). The ownership manifest records each installed path,
-so an update may replace only that exact path; a consumer-created future path
-remains a collision. Process-exclusive `.agents/**`, `.claude/**`, `.codex/**`,
-`.githooks/**`, and `.agent-process/scripts/**` may install only after the same collision
-preflight; additive/reserved destinations are `.agent-process/**` and
-`.github/workflows/agent-process-*.yml`. Product configuration stays
-consumer-owned. The three callers retain the composed
-contexts `quality / quality`, `pr-link / pr-link`, and `agent-review / agent-review`
-without replacing a consumer's own workflow files.
+`<staged-payload>` is a plain `copier copy` render, taken as-is: the command
+reads every file under it, rejects any path outside `.agent-process/` and the
+closed root set below, inventories every remaining collision, `.rej` file,
+and inline conflict marker in one report, and exits non-zero without
+changing the target. A passing report can be applied with `install` (first
+adoption) or `update` (a prior reserved install). The ownership manifest
+records each installed path, so an update may replace only that exact path;
+a consumer-created future path remains a collision. Every process file
+renders under `.agent-process/`, except the closed root set
+[ADR 0019](../adr/0019-single-root-agent-process-layout.md) defines and
+individually justifies: the real-named `.github/workflows/ci.yml`,
+`agent-review.yml`, `pr-link.yml` and `.github/pull_request_template.md`;
+the tool-mandated `.agents/**`, `.claude/**`, `.codex/**`; the
+managed-fragment `AGENTS.md` and `.gitignore`; and the reserved
+`tests/agent_process/` subtree. Product configuration stays consumer-owned.
+The three callers retain the composed contexts `quality / quality`,
+`pr-link / pr-link`, and `agent-review / agent-review` without replacing a
+consumer's own workflow files.
 
 An unavoidable shared text file uses one explicit `<!-- agent-process:begin -->`
 through `<!-- agent-process:end -->` fragment. Duplicate or malformed markers

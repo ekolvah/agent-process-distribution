@@ -212,7 +212,7 @@ weaker**, since it never replaces the PR review of the diff and must never
 pass for independent.
 
 The section opens with a provenance line, resolved by
-[`validate_issue_sections.py`](../../.agent-process/scripts/validate_issue_sections.py)
+[`validate_issue_sections.py`](../../scripts/validate_issue_sections.py)
 against `architect_reviewer.adapter_independence` in the role catalogue —
 not written by the author, so a marker cannot claim independence for a
 self-review carrier:
@@ -381,9 +381,12 @@ since a pre-split consumer does not yet have this script (`copier update`
 only installs it once the update completes). The check renders the current
 template against the target's own recorded answers and reports, with the
 exact colliding relative path, any file already occupying a location the
-template's `tests/agent_process/` subtree reserves for itself — a case
-Copier's own `--conflict` handling does not catch, since it only marks
-conflicts for paths it previously tracked through a prior render's diff.
+template's closed root set reserves for itself — `.agent-process/`, the
+reserved `tests/agent_process/` subtree, and the rest of
+[ADR 0019](../adr/0019-single-root-agent-process-layout.md)'s closed root
+set — a case Copier's own `--conflict` handling does not catch, since it
+only marks conflicts for paths it previously tracked through a prior
+render's diff.
 
 ## Maintaining this distribution
 

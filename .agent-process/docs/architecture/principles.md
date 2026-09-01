@@ -1,4 +1,4 @@
-# my-project architectural principles
+# agent-process-distribution architectural principles
 
 **Question this document answers:** which principles, workflow rules and quality
 gates are binding in this repo, and what wins when two documents disagree. This is

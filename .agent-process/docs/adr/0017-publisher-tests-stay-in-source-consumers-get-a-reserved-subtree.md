@@ -63,7 +63,13 @@ unrelated file elsewhere in a consumer's `tests/` tree can never collide with
 a template path. `.agent-process/scripts/check_consumer_test_collision.py` renders the
 current template against a target repository's own recorded answers and
 reports any reserved-subtree path that already differs, closing the one gap
-Copier's own `--conflict` handling leaves open. The drift-gate allowlist
+Copier's own `--conflict` handling leaves open. [ADR 0019](0019-single-root-agent-process-layout.md)
+later generalized this same check from the single `tests/agent_process/`
+subtree to the full closed root set (`_CLOSED_ROOT_FILES` /
+`_CLOSED_ROOT_PREFIXES` in `.agent-process/scripts/adopt_agent_process.py`,
+of which `tests/agent_process/` is now one prefix among several) — one
+collision rule protects every reserved destination instead of two
+implementations that could drift apart. The drift-gate allowlist
 still declares each publisher test file's own `root_only_paths` row with its
 own `reason:` — never a directory-wide exemption — so a stray file dropped
 into `tests/publisher/` still fails the gate as an undeclared extra file.
@@ -103,7 +109,12 @@ template-owned ones into the subtree, and a foreign file already occupying a
 reserved-subtree path is visible to `.agent-process/scripts/check_consumer_test_collision.py`
 before the update runs. This file itself is publisher-only and is not part of
 a rendered consumer's own test suite; a consumer confirms the split holds for
-its own repository by running `python -m pytest tests/agent_process`. Before
+its own repository by running
+`python -m pytest -c .agent-process/pyproject.toml tests/agent_process`
+(the trailing path is required: passed alongside `-c`, it resolves against
+the invocation directory instead of the config file's own, which is what
+lets `testpaths` reach `tests/agent_process/` from the checkout root — see
+[ADR 0019](0019-single-root-agent-process-layout.md)). Before
 an update, the collision check itself runs from a distribution checkout, not
 the consumer's own — a pre-split consumer does not yet have the script that
 `copier update` is about to install.
