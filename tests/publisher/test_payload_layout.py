@@ -52,9 +52,7 @@ def test_rendered_payload_contains_no_legacy_archive(tmp_path: Path) -> None:
         / ".agent-process"
         / "scripts"
         / "adopt_agent_process.py"
-    ).read_text(
-        encoding="utf-8"
-    )
+    ).read_text(encoding="utf-8")
 
     assert "stage_payload" not in source
     assert ".agent-process/payload/" not in source

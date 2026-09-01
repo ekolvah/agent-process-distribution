@@ -200,7 +200,7 @@ def test_pre_read_is_an_accepted_subcommand() -> None:
     the dispatcher's allowlist is a guarded requirement, not an implementation detail.
     """
     result = subprocess.run(
-            [sys.executable, ".agent-process/scripts/hooks.py", "pre-read"],
+        [sys.executable, ".agent-process/scripts/hooks.py", "pre-read"],
         input="{}",
         capture_output=True,
         encoding="utf-8",
