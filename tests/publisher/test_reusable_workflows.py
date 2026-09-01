@@ -272,6 +272,16 @@ def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_p
         assert f"trusted/{resolved}" in steps[name]["run"]
 
 
+def test_review_contract_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
+    None
+):
+    selector = _steps("reusable-agent-review.yml")["Select trusted review source"]["run"]
+
+    assert "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" in selector
+    assert "contract_path=trusted/REVIEW_CONTRACT.md" in selector
+    assert "bootstrap fallback: default branch has no relocated review contract yet" in selector
+
+
 def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> None:
     steps = _steps("reusable-agent-review.yml")
 

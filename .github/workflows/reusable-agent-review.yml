@@ -68,8 +68,12 @@ jobs:
             echo "adapter_working_directory=." >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no owner-requested Codex parser yet"
           fi
-          test -f "$GITHUB_WORKSPACE/trusted/.agent-process/REVIEW_CONTRACT.md"
-          echo "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/REVIEW_CONTRACT.md"; then
+            echo "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          else
+            echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated review contract yet, using its pre-migration path"
+          fi
           if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_agent_review_outcome.py"; then
             echo "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
           else
