@@ -105,9 +105,9 @@ def test_rendered_project_ships_the_standalone_review_contract(rendered_default:
     destination = rendered_default
 
     assert (destination / ".agent-process" / "REVIEW_CONTRACT.md").is_file()
-    assert "[REVIEW_CONTRACT.md](.agent-process/REVIEW_CONTRACT.md)" in (destination / "AGENTS.md").read_text(
-        encoding="utf-8"
-    )
+    assert "[REVIEW_CONTRACT.md](.agent-process/REVIEW_CONTRACT.md)" in (
+        destination / "AGENTS.md"
+    ).read_text(encoding="utf-8")
     assert not (destination / ".agent-process" / "scripts" / "extract_review_prompt.py").exists()
 
 
@@ -134,16 +134,20 @@ def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
 def test_rendered_review_caller_uses_owner_requested_codex_review(
     rendered_default: Path,
 ) -> None:
-    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-review.yml")[
-        "jobs"
-    ]["agent-review"]
+    caller = _workflow(rendered_default / ".github" / "workflows" / "agent-review.yml")["jobs"][
+        "agent-review"
+    ]
 
     assert caller["secrets"] == {
         "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
     }
     assert "OPENAI_API_KEY" not in str(caller)
     installation = (
-        rendered_default / ".agent-process" / "docs" / "architecture" / "agent-process-installation.md"
+        rendered_default
+        / ".agent-process"
+        / "docs"
+        / "architecture"
+        / "agent-process-installation.md"
     ).read_text(encoding="utf-8")
     assert "@codex review" in installation
     assert "enable **Automatic reviews**" not in installation
@@ -152,9 +156,9 @@ def test_rendered_review_caller_uses_owner_requested_codex_review(
 def test_rendered_implementer_requests_codex_for_every_reviewed_head(
     rendered_default: Path,
 ) -> None:
-    process = (rendered_default / ".agent-process" / "docs" / "architecture" / "agent-process.md").read_text(
-        encoding="utf-8"
-    )
+    process = (
+        rendered_default / ".agent-process" / "docs" / "architecture" / "agent-process.md"
+    ).read_text(encoding="utf-8")
     implementer = (
         rendered_default / ".agents" / "skills" / "implement-issue" / "SKILL.md"
     ).read_text(encoding="utf-8")
@@ -184,7 +188,9 @@ def test_create_mode_requires_explicit_confirmation_and_no_placeholder_ids(
 ) -> None:
     destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
 
-    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(
+        encoding="utf-8"
+    )
     assert "PVT_" not in settings
     assert "REPLACE_ME" not in settings
     bootstrap = destination / ".agent-process" / "scripts" / "bootstrap_github_project.py"
@@ -213,9 +219,9 @@ def test_existing_mode_bakes_only_the_selected_project_number(tmp_path: Path) ->
         "existing_github_project_number=42",
     )
 
-    bootstrap = (destination / ".agent-process" / "scripts" / "bootstrap_github_project.py").read_text(
-        encoding="utf-8"
-    )
+    bootstrap = (
+        destination / ".agent-process" / "scripts" / "bootstrap_github_project.py"
+    ).read_text(encoding="utf-8")
     assert 'MODE = "existing"' in bootstrap
     assert 'OWNER = "example-org"' in bootstrap
     assert 'EXISTING_NUMBER = "42"' in bootstrap
@@ -267,7 +273,9 @@ def test_create_mode_links_fields_and_persists_real_ids(
 
     bootstrap.main(["--confirm-create"])
 
-    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(
+        encoding="utf-8"
+    )
     assert 'PROJECT_NUMBER = "7"' in settings
     assert 'PROJECT_OWNER = "octocat"' in settings
     assert 'PROJECT_ID = "project-7"' in settings
@@ -396,7 +404,9 @@ def test_create_mode_rolls_back_a_project_when_activation_fails(
 
     assert exc.value.code == 1
     assert ["gh", "project", "delete", "7", "--owner", "@me"] in calls
-    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(
+        encoding="utf-8"
+    )
     assert 'PROJECT_ID = ""' in settings
     assert "did not activate" in capsys.readouterr().err
 

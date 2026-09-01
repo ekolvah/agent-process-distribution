@@ -24,13 +24,26 @@ class PreflightReport:
 CONFLICT_MARKERS = _Markers()
 _OWNERSHIP_FILE = ".agent-process/ownership.json"
 _PROCESS_ROOT = ".agent-process/"
-_CLOSED_ROOT_FILES = frozenset({".github/workflows/ci.yml", ".github/workflows/agent-review.yml", ".github/workflows/pr-link.yml", ".github/pull_request_template.md", "AGENTS.md", ".gitignore"})
+_CLOSED_ROOT_FILES = frozenset(
+    {
+        ".github/workflows/ci.yml",
+        ".github/workflows/agent-review.yml",
+        ".github/workflows/pr-link.yml",
+        ".github/pull_request_template.md",
+        "AGENTS.md",
+        ".gitignore",
+    }
+)
 _CLOSED_ROOT_PREFIXES = (".agents/", ".claude/", ".codex/")
 _UNRESOLVED_MARKERS = ("<<<<<<<", "=======", ">>>>>>>")
 
 
 def _is_process_path(relative: str) -> bool:
-    return relative.startswith(_PROCESS_ROOT) or relative in _CLOSED_ROOT_FILES or relative.startswith(_CLOSED_ROOT_PREFIXES)
+    return (
+        relative.startswith(_PROCESS_ROOT)
+        or relative in _CLOSED_ROOT_FILES
+        or relative.startswith(_CLOSED_ROOT_PREFIXES)
+    )
 
 
 def preflight(

@@ -68,7 +68,10 @@ def run_on_edit(payload: dict[str, Any]) -> tuple[int, str]:
 def main(argv: Sequence[str] | None = None) -> None:
     args = list(sys.argv[1:] if argv is None else argv)
     if len(args) != 1 or args[0] not in {"pre-tool", "on-edit"}:
-        print("Usage: python .agent-process/scripts/codex_hooks.py {pre-tool|on-edit}", file=sys.stderr)
+        print(
+            "Usage: python .agent-process/scripts/codex_hooks.py {pre-tool|on-edit}",
+            file=sys.stderr,
+        )
         raise SystemExit(2)
 
     stdin_text = sys.stdin.read()

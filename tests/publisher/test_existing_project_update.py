@@ -56,9 +56,9 @@ def test_update_does_not_treat_scanner_source_as_an_inline_conflict(tmp_path: Pa
 
     update_payload(tmp_path, payload)
 
-    assert (
-        tmp_path / ".agent-process/scripts/adopt_agent_process.py"
-    ).read_bytes() == payload[".agent-process/scripts/adopt_agent_process.py"]
+    assert (tmp_path / ".agent-process/scripts/adopt_agent_process.py").read_bytes() == payload[
+        ".agent-process/scripts/adopt_agent_process.py"
+    ]
 
 
 def test_update_does_not_treat_a_setext_heading_as_an_inline_conflict(tmp_path: Path) -> None:

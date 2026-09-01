@@ -99,7 +99,10 @@ def main(argv: list[str] | None = None) -> int:
     """Run the non-blocking reminder for one issue number."""
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 1:
-        print("Usage: python .agent-process/scripts/check_orphan_scope.py <issue-number>", file=sys.stderr)
+        print(
+            "Usage: python .agent-process/scripts/check_orphan_scope.py <issue-number>",
+            file=sys.stderr,
+        )
         return 2
     try:
         issue_number = int(args[0])

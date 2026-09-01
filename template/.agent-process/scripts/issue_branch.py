@@ -130,7 +130,9 @@ def _fetch_title(issue_number: int) -> str:
 
 def main() -> None:
     if len(sys.argv) != 2:
-        print("Usage: python .agent-process/scripts/issue_branch.py <issue-number>", file=sys.stderr)
+        print(
+            "Usage: python .agent-process/scripts/issue_branch.py <issue-number>", file=sys.stderr
+        )
         sys.exit(2)
     try:
         n = int(sys.argv[1])

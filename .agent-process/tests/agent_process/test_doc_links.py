@@ -259,7 +259,11 @@ class TestLinkPredicates:
         ("target", "source", "expected"),
         [
             ("../adr/0001.md", ".agent-process/docs/architecture/x.md", "docs/adr/0001.md"),
-            ("y.md#a", ".agent-process/docs/architecture/x.md", ".agent-process/docs/architecture/y.md"),
+            (
+                "y.md#a",
+                ".agent-process/docs/architecture/x.md",
+                ".agent-process/docs/architecture/y.md",
+            ),
             ("adr/", "docs/x.md", "docs/adr"),
             ("#a", "docs/x.md", "docs/x.md"),
         ],

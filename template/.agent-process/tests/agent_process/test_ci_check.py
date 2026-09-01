@@ -94,7 +94,8 @@ class TestFindModules:
     def test_excludes_audit_tmp_and_pytest_cache(self) -> None:
         modules = set(_find_modules())
         assert (
-            ".agent-process/scripts/ci_check.py".replace("/", "\\") in modules or ".agent-process/scripts/ci_check.py" in modules
+            ".agent-process/scripts/ci_check.py".replace("/", "\\") in modules
+            or ".agent-process/scripts/ci_check.py" in modules
         )
         assert not any(".audit-tmp" in m for m in modules)
         assert not any("pytest-cache-files-" in m for m in modules)

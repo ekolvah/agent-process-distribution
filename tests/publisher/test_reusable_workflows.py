@@ -117,7 +117,9 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     assert steps["Verify PR closes its issue"]["working-directory"] == (
         "${{ steps.pr-link-driver.outputs.path }}"
     )
-    assert "trusted/.agent-process/scripts/verify_pr_link.py" in steps["Select PR-link driver"]["run"]
+    assert (
+        "trusted/.agent-process/scripts/verify_pr_link.py" in steps["Select PR-link driver"]["run"]
+    )
     checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
     assert len(checkouts) == 2
     assert "reusable-pr-link.yml@" in _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"]
@@ -155,7 +157,8 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
         assert steps[name]["working-directory"] == "trusted"
     assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
     assert (
-        "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" in steps["Select trusted review source"]["run"]
+        "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md"
+        in steps["Select trusted review source"]["run"]
     )
     prompt = steps["Claude review"]["with"]["prompt"]
     assert "trusted/AGENTS.md" in prompt
@@ -166,7 +169,10 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
         in steps["Fetch current PR context"]["with"]["script"]
     )
     assert "--head-observed-at" in steps["Read owner-requested Codex review"]["run"]
-    assert "reusable-agent-review.yml@" in _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"]
+    assert (
+        "reusable-agent-review.yml@"
+        in _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"]
+    )
 
 
 def test_agent_review_requires_structured_review_evidence() -> None:
@@ -273,7 +279,9 @@ def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
 
 def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:
     contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
-    principles = (ROOT / ".agent-process" / "docs" / "architecture" / "principles.md").read_text(encoding="utf-8")
+    principles = (ROOT / ".agent-process" / "docs" / "architecture" / "principles.md").read_text(
+        encoding="utf-8"
+    )
 
     indirection_marker = "single call site and no stated reason"
     duplication_marker = "names an existing symbol and its repository-relative path"
@@ -303,7 +311,12 @@ def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
         ROOT / ".agent-process" / "docs" / "architecture" / "agent-process-installation.md"
     ).read_text(encoding="utf-8")
     installation = (
-        ROOT / "template" / ".agent-process" / "docs" / "architecture" / "agent-process-installation.md.jinja"
+        ROOT
+        / "template"
+        / ".agent-process"
+        / "docs"
+        / "architecture"
+        / "agent-process-installation.md.jinja"
     ).read_text(encoding="utf-8")
 
     for document in (source_installation, installation):

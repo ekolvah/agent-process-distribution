@@ -89,10 +89,14 @@ def find_collisions(destination: Path, *, vcs_ref: str | None = None) -> list[st
         rendered = _render_current_template(Path(temporary), src_path, answers, vcs_ref)
         collisions = []
         for path in sorted(rendered.rglob("*")):
-            if not path.is_file() or path.relative_to(rendered).as_posix().startswith(".agent-process/"):
+            if not path.is_file() or path.relative_to(rendered).as_posix().startswith(
+                ".agent-process/"
+            ):
                 continue
             relative = path.relative_to(rendered).as_posix()
-            if relative not in _CLOSED_ROOT_FILES and not relative.startswith(_CLOSED_ROOT_PREFIXES):
+            if relative not in _CLOSED_ROOT_FILES and not relative.startswith(
+                _CLOSED_ROOT_PREFIXES
+            ):
                 continue
             existing = destination / relative
             if existing.is_file() and existing.read_bytes() != path.read_bytes():
