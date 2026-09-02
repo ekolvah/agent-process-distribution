@@ -47,11 +47,19 @@ re-run updates it in place instead of duplicating it.
   detection (a marker grepped from the trusted checkout) and skips with a
   notice when the default branch has not caught up yet, instead of failing.
 * Bad, because carrier output outside the schema deliberately leaves the check
-  red rather than guessing at a finding.
+  red rather than guessing at a finding — and visible. Present-but-invalid
+  output publishes an explicitly unvalidated block (a rejection reason, the
+  reviewed head SHA, a run pointer, and a best-effort render) through the same
+  two surfaces, so a schema violation is no longer visible only in the raw
+  Actions job log; the check still reds and no rejected payload becomes
+  merge-authorizing. A collision on one head SHA in the sticky PR comment
+  resolves by precedence — a validated block always wins over an unvalidated
+  one for that head, never the reverse (issue #67).
 
 ### Confirmation
 
-`tests/test_agent_review_outcome.py` covers the conditional cardinality,
-summary output, and PR-comment publish/dedup behavior.
-`tests/test_reusable_workflows.py` checks the workflow schema, summary
-wiring, and the PR-comment step's gating.
+`tests/publisher/test_agent_review_outcome.py` covers the conditional
+cardinality, summary output, PR-comment publish/dedup behavior, and the
+present-but-invalid unvalidated-publish path added by issue #67.
+`tests/publisher/test_reusable_workflows.py` checks the workflow schema,
+summary wiring, and the PR-comment step's gating.

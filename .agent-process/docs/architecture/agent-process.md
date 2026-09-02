@@ -337,7 +337,16 @@ Claude fallback carrier is the one that ran, that same validated evidence is
 also published as a plain PR-conversation comment — never a review state —
 so a fallback verdict is not visible only in the Actions run summary; the
 Codex primary path is unchanged, since it already leaves its own native
-review. Once the
+review. A present-but-invalid Claude fallback payload (output that arrived but
+does not fit the schema above) still reds the check, but is not silently
+dropped either: it publishes an explicitly **unvalidated** block — a
+human-readable rejection reason, the reviewed head SHA, a run pointer, and a
+best-effort render of whatever fields the payload does contain — through the
+same two surfaces, so a schema violation stays inspectable instead of visible
+only in the raw Actions job log. It never authorizes a merge. A collision on
+one head SHA in the sticky PR comment resolves by precedence, not equality: a
+validated block always replaces an unvalidated one for that head, and an
+unvalidated block never overwrites a validated one. Once the
 reusable review workflow is invoked, it reads its
 verifier from the default branch and current PR body/head from the live API, so
 the reviewed worktree cannot alter its own verifier. This does **not**

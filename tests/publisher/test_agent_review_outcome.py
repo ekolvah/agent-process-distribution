@@ -374,7 +374,7 @@ def test_unparseable_nonempty_payload_is_still_surfaced(
     assert excinfo.value.code == 2
     text = summary.read_text(encoding="utf-8") if summary.exists() else ""
     assert "<!-- agent-review-unvalidated -->" in text
-    assert "not valid JSON" in text.lower()
+    assert "not valid json" in text.lower()
 
 
 def test_validated_block_replaces_an_unvalidated_block_on_the_same_head(
