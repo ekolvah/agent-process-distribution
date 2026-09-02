@@ -27,24 +27,43 @@ guarantee; the same poll `open_pr` needs at creation time, the gate needs too.
 from __future__ import annotations
 
 import argparse
+import json
+import re
 import subprocess
 import sys
 import time
 
 try:
+    from scripts import check_orphan_scope
     from scripts.open_pr import (
+        DEFERRED_SCOPE_BEGIN,
+        DEFERRED_SCOPE_END,
         LINKAGE_ATTEMPTS,
         LINKAGE_DELAY_S,
         has_closing_reference,
         issue_number_from_branch,
     )
 except ModuleNotFoundError:  # Direct execution from the relocated payload.
+    import check_orphan_scope
     from open_pr import (
+        DEFERRED_SCOPE_BEGIN,
+        DEFERRED_SCOPE_END,
         LINKAGE_ATTEMPTS,
         LINKAGE_DELAY_S,
         has_closing_reference,
         issue_number_from_branch,
     )
+
+# Feature-detection marker for the reusable `pr-link` workflow: the trusted
+# default-branch checkout is what actually runs (bootstrap fallback shape),
+# so on the PR that introduces this check, and for any consumer whose default
+# branch predates issue #64, this constant is absent and the workflow emits a
+# visible notice instead of assuming support (§IV — mirrors
+# `PUBLISH_PR_COMMENT_SUPPORTED` / `DIAGNOSE_EXECUTION_FILE_SUPPORTED` in
+# check_agent_review_outcome.py).
+DEFERRED_SCOPE_CHECK_SUPPORTED = True
+
+_TRACKER_REF_RE = re.compile(r"tracked in #(\d+)")
 
 
 def link_required_but_missing(branch: str, refs_json: str) -> bool:
@@ -105,6 +124,77 @@ def _link_missing_after_poll(branch: str, pr: str) -> bool:
     return True
 
 
+def deferred_scope_mismatch(branch: str, pr_body: str, source_issue_body: str) -> list[int]:
+    """Tracker numbers the PR body's Deferred-scope block claims but the
+    linked issue's *current* Out of scope section no longer backs with an
+    open `deferred:` bullet.
+
+    Soundness, not equality (issue #64 finding S2): only tracker NUMBERS are
+    compared, never the rendered wording, so a benign retitle/reword of the
+    issue does not red a merge-ready PR. Empty for a non-issue branch,
+    mirroring `link_required_but_missing`'s short-circuit — the check is N/A
+    there."""
+    if issue_number_from_branch(branch) is None:
+        return []
+    begin = pr_body.find(DEFERRED_SCOPE_BEGIN)
+    end = pr_body.find(DEFERRED_SCOPE_END)
+    if begin == -1 or end == -1 or end < begin:
+        return []
+    referenced = [int(n) for n in _TRACKER_REF_RE.findall(pr_body[begin:end])]
+    if not referenced:
+        return []
+    valid: set[int] = set()
+    for bullet in check_orphan_scope.deferred_scope_bullets(source_issue_body):
+        valid.update(check_orphan_scope.deferred_scope_trackers(bullet))
+    return [n for n in referenced if n not in valid]
+
+
+def _pr_body(pr: str) -> str:
+    """Fetch the PR body, or exit 2 on a `gh` failure (same infra-vs-verdict
+    split as `_refs_json`)."""
+    result = subprocess.run(
+        ["gh", "pr", "view", pr, "--json", "body"],
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
+    )
+    if result.stdout is None or result.stderr is None:
+        print(
+            f"error: capture failed for `gh pr view {pr} --json body` (rc={result.returncode}): "
+            f"stdout={result.stdout!r} stderr={result.stderr!r}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    if result.returncode != 0:
+        print(
+            f"error: `gh pr view {pr} --json body` failed (rc={result.returncode}): "
+            f"{result.stderr.strip()} — cannot verify deferred-scope soundness.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    return json.loads(result.stdout).get("body") or ""
+
+
+def _unsound_deferred_trackers(branch: str, pr: str) -> list[int]:
+    """`deferred_scope_mismatch` with its two bodies fetched through `gh`.
+
+    No `gh` call at all for a non-issue branch — same short-circuit
+    `deferred_scope_mismatch` applies, checked here first so the fetches are
+    skipped, not just their result discarded."""
+    n = issue_number_from_branch(branch)
+    if n is None:
+        return []
+    try:
+        source_issue_body = check_orphan_scope.fetch_issue_body(n)
+    except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+        print(
+            f"error: could not read issue #{n} to verify deferred-scope soundness: {exc}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    return deferred_scope_mismatch(branch, _pr_body(pr), source_issue_body)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="CI gate: PR from issue-N branch must close it.")
     parser.add_argument("--branch", required=True, help="PR head branch (github.head_ref)")
@@ -120,6 +210,19 @@ def main(argv: list[str] | None = None) -> None:
             file=sys.stderr,
         )
         sys.exit(1)
+
+    unsound = _unsound_deferred_trackers(ns.branch, ns.pr)
+    if unsound:
+        numbers = ", ".join(f"#{n}" for n in unsound)
+        print(
+            f"error: PR #{ns.pr} Deferred scope references {numbers}, which the linked "
+            f"issue's Out of scope section does not back with a `deferred:` bullet — "
+            f"regenerate the section with `python .agent-process/scripts/open_pr.py` "
+            f"or `update_pr_body.py`.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     print(f"ok: PR link check passed for branch {ns.branch!r}")
 
 

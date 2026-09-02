@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 
 jobs:
   pr-link:
@@ -41,6 +42,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Select deferred-scope check capability
+        # Feature-detect rather than assume: this driver runs from the trusted
+        # default-branch checkout, so a PR introducing the deferred-scope
+        # soundness check cannot make the trusted copy verify it until that PR
+        # merges (same bootstrap shape as "Select PR-link driver" above). A
+        # missing marker is a visible skip, not a hard failure of this gate.
+        id: deferred-scope-capability
+        run: |
+          if grep -Fq "DEFERRED_SCOPE_CHECK_SUPPORTED = True" \
+            "$GITHUB_WORKSPACE/${{ steps.pr-link-driver.outputs.path }}/.agent-process/scripts/verify_pr_link.py" 2>/dev/null || \
+             grep -Fq "DEFERRED_SCOPE_CHECK_SUPPORTED = True" \
+            "$GITHUB_WORKSPACE/${{ steps.pr-link-driver.outputs.path }}/scripts/verify_pr_link.py" 2>/dev/null; then
+            echo "supported=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch cannot verify deferred-scope soundness yet"
+          fi
       - name: Verify PR closes its issue
         env:
           GH_TOKEN: ${{ github.token }}
