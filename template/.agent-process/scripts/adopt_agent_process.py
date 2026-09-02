@@ -126,9 +126,13 @@ def _unresolved(destination: Path) -> tuple[str, ...]:
         if not path.is_file():
             continue
         relative = path.relative_to(destination).as_posix()
-        if not _is_process_path(relative):
+        is_rej = relative.endswith(".rej")
+        # A reject artifact's scope is the file it rejects, not its own
+        # suffixed name: "AGENTS.md.rej" is a reject for "AGENTS.md".
+        rejected = relative.removesuffix(".rej") if is_rej else relative
+        if not _is_process_path(rejected):
             continue
-        if relative.endswith(".rej"):
+        if is_rej:
             problems.append(relative)
             continue
         try:
@@ -142,6 +146,8 @@ def _unresolved(destination: Path) -> tuple[str, ...]:
 
 def _owned_paths(destination: Path) -> frozenset[str]:
     path = destination / _OWNERSHIP_FILE
+    if path.exists() and not path.is_file():
+        raise ValueError(f"ownership manifest path is not a file: {path}")
     if not path.is_file():
         return frozenset()
     try:

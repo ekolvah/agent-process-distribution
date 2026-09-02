@@ -12,6 +12,7 @@ import yaml
 from scripts.adopt_agent_process import (
     _MANAGED_FRAGMENT_BEGIN,
     _MANAGED_FRAGMENT_END,
+    _OWNERSHIP_FILE,
     _PRESERVED_ON_UPDATE_TARGETS,
     _payload_from_directory,
     install_payload,
@@ -252,3 +253,31 @@ def test_install_ignores_conflict_marker_text_outside_the_process_scope(tmp_path
     install_payload(tmp_path, _payload())
 
     assert unrelated.read_text(encoding="utf-8") == "<<<<<<<\nours\n=======\ntheirs\n>>>>>>>\n"
+
+
+def test_install_rejects_a_rej_artifact_beside_a_closed_root_file(tmp_path: Path) -> None:
+    """A Copier `.rej` artifact takes its scope from the file it rejects, not
+    from its own suffixed name: `AGENTS.md.rej` is a reject for the exact
+    closed-root path `AGENTS.md`, and stripping only the `.rej` suffix before
+    the process-path check is what puts it back in scope.
+    """
+    _product(tmp_path)
+    (tmp_path / "AGENTS.md.rej").write_bytes(b"<<<<<<<\n")
+
+    with pytest.raises(ValueError, match="unresolved Copier conflict artifact"):
+        install_payload(tmp_path, _payload())
+
+
+def test_install_rejects_a_directory_at_the_ownership_manifest_path(tmp_path: Path) -> None:
+    """The ownership-manifest destination must be validated before any payload
+    write: a preexisting directory there must not be silently treated as "no
+    manifest yet", which would let `_apply` write every payload file and only
+    then fail on the final manifest write, leaving a partially adopted repo.
+    """
+    _product(tmp_path)
+    (tmp_path / _OWNERSHIP_FILE).mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="ownership manifest"):
+        install_payload(tmp_path, _payload())
+
+    assert not (tmp_path / ".github/workflows/ci.yml").is_file()
