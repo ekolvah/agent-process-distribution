@@ -26,10 +26,16 @@ jobs:
       - name: Select PR-link driver
         id: pr-link-driver
         run: |
-          if test -f "$GITHUB_WORKSPACE/trusted/scripts/verify_pr_link.py"; then
+          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/verify_pr_link.py"; then
             echo "path=trusted" >> "$GITHUB_OUTPUT"
+            echo "invocation=python .agent-process/scripts/verify_pr_link.py" >> "$GITHUB_OUTPUT"
+          elif test -f "$GITHUB_WORKSPACE/trusted/scripts/verify_pr_link.py"; then
+            echo "path=trusted" >> "$GITHUB_OUTPUT"
+            echo "invocation=python -m scripts.verify_pr_link" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated PR-link driver yet, using its pre-migration module invocation"
           else
             echo "path=pr" >> "$GITHUB_OUTPUT"
+            echo "invocation=python .agent-process/scripts/verify_pr_link.py" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no PR-link driver yet"
           fi
       - uses: actions/setup-python@v5
@@ -41,4 +47,4 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         working-directory: ${{ steps.pr-link-driver.outputs.path }}
-        run: python -m scripts.verify_pr_link --branch "$HEAD_REF" --pr "$PR_NUMBER"
+        run: ${{ steps.pr-link-driver.outputs.invocation }} --branch "$HEAD_REF" --pr "$PR_NUMBER"

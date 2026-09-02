@@ -1,4 +1,4 @@
-"""Tests for `scripts/issue_branch.py` — branch naming for `/implement`.
+"""Tests for `.agent-process/scripts/issue_branch.py` — branch naming for `/implement`.
 
 Covers slugification (word cap, non-ASCII fallback, special chars), branch-name
 assembly, the Cyrillic title decode, and in-process delegation to
@@ -54,7 +54,10 @@ class TestBuildBranchName:
         # past new_branch.py's guard and break the issue_branch→new_branch pipe.
         spec = importlib.util.spec_from_file_location(
             "scripts.new_branch",
-            Path(__file__).resolve().parent.parent.parent / "scripts" / "new_branch.py",
+            Path(__file__).resolve().parent.parent.parent
+            / ".agent-process"
+            / "scripts"
+            / "new_branch.py",
         )
         assert spec is not None and spec.loader is not None
         mod = importlib.util.module_from_spec(spec)
@@ -270,7 +273,9 @@ def _load_unconfigured_project_settings() -> ModuleType:
     start = Path(__file__).resolve()
     module_path = None
     for candidate in (start, *start.parents):
-        candidate_path = candidate / "template" / "scripts" / "project_settings.py"
+        candidate_path = (
+            candidate / "template" / ".agent-process" / "scripts" / "project_settings.py"
+        )
         if candidate_path.exists():
             module_path = candidate_path
             break
@@ -300,14 +305,14 @@ def test_unconfigured_project_blocks_branch_creation(
 
 class TestCli:
     def test_documented_cli_runs_from_a_clean_sys_path(self) -> None:
-        """`python scripts/issue_branch.py` puts `scripts/` on `sys.path`, not the repo root.
+        """`python .agent-process/scripts/issue_branch.py` puts `.agent-process/scripts/` on `sys.path`, not the repo root.
 
         The second sibling module must therefore load by the same absolute-path route as
         `new_branch.py`; a `scripts.` import would pass under pytest and fail here (B1).
         """
         repo_root = Path(__file__).resolve().parent.parent.parent
         completed = subprocess.run(
-            [sys.executable, "scripts/issue_branch.py"],
+            [sys.executable, ".agent-process/scripts/issue_branch.py"],
             cwd=repo_root,
             text=True,
             capture_output=True,

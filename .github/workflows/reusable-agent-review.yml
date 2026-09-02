@@ -62,14 +62,58 @@ jobs:
         id: review-source
         run: |
           if grep -Fq "STANDARD_REVIEW_PARSER = True" \
+            "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/request_codex_review.py" 2>/dev/null; then
+            echo "adapter_working_directory=trusted" >> "$GITHUB_OUTPUT"
+            echo "adapter_invocation=python .agent-process/scripts/request_codex_review.py" >> "$GITHUB_OUTPUT"
+          elif grep -Fq "STANDARD_REVIEW_PARSER = True" \
             "$GITHUB_WORKSPACE/trusted/scripts/request_codex_review.py" 2>/dev/null; then
             echo "adapter_working_directory=trusted" >> "$GITHUB_OUTPUT"
+            echo "adapter_invocation=python -m scripts.request_codex_review" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated Codex parser yet, using its pre-migration module invocation"
           else
             echo "adapter_working_directory=." >> "$GITHUB_OUTPUT"
+            echo "adapter_invocation=python .agent-process/scripts/request_codex_review.py" >> "$GITHUB_OUTPUT"
             echo "::notice::bootstrap fallback: default branch has no owner-requested Codex parser yet"
           fi
-          test -f "$GITHUB_WORKSPACE/trusted/REVIEW_CONTRACT.md"
-          echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/REVIEW_CONTRACT.md"; then
+            echo "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+          elif test -f "$GITHUB_WORKSPACE/trusted/REVIEW_CONTRACT.md"; then
+            echo "contract_path=trusted/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated review contract yet, using its pre-migration path"
+          else
+            echo "contract_path=.agent-process/REVIEW_CONTRACT.md" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no process installed yet, using this PR's own review contract"
+          fi
+          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_agent_review_outcome.py"; then
+            echo "outcome_checker_root=trusted" >> "$GITHUB_OUTPUT"
+            echo "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+            echo "outcome_checker_invocation=python .agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+          elif test -f "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py"; then
+            echo "outcome_checker_root=trusted" >> "$GITHUB_OUTPUT"
+            echo "outcome_checker_path=scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+            # The pre-migration script has no direct-entry-point import fallback
+            # (that was added by this same migration), so it only resolves its
+            # `scripts.gh_io` import run as a module, not as a bare file path.
+            echo "outcome_checker_invocation=python -m scripts.check_agent_review_outcome" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated outcome checker yet, using its pre-migration module invocation"
+          else
+            echo "outcome_checker_root=." >> "$GITHUB_OUTPUT"
+            echo "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+            echo "outcome_checker_invocation=python .agent-process/scripts/check_agent_review_outcome.py" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no process installed yet, using this PR's own outcome checker"
+          fi
+          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/check_blocking_review_threads.py"; then
+            echo "blocking_threads_root=trusted" >> "$GITHUB_OUTPUT"
+            echo "blocking_threads_invocation=python .agent-process/scripts/check_blocking_review_threads.py" >> "$GITHUB_OUTPUT"
+          elif test -f "$GITHUB_WORKSPACE/trusted/scripts/check_blocking_review_threads.py"; then
+            echo "blocking_threads_root=trusted" >> "$GITHUB_OUTPUT"
+            echo "blocking_threads_invocation=python -m scripts.check_blocking_review_threads" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no relocated blocking-thread gate yet, using its pre-migration module invocation"
+          else
+            echo "blocking_threads_root=." >> "$GITHUB_OUTPUT"
+            echo "blocking_threads_invocation=python .agent-process/scripts/check_blocking_review_threads.py" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch has no process installed yet, using this PR's own blocking-thread gate"
+          fi
       - name: Read owner-requested Codex review
         id: codex-review
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
@@ -79,7 +123,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python -m scripts.request_codex_review --repo "${{ github.repository }}"
+          ${{ steps.review-source.outputs.adapter_invocation }} --repo "${{ github.repository }}"
           --pr "${{ steps.pr-context.outputs.number }}"
           --head-sha "${{ steps.pr-context.outputs.head_sha }}"
           --head-observed-at "${{ steps.pr-context.outputs.head_observed_at }}"
@@ -87,10 +131,10 @@ jobs:
       - name: Classify Codex review outcome
         id: codex-classify
         if: ${{ always() }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-review.outputs.payload }}
-        run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
+        run: ${{ steps.review-source.outputs.outcome_checker_invocation }} "$STRUCTURED_OUTCOME" --classify
       - name: Claude review
         id: review
         if: >-
@@ -121,10 +165,10 @@ jobs:
       - name: Classify Claude review outcome
         id: claude-classify
         if: ${{ always() && steps.codex-classify.outputs.valid != 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
-        run: python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME" --classify
+        run: ${{ steps.review-source.outputs.outcome_checker_invocation }} "$STRUCTURED_OUTCOME" --classify
       - name: Select Claude-diagnostic capability
         # Feature-detect rather than assume: the trusted checkout is the
         # default branch, so the PR that introduces --diagnose-execution-file
@@ -138,7 +182,7 @@ jobs:
           && steps.claude-classify.outputs.valid != 'true' }}
         run: |
           if grep -Fq "DIAGNOSE_EXECUTION_FILE_SUPPORTED = True" \
-            "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py" 2>/dev/null; then
+            "$GITHUB_WORKSPACE/${{ steps.review-source.outputs.outcome_checker_root }}/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
             echo "supported=true" >> "$GITHUB_OUTPUT"
           else
             echo "supported=false" >> "$GITHUB_OUTPUT"
@@ -155,18 +199,18 @@ jobs:
           && steps.codex-classify.outputs.valid != 'true'
           && steps.claude-classify.outputs.valid != 'true'
           && steps.claude-diagnostic-capability.outputs.supported == 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           EXECUTION_FILE: ${{ steps.review.outputs.execution_file }}
-        run: python -m scripts.check_agent_review_outcome --diagnose-execution-file "$EXECUTION_FILE"
+        run: ${{ steps.review-source.outputs.outcome_checker_invocation }} --diagnose-execution-file "$EXECUTION_FILE"
       - name: Publish validated review evidence
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
         run: >-
-          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          ${{ steps.review-source.outputs.outcome_checker_invocation }} "$STRUCTURED_OUTCOME"
           --publish-summary --reviewed-head-sha "$REVIEWED_HEAD_SHA"
       - name: Select PR-comment publish capability
         # Feature-detect rather than assume: the trusted checkout is the
@@ -180,7 +224,7 @@ jobs:
           && steps.codex-classify.outputs.valid != 'true' }}
         run: |
           if grep -Fq "PUBLISH_PR_COMMENT_SUPPORTED = True" \
-            "$GITHUB_WORKSPACE/trusted/scripts/check_agent_review_outcome.py" 2>/dev/null; then
+            "$GITHUB_WORKSPACE/${{ steps.review-source.outputs.outcome_checker_root }}/${{ steps.review-source.outputs.outcome_checker_path }}" 2>/dev/null; then
             echo "supported=true" >> "$GITHUB_OUTPUT"
           else
             echo "supported=false" >> "$GITHUB_OUTPUT"
@@ -195,7 +239,7 @@ jobs:
           ${{ always() && steps.pr-context.outcome == 'success'
           && steps.codex-classify.outputs.valid != 'true'
           && steps.pr-comment-capability.outputs.supported == 'true' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.review.outputs.structured_output }}
           REVIEWED_HEAD_SHA: ${{ steps.pr-context.outputs.head_sha }}
@@ -203,28 +247,24 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ steps.pr-context.outputs.number }}
         run: >-
-          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          ${{ steps.review-source.outputs.outcome_checker_invocation }} "$STRUCTURED_OUTCOME"
           --publish-pr-comment --reviewed-head-sha "$REVIEWED_HEAD_SHA"
           --repo "$REPO" --pr "$PR_NUMBER"
       - name: Enforce selected review outcome
         if: ${{ always() }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.outcome_checker_root }}
         env:
           STRUCTURED_OUTCOME: ${{ steps.codex-classify.outputs.valid == 'true' && steps.codex-review.outputs.payload || steps.review.outputs.structured_output }}
           LIVE_PR_CONTEXT_STATUS: ${{ steps.pr-context.outcome }}
           REVIEW_PRODUCER: ${{ steps.codex-classify.outputs.valid == 'true' && 'Codex review' || 'Claude review' }}
         run: >-
-          python -m scripts.check_agent_review_outcome "$STRUCTURED_OUTCOME"
+          ${{ steps.review-source.outputs.outcome_checker_invocation }} "$STRUCTURED_OUTCOME"
           --live-pr-context-status "$LIVE_PR_CONTEXT_STATUS" --producer "$REVIEW_PRODUCER"
       - name: Enforce unresolved blocking Codex conversations
         if: ${{ always() && steps.pr-context.outcome == 'success' }}
-        working-directory: trusted
+        working-directory: ${{ steps.review-source.outputs.blocking_threads_root }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          if test -f scripts/check_blocking_review_threads.py; then
-            python -m scripts.check_blocking_review_threads --repo "${{ github.repository }}" \
-              --pr "${{ steps.pr-context.outputs.number }}"
-          else
-            echo "::notice::bootstrap fallback: default branch has no blocking-thread gate yet"
-          fi
+        run: >-
+          ${{ steps.review-source.outputs.blocking_threads_invocation }}
+          --repo "${{ github.repository }}" --pr "${{ steps.pr-context.outputs.number }}"

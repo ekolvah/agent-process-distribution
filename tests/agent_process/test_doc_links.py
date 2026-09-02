@@ -82,8 +82,8 @@ _CODE_SPAN_REF = re.compile(r"^[\w./-]+\.md#\S+$", re.UNICODE)
 # Copier-delivered Layer 1 (Claude adapter) directory: it only exists, and is only in scope,
 # when that adapter is installed.
 _EXPECTED_SCOPE_DIRS = (
-    "docs/architecture",
-    "docs/adr",
+    ".agent-process/docs/architecture",
+    ".agent-process/docs/adr",
     ".claude/rules",
 )
 
@@ -262,8 +262,16 @@ class TestLinkPredicates:
     @pytest.mark.parametrize(
         ("target", "source", "expected"),
         [
-            ("../adr/0001.md", "docs/architecture/x.md", "docs/adr/0001.md"),
-            ("y.md#a", "docs/architecture/x.md", "docs/architecture/y.md"),
+            (
+                "../adr/0001.md",
+                ".agent-process/docs/architecture/x.md",
+                ".agent-process/docs/adr/0001.md",
+            ),
+            (
+                "y.md#a",
+                ".agent-process/docs/architecture/x.md",
+                ".agent-process/docs/architecture/y.md",
+            ),
             ("adr/", "docs/x.md", "docs/adr"),
             ("#a", "docs/x.md", "docs/x.md"),
         ],

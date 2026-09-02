@@ -38,7 +38,7 @@ import yaml
 from scripts.validate_issue_sections import find_gaps
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-_ADR_DIR = _REPO_ROOT / "docs" / "adr"
+_ADR_DIR = _REPO_ROOT / ".agent-process" / "docs" / "adr"
 _TEMPLATE = _ADR_DIR / "template.md"
 
 # MADR uses `NNNN-slug.md`; the captured number is the record address.

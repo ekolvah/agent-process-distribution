@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, cast
 
 _REPO = Path(__file__).resolve().parents[2]
-_PYPROJECT = _REPO / "pyproject.toml"
+_PYPROJECT = _REPO / ".agent-process" / "pyproject.toml"
 
 _SILENCE_CODES = {"BLE", "TRY400"}
 _DISABLE_TOKENS = {"BLE", "BLE001", "TRY", "TRY400"}

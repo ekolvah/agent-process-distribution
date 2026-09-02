@@ -10,12 +10,12 @@ only when working with tests.
 ## Where things live
 
 - **Goal function** (three priorities) and “scripts > instructions” —
-  [`principles.md`](../../docs/architecture/principles.md#goal-function).
-- **Principles §I–VII** — [`principles.md`](../../docs/architecture/principles.md):
+  [`principles.md`](../../.agent-process/docs/architecture/principles.md#goal-function).
+- **Principles §I–VII** — [`principles.md`](../../.agent-process/docs/architecture/principles.md):
   root cause → §V, visibility → §IV, test-first → §I, simplicity/minimal-diff → §VII.
 - **Procedure** (roles, branch, PR discipline, gates, planner runbook, and
   architect-review contract) —
-  [`agent-process.md`](../../docs/architecture/agent-process.md).
+  [`agent-process.md`](../../.agent-process/docs/architecture/agent-process.md).
 - **Tests**: consult [`testing.md`](testing.md) before choosing the test level;
   it is path-scoped (`tests/**`) and may load only after the strategy is chosen.
 

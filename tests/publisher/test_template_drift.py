@@ -20,10 +20,35 @@ CHECKOUT_IGNORES = (
 def checkout(tmp_path: Path, *, root: Path = ROOT) -> Path:
     """Make an isolated source checkout whose edits do not touch this branch."""
     destination = tmp_path / "checkout"
+    visible = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    if visible.returncode:
+        ignore = shutil.ignore_patterns(*CHECKOUT_IGNORES)
+    else:
+        visible_paths = frozenset(path for path in visible.stdout.split("\0") if path)
+
+        def ignore(directory: str, names: list[str]) -> set[str]:
+            relative = Path(directory).relative_to(root)
+            excluded: set[str] = set()
+            for name in names:
+                candidate = (relative / name).as_posix()
+                visible = candidate in visible_paths or any(
+                    path.startswith(candidate + "/") for path in visible_paths
+                )
+                if not visible or any(part in CHECKOUT_IGNORES for part in (relative / name).parts):
+                    excluded.add(name)
+            return excluded
+
     shutil.copytree(
         root,
         destination,
-        ignore=shutil.ignore_patterns(*CHECKOUT_IGNORES),
+        ignore=ignore,
     )
     return destination
 
@@ -65,41 +90,45 @@ def test_checkout_excludes_ignored_artifacts(tmp_path: Path) -> None:
 
 def test_working_tree_template_edit_is_detected(tmp_path: Path) -> None:
     source = checkout(tmp_path)
-    (source / "template" / "scripts" / "ci_check.py.jinja").write_text(
+    (source / "template" / ".agent-process" / "scripts" / "ci_check.py.jinja").write_text(
         "uncommitted template edit\n", encoding="utf-8"
     )
 
     report = template_drift.check(source)
 
-    assert any("scripts/ci_check.py" in error for error in report.errors), report.format()
+    assert any(".agent-process/scripts/ci_check.py" in error for error in report.errors), (
+        report.format()
+    )
 
 
 def test_undeclared_deviation_is_red(tmp_path: Path, rendered_self_applied: Path) -> None:
     source = checkout(tmp_path)
-    path = source / "scripts" / "ci_check.py"
+    path = source / ".agent-process" / "scripts" / "ci_check.py"
     path.write_text(path.read_text(encoding="utf-8") + "\nundeclared drift\n", encoding="utf-8")
 
     report = template_drift.compare(
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    assert any("scripts/ci_check.py" in error for error in report.errors), report.format()
+    assert any(".agent-process/scripts/ci_check.py" in error for error in report.errors), (
+        report.format()
+    )
 
 
-def test_missing_source_only_copier_requirement_is_red(
+def test_generated_copier_requirement_edit_is_red(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
     source = checkout(tmp_path)
-    requirements = source / "requirements-dev.in"
+    requirements = source / ".agent-process" / "requirements-dev.in"
     requirements.write_text(
-        requirements.read_text(encoding="utf-8").replace("copier\n", ""), encoding="utf-8"
+        requirements.read_text(encoding="utf-8") + "unrelated-requirement\n", encoding="utf-8"
     )
 
     report = template_drift.compare(
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    assert "missing source-only Copier requirement: requirements-dev.in" in report.errors
+    assert ".agent-process/requirements-dev.in" in "\n".join(report.errors), report.format()
 
 
 def test_root_only_entry_with_a_template_origin_is_red(
@@ -131,7 +160,8 @@ def test_declared_expected_difference_is_allowed(
     )
 
     assert not any(
-        "content differs: scripts/project_settings.py" in error for error in report.errors
+        "content differs: .agent-process/scripts/project_settings.py" in error
+        for error in report.errors
     ), report.format()
 
 
@@ -139,8 +169,10 @@ def test_stale_expected_difference_entry_is_red(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
     source = checkout(tmp_path)
-    (source / "scripts" / "project_settings.py").write_text(
-        (rendered_self_applied / "scripts" / "project_settings.py").read_text(encoding="utf-8"),
+    (source / ".agent-process" / "scripts" / "project_settings.py").write_text(
+        (rendered_self_applied / ".agent-process" / "scripts" / "project_settings.py").read_text(
+            encoding="utf-8"
+        ),
         encoding="utf-8",
     )
 
@@ -148,14 +180,14 @@ def test_stale_expected_difference_entry_is_red(
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    assert "stale expected-difference allowlist entry: scripts/project_settings.py" in report.errors
+    assert ".agent-process/scripts/project_settings.py" in "\n".join(report.errors)
 
 
 def test_structural_deviation_in_expected_difference_path_is_red(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
     source = checkout(tmp_path)
-    path = source / "scripts" / "project_settings.py"
+    path = source / ".agent-process" / "scripts" / "project_settings.py"
     path.write_text(path.read_text(encoding="utf-8") + "\nEXTRA_FIELD = True\n", encoding="utf-8")
 
     report = template_drift.compare(
@@ -163,11 +195,12 @@ def test_structural_deviation_in_expected_difference_path_is_red(
     )
 
     assert any(
-        "content differs: scripts/project_settings.py" in error for error in report.errors
+        "content differs: .agent-process/scripts/project_settings.py" in error
+        for error in report.errors
     ), report.format()
 
 
-def test_source_only_copier_requirement_is_allowed(
+def test_clean_generated_copier_requirement_is_allowed(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
     source = checkout(tmp_path)
@@ -175,12 +208,14 @@ def test_source_only_copier_requirement_is_allowed(
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    assert not any("requirements-dev" in error for error in report.errors), report.format()
+    assert not any(".agent-process/requirements-dev.in" in error for error in report.errors), (
+        report.format()
+    )
 
 
 def test_unexpected_requirement_edit_is_red(tmp_path: Path, rendered_self_applied: Path) -> None:
     source = checkout(tmp_path)
-    requirements = source / "requirements-dev.in"
+    requirements = source / ".agent-process" / "requirements-dev.in"
     requirements.write_text(
         requirements.read_text(encoding="utf-8") + "unrelated-requirement\n",
         encoding="utf-8",
@@ -190,9 +225,9 @@ def test_unexpected_requirement_edit_is_red(tmp_path: Path, rendered_self_applie
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    assert any("content differs: requirements-dev.in" in error for error in report.errors), (
-        report.format()
-    )
+    assert any(
+        "content differs: .agent-process/requirements-dev.in" in error for error in report.errors
+    ), report.format()
 
 
 def test_drift_gate_still_rejects_an_undeclared_publisher_file(
@@ -213,13 +248,15 @@ def test_drift_gate_still_rejects_an_undeclared_publisher_file(
 
 def test_undeclared_extra_file_is_red(tmp_path: Path, rendered_self_applied: Path) -> None:
     source = checkout(tmp_path)
-    (source / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
+    (source / ".agent-process" / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
 
     report = template_drift.compare(
         source, rendered_self_applied, template_drift.load_allowlist(source)
     )
 
-    assert "undeclared extra file: scripts/stray.py" in report.errors, report.format()
+    assert "undeclared extra file: .agent-process/scripts/stray.py" in report.errors, (
+        report.format()
+    )
 
 
 def test_git_ignored_local_only_file_is_not_flagged(
@@ -233,10 +270,15 @@ def test_git_ignored_local_only_file_is_not_flagged(
     lock.parent.mkdir(parents=True, exist_ok=True)
     lock.write_text("{}\n", encoding="utf-8")
 
-    tracked_and_ignored = source / "scripts" / "tracked-and-ignored.txt"
+    tracked_and_ignored = source / ".agent-process" / "scripts" / "tracked-and-ignored.txt"
     tracked_and_ignored.write_text("kept\n", encoding="utf-8")
     subprocess.run(
-        ["git", "add", ".copier-answers.yml", "scripts/tracked-and-ignored.txt"],
+        [
+            "git",
+            "add",
+            ".agent-process/copier-answers.yml",
+            ".agent-process/scripts/tracked-and-ignored.txt",
+        ],
         cwd=source,
         check=True,
     )
@@ -246,11 +288,11 @@ def test_git_ignored_local_only_file_is_not_flagged(
     # it silently and hide a genuinely extra tracked file from the gate.
     exclude = source / ".git" / "info" / "exclude"
     exclude.write_text(
-        "**/.claude/scheduled_tasks.lock\nscripts/tracked-and-ignored.txt\n",
+        "**/.claude/scheduled_tasks.lock\n.agent-process/scripts/tracked-and-ignored.txt\n",
         encoding="utf-8",
     )
 
-    (source / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
+    (source / ".agent-process" / "scripts" / "stray.py").write_text("stray\n", encoding="utf-8")
 
     report = template_drift.compare(
         source, rendered_self_applied, template_drift.load_allowlist(source)
@@ -259,13 +301,15 @@ def test_git_ignored_local_only_file_is_not_flagged(
     assert "undeclared extra file: .claude/scheduled_tasks.lock" not in report.errors, (
         report.format()
     )
-    assert "stale root-only allowlist entry: .copier-answers.yml" not in report.errors, (
+    assert (
+        "stale root-only allowlist entry: .agent-process/copier-answers.yml" not in report.errors
+    ), report.format()
+    assert (
+        "undeclared extra file: .agent-process/scripts/tracked-and-ignored.txt" in report.errors
+    ), report.format()
+    assert "undeclared extra file: .agent-process/scripts/stray.py" in report.errors, (
         report.format()
     )
-    assert "undeclared extra file: scripts/tracked-and-ignored.txt" in report.errors, (
-        report.format()
-    )
-    assert "undeclared extra file: scripts/stray.py" in report.errors, report.format()
 
 
 def test_orphaned_generated_copy_is_red(tmp_path: Path) -> None:
@@ -312,7 +356,7 @@ def test_artifact_directories_are_excluded_at_any_depth(
     tmp_path: Path, rendered_self_applied: Path
 ) -> None:
     source = checkout(tmp_path)
-    cache = source / "scripts" / "__pycache__"
+    cache = source / ".agent-process" / "scripts" / "__pycache__"
     cache.mkdir()
     (cache / "junk.pyc").write_bytes(b"")
 
@@ -341,8 +385,11 @@ def test_venv_directory_is_excluded_from_drift_scan(
 def test_expected_path_set_is_not_vacuous(clean_drift_report: template_drift.DriftReport) -> None:
     assert clean_drift_report.errors == (), clean_drift_report.format()
     assert template_drift.REQUIRED_GENERATED_PATHS
-    assert "scripts/ci_check.py" in template_drift.REQUIRED_GENERATED_PATHS
-    assert ".claude/settings.json" in template_drift.REQUIRED_GENERATED_PATHS
+    assert ".agent-process/scripts/ci_check.py" in template_drift.REQUIRED_GENERATED_PATHS
+    assert (
+        ".agent-process/docs/architecture/agent-process.md"
+        in template_drift.REQUIRED_GENERATED_PATHS
+    )
 
 
 def test_volatile_answer_keys_are_excluded() -> None:

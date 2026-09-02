@@ -1,0 +1,203 @@
+# Agent-process installation
+
+**Question this document answers:** How does a repository install and activate
+the agent process before its first issue delivery?
+
+This document describes the one-time repository setup. It is separate from
+the [delivery flow](agent-process.md): installation prepares the repository;
+delivery flow handles one issue at a time.
+
+## Bootstrap exception
+
+Until this payload is installed and its GitHub Project is activated, a
+repository's first process-installation issues may create their branches and
+publish their PRs manually. Those bootstrap changes must still state the issue
+number and use the normal tests and review workflow. Once activation succeeds,
+all later delivery uses `python .agent-process/scripts/issue_branch.py <N>`; do not retain a
+manual-branch bypass as a second process.
+
+For this one bootstrap PR, the repository's callers invoke their local
+root-only reusable workflows. Each workflow uses the PR driver only when the
+default branch does not yet contain its driver; once this payload merges, it
+returns to the default-branch driver. This narrow fallback makes the first
+required checks executable without changing the pinned references copied to
+ordinary consumer repositories.
+
+## Installation order
+
+Complete these steps in order. The credential preflight is a hard precondition
+of Project bootstrap: from the merge that carries this payload, the review
+workflows run on every pull request.
+
+1. Copy the payload with `copier copy`. It writes files only in the local
+   checkout. Answering `claude_adapter_installed` consents to the Layer 1
+   deny-list and its `PreToolUse`/`PostToolUse` hooks, which run on every Bash,
+   Read, Edit, and Write call.
+2. If the Claude adapter is adopted, install its Layer 1 plugin after the
+   payload with the marketplace's `/plugin install` command. This is a local
+   Claude configuration action; the plugin hooks rely on `.agent-process/scripts/hooks.py`
+   copied in the previous step.
+3. Configure the two review credentials, including
+   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier, then run the
+   read-only preflight:
+
+   ```bash
+   python .agent-process/scripts/check_review_credentials.py --repo {{ github_repository | default('<owner>/<repository>', true) }}
+   ```
+
+   It checks only that `CLAUDE_CODE_OAUTH_TOKEN` is named in the repository or
+   inherited-organisation secret lists, and that the
+   `chatgpt-codex-connector` App covers this repository. It never reads a
+   secret value. A present but expired or revoked token therefore passes; the
+   later `agent-review` check is still the validity test.
+
+   | Exit | Meaning | Next action |
+   | --- | --- | --- |
+   | `0` | Both prerequisites are present. | Continue to bootstrap. |
+   | `1` | A secret or App repository grant is absent. | Follow the precise command or settings URL printed by the preflight, then rerun it. |
+   | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
+
+   On every PR head that needs review, the PR author comments `@codex review`.
+   The workflow never posts that command or enables Automatic reviews. If Codex
+   leaves no valid evidence, the workflow falls back to Claude. The required
+   review check is red only when neither carrier produces valid evidence, or
+   when a carrier reports blocking findings; it is never silently skipped.
+
+   When neither carrier leaves valid evidence, the same check reports a
+   sanitized provider status read from the Claude fallback's execution
+   record — one of a closed set (`auth_or_account`, `rate_limited`,
+   `overloaded`, `schema_violation`, `unknown_provider_error`) — never the raw
+   failure text, and it never turns the check green. Do not enable
+   `show_full_output` to investigate further: this is a public repository, and
+   the full execution record can carry prompts, repository contents, or model
+   output. The Claude Code Action is pinned through the mutable `@v1` tag, so a
+   later run may resolve to a different revision; read an unrecognized
+   diagnostic as possible upstream shape drift, not only a provider fault. The
+   preflight above proves only that `CLAUDE_CODE_OAUTH_TOKEN` and the Codex App
+   grant are *present* — an expired or revoked credential still passes it. A
+   load-time credential-*validity* preflight is a deliberate follow-up, not
+   part of this installation.
+
+   Also inspect the organisation Actions policy. If it uses "Allow specified
+   actions and reusable workflows", permit the pinned
+   `ekolvah/agent-process-distribution/.github/workflows/*.yml` reference.
+   GitHub does not expose that policy to the common maintainer token (the live
+   probe returned 404), so this is an explicit operator check rather than an
+   unearned green result.
+4. Activate the GitHub Project with the bootstrap command below. It may write
+   remote Project configuration only in `create` mode with `--confirm-create`.
+5. Configure branch protection after bootstrap. This installation guide
+   reserves the step; [issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18)
+   supplies the safe, policy-preserving command.
+
+Enable the copied local pre-push probe after reviewing it:
+
+```bash
+git config core.hooksPath .agent-process/.githooks
+```
+
+The caller permission grants (`contents: read`, `issues: read`, and
+`pull-requests: write` for review) are part of the published contract. A
+release that requires a wider callee permission is breaking until callers are
+re-rendered.
+
+## Workflow-definition trust
+
+Thin callers are part of the PR head. Classic branch protection matches a
+check's displayed name, so it cannot prove that a PR did not replace a caller
+with a different job that reports the same name. Before treating these checks
+as a security boundary, configure an organisation or platform trust anchor
+that requires the intended workflow definition (for example, a Ruleset
+Required Workflow where that GitHub feature is available). Do not switch these
+review workflows to `pull_request_target` as a shortcut: the review carrier has
+a credential and reads untrusted PR material. Until an external anchor is
+configured, required contexts remain delivery evidence, not proof that an
+untrusted contributor ran the publisher's policy.
+
+## Activation
+
+`copier copy` copies the payload but does not create or alter GitHub resources.
+The copied process is inactive until its GitHub Project is configured. Run:
+
+```bash
+python .agent-process/scripts/bootstrap_github_project.py{% if github_project_mode == "create" %} --confirm-create{% endif %}
+```
+
+In `existing` mode, bootstrap reads the selected Project and verifies that it
+has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`
+(`Planned`, `In Progress`). It writes no configuration until all checks pass.
+
+In `create` mode, `--confirm-create` is an explicit approval for the remote
+write. Bootstrap checks GitHub authentication, creates a Project, links the
+repository, and adds the required fields. If a later setup operation fails,
+it deletes the Project created in that invocation. If deletion also fails, it
+prints the exact `gh project delete` command for the maintainer.
+
+On successful activation bootstrap atomically writes
+`.agent-process/scripts/project_settings.py`. Review and commit that file. It contains the
+real, repository-owned Project and field IDs that every process runner uses.
+
+## Updating the process
+
+Run `copier update` from the target repository and review both the copied
+scripts and the referenced workflow tag/SHA. This release changes required
+contexts to GitHub's composed `caller / callee` names, so after updating run
+the activation/protection step again; existing v0.1.x protection otherwise
+points at contexts that no workflow publishes.
+
+No adopter installed the pre-`.agent-process/` layout before it moved
+under one root, so this release defines no `copier update` migration path
+from that older layout — only a fresh `copier copy` is supported going in
+([ADR 0019](../adr/0019-single-root-agent-process-layout.md)).
+
+Installation and update place every process conformance test under the
+reserved `tests/agent_process/` subtree — the only path a copied test occupies
+in the target repository; product tests elsewhere are never touched. Before
+running `copier update` on a repository that predates this reserved subtree,
+clone the `agent-process-distribution` source separately and, from that
+checkout, run `python .agent-process/scripts/check_consumer_test_collision.py <path>` with
+`<path>` pointing at the target repository — this script itself ships only
+through the update it is meant to run ahead of, so a pre-existing target
+checkout does not have it yet. It renders the target's current template and
+reports, by exact relative path, any file already occupying a location
+`tests/agent_process/` reserves for itself. Copier's own `--conflict`
+handling does not catch this case, since it only marks a conflict for a path
+it previously tracked through a prior render's diff, so a brand-new template
+path colliding with pre-existing, unrelated content would otherwise be
+silently overwritten. See
+[`agent-process.md`'s "Test suite ownership"](agent-process.md#test-suite-ownership)
+for the full publisher/consumer split.
+
+## Where the payload lands
+
+Every process file renders under `.agent-process/`, except the closed root set
+[ADR 0019](../adr/0019-single-root-agent-process-layout.md) defines and
+individually justifies: the real-named `.github/workflows/ci.yml`,
+`agent-review.yml`, `pr-link.yml` and `.github/pull_request_template.md`;
+the tool-mandated `.agents/**`, `.claude/**`, `.codex/**`; the
+managed-fragment `AGENTS.md` and `.gitignore`; and the reserved
+`tests/agent_process/` subtree. Product configuration stays consumer-owned.
+The three callers retain the composed contexts `quality / quality`,
+`pr-link / pr-link`, and `agent-review / agent-review` without replacing a
+consumer's own workflow files.
+
+An unavoidable shared text file uses one explicit `<!-- agent-process:begin -->`
+through `<!-- agent-process:end -->` fragment. Duplicate or malformed markers
+are a conflict, not an opportunity for automatic recovery.
+
+Do not use `copier copy --force` against a non-empty repository: it can replace
+product CI, dependency, ignore, or contributor files before an operator can
+review the remaining conflicts. This single-root layout removes most of the
+collision surface that made `--force` tempting, but the reviewable adoption
+tool for an established repository does not ship with this release and is
+tracked separately. Perform a render or an update on a clean branch and submit
+its resulting diff for review. Remote branch-protection changes remain the
+separate responsibility of
+[issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18).
+
+## Incomplete activation
+
+If bootstrap exits with an error, the process remains inactive: its prior
+settings file is unchanged and `python .agent-process/scripts/issue_branch.py <N>` stops
+before creating a branch. Correct the reported GitHub access, Project number,
+or field configuration, then rerun bootstrap. Do not edit IDs by hand.
