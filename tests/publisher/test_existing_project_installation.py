@@ -12,6 +12,7 @@ import yaml
 from scripts.adopt_agent_process import (
     _MANAGED_FRAGMENT_BEGIN,
     _MANAGED_FRAGMENT_END,
+    _PRESERVED_ON_UPDATE_TARGETS,
     _payload_from_directory,
     install_payload,
     preflight,
@@ -212,9 +213,42 @@ def test_cli_install_succeeds_against_an_already_adopted_destination_with_change
             str(payload_dir),
         ],
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         check=False,
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert (destination / ".agent-process/entry.py").read_bytes() == b"version: 2\n"
+
+
+def test_reinstall_preserves_a_previously_owned_project_settings_file(tmp_path: Path) -> None:
+    """Ownership, not the install/update distinction, must gate
+    `_PRESERVED_ON_UPDATE_TARGETS`: bootstrap replaces the placeholder with
+    live Project IDs after the first install, and a later `install_payload`
+    call against that same, already-adopted destination (not only an
+    `update_payload` call) must not overwrite that live state with the
+    payload's empty placeholder again.
+    """
+    (target,) = _PRESERVED_ON_UPDATE_TARGETS
+    payload = {target: b"# placeholder\n"}
+    install_payload(tmp_path, payload)
+    (tmp_path / target).write_bytes(b"PROJECT_ID = 42\n")
+
+    install_payload(tmp_path, payload)
+
+    assert (tmp_path / target).read_bytes() == b"PROJECT_ID = 42\n"
+
+
+def test_install_ignores_conflict_marker_text_outside_the_process_scope(tmp_path: Path) -> None:
+    """A product fixture or doc containing literal conflict-marker text is
+    not a Copier artifact merely because it lives somewhere in the
+    destination; only content at a process-managed path can be one.
+    """
+    _product(tmp_path)
+    unrelated = tmp_path / "docs" / "example-conflict.md"
+    unrelated.parent.mkdir(parents=True)
+    unrelated.write_text("<<<<<<<\nours\n=======\ntheirs\n>>>>>>>\n", encoding="utf-8")
+
+    install_payload(tmp_path, _payload())
+
+    assert unrelated.read_text(encoding="utf-8") == "<<<<<<<\nours\n=======\ntheirs\n>>>>>>>\n"

@@ -7,7 +7,22 @@ from pathlib import Path
 
 from test_project_bootstrap_template import render
 
-from scripts.adopt_agent_process import _CLOSED_ROOT_FILES, _CLOSED_ROOT_PREFIXES
+# Deliberately independent of scripts.adopt_agent_process's own constants:
+# this is ADR-0019's fixed exception set, hard-coded so a change that widens
+# the implementation's closed root (and adds a rendered file under the new
+# prefix) still fails this contract test instead of silently redefining what
+# it enforces.
+_CLOSED_ROOT_FILES = frozenset(
+    {
+        ".github/workflows/ci.yml",
+        ".github/workflows/agent-review.yml",
+        ".github/workflows/pr-link.yml",
+        ".github/pull_request_template.md",
+        "AGENTS.md",
+        ".gitignore",
+    }
+)
+_CLOSED_ROOT_PREFIXES = (".agents/", ".claude/", ".codex/", "tests/agent_process/")
 
 
 def _is_closed_root_path(relative: str) -> bool:

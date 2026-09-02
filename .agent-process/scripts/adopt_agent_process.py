@@ -64,12 +64,12 @@ def preflight(
 
 def install_payload(destination: Path, payload: dict[str, bytes]) -> None:
     """Install only collision-resistant files after a complete preflight."""
-    _apply(destination, payload, updating=False)
+    _apply(destination, payload)
 
 
 def update_payload(destination: Path, payload: dict[str, bytes]) -> None:
     """Update a prior reserved install; reject unclaimed new destinations."""
-    _apply(destination, payload, updating=True)
+    _apply(destination, payload)
 
 
 def update_managed_fragment(path: Path, content: str) -> None:
@@ -118,11 +118,16 @@ def _has_conflict_block(content: str) -> bool:
 
 
 def _unresolved(destination: Path) -> tuple[str, ...]:
+    """Scan only process-managed paths — a product fixture or doc containing
+    literal conflict-marker text outside this scope is not a Copier artifact.
+    """
     problems = []
     for path in destination.rglob("*"):
         if not path.is_file():
             continue
         relative = path.relative_to(destination).as_posix()
+        if not _is_process_path(relative):
+            continue
         if relative.endswith(".rej"):
             problems.append(relative)
             continue
@@ -149,12 +154,13 @@ def _owned_paths(destination: Path) -> frozenset[str]:
     return frozenset(paths)
 
 
-def _apply(destination: Path, payload: dict[str, bytes], *, updating: bool) -> None:
+def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     _validate_payload(payload)
     unresolved = _unresolved(destination)
     if unresolved:
         raise ValueError("unresolved Copier conflict artifact(s): " + ", ".join(unresolved))
-    report = preflight(destination, payload, owned_paths=_owned_paths(destination))
+    owned_paths = _owned_paths(destination)
+    report = preflight(destination, payload, owned_paths=owned_paths)
     collisions = report.collisions
     if collisions:
         raise ValueError("payload collides with consumer-owned file(s): " + ", ".join(collisions))
@@ -162,10 +168,14 @@ def _apply(destination: Path, payload: dict[str, bytes], *, updating: bool) -> N
         if relative in _MANAGED_FRAGMENT_TARGETS:
             update_managed_fragment(destination / relative, content.decode("utf-8"))
         elif (
-            updating
-            and relative in _PRESERVED_ON_UPDATE_TARGETS
+            relative in _PRESERVED_ON_UPDATE_TARGETS
+            and relative in owned_paths
             and (destination / relative).is_file()
         ):
+            # A prior adoption already replaced this placeholder with live,
+            # bootstrap-generated state; a re-`install` must not wipe it out
+            # any more than an `update` would — ownership, not the `updating`
+            # flag, is what proves a prior adoption happened.
             continue
         else:
             _atomic_write(destination / relative, content)
