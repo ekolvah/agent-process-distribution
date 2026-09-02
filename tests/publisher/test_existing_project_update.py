@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from scripts.adopt_agent_process import install_payload, update_payload
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_previous_release_update_preserves_consumer_owned_bytes(tmp_path: Path) -> None:
@@ -81,3 +85,33 @@ def test_update_preserves_a_bootstrap_generated_project_settings_file(tmp_path: 
     update_payload(tmp_path, placeholder)
 
     assert settings.read_bytes() == b"PROJECT_NUMBER = 42\n"
+
+
+def test_cli_preflight_recognizes_ownership_on_an_already_adopted_destination(
+    tmp_path: Path,
+) -> None:
+    """The standalone CLI `preflight` operation must read the same ownership
+    manifest `update` does; it is run ahead of `update` on an already-adopted
+    project, so a payload path the manifest already records is not a new
+    collision merely because its content is changing in this release.
+    """
+    destination = tmp_path / "destination"
+    install_payload(destination, {".agent-process/entry.py": b"version: 1\n"})
+    payload_dir = tmp_path / "payload"
+    (payload_dir / ".agent-process").mkdir(parents=True)
+    (payload_dir / ".agent-process" / "entry.py").write_bytes(b"version: 2\n")
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / ".agent-process/scripts/adopt_agent_process.py"),
+            "preflight",
+            str(destination),
+            str(payload_dir),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr

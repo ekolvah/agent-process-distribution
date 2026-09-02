@@ -219,7 +219,7 @@ def main() -> int:
     args = parser.parse_args()
     payload = _payload_from_directory(args.payload)
     try:
-        owned_paths = _owned_paths(args.destination) if args.operation == "update" else frozenset()
+        owned_paths = _owned_paths(args.destination)
     except ValueError as exc:
         print(str(exc))
         return 1
