@@ -28,7 +28,7 @@ jobs:
       - name: Select quality driver
         id: quality-driver
         run: |
-          if test -f "$GITHUB_WORKSPACE/trusted/scripts/ci_check.py"; then
+          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/ci_check.py"; then
             echo "path=trusted" >> "$GITHUB_OUTPUT"
           else
             echo "path=pr" >> "$GITHUB_OUTPUT"
@@ -39,14 +39,28 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
-            pr/requirements.txt
-            pr/requirements-dev.txt
+            pr/.agent-process/requirements.txt
+            pr/.agent-process/requirements-dev.txt
+      - name: Install publisher render dependency
+        run: python -m pip install copier==9.17.2
       - name: Install consumer dependencies
         working-directory: pr
-        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+        run: python -m pip install -r .agent-process/requirements.txt -r .agent-process/requirements-dev.txt
+      # Feature-detected: a bare consumer render has no product dependencies
+      # of its own, and the thin caller (ci.yml) cannot prepend a setup step
+      # of its own to a job it only `uses:` — this is the one place able to
+      # install them before the product-scoped checks run.
+      - name: Install product dependencies
+        working-directory: pr
+        run: |
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          elif [ -f pyproject.toml ] && grep -Eq '^\[project\]' pyproject.toml; then
+            python -m pip install -e .
+          fi
       # One step keeps the externally required context stable. The trusted
       # driver's registry decides the full set of checks; it runs in the PR
       # worktree so its commands inspect the change, not the trusted checkout.
       - name: Run trusted quality checks
         working-directory: pr
-        run: python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/scripts/ci_check.py"
+        run: python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/.agent-process/scripts/ci_check.py"

@@ -96,16 +96,47 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
     }
     assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
     assert _trigger(_workflow("reusable-quality.yml"))["workflow_call"] is None
-    assert _workflow("ci.yml")["jobs"]["quality"]["uses"] == (
-        "./.github/workflows/reusable-quality.yml"
-    )
+    assert "reusable-quality.yml@" in _workflow("ci.yml")["jobs"]["quality"]["uses"]
     assert steps["Install consumer dependencies"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["run"] == (
-        'python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/scripts/ci_check.py"'
+        'python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/.agent-process/scripts/ci_check.py"'
     )
-    assert "trusted/scripts/ci_check.py" in steps["Select quality driver"]["run"]
+    assert "trusted/.agent-process/scripts/ci_check.py" in steps["Select quality driver"]["run"]
     assert 'echo "path=pr"' in steps["Select quality driver"]["run"]
+
+
+def test_quality_installs_product_dependencies_when_present() -> None:
+    """A consumer's own product dependencies must be installed before its
+    checks run — the trusted-driver step only ever installed the process's
+    own two lockfiles, so a consumer whose product tests import a dependency
+    outside those locks failed for reasons unrelated to its code (#57)."""
+    steps = _steps("reusable-quality.yml")
+
+    name = "Install product dependencies"
+    assert name in steps
+    step = steps[name]
+    assert step["working-directory"] == "pr"
+    assert "requirements.txt" in step["run"]
+    # A consumer that declares dependencies only in a package `pyproject.toml`
+    # (no root requirements.txt) needs its own installation path — the earlier
+    # fix only ever recognized requirements.txt (#57 fresh finding).
+    assert "pyproject.toml" in step["run"]
+    assert "pip install -e ." in step["run"]
+    # Only a packaging-capable pyproject.toml (a literal `[project]` table)
+    # counts: this repository's own root pyproject.toml holds tool config
+    # only, with no installable package, and running `pip install -e .`
+    # against it fails setuptools' flat-layout auto-discovery (regression
+    # caught live on #57's own self-applied quality gate). setup.cfg/setup.py/
+    # Poetry-style pyproject.toml support is deferred to a dedicated issue.
+    assert "grep" in step["run"]
+    assert r"^\[project\]" in step["run"]
+    names = list(steps)
+    assert (
+        names.index("Install consumer dependencies")
+        < names.index(name)
+        < names.index("Run trusted quality checks")
+    )
 
 
 def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> None:
@@ -119,12 +150,20 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     assert steps["Verify PR closes its issue"]["working-directory"] == (
         "${{ steps.pr-link-driver.outputs.path }}"
     )
-    assert "trusted/scripts/verify_pr_link.py" in steps["Select PR-link driver"]["run"]
+    driver_run = steps["Select PR-link driver"]["run"]
+    assert "trusted/.agent-process/scripts/verify_pr_link.py" in driver_run
+    # The default branch may still carry only the pre-migration root path
+    # (relocation not yet merged there); that must resolve to the trusted
+    # driver too, via its module invocation, not fall through to the PR's
+    # own untrusted copy (#57 fresh finding).
+    assert "trusted/scripts/verify_pr_link.py" in driver_run
+    assert "python -m scripts.verify_pr_link" in driver_run
+    assert steps["Verify PR closes its issue"]["run"] == (
+        '${{ steps.pr-link-driver.outputs.invocation }} --branch "$HEAD_REF" --pr "$PR_NUMBER"'
+    )
     checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
     assert len(checkouts) == 2
-    assert _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"] == (
-        "./.github/workflows/reusable-pr-link.yml"
-    )
+    assert "reusable-pr-link.yml@" in _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"]
 
 
 def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> None:
@@ -154,12 +193,17 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
         "Classify Claude review outcome",
         "Publish validated review evidence",
         "Enforce selected review outcome",
-        "Enforce unresolved blocking Codex conversations",
     ):
-        assert steps[name]["working-directory"] == "trusted"
+        assert steps[name]["working-directory"] == (
+            "${{ steps.review-source.outputs.outcome_checker_root }}"
+        )
+    assert steps["Enforce unresolved blocking Codex conversations"]["working-directory"] == (
+        "${{ steps.review-source.outputs.blocking_threads_root }}"
+    )
     assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
     assert (
-        "contract_path=trusted/REVIEW_CONTRACT.md" in steps["Select trusted review source"]["run"]
+        "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md"
+        in steps["Select trusted review source"]["run"]
     )
     prompt = steps["Claude review"]["with"]["prompt"]
     assert "trusted/AGENTS.md" in prompt
@@ -170,8 +214,9 @@ def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> N
         in steps["Fetch current PR context"]["with"]["script"]
     )
     assert "--head-observed-at" in steps["Read owner-requested Codex review"]["run"]
-    assert _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"] == (
-        "./.github/workflows/reusable-agent-review.yml"
+    assert (
+        "reusable-agent-review.yml@"
+        in _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"]
     )
 
 
@@ -190,7 +235,7 @@ def test_agent_review_requires_structured_review_evidence() -> None:
     assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
     assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]
     assert (
-        "check_blocking_review_threads"
+        "${{ steps.review-source.outputs.blocking_threads_invocation }}"
         in steps["Enforce unresolved blocking Codex conversations"]["run"]
     )
     assert "Diagnose Claude execution failure" in steps
@@ -207,7 +252,7 @@ def test_valid_codex_evidence_skips_claude_fallback_and_diagnostic() -> None:
         assert "steps.codex-classify.outputs.valid != 'true'" in steps[name]["if"]
 
 
-def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_trusted_working_directory() -> (
+def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_the_selected_outcome_checker_root() -> (
     None
 ):
     steps = _steps("reusable-agent-review.yml")
@@ -215,7 +260,7 @@ def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_trusted_wo
     name = "Diagnose Claude execution failure"
     assert name in steps
     step = steps[name]
-    assert step["working-directory"] == "trusted"
+    assert step["working-directory"] == "${{ steps.review-source.outputs.outcome_checker_root }}"
     assert "continue-on-error" not in step
     assert "steps.claude-classify.outputs.valid != 'true'" in step["if"]
     assert "steps.claude-diagnostic-capability.outputs.supported == 'true'" in step["if"]
@@ -244,6 +289,109 @@ def test_diagnostic_capability_is_feature_detected_on_a_default_branch_that_pred
     assert names.index(name) < names.index("Diagnose Claude execution failure")
 
 
+def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
+    None
+):
+    steps = _steps("reusable-agent-review.yml")
+
+    selector = steps["Select trusted review source"]["run"]
+    assert "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" in selector
+    assert "outcome_checker_path=scripts/check_agent_review_outcome.py" in selector
+    assert (
+        "outcome_checker_invocation=python .agent-process/scripts/check_agent_review_outcome.py"
+        in selector
+    )
+    assert "outcome_checker_invocation=python -m scripts.check_agent_review_outcome" in selector
+    assert "bootstrap fallback: default branch has no relocated outcome checker yet" in selector
+    assert (
+        "bootstrap fallback: default branch has no process installed yet, "
+        "using this PR's own outcome checker" in selector
+    )
+    assert selector.count("outcome_checker_root=trusted") == 2
+    assert "outcome_checker_root=." in selector
+
+    invocation = "${{ steps.review-source.outputs.outcome_checker_invocation }}"
+    root = "${{ steps.review-source.outputs.outcome_checker_root }}"
+    for name in (
+        "Classify Codex review outcome",
+        "Classify Claude review outcome",
+        "Diagnose Claude execution failure",
+        "Publish validated review evidence",
+        "Publish Claude fallback findings to the PR",
+        "Enforce selected review outcome",
+    ):
+        assert invocation in steps[name]["run"]
+        assert steps[name]["working-directory"] == root
+
+    path = "${{ steps.review-source.outputs.outcome_checker_path }}"
+    for name in (
+        "Select Claude-diagnostic capability",
+        "Select PR-comment publish capability",
+    ):
+        assert f"{root}/{path}" in steps[name]["run"]
+
+
+def test_review_parser_location_is_feature_detected_on_a_default_branch_that_predates_it() -> None:
+    steps = _steps("reusable-agent-review.yml")
+
+    selector = steps["Select trusted review source"]["run"]
+    assert "adapter_invocation=python .agent-process/scripts/request_codex_review.py" in selector
+    assert "adapter_invocation=python -m scripts.request_codex_review" in selector
+    assert "bootstrap fallback: default branch has no relocated Codex parser yet" in selector
+    assert selector.count("adapter_working_directory=trusted") == 2
+    assert "adapter_working_directory=." in selector
+
+    assert (
+        "${{ steps.review-source.outputs.adapter_invocation }}"
+        in steps["Read owner-requested Codex review"]["run"]
+    )
+
+
+def test_review_contract_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
+    None
+):
+    selector = _steps("reusable-agent-review.yml")["Select trusted review source"]["run"]
+
+    assert "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" in selector
+    assert "contract_path=trusted/REVIEW_CONTRACT.md" in selector
+    assert "contract_path=.agent-process/REVIEW_CONTRACT.md" in selector
+    assert "bootstrap fallback: default branch has no relocated review contract yet" in selector
+    assert (
+        "bootstrap fallback: default branch has no process installed yet, "
+        "using this PR's own review contract" in selector
+    )
+
+
+def test_blocking_threads_invocation_is_feature_detected_on_a_default_branch_that_predates_it() -> (
+    None
+):
+    steps = _steps("reusable-agent-review.yml")
+
+    selector = steps["Select trusted review source"]["run"]
+    assert (
+        "blocking_threads_invocation=python .agent-process/scripts/check_blocking_review_threads.py"
+        in selector
+    )
+    assert "blocking_threads_invocation=python -m scripts.check_blocking_review_threads" in selector
+    assert (
+        "bootstrap fallback: default branch has no relocated blocking-thread gate yet" in selector
+    )
+    assert (
+        "bootstrap fallback: default branch has no process installed yet, "
+        "using this PR's own blocking-thread gate" in selector
+    )
+    assert selector.count("blocking_threads_root=trusted") == 2
+    assert "blocking_threads_root=." in selector
+
+    assert (
+        "${{ steps.review-source.outputs.blocking_threads_invocation }}"
+        in steps["Enforce unresolved blocking Codex conversations"]["run"]
+    )
+    assert steps["Enforce unresolved blocking Codex conversations"]["working-directory"] == (
+        "${{ steps.review-source.outputs.blocking_threads_root }}"
+    )
+
+
 def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> None:
     steps = _steps("reusable-agent-review.yml")
 
@@ -252,7 +400,7 @@ def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> N
     step = steps[name]
     assert "steps.codex-classify.outputs.valid != 'true'" in step["if"]
     assert "steps.pr-comment-capability.outputs.supported == 'true'" in step["if"]
-    assert step["working-directory"] == "trusted"
+    assert step["working-directory"] == "${{ steps.review-source.outputs.outcome_checker_root }}"
     assert step["env"]["STRUCTURED_OUTCOME"] == "${{ steps.review.outputs.structured_output }}"
     assert "--publish-pr-comment" in step["run"]
     assert "--reviewed-head-sha" in step["run"]
@@ -267,19 +415,21 @@ def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> N
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
-    contract = ROOT / "REVIEW_CONTRACT.md"
-    template_contract = ROOT / "template" / "REVIEW_CONTRACT.md.jinja"
+    contract = ROOT / ".agent-process" / "REVIEW_CONTRACT.md"
+    template_contract = ROOT / "template" / ".agent-process" / "REVIEW_CONTRACT.md.jinja"
 
     assert contract.read_text(encoding="utf-8") == template_contract.read_text(encoding="utf-8")
-    assert "[REVIEW_CONTRACT.md](REVIEW_CONTRACT.md)" in (
+    assert "[REVIEW_CONTRACT.md](.agent-process/REVIEW_CONTRACT.md)" in (
         ROOT / "template" / "AGENTS.md.jinja"
     ).read_text(encoding="utf-8")
     assert not (ROOT / "template" / "scripts" / "extract_review_prompt.py").exists()
 
 
 def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:
-    contract = (ROOT / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
-    principles = (ROOT / "docs" / "architecture" / "principles.md").read_text(encoding="utf-8")
+    contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
+    principles = (ROOT / ".agent-process" / "docs" / "architecture" / "principles.md").read_text(
+        encoding="utf-8"
+    )
 
     indirection_marker = "single call site and no stated reason"
     duplication_marker = "names an existing symbol and its repository-relative path"
@@ -306,10 +456,15 @@ def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_trigge
 
 def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
     source_installation = (
-        ROOT / "docs" / "architecture" / "agent-process-installation.md"
+        ROOT / ".agent-process" / "docs" / "architecture" / "agent-process-installation.md"
     ).read_text(encoding="utf-8")
     installation = (
-        ROOT / "template" / "docs" / "architecture" / "agent-process-installation.md.jinja"
+        ROOT
+        / "template"
+        / ".agent-process"
+        / "docs"
+        / "architecture"
+        / "agent-process-installation.md.jinja"
     ).read_text(encoding="utf-8")
 
     for document in (source_installation, installation):

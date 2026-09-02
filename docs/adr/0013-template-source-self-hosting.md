@@ -39,7 +39,7 @@ differ; stale rows fail. Every undeclared extra root file fails, while build
 artefacts are ignored at every depth.
 
 The repair direction is always to edit `template/` and re-render the root.
-`scripts/project_settings.py` is the one declared expected difference: the source
+`.agent-process/scripts/project_settings.py` is the one declared expected difference: the source
 checkout records its own activated Project IDs, while a newly rendered consumer starts
 unconfigured. The gate requires both copies to exist and to differ; an equal or missing
 pair leaves the declaration stale and red.
@@ -56,7 +56,7 @@ normalisation; `.gitattributes` and its dedicated test retain that safeguard.
   uncommitted ignore source (`.git/info/exclude`, `core.excludesFile`) never
   fails the gate, matching what any other checkout of the same commit
   receives. A `root` without a `.git` directory (the gate's own drift tests
-  copy the tree without one) falls back to the unfiltered walk instead of an
+  copy the tree without `.git`) falls back to the unfiltered walk instead of an
   empty set (#32).
 
 ## Pros and Cons of the Options

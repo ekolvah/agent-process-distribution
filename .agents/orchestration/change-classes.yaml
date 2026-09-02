@@ -1,6 +1,6 @@
 # Per-change-class issue requirements, keyed on the type label of governance
-# convention 3 (`docs/architecture/agent-process.md`). Its single consumer is
-# `scripts/validate_issue_sections.py`, which resolves the required section set
+# convention 3 (`.agent-process/docs/architecture/agent-process.md`). Its single consumer is
+# `.agent-process/scripts/validate_issue_sections.py`, which resolves the required section set
 # from the issue's one type label; this file is the machine-readable matrix.
 #
 # `adds` and `omits` are deltas relative to `REQUIRED_SECTIONS` in the validator,

@@ -29,7 +29,7 @@ Brief provenance record, without prompts or chain-of-thought.
 - Route: <roles selected by the control plane>
 - Model invocations: <role=count; completed run-count proxy at the time this record is written, not invented token totals; exclude a review triggered by a later push>
 - Fixer revisions: <count>
-- Review gate verdict: <`python -m scripts.review_gate <PR>` verdict on the head being merged; a missing one means the loop ended on an agent's opinion>
+- Review gate verdict: <`python .agent-process/scripts/review_gate.py <PR>` verdict on the head being merged; a missing one means the loop ended on an agent's opinion>
 - Conditional skips / escalations: <reason or none>
 -->
 
@@ -49,7 +49,7 @@ Markdown checklist. It must mirror the issue `## Test plan`, checking items that
 Also list the local commands you actually ran.
 -->
 
-- [ ] `python scripts/ci_check.py` — green locally
+- [ ] `python .agent-process/scripts/ci_check.py` — green locally
 - [ ] PR CI — green
 
 ## Risk & Rollback
@@ -64,5 +64,5 @@ Verifiable in 30 seconds. For a trivial change, use the single line “low risk,
 ## Docs touched
 
 <!--
-List changed `.md` files (docs/architecture/*, CLAUDE.md, MEMORY.md, …), or explicitly state "none — behaviour unchanged". It must mirror the issue `## Docs to update`.
+List changed `.md` files (.agent-process/docs/architecture/*, CLAUDE.md, MEMORY.md, …), or explicitly state "none — behaviour unchanged". It must mirror the issue `## Docs to update`.
 -->

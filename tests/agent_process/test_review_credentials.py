@@ -171,7 +171,7 @@ def test_both_prerequisites_present_exits_zero(monkeypatch: pytest.MonkeyPatch) 
 
 def test_documented_script_command_imports_from_a_checkout() -> None:
     completed = subprocess.run(
-        [sys.executable, "scripts/check_review_credentials.py", "--help"],
+        [sys.executable, ".agent-process/scripts/check_review_credentials.py", "--help"],
         cwd=Path(__file__).resolve().parents[2],
         text=True,
         capture_output=True,

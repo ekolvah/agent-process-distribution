@@ -14,6 +14,6 @@ ignore = ["E501"]
 known-first-party = ["scripts"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests/publisher"]
 python_files = ["test_*.py"]
-pythonpath = ["."]
+pythonpath = [".agent-process", "."]

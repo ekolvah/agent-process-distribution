@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Local enforcement is supplementary: GitHub branch protection is the final
+# barrier. `core.hooksPath .agent-process/.githooks` activates this hook after installation.
+set -u
+
+if ! GIT_LOCAL_ENV_VARS=$(git rev-parse --local-env-vars); then
+    echo "pre-push: git rev-parse --local-env-vars failed" >&2
+    exit 2
+fi
+if [ -z "$GIT_LOCAL_ENV_VARS" ]; then
+    echo "pre-push: git rev-parse --local-env-vars returned no names" >&2
+    exit 2
+fi
+for name in $GIT_LOCAL_ENV_VARS; do
+    unset "$name"
+done
+
+PY=""
+for candidate in ".venv/Scripts/python" ".venv/bin/python" "py -3.12"; do
+    # shellcheck disable=SC2086
+    if $candidate -c "" 2>/dev/null; then
+        PY="$candidate"
+        break
+    fi
+done
+if [ -z "$PY" ]; then
+    echo "pre-push: no supported Python interpreter found" >&2
+    exit 1
+fi
+
+if [ "${BRANCH_PROTECTION_ALLOW_DRIFT+x}" = x ]; then
+    # shellcheck disable=SC2086
+    $PY .agent-process/scripts/check_branch_protection.py --allow-drift "$BRANCH_PROTECTION_ALLOW_DRIFT" || exit $?
+else
+    # shellcheck disable=SC2086
+    $PY .agent-process/scripts/check_branch_protection.py || exit $?
+fi
+# shellcheck disable=SC2086
+$PY .agent-process/scripts/ci_check.py || exit $?

@@ -46,7 +46,7 @@ class TestOnEditDispatch:
         assert plan_checks(_payload("src/kinozal_scraper/soldout_pipeline.py")) == ["ruff"]
 
     def test_non_python_skips_ruff(self) -> None:
-        assert plan_checks(_payload("docs/architecture/ci.md")) == []
+        assert plan_checks(_payload(".agent-process/docs/architecture/ci.md")) == []
         assert plan_checks(_payload(".claude/settings.json")) == []
 
     def test_malformed_payload_silent_noop(self) -> None:
@@ -167,7 +167,7 @@ class TestMemoryWriteGuard:
     def test_repo_paths_not_memory(self) -> None:
         # Repository files, including `.claude/`, do not trigger the memory signal.
         assert plan_checks(_payload("src/x.py")) == ["ruff"]
-        assert plan_checks(_payload("docs/architecture/project-map.md")) == []
+        assert plan_checks(_payload(".agent-process/docs/architecture/project-map.md")) == []
         assert plan_checks(_payload(".claude/rules/mindset.md")) == []
 
 
@@ -200,7 +200,7 @@ def test_pre_read_is_an_accepted_subcommand() -> None:
     the dispatcher's allowlist is a guarded requirement, not an implementation detail.
     """
     result = subprocess.run(
-        [sys.executable, "-m", "scripts.hooks", "pre-read"],
+        [sys.executable, ".agent-process/scripts/hooks.py", "pre-read"],
         input="{}",
         capture_output=True,
         encoding="utf-8",

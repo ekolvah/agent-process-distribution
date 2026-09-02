@@ -38,7 +38,7 @@ class TestPreToolUse:
 
     def test_malformed_payload_fails_closed(self) -> None:
         result = subprocess.run(
-            [sys.executable, "-m", "scripts.codex_hooks", "pre-tool"],
+            [sys.executable, ".agent-process/scripts/codex_hooks.py", "pre-tool"],
             cwd=_REPO,
             input="not json",
             text=True,
@@ -51,7 +51,7 @@ class TestPreToolUse:
 
     def test_module_invocation_imports_shared_policy_from_repo_root(self) -> None:
         result = subprocess.run(
-            [sys.executable, "-m", "scripts.codex_hooks", "pre-tool"],
+            [sys.executable, ".agent-process/scripts/codex_hooks.py", "pre-tool"],
             cwd=_REPO,
             input=json.dumps({"tool_input": {"command": "git push origin main"}}),
             text=True,
@@ -80,10 +80,10 @@ class TestPostToolUse:
     def test_apply_patch_rename_checks_destination(self) -> None:
         payload = {
             "tool_input": {
-                "command": "*** Begin Patch\n*** Move to: scripts/new_name.py\n*** End Patch"
+                "command": "*** Begin Patch\n*** Move to: .agent-process/scripts/new_name.py\n*** End Patch"
             }
         }
-        assert edited_paths(payload) == ["scripts/new_name.py"]
+        assert edited_paths(payload) == [".agent-process/scripts/new_name.py"]
 
     def test_python_edit_uses_shared_ruff_feedback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import scripts.codex_hooks as codex_hooks

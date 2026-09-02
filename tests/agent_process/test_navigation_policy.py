@@ -89,9 +89,9 @@ def _asset(suffix: str) -> Callable[[Path], str]:
         ('grep -n -r "foo" src/', "Grep"),
         # Not reachable by a static pattern at all: `grep`/`head`/`tail` reading a file
         # look exactly like their pipe form until the operands are counted.
-        ('grep -n "foo" scripts/hooks.py', "Grep"),
-        ("head -40 scripts/hooks.py", "Read"),
-        ("tail -n 20 scripts/hooks.py", "Read"),
+        ('grep -n "foo" .agent-process/scripts/hooks.py', "Grep"),
+        ("head -40 .agent-process/scripts/hooks.py", "Read"),
+        ("tail -n 20 .agent-process/scripts/hooks.py", "Read"),
     ),
 )
 def test_filesystem_reads_are_denied_with_the_replacement_named(command: str, tool: str) -> None:
@@ -113,11 +113,11 @@ def test_filesystem_reads_are_denied_with_the_replacement_named(command: str, to
         # `grep -A 3 pattern` downstream: the value flag must not be read as a file.
         "git log | grep -A 3 fix",
         # Untouched toolchain.
-        "python scripts/ci_check.py",
+        "python .agent-process/scripts/ci_check.py",
         "git commit -m 'cat the file'",
         "gh pr view 497",
         # No line-counting tool exists, so `wc` is not owned.
-        "wc -l scripts/hooks.py",
+        "wc -l .agent-process/scripts/hooks.py",
     ),
 )
 def test_pipe_stages_and_toolchain_stay_allowed(command: str) -> None:
@@ -256,7 +256,7 @@ class TestClaudeHookWiring:
         matching = [entry for entry in entries if entry.get("matcher") == "Bash"]
         assert len(matching) == 1
         commands = [hook["command"] for hook in matching[0]["hooks"]]
-        assert any(re.search(r"scripts\.hooks pre-bash", command) for command in commands)
+        assert any(re.search(r"hooks\.py pre-bash", command) for command in commands)
 
     def test_no_static_deny_shadows_the_hook(self) -> None:
         """A matching `permissions.deny` rule blocks before the hook runs, so a static
@@ -272,7 +272,7 @@ class TestClaudeHookWiring:
         matching = [entry for entry in entries if entry.get("matcher") == "Read"]
         assert len(matching) == 1
         commands = [hook["command"] for hook in matching[0]["hooks"]]
-        assert any(re.search(r"scripts\.hooks pre-read", command) for command in commands)
+        assert any(re.search(r"hooks\.py pre-read", command) for command in commands)
 
     def test_no_static_deny_shadows_the_read_hook(self) -> None:
         """A `Read(...)` deny rule would block before the hook runs and drop the budget

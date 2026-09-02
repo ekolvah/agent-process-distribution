@@ -87,7 +87,7 @@ _ISSUE_REF = re.compile(r"(?<!\w)#\d+\b")
 _OPAQUE = "\x00"
 
 _EXPECTED_SCOPE_DIRS = (
-    "docs/architecture",
+    ".agent-process/docs/architecture",
     ".claude/rules",
 )
 # See `test_doc_links.py`: a source repository can declare source-only documentation
@@ -110,7 +110,7 @@ _NON_ISSUE_SIGIL = re.compile(r"(?:workflow(?:\.md)?|project)[`)\]*_]*\s+#\d", r
 
 # MADR records directory is outside scope by genre (docstring §Scope). Pinned by
 # `test_adr_records_are_out_of_scope`, so the carve-out remains conscious.
-_EXCLUDED_DIR = "docs/adr/"
+_EXCLUDED_DIR = ".agent-process/docs/adr/"
 
 
 def readable_stream(inline: Token) -> str:
@@ -250,7 +250,7 @@ class TestDocsCarryNoNarrative:
     def test_adr_records_are_out_of_scope(self) -> None:
         """The carve-out is conscious, not degenerate: MADR records exist and are outside scope."""
         result = subprocess.run(
-            ["git", "ls-files", "-z", "docs/adr"],
+            ["git", "ls-files", "-z", ".agent-process/docs/adr"],
             cwd=_REPO_ROOT,
             capture_output=True,
             text=True,
