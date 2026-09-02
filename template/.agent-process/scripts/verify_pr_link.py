@@ -34,7 +34,7 @@ import sys
 import time
 
 try:
-    from scripts import check_orphan_scope
+    from scripts import check_orphan_scope, open_pr
     from scripts.open_pr import (
         DEFERRED_SCOPE_BEGIN,
         DEFERRED_SCOPE_END,
@@ -45,6 +45,7 @@ try:
     )
 except ModuleNotFoundError:  # Direct execution from the relocated payload.
     import check_orphan_scope
+    import open_pr
     from open_pr import (
         DEFERRED_SCOPE_BEGIN,
         DEFERRED_SCOPE_END,
@@ -63,7 +64,13 @@ except ModuleNotFoundError:  # Direct execution from the relocated payload.
 # check_agent_review_outcome.py).
 DEFERRED_SCOPE_CHECK_SUPPORTED = True
 
-_TRACKER_REF_RE = re.compile(r"tracked in #(\d+)")
+# Anchored at the end of a top-level bullet: the exact suffix
+# `render_deferred_scope_section` renders. A bullet lacking this shape is
+# rejected outright (issue #64 BLOCKING on PR #66), not silently skipped —
+# the earlier `findall`-over-the-whole-block scan let an arbitrary entry sit
+# unnoticed next to one legitimate tracked entry inside a block the contract
+# calls gate-verified.
+_TRACKER_SUFFIX_RE = re.compile(r"\(tracked in #(\d+): .+\)$")
 
 
 def link_required_but_missing(branch: str, refs_json: str) -> bool:
@@ -124,10 +131,24 @@ def _link_missing_after_poll(branch: str, pr: str) -> bool:
     return True
 
 
+def _block_bullets(pr_body: str) -> list[str]:
+    """Top-level bullets inside the PR body's Deferred-scope sentinels, or []
+    when the block or its sentinels are absent. Parsed structurally via
+    `top_level_bullets`, not a regex scan over the raw block text — a nested
+    (Acceptance-criteria) bullet must not be mistaken for a top-level entry."""
+    begin = pr_body.find(DEFERRED_SCOPE_BEGIN)
+    end = pr_body.find(DEFERRED_SCOPE_END)
+    if begin == -1 or end == -1 or end < begin:
+        return []
+    return check_orphan_scope.top_level_bullets(pr_body[begin:end], heading="deferred scope")
+
+
 def deferred_scope_mismatch(branch: str, pr_body: str, source_issue_body: str) -> list[int]:
     """Tracker numbers the PR body's Deferred-scope block claims but the
     linked issue's *current* Out of scope section no longer backs with an
-    open `deferred:` bullet.
+    open `deferred:` bullet — plus a `0` entry for each top-level bullet that
+    does not even carry the rendered `(tracked in #N: title)` suffix (no real
+    issue is ever numbered 0, so it is an unambiguous "malformed" marker).
 
     Soundness, not equality (issue #64 finding S2): only tracker NUMBERS are
     compared, never the rendered wording, so a benign retitle/reword of the
@@ -136,17 +157,45 @@ def deferred_scope_mismatch(branch: str, pr_body: str, source_issue_body: str) -
     there."""
     if issue_number_from_branch(branch) is None:
         return []
-    begin = pr_body.find(DEFERRED_SCOPE_BEGIN)
-    end = pr_body.find(DEFERRED_SCOPE_END)
-    if begin == -1 or end == -1 or end < begin:
-        return []
-    referenced = [int(n) for n in _TRACKER_REF_RE.findall(pr_body[begin:end])]
-    if not referenced:
+    bullets = _block_bullets(pr_body)
+    if not bullets:
         return []
     valid: set[int] = set()
     for bullet in check_orphan_scope.deferred_scope_bullets(source_issue_body):
         valid.update(check_orphan_scope.deferred_scope_trackers(bullet))
-    return [n for n in referenced if n not in valid]
+    mismatched: list[int] = []
+    for bullet in bullets:
+        match = _TRACKER_SUFFIX_RE.search(bullet)
+        if match is None:
+            mismatched.append(0)
+            continue
+        n = int(match.group(1))
+        if n not in valid:
+            mismatched.append(n)
+    return mismatched
+
+
+def _unsound_with_liveness(branch: str, pr_body: str, source_issue_body: str) -> list[int]:
+    """`deferred_scope_mismatch` plus a liveness check: a tracker textually
+    backed by a `deferred:` bullet but since closed must not keep downgrading
+    a finding either (issue #64 should-fix on PR #66) — closed is stale
+    evidence, the same reason `render_deferred_scope_section` omits a closed
+    tracker at render time rather than including it."""
+    mismatched = deferred_scope_mismatch(branch, pr_body, source_issue_body)
+    if issue_number_from_branch(branch) is None:
+        return mismatched
+    unsound = list(mismatched)
+    for bullet in _block_bullets(pr_body):
+        match = _TRACKER_SUFFIX_RE.search(bullet)
+        if match is None:
+            continue  # already flagged as malformed above
+        n = int(match.group(1))
+        if n in mismatched:
+            continue  # already flagged as unbacked above
+        tracker = open_pr._fetch_issue(n)
+        if tracker is None or tracker.get("state") != "OPEN":
+            unsound.append(n)
+    return unsound
 
 
 def _pr_body(pr: str) -> str:
@@ -176,7 +225,7 @@ def _pr_body(pr: str) -> str:
 
 
 def _unsound_deferred_trackers(branch: str, pr: str) -> list[int]:
-    """`deferred_scope_mismatch` with its two bodies fetched through `gh`.
+    """`_unsound_with_liveness` with its two bodies fetched through `gh`.
 
     No `gh` call at all for a non-issue branch — same short-circuit
     `deferred_scope_mismatch` applies, checked here first so the fetches are
@@ -192,7 +241,7 @@ def _unsound_deferred_trackers(branch: str, pr: str) -> list[int]:
             file=sys.stderr,
         )
         sys.exit(2)
-    return deferred_scope_mismatch(branch, _pr_body(pr), source_issue_body)
+    return _unsound_with_liveness(branch, _pr_body(pr), source_issue_body)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -213,11 +262,15 @@ def main(argv: list[str] | None = None) -> None:
 
     unsound = _unsound_deferred_trackers(ns.branch, ns.pr)
     if unsound:
-        numbers = ", ".join(f"#{n}" for n in unsound)
+        detail = ", ".join(
+            f"#{n}" if n else "a malformed entry (missing the `(tracked in #N: ...)` suffix)"
+            for n in unsound
+        )
         print(
-            f"error: PR #{ns.pr} Deferred scope references {numbers}, which the linked "
-            f"issue's Out of scope section does not back with a `deferred:` bullet — "
-            f"regenerate the section with `python .agent-process/scripts/open_pr.py` "
+            f"error: PR #{ns.pr} Deferred scope block is not gate-verified sound ({detail}) — "
+            f"a listed tracker must be OPEN and backed by a `deferred:` bullet in the linked "
+            f"issue's Out of scope section, and every entry must match the rendered shape. "
+            f"Regenerate the section with `python .agent-process/scripts/open_pr.py` "
             f"or `update_pr_body.py`.",
             file=sys.stderr,
         )

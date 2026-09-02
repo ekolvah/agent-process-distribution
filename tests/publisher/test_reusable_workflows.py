@@ -192,6 +192,23 @@ def test_pr_link_feature_detects_deferred_scope_support() -> None:
     assert names.index(name) < names.index("Verify PR closes its issue")
 
 
+def test_pr_link_installs_its_driver_dependencies() -> None:
+    """Codex finding on PR #66: verify_pr_link.py now imports
+    check_orphan_scope.py, which hard-imports the third-party markdown_it
+    package at module level, but this driver never installed anything before
+    invoking it — every issue-branch PR would red with ModuleNotFoundError
+    once this reaches the default branch."""
+    steps = _steps("reusable-pr-link.yml")
+
+    name = "Install PR-link driver dependencies"
+    assert name in steps
+    step = steps[name]
+    assert "requirements.txt" in step["run"]
+
+    names = list(steps)
+    assert names.index(name) < names.index("Verify PR closes its issue")
+
+
 def test_agent_review_prompt_points_at_the_contract_rule() -> None:
     """The prompt is the last thing the model reads about the PR body and
     calls it untrusted (issue #64 pilot: a hand-written body section alone

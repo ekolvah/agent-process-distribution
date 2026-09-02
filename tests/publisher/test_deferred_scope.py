@@ -246,3 +246,48 @@ def test_non_issue_branch_skips_the_section_check() -> None:
     issue_body = _OUT_OF_SCOPE_TRACKED
 
     assert verify_pr_link.deferred_scope_mismatch("main", pr_body, issue_body) == []
+
+
+def test_unparseable_entry_inside_the_block_is_rejected() -> None:
+    # Codex finding on PR #66: the old check only grepped the block for
+    # `tracked in #N` occurrences, so an added bullet with no such suffix was
+    # silently ignored rather than rejected — letting an arbitrary entry sit
+    # next to one legitimate tracked entry inside a block the contract calls
+    # gate-verified.
+    pr_body = (
+        f"{open_pr.DEFERRED_SCOPE_BEGIN}\n## Deferred scope\n\n"
+        "- an entry with no tracker suffix at all\n"
+        f"{open_pr.DEFERRED_SCOPE_END}"
+    )
+    issue_body = _OUT_OF_SCOPE_TRACKED
+
+    mismatch = verify_pr_link.deferred_scope_mismatch("issue-59-x", pr_body, issue_body)
+
+    assert mismatch != []
+
+
+def test_closed_tracker_referenced_in_the_pr_body_is_unsound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Codex should-fix on PR #66: a tracker closed after the block was
+    # generated must not keep downgrading a finding merely because its number
+    # still sits in a `deferred:` bullet in the source issue's text.
+    pr_body = _pr_body_referencing(61)
+    issue_body = _OUT_OF_SCOPE_TRACKED
+    monkeypatch.setattr(open_pr, "_fetch_issue", lambda n: _issue(n, state="CLOSED"))
+
+    unsound = verify_pr_link._unsound_with_liveness("issue-59-x", pr_body, issue_body)
+
+    assert 61 in unsound
+
+
+def test_open_tracker_referenced_in_the_pr_body_stays_sound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pr_body = _pr_body_referencing(61)
+    issue_body = _OUT_OF_SCOPE_TRACKED
+    monkeypatch.setattr(open_pr, "_fetch_issue", lambda n: _issue(n, state="OPEN"))
+
+    unsound = verify_pr_link._unsound_with_liveness("issue-59-x", pr_body, issue_body)
+
+    assert unsound == []

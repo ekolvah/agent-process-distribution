@@ -42,6 +42,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install PR-link driver dependencies
+        # verify_pr_link.py imports check_orphan_scope.py, which hard-imports
+        # markdown_it at module level — installed from wherever the selected
+        # driver actually lives (bootstrap-fallback shape, same as "Select
+        # PR-link driver" above), not always from `pr`.
+        run: |
+          driver_root="$GITHUB_WORKSPACE/${{ steps.pr-link-driver.outputs.path }}"
+          if test -f "$driver_root/.agent-process/requirements.txt"; then
+            pip install -r "$driver_root/.agent-process/requirements.txt"
+          elif test -f "$driver_root/requirements.txt"; then
+            pip install -r "$driver_root/requirements.txt"
+            echo "::notice::bootstrap fallback: default branch has no relocated requirements.txt yet, using its pre-migration path"
+          else
+            echo "::notice::bootstrap fallback: default branch has no PR-link driver requirements file yet"
+          fi
       - name: Select deferred-scope check capability
         # Feature-detect rather than assume: this driver runs from the trusted
         # default-branch checkout, so a PR introducing the deferred-scope
