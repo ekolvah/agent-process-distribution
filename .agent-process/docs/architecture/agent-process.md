@@ -132,6 +132,26 @@ that word is free. The gate never judges whether the verdict is *right*.
 `n/a: <reason>` is valid for a change with no ecosystem to search — abusing
 the branch is a nameable architect-review finding.
 
+**`## Out of scope`** is machine-read on the delivery PR, not prose-only: a
+top-level bullet that begins with the literal marker `deferred:`, carries a
+`#N` reference, and is not a `wontfix`/`won't fix`/YAGNI rejection is exported
+by `open_pr.py`/`update_pr_body.py` into the PR body's generated
+`## Deferred scope` section, which the required `pr-link` check verifies
+against this issue and which `REVIEW_CONTRACT.md` lets a reviewer use to
+downgrade a matching finding by one severity step (ADR 0020). The `#N` must
+sit on the **top-level** bullet — `check_orphan_scope.top_level_bullets`
+cannot see one nested under it. An issue number mentioned without the
+`deferred:` prefix is never exported; opting in is a deliberate marker, not
+something a bullet triggers by accident.
+
+Because both `REVIEW_CONTRACT.md` and the `pr-link` driver are read from the
+default branch, every already-open PR picks up the new downgrade rule on its
+next review and the new soundness check on its next `pull_request` event with
+no PR-side action. If that check reds on an already-open PR (its generated
+block is stale against an edited issue), the recovery is one re-run of
+`python .agent-process/scripts/open_pr.py` (or `update_pr_body.py` for a
+fixer's report update) to regenerate the block.
+
 `Test plan` names executable test nodes. `Architect review` opens with a
 provenance line — `reviewer: <carrier>` or `skipped: <reason>` — followed by
 findings; `ADR` contains a record link or `none: <reason>`. `Agent handoff` is

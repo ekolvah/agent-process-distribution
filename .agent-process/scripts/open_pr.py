@@ -31,7 +31,24 @@ import sys
 import time
 from typing import Any, cast
 
+try:
+    from scripts import check_orphan_scope
+except ModuleNotFoundError:  # Direct execution from the relocated payload.
+    import check_orphan_scope
+
 ISSUE_BRANCH_RE = re.compile(r"^issue-(\d+)-")
+# Sentinel-comment delimiters, not a `## Deferred scope` heading search: an
+# author's own prose after a heading of that name must never be mistaken for
+# the generated block (issue #64 finding S6). Mirrors the `_FALLBACK_MARKER`
+# pattern in check_agent_review_outcome.py.
+DEFERRED_SCOPE_BEGIN = "<!-- agent-process:deferred-scope -->"
+DEFERRED_SCOPE_END = "<!-- /agent-process:deferred-scope -->"
+# Bounds how many Acceptance-criteria bullets a rendered entry quotes from its
+# tracker issue — enough for matchability against a generically titled
+# tracker (issue #64 "matchability"), not the whole issue body.
+_ACCEPTANCE_BULLET_LIMIT = 3
+
+
 # GitHub computes closingIssuesReferences asynchronously after `gh pr create`, so
 # the first read races and can report empty even for a correct `Closes #N` body
 # (observed while dogfooding this script). Poll before declaring the link
@@ -52,6 +69,14 @@ def issue_number_from_branch(branch: str) -> int | None:
     """Extract N from an `issue-N-slug` branch; None for any other branch."""
     match = ISSUE_BRANCH_RE.match(branch.strip())
     return int(match.group(1)) if match else None
+
+
+class DeferredScopeUnavailable(Exception):
+    """The source issue itself could not be read.
+
+    Distinct from a legitimately empty section (no exportable bullets): the
+    caller must preserve an existing rendered block rather than silently
+    stripping it on a transient read failure (§IV)."""
 
 
 def ensure_closes_line(body: str, n: int) -> str:
@@ -100,6 +125,112 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
         )
         sys.exit(2)
     return result
+
+
+def _fetch_issue(number: int) -> dict[str, Any] | None:
+    """Read one issue's number/title/state/body through `gh`, or None.
+
+    None, not `sys.exit`: an unreachable *tracker* issue must degrade this one
+    entry away (§IV: reported, not hidden), and an unreachable *source* issue
+    is turned into `DeferredScopeUnavailable` by the caller — neither aborts
+    unrelated PR-creation work."""
+    result = _run(["gh", "issue", "view", str(number), "--json", "number,title,state,body"])
+    if result.returncode != 0:
+        return None
+    return cast("dict[str, Any]", json.loads(result.stdout))
+
+
+def render_deferred_scope_section(source_issue_number: int) -> str:
+    """Render the `## Deferred scope` PR-body block from the linked issue's
+    Out of scope section, or "" when there is nothing exportable.
+
+    Each entry also carries its tracker's title and up to
+    `_ACCEPTANCE_BULLET_LIMIT` Acceptance-criteria bullets, so a reviewer can
+    match a finding against it without opening the tracker (issue #64
+    "matchability" — a bare `#N` cross-reference is not enough). A closed or
+    unreachable tracker is skipped and reported on stderr: a stale deferral
+    must degrade visibly, never silently license a downgrade.
+
+    Raises `DeferredScopeUnavailable` when the *source* issue itself cannot be
+    read — distinct from a legitimately empty result."""
+    source = _fetch_issue(source_issue_number)
+    if source is None:
+        raise DeferredScopeUnavailable(f"issue #{source_issue_number} unreachable")
+
+    entries: list[str] = []
+    for bullet in check_orphan_scope.deferred_scope_bullets(source.get("body") or ""):
+        for tracker_number in check_orphan_scope.deferred_scope_trackers(bullet):
+            tracker = _fetch_issue(tracker_number)
+            if tracker is None:
+                print(
+                    f"warn: deferred-scope tracker #{tracker_number} is unreachable — omitted.",
+                    file=sys.stderr,
+                )
+                continue
+            if tracker.get("state") != "OPEN":
+                print(
+                    f"warn: deferred-scope tracker #{tracker_number} is "
+                    f"{tracker.get('state')} — omitted.",
+                    file=sys.stderr,
+                )
+                continue
+            title = tracker.get("title") or f"#{tracker_number}"
+            criteria = check_orphan_scope.top_level_bullets(
+                tracker.get("body") or "", heading="acceptance criteria"
+            )[:_ACCEPTANCE_BULLET_LIMIT]
+            entries.append(f"- {bullet} (tracked in #{tracker_number}: {title})")
+            entries.extend(f"  - {item}" for item in criteria)
+
+    if not entries:
+        return ""
+    return "\n".join(
+        [DEFERRED_SCOPE_BEGIN, "## Deferred scope", "", *entries, "", DEFERRED_SCOPE_END]
+    )
+
+
+def existing_deferred_scope(body: str) -> str:
+    """Return `body`'s current sentinel-delimited Deferred-scope block
+    verbatim (sentinels included), or "" if it has none."""
+    begin = body.find(DEFERRED_SCOPE_BEGIN)
+    end = body.find(DEFERRED_SCOPE_END)
+    if begin == -1 or end == -1 or end < begin:
+        return ""
+    return body[begin : end + len(DEFERRED_SCOPE_END)]
+
+
+def deferred_scope_for_body(current_body: str, source_issue_number: int) -> str:
+    """Render the Deferred-scope block for `source_issue_number`, or preserve
+    `current_body`'s existing block verbatim (with a stderr warning) when the
+    source issue itself is unreachable — a transient read failure must not
+    silently drop a live deferral (§IV)."""
+    try:
+        return render_deferred_scope_section(source_issue_number)
+    except DeferredScopeUnavailable as exc:
+        print(f"warn: {exc} — existing deferred-scope block left unchanged.", file=sys.stderr)
+        return existing_deferred_scope(current_body)
+
+
+def ensure_deferred_scope(body: str, rendered: str) -> str:
+    """Return `body` with its sentinel-delimited Deferred-scope block replaced
+    to match `rendered` (appended if absent, stripped if `rendered` is "").
+
+    Sentinel-scoped replace, not a `## Deferred scope` heading search — an
+    author's own prose after a heading of that name must never be silently
+    eaten (issue #64 finding S6), sibling of `ensure_closes_line`."""
+    begin = body.find(DEFERRED_SCOPE_BEGIN)
+    end = body.find(DEFERRED_SCOPE_END)
+    has_block = begin != -1 and end != -1 and end > begin
+
+    if has_block:
+        before = body[:begin].rstrip("\n")
+        after = body[end + len(DEFERRED_SCOPE_END) :].lstrip("\n")
+        pieces = [piece for piece in (before, rendered, after) if piece]
+        return ("\n\n".join(pieces) + "\n") if pieces else ""
+
+    if not rendered:
+        return body
+    sep = "\n\n" if body.strip() else ""
+    return f"{body.rstrip(chr(10))}{sep}{rendered}\n" if body.strip() else f"{rendered}\n"
 
 
 def _current_branch() -> str:
@@ -203,7 +334,9 @@ def main(argv: list[str] | None = None) -> None:
     if existing is not None:
         url = existing["url"]
         current_body = existing.get("body") or ""
-        fixed = ensure_closes_line(current_body, n)
+        fixed = ensure_deferred_scope(
+            ensure_closes_line(current_body, n), deferred_scope_for_body(current_body, n)
+        )
         if fixed != current_body:
             _edit_pr_body(url, fixed)
     else:
@@ -211,7 +344,9 @@ def main(argv: list[str] | None = None) -> None:
         if ns.body_file:
             with open(ns.body_file, encoding="utf-8") as handle:
                 body = handle.read()
-        url = _create_pr(ns.title, ensure_closes_line(body, n))
+        body = ensure_closes_line(body, n)
+        body = ensure_deferred_scope(body, deferred_scope_for_body(body, n))
+        url = _create_pr(ns.title, body)
 
     if not _linkage_confirmed(url):
         print(

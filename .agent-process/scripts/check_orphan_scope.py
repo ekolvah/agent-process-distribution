@@ -19,27 +19,29 @@ _FOLLOW_UP_RE = re.compile(
 )
 _ISSUE_REFERENCE_RE = re.compile(r"#\d+\b")
 _REJECTION_RE = re.compile(r"\bwontfix\b|\bwon['’]?t\s+fix\b|\byagni\b", re.IGNORECASE)
+_DEFERRED_PREFIX_RE = re.compile(r"^\s*deferred:\s*", re.IGNORECASE)
 
 
-def _out_of_scope_token_range(body: str) -> list:
-    """Return tokens after the Out of scope h2 and before the next h2."""
+def _section_token_range(body: str, heading: str) -> list:
+    """Return tokens after the given h2 and before the next h2."""
     tokens = _MD.parse(body)
     start: int | None = None
+    target = heading.strip().lower()
     for index, token in enumerate(tokens):
         if token.type != "heading_open" or token.tag != "h2":
             continue
         title = tokens[index + 1].content.strip().lower()
         if start is None:
-            if title == "out of scope":
+            if title == target:
                 start = index + 3
             continue
         return tokens[start:index]
     return [] if start is None else tokens[start:]
 
 
-def _top_level_bullets(body: str) -> list[str]:
-    """Extract direct prose from top-level list items in Out of scope."""
-    tokens = _out_of_scope_token_range(body)
+def top_level_bullets(body: str, heading: str = "out of scope") -> list[str]:
+    """Extract direct prose from top-level list items under `heading`."""
+    tokens = _section_token_range(body, heading)
     bullets: list[str] = []
     current: list[str] | None = None
     for token in tokens:
@@ -60,11 +62,35 @@ def find_orphan_scope_reminders(body: str) -> list[str]:
     """Return actionable reminders for orphaned top-level scope bullets."""
     return [
         bullet
-        for bullet in _top_level_bullets(body)
+        for bullet in top_level_bullets(body)
         if _FOLLOW_UP_RE.search(bullet)
         and not _ISSUE_REFERENCE_RE.search(bullet)
         and not _REJECTION_RE.search(bullet)
     ]
+
+
+def deferred_scope_bullets(body: str) -> list[str]:
+    """Return Out-of-scope bullets explicitly opted into PR-review export.
+
+    Export requires a literal `deferred:` prefix — NOT the complement of
+    `find_orphan_scope_reminders`. An incidental `#N` mention must not, on its
+    own, license a reviewer to downgrade a finding (issue #64 finding B3):
+    opting in has to be a deliberate marker, not something a bullet triggers
+    by accident."""
+    bullets = []
+    for bullet in top_level_bullets(body):
+        match = _DEFERRED_PREFIX_RE.match(bullet)
+        if not match:
+            continue
+        if not _ISSUE_REFERENCE_RE.search(bullet) or _REJECTION_RE.search(bullet):
+            continue
+        bullets.append(bullet[match.end() :])
+    return bullets
+
+
+def deferred_scope_trackers(bullet: str) -> list[int]:
+    """Return the tracking issue numbers `#N` referenced by a deferred bullet."""
+    return [int(ref[1:]) for ref in _ISSUE_REFERENCE_RE.findall(bullet)]
 
 
 def format_reminders(issue_number: int, body: str) -> list[str]:
@@ -75,7 +101,7 @@ def format_reminders(issue_number: int, body: str) -> list[str]:
     ]
 
 
-def _fetch_body(issue_number: int) -> str:
+def fetch_issue_body(issue_number: int) -> str:
     """Read one open issue body through ``gh``."""
     result = subprocess.run(
         ["gh", "issue", "view", str(issue_number), "--json", "body,state"],
@@ -110,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: issue number must be int (got {args[0]!r})", file=sys.stderr)
         return 2
     try:
-        body = _fetch_body(issue_number)
+        body = fetch_issue_body(issue_number)
     except (json.JSONDecodeError, OSError, RuntimeError, subprocess.SubprocessError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

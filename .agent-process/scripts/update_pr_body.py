@@ -21,13 +21,28 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from scripts.open_pr import _linkage_confirmed, ensure_closes_line, issue_number_from_branch
+    from scripts.open_pr import (
+        _linkage_confirmed,
+        deferred_scope_for_body,
+        ensure_closes_line,
+        ensure_deferred_scope,
+        issue_number_from_branch,
+    )
 except ModuleNotFoundError:  # Direct execution from the relocated payload.
-    from open_pr import _linkage_confirmed, ensure_closes_line, issue_number_from_branch
+    from open_pr import (
+        _linkage_confirmed,
+        deferred_scope_for_body,
+        ensure_closes_line,
+        ensure_deferred_scope,
+        issue_number_from_branch,
+    )
 
 
-def normalized_body(body: str, issue_number: int) -> str:
-    """Return ``body`` with exactly one canonical issue-closing line."""
+def normalized_body(body: str, issue_number: int, rendered_deferred_scope: str) -> str:
+    """Return ``body`` with exactly one canonical issue-closing line and the
+    Deferred-scope block set to ``rendered_deferred_scope`` (pure — no I/O; the
+    caller renders the block, since a fixer's report update must not drop it
+    on a transient issue-read failure)."""
     target = f"Closes #{issue_number}"
     result: list[str] = []
     found = False
@@ -40,7 +55,8 @@ def normalized_body(body: str, issue_number: int) -> str:
         if not found:
             result.append(target + ending)
             found = True
-    return ensure_closes_line("".join(result), issue_number)
+    closed = ensure_closes_line("".join(result), issue_number)
+    return ensure_deferred_scope(closed, rendered_deferred_scope)
 
 
 def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
@@ -61,17 +77,18 @@ def _checked(cmd: list[str]) -> str:
     return result.stdout
 
 
-def _pr_metadata(pr: str) -> tuple[str, str]:
-    output = _checked(["gh", "pr", "view", pr, "--json", "headRefName,url"])
+def _pr_metadata(pr: str) -> tuple[str, str, str]:
+    output = _checked(["gh", "pr", "view", pr, "--json", "headRefName,url,body"])
     try:
         data: dict[str, Any] = json.loads(output)
         branch = data["headRefName"]
         url = data["url"]
+        body = data.get("body") or ""
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ValueError(f"could not parse PR metadata: {output!r}") from exc
     if not isinstance(branch, str) or not branch or not isinstance(url, str) or not url:
         raise ValueError(f"PR metadata is missing headRefName/url: {output!r}")
-    return branch, url
+    return branch, url, body
 
 
 def _edit_body(url: str, body: str) -> None:
@@ -92,7 +109,7 @@ def main(argv: list[str] | None = None) -> None:
 
     try:
         requested_body = Path(ns.body_file).read_text(encoding="utf-8")
-        branch, url = _pr_metadata(ns.pr)
+        branch, url, current_body = _pr_metadata(ns.pr)
         issue_number = issue_number_from_branch(branch)
         if issue_number is None:
             print(
@@ -100,7 +117,11 @@ def main(argv: list[str] | None = None) -> None:
                 file=sys.stderr,
             )
             sys.exit(2)
-        _edit_body(url, normalized_body(requested_body, issue_number))
+        # Fall back to the PR's live body, not the local report file: the
+        # existing sentinel block lives on GitHub, and a freshly written
+        # report has no block of its own to preserve.
+        rendered = deferred_scope_for_body(current_body, issue_number)
+        _edit_body(url, normalized_body(requested_body, issue_number, rendered))
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(2)

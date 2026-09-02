@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 
 jobs:
   pr-link:
@@ -41,6 +42,38 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install PR-link driver dependencies
+        # verify_pr_link.py imports check_orphan_scope.py, which hard-imports
+        # markdown_it at module level — installed from wherever the selected
+        # driver actually lives (bootstrap-fallback shape, same as "Select
+        # PR-link driver" above), not always from `pr`.
+        run: |
+          driver_root="$GITHUB_WORKSPACE/${{ steps.pr-link-driver.outputs.path }}"
+          if test -f "$driver_root/.agent-process/requirements.txt"; then
+            pip install -r "$driver_root/.agent-process/requirements.txt"
+          elif test -f "$driver_root/requirements.txt"; then
+            pip install -r "$driver_root/requirements.txt"
+            echo "::notice::bootstrap fallback: default branch has no relocated requirements.txt yet, using its pre-migration path"
+          else
+            echo "::notice::bootstrap fallback: default branch has no PR-link driver requirements file yet"
+          fi
+      - name: Select deferred-scope check capability
+        # Feature-detect rather than assume: this driver runs from the trusted
+        # default-branch checkout, so a PR introducing the deferred-scope
+        # soundness check cannot make the trusted copy verify it until that PR
+        # merges (same bootstrap shape as "Select PR-link driver" above). A
+        # missing marker is a visible skip, not a hard failure of this gate.
+        id: deferred-scope-capability
+        run: |
+          if grep -Fq "DEFERRED_SCOPE_CHECK_SUPPORTED = True" \
+            "$GITHUB_WORKSPACE/${{ steps.pr-link-driver.outputs.path }}/.agent-process/scripts/verify_pr_link.py" 2>/dev/null || \
+             grep -Fq "DEFERRED_SCOPE_CHECK_SUPPORTED = True" \
+            "$GITHUB_WORKSPACE/${{ steps.pr-link-driver.outputs.path }}/scripts/verify_pr_link.py" 2>/dev/null; then
+            echo "supported=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::bootstrap fallback: default branch cannot verify deferred-scope soundness yet"
+          fi
       - name: Verify PR closes its issue
         env:
           GH_TOKEN: ${{ github.token }}
