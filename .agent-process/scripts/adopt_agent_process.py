@@ -232,7 +232,13 @@ def main() -> int:
     parser.add_argument("destination", type=Path)
     parser.add_argument("payload", type=Path, help="directory containing the release payload")
     args = parser.parse_args()
+    if not args.payload.is_dir():
+        print(f"payload directory does not exist: {args.payload}")
+        return 1
     payload = _payload_from_directory(args.payload)
+    if not payload:
+        print(f"payload directory has no files: {args.payload}")
+        return 1
     try:
         owned_paths = _owned_paths(args.destination)
     except ValueError as exc:

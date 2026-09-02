@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -266,6 +267,38 @@ def test_install_rejects_a_rej_artifact_beside_a_closed_root_file(tmp_path: Path
 
     with pytest.raises(ValueError, match="unresolved Copier conflict artifact"):
         install_payload(tmp_path, _payload())
+
+
+def test_cli_install_rejects_a_nonexistent_payload_directory(tmp_path: Path) -> None:
+    """A mistyped payload path must not silently become an empty payload:
+    `Path.rglob()` on a missing directory yields nothing, so `main()` would
+    otherwise dispatch to `install_payload` with an empty payload, which
+    overwrites the existing ownership manifest with `{"paths": []}` and turns
+    every previously installed file into an unowned collision on the next
+    real update.
+    """
+    destination = tmp_path / "destination"
+    install_payload(destination, {".agent-process/entry.py": b"version: 1\n"})
+    missing_payload_dir = tmp_path / "does-not-exist"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / ".agent-process/scripts/adopt_agent_process.py"),
+            "install",
+            str(destination),
+            str(missing_payload_dir),
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert completed.returncode != 0, completed.stdout + completed.stderr
+    manifest = json.loads(
+        (destination / ".agent-process/ownership.json").read_text(encoding="utf-8")
+    )
+    assert manifest["paths"] == [".agent-process/entry.py"]
 
 
 def test_install_rejects_a_directory_at_the_ownership_manifest_path(tmp_path: Path) -> None:
