@@ -7,17 +7,7 @@ from pathlib import Path
 
 from test_project_bootstrap_template import render
 
-_CLOSED_ROOT_FILES = frozenset(
-    {
-        ".github/workflows/ci.yml",
-        ".github/workflows/agent-review.yml",
-        ".github/workflows/pr-link.yml",
-        ".github/pull_request_template.md",
-        "AGENTS.md",
-        ".gitignore",
-    }
-)
-_CLOSED_ROOT_PREFIXES = (".agents/", ".claude/", ".codex/", "tests/agent_process/")
+from scripts.adopt_agent_process import _CLOSED_ROOT_FILES, _CLOSED_ROOT_PREFIXES
 
 
 def _is_closed_root_path(relative: str) -> bool:

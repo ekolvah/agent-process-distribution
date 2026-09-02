@@ -154,8 +154,7 @@ def _apply(destination: Path, payload: dict[str, bytes], *, updating: bool) -> N
     unresolved = _unresolved(destination)
     if unresolved:
         raise ValueError("unresolved Copier conflict artifact(s): " + ", ".join(unresolved))
-    owned_paths = _owned_paths(destination) if updating else frozenset()
-    report = preflight(destination, payload, owned_paths=owned_paths)
+    report = preflight(destination, payload, owned_paths=_owned_paths(destination))
     collisions = report.collisions
     if collisions:
         raise ValueError("payload collides with consumer-owned file(s): " + ", ".join(collisions))

@@ -45,6 +45,8 @@ root_only_paths:
     reason: Verifies the single-root payload invariant in the publisher source (issue #55).
   - path: tests/publisher/test_bare_consumer_quality.py
     reason: Integration smoke test against a rendered bare consumer; exercises the publisher's reusable-quality workflow, not a file a consumer receives (issue #55/#57).
+  - path: tests/publisher/test_existing_project_installation.py
+    reason: Verifies the adoption CLI's ownership invariant in the publisher source (issue #59), not a file a consumer receives.
 expected_difference_paths:
   - path: .agent-process/scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.
