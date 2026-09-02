@@ -131,15 +131,25 @@ def _link_missing_after_poll(branch: str, pr: str) -> bool:
     return True
 
 
-def _block_bullets(pr_body: str) -> list[str]:
-    """Top-level bullets inside the PR body's Deferred-scope sentinels, or []
-    when the block or its sentinels are absent. Parsed structurally via
-    `top_level_bullets`, not a regex scan over the raw block text — a nested
-    (Acceptance-criteria) bullet must not be mistaken for a top-level entry."""
+def _block_bullets(pr_body: str) -> list[str] | None:
+    """Top-level bullets inside the PR body's Deferred-scope sentinels.
+
+    `None` when the sentinels are absent — there is no block, nothing to
+    check. `[]` when the sentinels ARE present but no top-level bullet parses
+    out of the enclosed content (wrong/missing heading, or prose instead of a
+    `- ` list) — itself a malformed condition, not "nothing to check":
+    `render_deferred_scope_section` never renders sentinels around an empty
+    block (it omits them entirely when there is nothing to export), so this
+    shape can only arise from hand-editing/corruption after generation
+    (Claude finding on PR #66's fresh review — the two results used to be
+    conflated, so a corrupted block was silently waved through as sound).
+    Parsed structurally via `top_level_bullets`, not a regex scan over the
+    raw block text — a nested (Acceptance-criteria) bullet must not be
+    mistaken for a top-level entry."""
     begin = pr_body.find(DEFERRED_SCOPE_BEGIN)
     end = pr_body.find(DEFERRED_SCOPE_END)
     if begin == -1 or end == -1 or end < begin:
-        return []
+        return None
     return check_orphan_scope.top_level_bullets(pr_body[begin:end], heading="deferred scope")
 
 
@@ -158,8 +168,10 @@ def deferred_scope_mismatch(branch: str, pr_body: str, source_issue_body: str) -
     if issue_number_from_branch(branch) is None:
         return []
     bullets = _block_bullets(pr_body)
-    if not bullets:
+    if bullets is None:
         return []
+    if not bullets:
+        return [0]
     valid: set[int] = set()
     for bullet in check_orphan_scope.deferred_scope_bullets(source_issue_body):
         valid.update(check_orphan_scope.deferred_scope_trackers(bullet))
@@ -185,7 +197,7 @@ def _unsound_with_liveness(branch: str, pr_body: str, source_issue_body: str) ->
     if issue_number_from_branch(branch) is None:
         return mismatched
     unsound = list(mismatched)
-    for bullet in _block_bullets(pr_body):
+    for bullet in _block_bullets(pr_body) or []:
         match = _TRACKER_SUFFIX_RE.search(bullet)
         if match is None:
             continue  # already flagged as malformed above

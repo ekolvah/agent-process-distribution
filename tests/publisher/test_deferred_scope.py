@@ -291,3 +291,26 @@ def test_open_tracker_referenced_in_the_pr_body_stays_sound(
     unsound = verify_pr_link._unsound_with_liveness("issue-59-x", pr_body, issue_body)
 
     assert unsound == []
+
+
+def test_block_present_but_unparseable_as_bullets_is_rejected() -> None:
+    # Claude finding on PR #66 (fresh review after the round-1 fixes): a
+    # sentinel-delimited block whose content fails to parse as a top-level
+    # bullet list at all (wrong/missing heading, or prose instead of a `- `
+    # list) made `_block_bullets` return [] the same way "sentinels absent"
+    # does — so `deferred_scope_mismatch` took the early-return "nothing to
+    # check" branch and called it sound. `render_deferred_scope_section`
+    # never renders sentinels around an empty block (it omits them entirely
+    # when there is nothing to export), so this shape can only arise from
+    # hand-editing/corruption after generation — exactly the case that must
+    # be flagged, not waved through.
+    pr_body = (
+        f"{open_pr.DEFERRED_SCOPE_BEGIN}\n"
+        "just some prose, not a bullet list under the expected heading\n"
+        f"{open_pr.DEFERRED_SCOPE_END}"
+    )
+    issue_body = _OUT_OF_SCOPE_TRACKED
+
+    mismatch = verify_pr_link.deferred_scope_mismatch("issue-59-x", pr_body, issue_body)
+
+    assert mismatch != []
