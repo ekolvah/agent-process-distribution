@@ -37,7 +37,9 @@ against a PR that edits its own review/CI logic and is validated by that same
 edited logic before anyone notices. Issue #72 dropped that pin in favour of
 `@main`, both for this source repository's own three callers and for the
 `copier.yml` default every downstream adopter inherits on a fresh `copier
-copy` or `copier update`: the SHA had to be
+copy` (an existing consumer's `copier update` reuses its already-recorded
+`workflow_references` answer, so it keeps a persisted SHA until that answer
+is explicitly refreshed): the SHA had to be
 bumped by hand on every `reusable-*.yml` change and nothing enforced that the
 bump land in the same PR, so it silently went stale (observed in #64/PR#66,
 where a stale pin kept failing every subsequent PR's `pr-link` check until
