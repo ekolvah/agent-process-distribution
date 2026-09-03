@@ -276,6 +276,367 @@ def test_a_new_head_updates_the_existing_comment(monkeypatch: pytest.MonkeyPatch
     assert new_sha in body_arg
 
 
+def test_schema_violating_payload_is_published_as_unvalidated_summary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [
+                json.dumps(
+                    {
+                        "outcome": "rework",
+                        "findings": [
+                            {
+                                "severity": "blocking",
+                                "confidence": "high",
+                                "summary": "A schema-invalid finding must still reach the PR.",
+                            }
+                        ],
+                    }
+                ),
+                "--publish-summary",
+                "--reviewed-head-sha",
+                "a" * 40,
+            ]
+        )
+
+    assert excinfo.value.code == 2
+    text = summary.read_text(encoding="utf-8") if summary.exists() else ""
+    assert "<!-- agent-review-unvalidated -->" in text
+    assert "blocking" in text
+    assert "A schema-invalid finding must still reach the PR." in text
+
+
+def test_schema_violating_payload_is_published_as_unvalidated_pr_comment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        return "[[]]" if "--paginate" in args else "{}"
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [
+                json.dumps(
+                    {
+                        "outcome": "rework",
+                        "findings": [
+                            {
+                                "severity": "blocking",
+                                "confidence": "high",
+                                "summary": "A schema-invalid finding must still reach the PR.",
+                            }
+                        ],
+                    }
+                ),
+                "--publish-pr-comment",
+                "--reviewed-head-sha",
+                "a" * 40,
+                "--repo",
+                "owner/repo",
+                "--pr",
+                "42",
+            ]
+        )
+
+    assert excinfo.value.code == 2
+    assert len(calls) == 2
+    _list_call, post_call = calls
+    assert "--method" in post_call and "POST" in post_call
+    body_arg = post_call[post_call.index("-f") + 1]
+    assert "<!-- agent-review-unvalidated -->" in body_arg
+    assert "A schema-invalid finding must still reach the PR." in body_arg
+
+
+def test_unparseable_nonempty_payload_is_still_surfaced(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [
+                "not valid json at all",
+                "--publish-summary",
+                "--reviewed-head-sha",
+                "a" * 40,
+            ]
+        )
+
+    assert excinfo.value.code == 2
+    text = summary.read_text(encoding="utf-8") if summary.exists() else ""
+    assert "<!-- agent-review-unvalidated -->" in text
+    assert "not valid json" in text.lower()
+
+
+def test_validated_block_replaces_an_unvalidated_block_on_the_same_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    sha = "f" * 40
+    existing_body = (
+        "<!-- agent-review-claude-fallback -->\n<!-- agent-review-unvalidated -->\n"
+        f"Reviewed head SHA: `{sha}`\n"
+    )
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        if "--paginate" in args:
+            return json.dumps([[{"id": 9, "body": existing_body}]])
+        return "{}"
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    check_agent_review_outcome.main(
+        [
+            json.dumps({"outcome": "clean", "findings": []}),
+            "--publish-pr-comment",
+            "--reviewed-head-sha",
+            sha,
+            "--repo",
+            "owner/repo",
+            "--pr",
+            "42",
+        ]
+    )
+
+    assert len(calls) == 2
+    patch_call = calls[1]
+    assert "--method" in patch_call and "PATCH" in patch_call
+    body_arg = patch_call[patch_call.index("-f") + 1]
+    assert "<!-- agent-review-unvalidated -->" not in body_arg
+
+
+def test_unvalidated_block_never_overwrites_a_validated_block_on_the_same_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+    sha = "g" * 40
+    existing_body = (
+        f"<!-- agent-review-claude-fallback -->\nReviewed head SHA: `{sha}`\nOutcome: `clean`\n"
+    )
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        if "--paginate" in args:
+            return json.dumps([[{"id": 11, "body": existing_body}]])
+        raise AssertionError("must never overwrite a validated comment with unvalidated evidence")
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [
+                json.dumps(
+                    {
+                        "outcome": "rework",
+                        "findings": [
+                            {
+                                "severity": "blocking",
+                                "confidence": "high",
+                                "summary": "Later invalid rerun on the same head.",
+                            }
+                        ],
+                    }
+                ),
+                "--publish-pr-comment",
+                "--reviewed-head-sha",
+                sha,
+                "--repo",
+                "owner/repo",
+                "--pr",
+                "42",
+            ]
+        )
+
+    assert excinfo.value.code == 2
+    assert len(calls) == 1
+
+
+def test_raw_payload_text_cannot_forge_comment_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    later_sha = "h" * 40
+    # The raw carrier payload happens to contain a line that looks exactly
+    # like the renderer's own real head-SHA anchor, for a head that has not
+    # been reviewed yet.
+    forged_payload = f'{{"Reviewed head SHA: `{later_sha}`": "not a valid schema"}}'
+
+    posted: dict[str, str] = {}
+    calls: list[list[str]] = []
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        if "--paginate" in args:
+            return json.dumps([[{"id": 3, "body": posted["body"]}]]) if posted else "[[]]"
+        if "--method" in args and "POST" in args:
+            posted["body"] = args[args.index("-f") + 1][len("body=") :]
+        return "{}"
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    with pytest.raises(SystemExit):
+        check_agent_review_outcome.main(
+            [
+                forged_payload,
+                "--publish-pr-comment",
+                "--reviewed-head-sha",
+                "a" * 40,
+                "--repo",
+                "owner/repo",
+                "--pr",
+                "42",
+            ]
+        )
+
+    assert "body" in posted
+    assert f"Reviewed head SHA: `{later_sha}`" not in posted["body"]
+
+    # A later run genuinely reviewing `later_sha` must still update the
+    # comment rather than treating the forged text as already-posted.
+    check_agent_review_outcome.main(
+        [
+            json.dumps({"outcome": "clean", "findings": []}),
+            "--publish-pr-comment",
+            "--reviewed-head-sha",
+            later_sha,
+            "--repo",
+            "owner/repo",
+            "--pr",
+            "42",
+        ]
+    )
+
+    patch_calls = [call for call in calls if "--method" in call and "PATCH" in call]
+    assert len(patch_calls) == 1
+
+
+def test_paired_captured_payloads_through_one_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """The two `STRUCTURED_OUTCOME` strings captured for issue #67 (job
+    100380322759's valid record and job 100370449967's invalid one)."""
+    valid_payload = {
+        "outcome": "rework",
+        "findings": [
+            {
+                "severity": "should-fix",
+                "confidence": "high",
+                "summary": (
+                    "verify_pr_link.py's required pr-link gate hard-fails (sys.exit(2), "
+                    "blocking merge) whenever the PR's linked issue is not in OPEN state "
+                    "— even for PRs whose body has no `## Deferred scope` block at all, "
+                    "and inconsistently with open_pr.py's own generation side of the same "
+                    "feature, which tolerates a closed source issue."
+                ),
+            }
+        ],
+    }
+    invalid_payload = {
+        "outcome": "rework",
+        "findings": [
+            {
+                "severity": "blocking",
+                "confidence": "high",
+                "summary": (
+                    "verify_pr_link.py's deferred_scope_mismatch()/_block_bullets() treats a "
+                    "sentinel-delimited '## Deferred scope' block whose content fails to parse "
+                    "as proper markdown bullets (wrong/missing heading, or prose instead of a "
+                    "'- ' list) as vacuously sound (returns []), instead of flagging it as "
+                    "malformed — silently skipping verification of claims that a reviewing "
+                    "LLM (fed the same raw PR body as 'gate-verified' data per "
+                    "REVIEW_CONTRACT.md) may still trust."
+                ),
+            }
+        ],
+    }
+
+    valid_summary = tmp_path / "valid-summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(valid_summary))
+    check_agent_review_outcome.main(
+        [json.dumps(valid_payload), "--publish-summary", "--reviewed-head-sha", "5" * 40]
+    )
+    valid_text = valid_summary.read_text(encoding="utf-8")
+    assert "## Validated agent-review evidence" in valid_text
+    assert "NON-BLOCKING (high)" in valid_text
+
+    invalid_summary = tmp_path / "invalid-summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(invalid_summary))
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [json.dumps(invalid_payload), "--publish-summary", "--reviewed-head-sha", "6" * 40]
+        )
+    assert excinfo.value.code == 2
+    invalid_text = invalid_summary.read_text(encoding="utf-8") if invalid_summary.exists() else ""
+    assert "<!-- agent-review-unvalidated -->" in invalid_text
+
+
+def test_enforce_path_still_exits_two_on_invalid_evidence() -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [
+                json.dumps(
+                    {
+                        "outcome": "rework",
+                        "findings": [
+                            {
+                                "severity": "blocking",
+                                "confidence": "high",
+                                "summary": "enforce path only, no publish flag",
+                            }
+                        ],
+                    }
+                )
+            ]
+        )
+    assert excinfo.value.code == 2
+
+
+@pytest.mark.parametrize("raw_payload", ["", "   ", "null", "{}"])
+def test_empty_payload_publishes_nothing(
+    raw_payload: str, monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run_gh(args: list[str]) -> str:
+        calls.append(args)
+        return "[[]]" if "--paginate" in args else "{}"
+
+    monkeypatch.setattr(check_agent_review_outcome, "run_gh", fake_run_gh, raising=False)
+
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [raw_payload, "--publish-summary", "--reviewed-head-sha", "a" * 40]
+        )
+    assert excinfo.value.code == 2
+    assert not summary.exists() or summary.read_text(encoding="utf-8") == ""
+    assert calls == []
+
+    with pytest.raises(SystemExit) as excinfo:
+        check_agent_review_outcome.main(
+            [
+                raw_payload,
+                "--publish-pr-comment",
+                "--reviewed-head-sha",
+                "a" * 40,
+                "--repo",
+                "owner/repo",
+                "--pr",
+                "42",
+            ]
+        )
+    assert excinfo.value.code == 2
+    assert calls == []
+
+
 def _execution_file(tmp_path, messages: list[object]) -> str:
     path = tmp_path / "claude-execution-output.json"
     path.write_text(json.dumps(messages), encoding="utf-8")

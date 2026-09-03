@@ -58,6 +58,13 @@ PUBLISH_PR_COMMENT_SUPPORTED = True
 # check_blocking_review_threads.py's `_CLASSIFICATION_MARKER`: that one
 # classifies individual Codex threads, this one owns one whole-review comment.
 _FALLBACK_MARKER = "<!-- agent-review-claude-fallback -->"
+# Sub-marker inside a fallback comment's body, distinguishing an unvalidated
+# render from a validated one so the sticky-comment update can resolve a
+# collision on one head SHA by precedence: validated always wins.
+_UNVALIDATED_MARKER = "<!-- agent-review-unvalidated -->"
+# The raw carrier payload is arbitrary, untrusted-length text; cap it so an
+# oversized payload cannot blow out the check summary or PR comment.
+_UNVALIDATED_PAYLOAD_CHAR_LIMIT = 4000
 # The reusable workflow greps the trusted checkout for this marker before
 # wiring `--diagnose-execution-file`, the same bootstrap pattern as
 # `PUBLISH_PR_COMMENT_SUPPORTED` above.
@@ -139,48 +146,61 @@ def _require_live_pr_context(status: str | None) -> None:
         raise SystemExit(2)
 
 
-def validated_evidence(payload: object) -> tuple[str, list[dict[str, str]]] | None:
-    """Return only evidence that can support the declared review outcome."""
+def _validate(
+    payload: object,
+) -> tuple[tuple[str, list[dict[str, str]]] | None, str | None]:
+    """Return `(evidence, None)` when valid, else `(None, reason)`.
+
+    The single home for the validity rule: `validated_evidence()` below is a
+    thin wrapper, not a second copy of this policy.
+    """
     if not isinstance(payload, dict) or set(payload) != {"outcome", "findings"}:
-        return None
+        return None, "payload must be a JSON object with exactly 'outcome' and 'findings'"
     outcome = payload.get("outcome")
     findings = payload.get("findings")
-    if outcome not in VALID_OUTCOMES or not isinstance(findings, list):
-        return None
+    if outcome not in VALID_OUTCOMES:
+        return None, f"unknown outcome {outcome!r}"
+    if not isinstance(findings, list):
+        return None, "'findings' is not a list"
 
     validated: list[dict[str, str]] = []
     for finding in findings:
         if not isinstance(finding, dict) or set(finding) != {"severity", "confidence", "summary"}:
-            return None
+            return None, "a finding is missing severity/confidence/summary"
         severity = finding.get("severity")
         confidence = finding.get("confidence")
         summary = finding.get("summary")
-        if (
-            severity not in VALID_SEVERITIES
-            or confidence not in VALID_CONFIDENCES
-            or not isinstance(summary, str)
-            or not summary.strip()
-        ):
-            return None
+        if severity not in VALID_SEVERITIES:
+            return None, f"a finding has an unknown severity {severity!r}"
+        if confidence not in VALID_CONFIDENCES:
+            return None, f"a finding has an unknown confidence {confidence!r}"
+        if not isinstance(summary, str) or not summary.strip():
+            return None, "a finding is missing a summary"
         validated.append(
             {"severity": severity, "confidence": confidence, "summary": summary.strip()}
         )
 
     if outcome == "clean":
-        return (outcome, validated) if not validated else None
+        if validated:
+            return None, "outcome 'clean' may not carry a finding"
+        return (outcome, validated), None
     if outcome == "rework":
-        return (
-            (outcome, validated)
-            if validated and all(finding["severity"] != "blocking" for finding in validated)
-            else None
-        )
+        if not validated:
+            return None, "outcome 'rework' requires at least one finding"
+        if any(finding["severity"] == "blocking" for finding in validated):
+            return None, "outcome 'rework' may not carry a blocking finding"
+        return (outcome, validated), None
     if outcome == "blocking":
-        return (
-            (outcome, validated)
-            if any(finding["severity"] == "blocking" for finding in validated)
-            else None
-        )
-    return None
+        if not any(finding["severity"] == "blocking" for finding in validated):
+            return None, "outcome 'blocking' requires at least one blocking finding"
+        return (outcome, validated), None
+    return None, f"unknown outcome {outcome!r}"
+
+
+def validated_evidence(payload: object) -> tuple[str, list[dict[str, str]]] | None:
+    """Return only evidence that can support the declared review outcome."""
+    evidence, _reason = _validate(payload)
+    return evidence
 
 
 def _report_validity(evidence: tuple[str, list[dict[str, str]]] | None) -> None:
@@ -218,10 +238,112 @@ def _evidence_lines(
     return lines
 
 
-def _publish_summary(
-    evidence: tuple[str, list[dict[str, str]]], reviewed_head_sha: str | None
-) -> None:
-    """Write the validated review evidence to the durable Actions check summary."""
+def _payload_is_present(payload_arg: str) -> bool:
+    """Carrier produced output worth surfacing, whether or not it later validates.
+
+    Non-empty after `.strip()`, and — when it parses as JSON — not one of the
+    values that mean "nothing ran": `null`, `{}`, `[]`, `""`. A non-empty
+    string that fails to parse as JSON is present; there is text to show.
+    """
+    stripped = payload_arg.strip()
+    if not stripped:
+        return False
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        return True
+    return parsed not in (None, {}, [], "")
+
+
+def _run_url() -> str | None:
+    server = os.environ.get("GITHUB_SERVER_URL")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    if server and repo and run_id:
+        return f"{server}/{repo}/actions/runs/{run_id}"
+    return None
+
+
+def _best_effort_fields(payload: object) -> list[str]:
+    """Render whatever outcome/finding fields a rejected payload does contain."""
+    if not isinstance(payload, dict):
+        return []
+    lines: list[str] = []
+    outcome = payload.get("outcome")
+    if isinstance(outcome, str):
+        lines.append(f"Reported outcome: `{outcome}`")
+    findings = payload.get("findings")
+    if isinstance(findings, list):
+        for finding in findings:
+            if not isinstance(finding, dict):
+                continue
+            label_bits = [
+                str(finding[key])
+                for key in ("severity", "confidence")
+                if isinstance(finding.get(key), str)
+            ]
+            label = "/".join(label_bits) if label_bits else "unknown"
+            summary = finding.get("summary")
+            if isinstance(summary, str) and summary.strip():
+                lines.append(f"- **{label}**: {summary.strip()}")
+    return lines
+
+
+def _neutralize_fence_delimiters(text: str) -> str:
+    """Prevent an embedded backtick from escaping the fenced raw-payload block
+
+    or forging the backtick-quoted head-SHA anchor the sticky comment matches
+    on."""
+    return text.replace("`", "'")
+
+
+def _capped(text: str, limit: int = _UNVALIDATED_PAYLOAD_CHAR_LIMIT) -> str:
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}... [{len(text) - limit} more chars truncated]"
+
+
+def _unvalidated_evidence_lines(
+    payload_arg: str, payload: object, reason: str, reviewed_head_sha: str | None
+) -> list[str]:
+    """Render present-but-invalid carrier output for visibility, never as a verdict.
+
+    The raw payload is rendered length-capped inside a fenced block with
+    backticks neutralised, so it can never forge the marker or the
+    backtick-quoted head-SHA line that comment identity is matched against.
+    """
+    lines = [
+        _UNVALIDATED_MARKER,
+        "## Unvalidated agent-review evidence",
+        "",
+        "This output did not pass validation and must not be read as a verdict; "
+        "the required check still failed.",
+        "",
+        f"Reason: {reason}",
+        "",
+        f"Reviewed head SHA: `{reviewed_head_sha}`",
+    ]
+    run_url = _run_url()
+    if run_url:
+        lines.extend(["", f"Run: {run_url}"])
+    best_effort = _best_effort_fields(payload)
+    if best_effort:
+        lines.append("")
+        lines.extend(best_effort)
+    lines.extend(
+        [
+            "",
+            "Raw carrier output:",
+            "```",
+            _neutralize_fence_delimiters(_capped(payload_arg)),
+            "```",
+        ]
+    )
+    return lines
+
+
+def _publish_summary(lines: list[str], reviewed_head_sha: str | None) -> None:
+    """Write the given evidence lines to the durable Actions check summary."""
     if not reviewed_head_sha:
         print("error: --publish-summary needs --reviewed-head-sha", file=sys.stderr)
         raise SystemExit(2)
@@ -229,7 +351,6 @@ def _publish_summary(
     if not destination:
         print("error: GITHUB_STEP_SUMMARY is unavailable", file=sys.stderr)
         raise SystemExit(2)
-    lines = _evidence_lines(evidence, reviewed_head_sha)
     try:
         with open(destination, "a", encoding="utf-8") as handle:
             handle.write("\n".join(lines) + "\n")
@@ -251,19 +372,25 @@ def _existing_pr_comments(repo: str, pr: str) -> list[dict[str, object]]:
 
 
 def _publish_pr_comment(
-    evidence: tuple[str, list[dict[str, str]]],
+    lines: list[str],
+    *,
+    is_validated: bool,
     reviewed_head_sha: str | None,
     repo: str | None,
     pr: str | None,
 ) -> None:
-    """Publish the Claude fallback's validated evidence as a sticky PR comment.
+    """Publish the Claude fallback's evidence — validated or not — as a sticky PR comment.
 
     Never a GitHub review (`REQUEST_CHANGES`/`APPROVE`): that verdict already
     belongs to the required `agent-review` check, and only the Codex primary
     carrier leaves its own native review. This is a plain, non-verdict
-    conversation comment, one per PR, updated in place — keyed on the
-    reviewed head SHA so a re-run on the same head is a no-op and a new head
-    replaces the stale findings rather than leaving them looking current.
+    conversation comment, one per PR, updated in place.
+
+    A collision on one head SHA is resolved by **precedence, not equality**: a
+    validated block always wins. It replaces an already-posted unvalidated
+    block for that head; an unvalidated block never overwrites a validated
+    one. Otherwise, a re-run of the same kind on an unchanged head is a no-op
+    and a new head (or a kind change) replaces the stale comment.
     """
     if not reviewed_head_sha:
         print("error: --publish-pr-comment needs --reviewed-head-sha", file=sys.stderr)
@@ -271,7 +398,7 @@ def _publish_pr_comment(
     if not repo or not pr:
         print("error: --publish-pr-comment needs --repo and --pr", file=sys.stderr)
         raise SystemExit(2)
-    body = "\n".join([_FALLBACK_MARKER, *_evidence_lines(evidence, reviewed_head_sha)])
+    body = "\n".join([_FALLBACK_MARKER, *lines])
     head_line = f"Reviewed head SHA: `{reviewed_head_sha}`"
 
     existing = [
@@ -281,7 +408,12 @@ def _publish_pr_comment(
     ]
     if existing:
         comment = existing[-1]
-        if head_line in str(comment.get("body", "")):
+        existing_body = str(comment.get("body", ""))
+        existing_is_validated = _UNVALIDATED_MARKER not in existing_body
+        if existing_is_validated and not is_validated:
+            print("ok: an existing validated comment is never overwritten by unvalidated evidence")
+            return
+        if existing_is_validated == is_validated and head_line in existing_body:
             print("ok: fallback findings already posted for this reviewed head")
             return
         comment_id = comment.get("id")
@@ -393,9 +525,13 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     try:
         payload = json.loads(payload_arg)
+        malformed_json = False
     except json.JSONDecodeError:
         payload = None
-    evidence = validated_evidence(payload)
+        malformed_json = True
+    evidence, reason = _validate(payload)
+    if malformed_json:
+        reason = "payload is not valid JSON"
 
     if options.classify:
         _report_validity(evidence)
@@ -404,15 +540,37 @@ def main(argv: Sequence[str] | None = None) -> None:
     producer = options.producer
     _require_live_pr_context(options.live_pr_context_status)
     if evidence is None:
+        if _payload_is_present(payload_arg):
+            lines = _unvalidated_evidence_lines(
+                payload_arg, payload, reason or "invalid evidence", options.reviewed_head_sha
+            )
+            if options.publish_summary:
+                _publish_summary(lines, options.reviewed_head_sha)
+            elif options.publish_pr_comment:
+                _publish_pr_comment(
+                    lines,
+                    is_validated=False,
+                    reviewed_head_sha=options.reviewed_head_sha,
+                    repo=options.repo,
+                    pr=options.pr,
+                )
         print(
             f"error: {producer} unavailable: no valid structured review evidence.", file=sys.stderr
         )
         raise SystemExit(2)
     if options.publish_summary:
-        _publish_summary(evidence, options.reviewed_head_sha)
+        _publish_summary(
+            _evidence_lines(evidence, options.reviewed_head_sha), options.reviewed_head_sha
+        )
         return
     if options.publish_pr_comment:
-        _publish_pr_comment(evidence, options.reviewed_head_sha, options.repo, options.pr)
+        _publish_pr_comment(
+            _evidence_lines(evidence, options.reviewed_head_sha),
+            is_validated=True,
+            reviewed_head_sha=options.reviewed_head_sha,
+            repo=options.repo,
+            pr=options.pr,
+        )
         return
 
     outcome, _findings = evidence
