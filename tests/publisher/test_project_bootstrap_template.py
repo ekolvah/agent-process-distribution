@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -113,7 +112,7 @@ def test_rendered_project_ships_the_standalone_review_contract(rendered_default:
     assert not (destination / ".agent-process" / "scripts" / "extract_review_prompt.py").exists()
 
 
-def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
+def test_rendered_callers_reference_main_with_claude_fallback_secret(
     rendered_default: Path,
 ) -> None:
     destination = rendered_default
@@ -126,8 +125,7 @@ def test_rendered_callers_pin_a_complete_reference_with_claude_fallback_secret(
     for name, job in callers.items():
         reference = job["uses"]
         assert f"reusable-{name}.yml@" in reference
-        assert not reference.endswith(("@main", "@master", "@HEAD"))
-        assert re.fullmatch(r".+@[0-9a-f]{40}", reference)
+        assert reference.endswith("@main")
     assert callers["agent-review"]["secrets"] == {
         "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
     }

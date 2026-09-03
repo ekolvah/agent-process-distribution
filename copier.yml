@@ -64,11 +64,11 @@ agent_review_context:
 
 workflow_references:
   type: yaml
-  help: Complete reusable-workflow references, pinned to this Copier release (or local self-apply paths).
+  help: Complete reusable-workflow references, tracking this repo's main branch (or local self-apply paths).
   default:
-    quality: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@0f72c515c091866d0452867b7c521bf924f0a9c5"
-    pr-link: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@0f72c515c091866d0452867b7c521bf924f0a9c5"
-    agent-review: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@0f72c515c091866d0452867b7c521bf924f0a9c5"
+    quality: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@main"
+    pr-link: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@main"
+    agent-review: "ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@main"
 
 not_required_contexts:
   type: yaml
