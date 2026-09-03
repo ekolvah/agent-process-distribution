@@ -481,6 +481,46 @@ def test_malformed_block_still_reads_the_source_issue(monkeypatch: pytest.Monkey
     assert 0 in unsound
 
 
+@pytest.mark.parametrize(
+    ("pr_body", "case"),
+    [
+        pytest.param(
+            f"{open_pr.DEFERRED_SCOPE_BEGIN}\n## Deferred scope\n\n- an entry\n",
+            "begin-only",
+            id="begin-sentinel-only",
+        ),
+        pytest.param(
+            f"## Deferred scope\n\n- an entry\n{open_pr.DEFERRED_SCOPE_END}\n",
+            "end-only",
+            id="end-sentinel-only",
+        ),
+        pytest.param(
+            f"{open_pr.DEFERRED_SCOPE_END}\n- an entry\n{open_pr.DEFERRED_SCOPE_BEGIN}\n",
+            "inverted",
+            id="sentinels-inverted",
+        ),
+    ],
+)
+def test_partial_sentinel_pair_is_malformed_not_absent(
+    monkeypatch: pytest.MonkeyPatch, pr_body: str, case: str
+) -> None:
+    # Codex BLOCKING on PR #74: a body that kept only one sentinel, or has them
+    # inverted, is corruption of a generated block — not "this PR exports
+    # nothing". Conflating it with truly-absent sentinels let the issue-#68
+    # short-circuit turn a corrupted block over a closed source issue from a
+    # visible exit 2 into a pass, with its unverified entries still readable as
+    # gate-verified downstream. Same shape as PR #66's empty-vs-absent fix.
+    assert verify_pr_link._block_bullets(pr_body) == [], case
+
+    reads = _stub_gh_seams(monkeypatch, issue_state="CLOSED", issue_body="", pr_body=pr_body)
+
+    with pytest.raises(SystemExit) as excinfo:
+        verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7")
+
+    assert excinfo.value.code == 2
+    assert reads.calls == [_CAPTURED_CLOSED]
+
+
 def test_non_issue_branch_makes_no_gh_call(monkeypatch: pytest.MonkeyPatch) -> None:
     # The docstring promise the reorder must not break: "No `gh` call at all
     # for a non-issue branch … the fetches are skipped, not just their result

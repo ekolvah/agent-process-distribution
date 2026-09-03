@@ -134,8 +134,14 @@ def _link_missing_after_poll(branch: str, pr: str) -> bool:
 def _block_bullets(pr_body: str) -> list[str] | None:
     """Top-level bullets inside the PR body's Deferred-scope sentinels.
 
-    `None` when the sentinels are absent — there is no block, nothing to
-    check. `[]` when the sentinels ARE present but no top-level bullet parses
+    `None` ONLY when BOTH sentinels are absent — there is no block, nothing to
+    check. A partial pair (one sentinel kept, or the two inverted) is `[]`
+    instead: that is a corrupted generated block, not a PR that exports
+    nothing, and conflating the two let issue #68's short-circuit turn such a
+    body over a closed source issue from a visible exit 2 into a pass, with its
+    unverified entries still readable as gate-verified downstream (Codex
+    BLOCKING on PR #74 — the same empty-vs-absent shape as the finding below).
+    `[]` also when the sentinels ARE present but no top-level bullet parses
     out of the enclosed content (wrong/missing heading, or prose instead of a
     `- ` list) — itself a malformed condition, not "nothing to check":
     `render_deferred_scope_section` never renders sentinels around an empty
@@ -148,8 +154,10 @@ def _block_bullets(pr_body: str) -> list[str] | None:
     mistaken for a top-level entry."""
     begin = pr_body.find(DEFERRED_SCOPE_BEGIN)
     end = pr_body.find(DEFERRED_SCOPE_END)
-    if begin == -1 or end == -1 or end < begin:
+    if begin == -1 and end == -1:
         return None
+    if begin == -1 or end == -1 or end < begin:
+        return []
     return check_orphan_scope.top_level_bullets(pr_body[begin:end], heading="deferred scope")
 
 
