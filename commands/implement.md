@@ -23,6 +23,9 @@ and are not copied here. This file contains only harness-specific material.
    Mindset (pointer only, do not restate it here).
 4. `ci_check.py` and `git push` take minutes — make **one foreground invocation with an increased `timeout`**,
    with no background execution or polling loop (timings and pitfalls: `CLAUDE.md` §Environment).
-5. The **exit code of `python .agent-process/scripts/review_gate.py <PR>`** ends the loop, not your reading of
-   findings. Actions for each verdict are in §Review-gate verdicts; do not copy that table here.
+5. The **exit code of `python .agent-process/scripts/review_gate.py <PR>`** ends the loop.
+   You do not decide this yourself: the `Stop` hook (ADR 0021) blocks the turn from ending
+   while the delivery is non-terminal, so staying active through the loop is enforced, not
+   merely expected. Actions for each verdict are in §Review-gate verdicts; do not copy that
+   table here.
 6. On completion, provide the PR link, the gate verdict, and an explicit “merge is your step”.

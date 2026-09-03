@@ -50,6 +50,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python .agent-process/scripts/hooks.py stop",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

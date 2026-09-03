@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -29,6 +29,9 @@ from scripts.review_gate import (
     fixer_budget,
     main,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # The four heads in this synthetic sequence: round 1 was `blocking`, rounds 2-4
 # green — the run the gate would have stopped two rounds earlier. Only the
@@ -283,6 +286,85 @@ class TestEvidence:
             collect_evidence("465")
 
         assert excinfo.value.code == 2
+
+
+def _init_repo(tmp_path: "Path") -> None:
+    """A committed, clean repo — enough for `git rev-parse HEAD` to resolve."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    (tmp_path / "tracked.py").write_text("tracked = True\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.py"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "--quiet", "-m", "init"], cwd=tmp_path, check=True)
+
+
+def _head(tmp_path: "Path") -> str:
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.strip()
+
+
+class TestVerdictStamp:
+    """`review_gate.py` records its verdict locally so the delivery gate
+    (`delivery_state.py`) can read it without a second `gh` call."""
+
+    @staticmethod
+    def _stamp(tmp_path: "Path") -> "Path":
+        return tmp_path / ".review_gate_stamp"
+
+    def test_successful_run_stamps_the_judged_head_and_verdict(
+        self, tmp_path: "Path", monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(
+            subprocess,
+            "run",
+            _gh_double(_pr_payload(), _runs_payload(_ROUND_1, _ROUND_2)),
+        )
+
+        with pytest.raises(SystemExit):
+            main(["465"])
+
+        assert (
+            self._stamp(tmp_path).read_text(encoding="utf-8").strip()
+            == f"{_ROUND_2} ready-for-human"
+        )
+
+    def test_capture_failure_stamps_a_non_terminal_marker_with_no_gh_write(
+        self, tmp_path: "Path", monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Exit 2 is not a verdict, but the delivery gate still needs a local
+        record — `gate-error` is outside `TERMINAL_VERDICTS` by construction,
+        and no second `gh` call is made to resolve a head for it."""
+        _init_repo(tmp_path)
+        monkeypatch.chdir(tmp_path)
+        gh_calls: list[list[str]] = []
+        real_run = subprocess.run
+
+        def fail(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+            if args[0] == "gh":
+                gh_calls.append(args)
+                return subprocess.CompletedProcess(args=args, returncode=1, stdout="", stderr="403")
+            # `_local_head()`'s own `git rev-parse HEAD` must reach the real repo.
+            return real_run(args, **kwargs)
+
+        monkeypatch.setattr(subprocess, "run", fail)
+
+        with pytest.raises(SystemExit) as excinfo:
+            main(["465"])
+
+        assert excinfo.value.code == 2
+        assert len(gh_calls) == 1
+        stamped_head, _, verdict = (
+            self._stamp(tmp_path).read_text(encoding="utf-8").strip().partition(" ")
+        )
+        assert stamped_head == _head(tmp_path)
+        assert verdict == "gate-error"
 
 
 class TestCli:

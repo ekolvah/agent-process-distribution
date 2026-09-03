@@ -45,6 +45,7 @@ import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -56,6 +57,11 @@ except ModuleNotFoundError:  # documented direct script entry point
     from check_branch_protection import REQUIRED_CONTEXTS, REVIEW_CONTEXT
 
 REVIEW_WORKFLOW_FILE = "agent-review.yml"
+
+# Single writer: this module only. Mirrors `.ci_check_stamp`'s bare-value shape;
+# `delivery_state.py` reads the two space-separated fields via its adapter, never
+# this module directly (§II — the decision stays transport-neutral).
+_STAMP_PATH = Path(".review_gate_stamp")
 VERDICT_EXIT_CODES: dict[str, int] = {
     "ready-for-human": 0,
     "fix-blocking": 10,
@@ -207,6 +213,24 @@ def _require(payload: Any, field: str, description: str) -> Any:
     return payload[field]
 
 
+def _local_head() -> str:
+    """Resolve HEAD locally — never a second `gh` call.
+
+    Used only for the `gate-error` stamp: a `gh`/capture failure has no
+    `evidence.head_sha` to tag the record with, but the delivery gate still
+    needs a head to compare the record against.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"], text=True, capture_output=True, encoding="utf-8", check=False
+    )
+    return result.stdout.strip() if result.returncode == 0 and result.stdout else "unknown"
+
+
+def record_stamp(head: str, verdict: str) -> None:
+    """Write `<head> <verdict>` to `.review_gate_stamp`; this module's only writer."""
+    _STAMP_PATH.write_text(f"{head} {verdict}\n", encoding="utf-8")
+
+
 def collect_evidence(pr: str) -> ReviewEvidence:
     """Read the live PR evidence the verdict needs; two read-only `gh` calls."""
     description = f"gh pr view {pr}"
@@ -259,9 +283,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("pr", help="pull request number")
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
 
-    evidence = collect_evidence(args.pr)
-    budget = fixer_budget(load_catalog())
-    verdict = evaluate(evidence, budget)
+    try:
+        evidence = collect_evidence(args.pr)
+        budget = fixer_budget(load_catalog())
+        verdict = evaluate(evidence, budget)
+    except SystemExit as exc:
+        # A transport/capture failure (exit 2) is not a verdict, but the
+        # delivery gate (`delivery_state.py`) still needs a local record so it
+        # treats "the gate could not run" as progress, not a silent handoff.
+        # Never terminal — falls outside `TERMINAL_VERDICTS` by construction.
+        record_stamp(_local_head(), "gate-error")
+        raise exc
+
+    record_stamp(evidence.head_sha, verdict.name)
 
     print(f"verdict: {verdict.name}")
     print(f"reason: {verdict.reason}")
