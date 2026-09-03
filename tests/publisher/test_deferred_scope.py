@@ -516,6 +516,46 @@ def test_partial_sentinel_pair_is_malformed_not_absent(
     assert reads.calls == [_CAPTURED_CLOSED]
 
 
+def test_sentinel_stripped_section_with_entries_is_malformed_not_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Codex BLOCKING on PR #74, round 2: the review contract downgrades a
+    # finding against entries under the PR body's `## Deferred scope` *heading*
+    # (`REVIEW_CONTRACT.md` "the deferred-scope rule") — a reviewer never sees
+    # the sentinel comments. So a body whose sentinels were both stripped while
+    # the heading and its entries stayed is a corrupted generated block that
+    # still feeds the downgrade rule, not "this PR exports nothing"; keying
+    # "absent" on the sentinel pair alone let it skip verification and pass.
+    pr_body = "## Summary\n\nx\n\n## Deferred scope\n\n- an entry (tracked in #61: t)\n"
+
+    assert verify_pr_link._block_bullets(pr_body) == []
+
+    reads = _stub_gh_seams(monkeypatch, issue_state="CLOSED", issue_body="", pr_body=pr_body)
+
+    with pytest.raises(SystemExit) as excinfo:
+        verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7")
+
+    assert excinfo.value.code == 2
+    assert reads.calls == [_CAPTURED_CLOSED]
+
+
+def test_sentinel_stripped_heading_without_entries_is_still_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The other side of that boundary, so the round-2 fix cannot swallow issue
+    # #68's own: a heading carrying no top-level entry exports nothing the
+    # downgrade rule can match, so there is still nothing to verify and the
+    # closed source issue is still not read.
+    pr_body = "## Summary\n\nx\n\n## Deferred scope\n\n## Risk & Rollback\n\n- none\n"
+
+    assert verify_pr_link._block_bullets(pr_body) is None
+
+    reads = _stub_gh_seams(monkeypatch, issue_state="CLOSED", issue_body="", pr_body=pr_body)
+
+    assert verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7") == []
+    assert reads.calls == []
+
+
 def test_non_issue_branch_makes_no_gh_call(monkeypatch: pytest.MonkeyPatch) -> None:
     # The docstring promise the reorder must not break: "No `gh` call at all
     # for a non-issue branch … the fetches are skipped, not just their result
