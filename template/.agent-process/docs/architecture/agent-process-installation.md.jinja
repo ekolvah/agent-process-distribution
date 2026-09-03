@@ -141,7 +141,7 @@ real, repository-owned Project and field IDs that every process runner uses.
 
 Run `copier update` from the target repository and review the copied
 scripts. `workflow_references` tracks `@main` by default for a fresh
-`copier copy` (issue #72); Copier reuses an already-recorded answer on
+`copier copy`. Copier reuses an already-recorded answer on
 update, though, so a target installed before this default changed keeps its
 persisted SHA until it explicitly re-answers `workflow_references` (or
 removes that key from `copier-answers.yml` before updating) to pick up
