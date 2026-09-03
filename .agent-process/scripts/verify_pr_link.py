@@ -239,11 +239,33 @@ def _pr_body(pr: str) -> str:
 def _unsound_deferred_trackers(branch: str, pr: str) -> list[int]:
     """`_unsound_with_liveness` with its two bodies fetched through `gh`.
 
-    No `gh` call at all for a non-issue branch — same short-circuit
-    `deferred_scope_mismatch` applies, checked here first so the fetches are
-    skipped, not just their result discarded."""
+    Statement order is the contract here, not an implementation detail
+    (issue #68):
+
+    1. The non-issue branch guard stays first, so a fork/dependabot/manual
+       branch still makes no `gh` call at all — the fetches are skipped, not
+       just their result discarded.
+    2. The PR body is read next. `fetch_issue_body` hard-raises on a source
+       issue that is not OPEN, so reading the issue first turned "this PR
+       carries nothing for this check to verify" into a merge-blocking exit 2
+       whenever the linked issue had been closed out from under the PR.
+    3. `_block_bullets(...) is None` — sentinels absent, nothing this check can
+       verify — returns before any issue read; the source issue's state is then
+       not this gate's business. Keyed on `is None`, never on falsiness:
+       sentinels present but unparseable is `[]`, a malformed condition that
+       must still be fetched and still red (PR #66).
+    4. Only then the issue read, and `_unsound_with_liveness` with the PR body
+       already in hand — one `gh` round trip fewer than before in the no-block
+       case, not one more.
+
+    That reorder also changes diagnostic precedence deliberately: when both the
+    PR-body read and the issue read would fail, the operator now sees
+    `_pr_body`'s message rather than the issue-read one. Both still exit 2."""
     n = issue_number_from_branch(branch)
     if n is None:
+        return []
+    pr_body = _pr_body(pr)
+    if _block_bullets(pr_body) is None:
         return []
     try:
         source_issue_body = check_orphan_scope.fetch_issue_body(n)
@@ -253,7 +275,7 @@ def _unsound_deferred_trackers(branch: str, pr: str) -> list[int]:
             file=sys.stderr,
         )
         sys.exit(2)
-    return _unsound_with_liveness(branch, _pr_body(pr), source_issue_body)
+    return _unsound_with_liveness(branch, pr_body, source_issue_body)
 
 
 def main(argv: list[str] | None = None) -> None:
