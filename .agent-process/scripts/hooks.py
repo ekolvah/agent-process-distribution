@@ -354,6 +354,27 @@ def _run_git(args: list[str], runner: Callable[..., subprocess.CompletedProcess]
     return output or None
 
 
+def _current_branch(runner: Callable[..., subprocess.CompletedProcess]) -> str | None:
+    """The current branch name, or `""` in detached HEAD.
+
+    Detached HEAD is a normal git state (`git branch --show-current` exits 0 with
+    empty stdout, not a failure) — distinct from `None`, which means the read
+    itself failed. `_run_git`'s empty-stdout-means-`None` convention would
+    collapse the two, making a detached checkout misread as `unreadable_state`
+    and fail closed, when `decide()` already treats `""` as "not a delivery
+    branch" and allows it (agent-review finding on #56).
+    """
+    try:
+        result = runner(
+            ["git", "branch", "--show-current"], text=True, capture_output=True, encoding="utf-8"
+        )
+    except (OSError, ValueError):
+        return None
+    if result.returncode != 0 or not isinstance(result.stdout, str):
+        return None
+    return result.stdout.strip()
+
+
 def _worktree_dirty(runner: Callable[..., subprocess.CompletedProcess]) -> bool:
     """Whether the worktree has uncommitted changes.
 
@@ -422,7 +443,7 @@ def stop_response(
     the turn end silently.
     """
     del payload
-    branch = _run_git(["branch", "--show-current"], runner)
+    branch = _current_branch(runner)
     head = _run_git(["rev-parse", "HEAD"], runner)
     if branch is None or head is None:
         decision = unreadable_state_decision()

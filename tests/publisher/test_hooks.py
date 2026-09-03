@@ -319,6 +319,26 @@ class TestStopHook:
         assert response is not None
         assert response["decision"] == "block"
 
+    def test_detached_head_is_an_inert_allow_not_unreadable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`git branch --show-current` exits 0 with empty stdout in detached HEAD
+        — a normal, non-error git state, not a failed read. It must read as "not
+        a delivery branch" (allow), not `unreadable_state_decision` (agent-review
+        finding on #56)."""
+        monkeypatch.chdir(tmp_path)
+
+        def runner(args: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+            if args == ["git", "branch", "--show-current"]:
+                return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+            if args == ["git", "rev-parse", "HEAD"]:
+                return subprocess.CompletedProcess(args, 0, stdout=f"{_HEAD}\n", stderr="")
+            if args == ["git", "status", "--porcelain"]:
+                return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+            raise AssertionError(f"stop_response must not launch: {args}")
+
+        assert stop_response({}, runner=runner) is None
+
 
 def test_pre_read_is_an_accepted_subcommand() -> None:
     """`main()` is fail-CLOSED on an unknown argv (exit 2). Behind a `Read` matcher that
