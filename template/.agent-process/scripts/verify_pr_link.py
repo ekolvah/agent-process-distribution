@@ -134,13 +134,23 @@ def _link_missing_after_poll(branch: str, pr: str) -> bool:
 def _block_bullets(pr_body: str) -> list[str] | None:
     """Top-level bullets inside the PR body's Deferred-scope sentinels.
 
-    `None` ONLY when BOTH sentinels are absent — there is no block, nothing to
-    check. A partial pair (one sentinel kept, or the two inverted) is `[]`
-    instead: that is a corrupted generated block, not a PR that exports
-    nothing, and conflating the two let issue #68's short-circuit turn such a
-    body over a closed source issue from a visible exit 2 into a pass, with its
-    unverified entries still readable as gate-verified downstream (Codex
-    BLOCKING on PR #74 — the same empty-vs-absent shape as the finding below).
+    `None` ONLY when the body exports nothing this check could verify: both
+    sentinels absent AND no top-level entry under a `## Deferred scope`
+    heading. Any other sentinel damage is `[]` — a corrupted generated block,
+    not a PR that exports nothing — because conflating the two let issue #68's
+    short-circuit turn such a body over a closed source issue from a visible
+    exit 2 into a pass, with its unverified entries still readable as
+    gate-verified downstream (Codex BLOCKING on PR #74, twice). Two damaged
+    shapes, one rule:
+
+    - a partial pair — one sentinel kept, or the two inverted;
+    - both sentinels stripped while the heading and its entries stayed. The
+      `REVIEW_CONTRACT.md` deferred-scope rule downgrades a finding against
+      entries under that *heading*; a reviewer never sees the sentinel
+      comments, so the entries keep their gate-verified standing even with the
+      sentinels gone. A bare heading with no top-level entry is still `None`:
+      there is nothing for the downgrade rule to match, hence nothing to
+      verify.
     `[]` also when the sentinels ARE present but no top-level bullet parses
     out of the enclosed content (wrong/missing heading, or prose instead of a
     `- ` list) — itself a malformed condition, not "nothing to check":
@@ -155,7 +165,8 @@ def _block_bullets(pr_body: str) -> list[str] | None:
     begin = pr_body.find(DEFERRED_SCOPE_BEGIN)
     end = pr_body.find(DEFERRED_SCOPE_END)
     if begin == -1 and end == -1:
-        return None
+        stripped = check_orphan_scope.top_level_bullets(pr_body, heading="deferred scope")
+        return [] if stripped else None
     if begin == -1 or end == -1 or end < begin:
         return []
     return check_orphan_scope.top_level_bullets(pr_body[begin:end], heading="deferred scope")
