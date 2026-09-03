@@ -45,6 +45,8 @@ root_only_paths:
     reason: Verifies the single-root payload invariant in the publisher source (issue #55).
   - path: tests/publisher/test_bare_consumer_quality.py
     reason: Integration smoke test against a rendered bare consumer; exercises the publisher's reusable-quality workflow, not a file a consumer receives (issue #55/#57).
+  - path: tests/publisher/test_existing_project_installation.py
+    reason: Verifies the adoption CLI's ownership invariant in the publisher source (issue #59), not a file a consumer receives.
   - path: tests/publisher/test_deferred_scope.py
     reason: Reclassified publisher-only (issue #64) — exercises scripts/check_orphan_scope.py, open_pr.py, update_pr_body.py, and verify_pr_link.py, byte-static across renders and not owed to consumers as a separate copy.
 expected_difference_paths:

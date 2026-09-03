@@ -7,6 +7,11 @@ from pathlib import Path
 
 from test_project_bootstrap_template import render
 
+# Deliberately independent of scripts.adopt_agent_process's own constants:
+# this is ADR-0019's fixed exception set, hard-coded so a change that widens
+# the implementation's closed root (and adds a rendered file under the new
+# prefix) still fails this contract test instead of silently redefining what
+# it enforces.
 _CLOSED_ROOT_FILES = frozenset(
     {
         ".github/workflows/ci.yml",
