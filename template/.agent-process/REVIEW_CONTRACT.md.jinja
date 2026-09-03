@@ -27,6 +27,17 @@ Claude fallback PR-review carriers.
   A duplication claim that cannot name both stays `should-fix`. Any other
   simplicity opinion (e.g. "this could be shorter") stays `nice-to-have`, never
   blocking.
+- The deferred-scope rule: a finding may downgrade by exactly one severity
+  step — `blocking` to `should-fix`, `should-fix` to `nice-to-have`, never
+  upgrade, never dropped entirely — when it matches, with high confidence, an
+  entry in the PR body's `## Deferred scope` section. That section is
+  generated, not author-written, and the `pr-link` gate has already verified
+  every entry in it is backed by a `deferred:` bullet in the linked issue, so
+  a listed entry is gate-verified sound, not merely PR-body text (which this
+  contract already forbids as merge authority elsewhere). An uncertain match,
+  a missing section, or a finding with no corresponding entry all leave the
+  finding at its default severity — this rule is one-directional and
+  fail-closed.
 - `should-fix` changes behaviour, contract, or what an operator reads. Wording,
   naming, ordering, and style are nice-to-have.
 - Do not re-raise a finding already answered by a correct recorded rationale.

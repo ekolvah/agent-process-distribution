@@ -7,7 +7,8 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: read
 
 jobs:
   pr-link:
-    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@2bdd924dca3626db3daca7cfbab843c50c0e26c9"
+    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@main"

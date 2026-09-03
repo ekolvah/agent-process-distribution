@@ -166,6 +166,61 @@ def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> Non
     assert "reusable-pr-link.yml@" in _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"]
 
 
+def test_pr_link_grants_issues_read() -> None:
+    """The deferred-scope soundness check reads the linked issue's body
+    (issue #64 finding B5): without `issues: read` the gate's `gh issue view`
+    call is a silent 403, not a missing capability the operator ever sees."""
+    assert _workflow("reusable-pr-link.yml")["permissions"]["issues"] == "read"
+    assert _workflow("pr-link.yml")["permissions"]["issues"] == "read"
+    template = (ROOT / "template" / ".github" / "workflows" / "pr-link.yml.jinja").read_text(
+        encoding="utf-8"
+    )
+    assert "issues: read" in template
+
+
+def test_pr_link_feature_detects_deferred_scope_support() -> None:
+    steps = _steps("reusable-pr-link.yml")
+
+    name = "Select deferred-scope check capability"
+    assert name in steps
+    capability = steps[name]
+    assert "DEFERRED_SCOPE_CHECK_SUPPORTED = True" in capability["run"]
+    assert "supported=true" in capability["run"]
+    assert "supported=false" in capability["run"]
+
+    names = list(steps)
+    assert names.index(name) < names.index("Verify PR closes its issue")
+
+
+def test_pr_link_installs_its_driver_dependencies() -> None:
+    """Codex finding on PR #66: verify_pr_link.py now imports
+    check_orphan_scope.py, which hard-imports the third-party markdown_it
+    package at module level, but this driver never installed anything before
+    invoking it — every issue-branch PR would red with ModuleNotFoundError
+    once this reaches the default branch."""
+    steps = _steps("reusable-pr-link.yml")
+
+    name = "Install PR-link driver dependencies"
+    assert name in steps
+    step = steps[name]
+    assert "requirements.txt" in step["run"]
+
+    names = list(steps)
+    assert names.index(name) < names.index("Verify PR closes its issue")
+
+
+def test_agent_review_prompt_points_at_the_contract_rule() -> None:
+    """The prompt is the last thing the model reads about the PR body and
+    calls it untrusted (issue #64 pilot: a hand-written body section alone
+    changed nothing) — the contract's downgrade rule needs a pointer here,
+    not just in REVIEW_CONTRACT.md, per architect-review finding B2."""
+    steps = _steps("reusable-agent-review.yml")
+    prompt = steps["Claude review"]["with"]["prompt"]
+
+    assert "deferred-scope rule" in prompt
+    assert prompt.count("${{ steps.review-source.outputs.contract_path }}") >= 1
+
+
 def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> None:
     steps = _steps("reusable-agent-review.yml")
 
