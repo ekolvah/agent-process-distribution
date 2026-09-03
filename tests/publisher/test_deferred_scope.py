@@ -379,15 +379,6 @@ def _stub_gh_seams(
     return reads
 
 
-def _run_main(branch: str) -> int:
-    """`verify_pr_link.main` exit code — 0 when it returns without exiting."""
-    try:
-        verify_pr_link.main(["--branch", branch, "--pr", "7"])
-    except SystemExit as exc:
-        return int(exc.code or 0)
-    return 0
-
-
 @pytest.mark.parametrize(
     ("number", "state", "pr_body", "expected_exit", "expected_reads", "expected_message"),
     [
@@ -429,7 +420,11 @@ def test_paired_no_block_passes_while_open_record_still_verifies(
         monkeypatch, issue_state=state, issue_body=_OUT_OF_SCOPE_TRACKED, pr_body=pr_body
     )
 
-    exit_code = _run_main(f"issue-{number}-x")
+    exit_code = 0
+    try:
+        verify_pr_link.main(["--branch", f"issue-{number}-x", "--pr", "7"])
+    except SystemExit as exc:  # `main` exits only on a verdict; 0 is a plain return
+        exit_code = int(exc.code or 0)
 
     captured = capsys.readouterr()
     assert exit_code == expected_exit
