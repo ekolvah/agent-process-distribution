@@ -15,6 +15,7 @@ logic).
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -314,3 +315,181 @@ def test_block_present_but_unparseable_as_bullets_is_rejected() -> None:
     mismatch = verify_pr_link.deferred_scope_mismatch("issue-59-x", pr_body, issue_body)
 
     assert mismatch != []
+
+
+# ---------------------------------------------------------------------------
+# verify_pr_link: the source-issue read is conditional on the block (issue #68)
+# ---------------------------------------------------------------------------
+
+# The two records of the `## Evidence` capture on issue #68, rebuilt here
+# rather than replayed raw. Captured working-tree-only (git-ignored) with
+# `python .agent-process/scripts/capture_external_fixture.py github
+#  "repos/ekolvah/agent-process-distribution/issues?state=all&labels=bug&per_page=10"
+#  evidence/issue-68/issues-state-all-bug.json --confirm-repository-safe`.
+# REST reports `open`/`closed`, whereas the production route
+# `gh issue view <N> --json body,state` reports `OPEN`/`CLOSED` — and the
+# latter is the string `fetch_issue_body` actually compares, so committing the
+# REST payload would pin a wire shape this code path never sees.
+_CAPTURED_OPEN = 68  # preserve record: still fetched and still verified
+_CAPTURED_CLOSED = 67  # change record: must stop hard-failing a no-block PR
+
+
+class _IssueReads:
+    """Recording stub for `check_orphan_scope.fetch_issue_body` — the one `gh`
+    seam issue #68 is about. Reproduces the real contract (a `RuntimeError` for
+    any non-OPEN state) so "was the issue read at all?" is asserted, not
+    assumed. Named explicitly rather than patching `verify_pr_link.subprocess`:
+    the module does `import subprocess`, so there is no per-module seam there —
+    patching the stdlib module would swallow every other caller too, and
+    patching the attribute would not reach `fetch_issue_body` at all."""
+
+    def __init__(self, *, state: str, body: str) -> None:
+        self.state = state
+        self.body = body
+        self.calls: list[int] = []
+
+    def __call__(self, number: int) -> str:
+        self.calls.append(number)
+        if self.state != "OPEN":
+            raise RuntimeError(f"issue #{number} is not OPEN (state={self.state})")
+        return self.body
+
+
+def _stub_gh_seams(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    issue_state: str,
+    issue_body: str,
+    pr_body: str,
+) -> _IssueReads:
+    """Stub every named `gh` boundary `verify_pr_link.main` can reach."""
+    reads = _IssueReads(state=issue_state, body=issue_body)
+    monkeypatch.setattr(check_orphan_scope, "fetch_issue_body", reads)
+    monkeypatch.setattr(verify_pr_link, "_pr_body", lambda pr: pr_body)
+    monkeypatch.setattr(
+        verify_pr_link,
+        "_refs_json",
+        lambda pr: json.dumps({"closingIssuesReferences": [{"number": 1}]}),
+    )
+    monkeypatch.setattr(
+        open_pr,
+        "_fetch_issue",
+        lambda n: pytest.fail(f"tracker liveness must not be reached here (issue #{n})"),
+    )
+    return reads
+
+
+def _run_main(branch: str) -> int:
+    """`verify_pr_link.main` exit code — 0 when it returns without exiting."""
+    try:
+        verify_pr_link.main(["--branch", branch, "--pr", "7"])
+    except SystemExit as exc:
+        return int(exc.code or 0)
+    return 0
+
+
+@pytest.mark.parametrize(
+    ("number", "state", "pr_body", "expected_exit", "expected_reads", "expected_message"),
+    [
+        pytest.param(
+            _CAPTURED_CLOSED,
+            "CLOSED",
+            "## Summary\n\nnothing here\n",
+            0,
+            [],
+            "ok: PR link check passed",
+            id="change-67-closed-no-block",
+        ),
+        pytest.param(
+            _CAPTURED_OPEN,
+            "OPEN",
+            _pr_body_referencing(99),
+            1,
+            [_CAPTURED_OPEN],
+            "is not gate-verified sound",
+            id="preserve-68-open-unbacked-tracker",
+        ),
+    ],
+)
+def test_paired_no_block_passes_while_open_record_still_verifies(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    number: int,
+    state: str,
+    pr_body: str,
+    expected_exit: int,
+    expected_reads: list[int],
+    expected_message: str,
+) -> None:
+    # The paired test of issue #68's `## Evidence`: one pipeline run per
+    # captured record. The closed record must stop hard-failing a PR that
+    # carries nothing for this check to verify, while the open record keeps
+    # being fetched and keeps redding an unbacked tracker.
+    reads = _stub_gh_seams(
+        monkeypatch, issue_state=state, issue_body=_OUT_OF_SCOPE_TRACKED, pr_body=pr_body
+    )
+
+    exit_code = _run_main(f"issue-{number}-x")
+
+    captured = capsys.readouterr()
+    assert exit_code == expected_exit
+    assert reads.calls == expected_reads
+    assert expected_message in captured.out + captured.err
+
+
+def test_closed_source_issue_with_a_real_block_still_fails_visibly(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # The other half of the captured change record, and the guard that stops
+    # the fix from passing by deleting the check: a not-OPEN source issue is
+    # still a hard, visible failure (§IV) once there IS a block to verify.
+    reads = _stub_gh_seams(
+        monkeypatch,
+        issue_state="CLOSED",
+        issue_body="",
+        pr_body=_pr_body_referencing(61),
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7")
+
+    assert excinfo.value.code == 2
+    assert reads.calls == [_CAPTURED_CLOSED]
+    assert (
+        f"could not read issue #{_CAPTURED_CLOSED} to verify deferred-scope soundness"
+        in capsys.readouterr().err
+    )
+
+
+def test_malformed_block_still_reads_the_source_issue(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The short-circuit keys on "sentinels absent" (`_block_bullets` → None),
+    # never on "no parsed bullets" — otherwise it would undo PR #66's
+    # malformed-block fix, which reports `[0]` for exactly this shape.
+    pr_body = (
+        f"{open_pr.DEFERRED_SCOPE_BEGIN}\n"
+        "just some prose, not a bullet list under the expected heading\n"
+        f"{open_pr.DEFERRED_SCOPE_END}"
+    )
+    reads = _stub_gh_seams(
+        monkeypatch, issue_state="OPEN", issue_body=_OUT_OF_SCOPE_TRACKED, pr_body=pr_body
+    )
+
+    unsound = verify_pr_link._unsound_deferred_trackers("issue-59-x", "7")
+
+    assert reads.calls == [59]
+    assert 0 in unsound
+
+
+def test_non_issue_branch_makes_no_gh_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The docstring promise the reorder must not break: "No `gh` call at all
+    # for a non-issue branch … the fetches are skipped, not just their result
+    # discarded." Moving `_pr_body` up must stay BELOW the branch guard.
+    def _forbidden(*args: object, **kwargs: object) -> object:
+        pytest.fail("a non-issue branch must make no `gh` call")
+
+    monkeypatch.setattr(check_orphan_scope, "fetch_issue_body", _forbidden)
+    monkeypatch.setattr(verify_pr_link, "_pr_body", _forbidden)
+    monkeypatch.setattr(verify_pr_link, "_refs_json", _forbidden)
+
+    assert verify_pr_link._unsound_deferred_trackers("main", "7") == []
