@@ -318,27 +318,24 @@ def test_block_present_but_unparseable_as_bullets_is_rejected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# verify_pr_link: the source-issue read is conditional on the block (issue #68)
+# verify_pr_link: the source-issue read is conditional on the block
 # ---------------------------------------------------------------------------
 
-# The two records of the `## Evidence` capture on issue #68, rebuilt here
-# rather than replayed raw. Captured working-tree-only (git-ignored) with
-# `python .agent-process/scripts/capture_external_fixture.py github
-#  "repos/ekolvah/agent-process-distribution/issues?state=all&labels=bug&per_page=10"
-#  evidence/issue-68/issues-state-all-bug.json --confirm-repository-safe`.
-# REST reports `open`/`closed`, whereas the production route
-# `gh issue view <N> --json body,state` reports `OPEN`/`CLOSED` — and the
-# latter is the string `fetch_issue_body` actually compares, so committing the
-# REST payload would pin a wire shape this code path never sees.
-_CAPTURED_OPEN = 68  # preserve record: still fetched and still verified
-_CAPTURED_CLOSED = 67  # change record: must stop hard-failing a no-block PR
+# Two source issues, one per state the production route classifies. Their
+# state strings are the production ones: `gh issue view <N> --json body,state`
+# reports `OPEN`/`CLOSED`, and that is what `fetch_issue_body` compares — the
+# REST API's lowercase `open`/`closed` is a wire shape this code path never
+# sees.
+_OPEN_ISSUE = 68  # still fetched, still verified
+_CLOSED_ISSUE = 67  # must not hard-fail a PR that carries no block
 
 
 class _IssueReads:
     """Recording stub for `check_orphan_scope.fetch_issue_body` — the one `gh`
-    seam issue #68 is about. Reproduces the real contract (a `RuntimeError` for
-    any non-OPEN state) so "was the issue read at all?" is asserted, not
-    assumed. Named explicitly rather than patching `verify_pr_link.subprocess`:
+    seam the conditional read turns on. Reproduces the real contract (a
+    `RuntimeError` for any non-OPEN state) so "was the issue read at all?" is
+    asserted, not assumed. Named explicitly rather than patching
+    `verify_pr_link.subprocess`:
     the module does `import subprocess`, so there is no per-module seam there —
     patching the stdlib module would swallow every other caller too, and
     patching the attribute would not reach `fetch_issue_body` at all."""
@@ -383,22 +380,22 @@ def _stub_gh_seams(
     ("number", "state", "pr_body", "expected_exit", "expected_reads", "expected_message"),
     [
         pytest.param(
-            _CAPTURED_CLOSED,
+            _CLOSED_ISSUE,
             "CLOSED",
             "## Summary\n\nnothing here\n",
             0,
             [],
             "ok: PR link check passed",
-            id="change-67-closed-no-block",
+            id="closed-issue-no-block",
         ),
         pytest.param(
-            _CAPTURED_OPEN,
+            _OPEN_ISSUE,
             "OPEN",
             _pr_body_referencing(99),
             1,
-            [_CAPTURED_OPEN],
+            [_OPEN_ISSUE],
             "is not gate-verified sound",
-            id="preserve-68-open-unbacked-tracker",
+            id="open-issue-unbacked-tracker",
         ),
     ],
 )
@@ -412,10 +409,9 @@ def test_paired_no_block_passes_while_open_record_still_verifies(
     expected_reads: list[int],
     expected_message: str,
 ) -> None:
-    # The paired test of issue #68's `## Evidence`: one pipeline run per
-    # captured record. The closed record must stop hard-failing a PR that
-    # carries nothing for this check to verify, while the open record keeps
-    # being fetched and keeps redding an unbacked tracker.
+    # One pipeline run per source-issue state. A closed issue must not hard-fail
+    # a PR that carries nothing for this check to verify, while an open one is
+    # still fetched and still reds an unbacked tracker.
     reads = _stub_gh_seams(
         monkeypatch, issue_state=state, issue_body=_OUT_OF_SCOPE_TRACKED, pr_body=pr_body
     )
@@ -436,9 +432,9 @@ def test_closed_source_issue_with_a_real_block_still_fails_visibly(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    # The other half of the captured change record, and the guard that stops
-    # the fix from passing by deleting the check: a not-OPEN source issue is
-    # still a hard, visible failure (§IV) once there IS a block to verify.
+    # The guard that stops the conditional read from degrading into no read at
+    # all: a not-OPEN source issue is still a hard, visible failure (§IV) once
+    # there IS a block to verify.
     reads = _stub_gh_seams(
         monkeypatch,
         issue_state="CLOSED",
@@ -447,20 +443,20 @@ def test_closed_source_issue_with_a_real_block_still_fails_visibly(
     )
 
     with pytest.raises(SystemExit) as excinfo:
-        verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7")
+        verify_pr_link._unsound_deferred_trackers(f"issue-{_CLOSED_ISSUE}-x", "7")
 
     assert excinfo.value.code == 2
-    assert reads.calls == [_CAPTURED_CLOSED]
+    assert reads.calls == [_CLOSED_ISSUE]
     assert (
-        f"could not read issue #{_CAPTURED_CLOSED} to verify deferred-scope soundness"
+        f"could not read issue #{_CLOSED_ISSUE} to verify deferred-scope soundness"
         in capsys.readouterr().err
     )
 
 
 def test_malformed_block_still_reads_the_source_issue(monkeypatch: pytest.MonkeyPatch) -> None:
-    # The short-circuit keys on "sentinels absent" (`_block_bullets` → None),
-    # never on "no parsed bullets" — otherwise it would undo PR #66's
-    # malformed-block fix, which reports `[0]` for exactly this shape.
+    # The short-circuit keys on `_block_bullets(...) is None`, never on "no
+    # parsed bullets": sentinels around unparseable content are `[]`, a
+    # malformed block that must still be read and still reported as `[0]`.
     pr_body = (
         f"{open_pr.DEFERRED_SCOPE_BEGIN}\n"
         "just some prose, not a bullet list under the expected heading\n"
@@ -499,33 +495,32 @@ def test_malformed_block_still_reads_the_source_issue(monkeypatch: pytest.Monkey
 def test_partial_sentinel_pair_is_malformed_not_absent(
     monkeypatch: pytest.MonkeyPatch, pr_body: str, case: str
 ) -> None:
-    # Codex BLOCKING on PR #74: a body that kept only one sentinel, or has them
-    # inverted, is corruption of a generated block — not "this PR exports
-    # nothing". Conflating it with truly-absent sentinels let the issue-#68
-    # short-circuit turn a corrupted block over a closed source issue from a
-    # visible exit 2 into a pass, with its unverified entries still readable as
-    # gate-verified downstream. Same shape as PR #66's empty-vs-absent fix.
+    # A body that kept only one sentinel, or has them inverted, is corruption of
+    # a generated block — not "this PR exports nothing". Conflating the two
+    # would let the short-circuit pass a corrupted block over a closed source
+    # issue, with its unverified entries still readable as gate-verified
+    # downstream.
     assert verify_pr_link._block_bullets(pr_body) == [], case
 
     reads = _stub_gh_seams(monkeypatch, issue_state="CLOSED", issue_body="", pr_body=pr_body)
 
     with pytest.raises(SystemExit) as excinfo:
-        verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7")
+        verify_pr_link._unsound_deferred_trackers(f"issue-{_CLOSED_ISSUE}-x", "7")
 
     assert excinfo.value.code == 2
-    assert reads.calls == [_CAPTURED_CLOSED]
+    assert reads.calls == [_CLOSED_ISSUE]
 
 
 def test_sentinel_stripped_section_with_entries_is_malformed_not_absent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # Codex BLOCKING on PR #74, round 2: the review contract downgrades a
-    # finding against entries under the PR body's `## Deferred scope` *heading*
-    # (`REVIEW_CONTRACT.md` "the deferred-scope rule") — a reviewer never sees
-    # the sentinel comments. So a body whose sentinels were both stripped while
-    # the heading and its entries stayed is a corrupted generated block that
-    # still feeds the downgrade rule, not "this PR exports nothing"; keying
-    # "absent" on the sentinel pair alone let it skip verification and pass.
+    # `REVIEW_CONTRACT.md`'s deferred-scope rule downgrades a finding against
+    # entries under the PR body's `## Deferred scope` *heading* — a reviewer
+    # never sees the sentinel comments. So a body whose sentinels were both
+    # stripped while the heading and its entries stayed is a corrupted
+    # generated block that still feeds the downgrade rule, not "this PR exports
+    # nothing": keying "absent" on the sentinel pair alone would skip
+    # verification and pass.
     pr_body = "## Summary\n\nx\n\n## Deferred scope\n\n- an entry (tracked in #61: t)\n"
 
     assert verify_pr_link._block_bullets(pr_body) == []
@@ -533,26 +528,26 @@ def test_sentinel_stripped_section_with_entries_is_malformed_not_absent(
     reads = _stub_gh_seams(monkeypatch, issue_state="CLOSED", issue_body="", pr_body=pr_body)
 
     with pytest.raises(SystemExit) as excinfo:
-        verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7")
+        verify_pr_link._unsound_deferred_trackers(f"issue-{_CLOSED_ISSUE}-x", "7")
 
     assert excinfo.value.code == 2
-    assert reads.calls == [_CAPTURED_CLOSED]
+    assert reads.calls == [_CLOSED_ISSUE]
 
 
 def test_sentinel_stripped_heading_without_entries_is_still_absent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # The other side of that boundary, so the round-2 fix cannot swallow issue
-    # #68's own: a heading carrying no top-level entry exports nothing the
-    # downgrade rule can match, so there is still nothing to verify and the
-    # closed source issue is still not read.
+    # The other side of that boundary, so treating damage as malformed cannot
+    # swallow the conditional read itself: a heading carrying no top-level entry
+    # exports nothing the downgrade rule can match, so there is nothing to
+    # verify and the closed source issue is not read.
     pr_body = "## Summary\n\nx\n\n## Deferred scope\n\n## Risk & Rollback\n\n- none\n"
 
     assert verify_pr_link._block_bullets(pr_body) is None
 
     reads = _stub_gh_seams(monkeypatch, issue_state="CLOSED", issue_body="", pr_body=pr_body)
 
-    assert verify_pr_link._unsound_deferred_trackers(f"issue-{_CAPTURED_CLOSED}-x", "7") == []
+    assert verify_pr_link._unsound_deferred_trackers(f"issue-{_CLOSED_ISSUE}-x", "7") == []
     assert reads.calls == []
 
 

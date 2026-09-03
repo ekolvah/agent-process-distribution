@@ -134,31 +134,34 @@ def _link_missing_after_poll(branch: str, pr: str) -> bool:
 def _block_bullets(pr_body: str) -> list[str] | None:
     """Top-level bullets inside the PR body's Deferred-scope sentinels.
 
-    `None` ONLY when the body exports nothing this check could verify: both
-    sentinels absent AND no top-level entry under a `## Deferred scope`
-    heading. Any other sentinel damage is `[]` — a corrupted generated block,
-    not a PR that exports nothing — because conflating the two let issue #68's
-    short-circuit turn such a body over a closed source issue from a visible
-    exit 2 into a pass, with its unverified entries still readable as
-    gate-verified downstream (Codex BLOCKING on PR #74, twice). Two damaged
-    shapes, one rule:
+    Three results, never conflated — only `None` licenses the caller to skip
+    the source-issue read:
+
+    - `None` — the body exports nothing this check could verify: both
+      sentinels absent AND no top-level entry under a `## Deferred scope`
+      heading.
+    - `[]` — a block is present but corrupted. A reportable condition, not
+      "nothing to check".
+    - the parsed entries otherwise.
+
+    Every damaged shape is `[]`, because the `REVIEW_CONTRACT.md`
+    deferred-scope rule downgrades a finding against entries under the
+    `## Deferred scope` *heading* and never sees the sentinel comments: the
+    entries keep their gate-verified standing however the sentinels are
+    damaged, so a skipped verification would leave unverified entries reading
+    as gate-verified downstream. The damaged shapes are:
 
     - a partial pair — one sentinel kept, or the two inverted;
-    - both sentinels stripped while the heading and its entries stayed. The
-      `REVIEW_CONTRACT.md` deferred-scope rule downgrades a finding against
-      entries under that *heading*; a reviewer never sees the sentinel
-      comments, so the entries keep their gate-verified standing even with the
-      sentinels gone. A bare heading with no top-level entry is still `None`:
-      there is nothing for the downgrade rule to match, hence nothing to
-      verify.
-    `[]` also when the sentinels ARE present but no top-level bullet parses
-    out of the enclosed content (wrong/missing heading, or prose instead of a
-    `- ` list) — itself a malformed condition, not "nothing to check":
-    `render_deferred_scope_section` never renders sentinels around an empty
-    block (it omits them entirely when there is nothing to export), so this
-    shape can only arise from hand-editing/corruption after generation
-    (Claude finding on PR #66's fresh review — the two results used to be
-    conflated, so a corrupted block was silently waved through as sound).
+    - both sentinels stripped while the heading and its entries stayed;
+    - sentinels present but no top-level bullet parses out of the enclosed
+      content (wrong/missing heading, or prose instead of a `- ` list).
+      `render_deferred_scope_section` never renders sentinels around an empty
+      block — it omits them entirely when there is nothing to export — so this
+      shape can only arise from hand-editing after generation.
+
+    A bare heading with no top-level entry is `None`, not `[]`: there is
+    nothing for the downgrade rule to match, hence nothing to verify.
+
     Parsed structurally via `top_level_bullets`, not a regex scan over the
     raw block text — a nested (Acceptance-criteria) bullet must not be
     mistaken for a top-level entry."""
@@ -258,28 +261,26 @@ def _pr_body(pr: str) -> str:
 def _unsound_deferred_trackers(branch: str, pr: str) -> list[int]:
     """`_unsound_with_liveness` with its two bodies fetched through `gh`.
 
-    Statement order is the contract here, not an implementation detail
-    (issue #68):
+    Statement order is the contract here, not an implementation detail:
 
-    1. The non-issue branch guard stays first, so a fork/dependabot/manual
-       branch still makes no `gh` call at all — the fetches are skipped, not
-       just their result discarded.
+    1. The non-issue branch guard is first, so a fork/dependabot/manual branch
+       makes no `gh` call at all — the fetches are skipped, not just their
+       result discarded.
     2. The PR body is read next. `fetch_issue_body` hard-raises on a source
-       issue that is not OPEN, so reading the issue first turned "this PR
-       carries nothing for this check to verify" into a merge-blocking exit 2
-       whenever the linked issue had been closed out from under the PR.
-    3. `_block_bullets(...) is None` — sentinels absent, nothing this check can
-       verify — returns before any issue read; the source issue's state is then
-       not this gate's business. Keyed on `is None`, never on falsiness:
-       sentinels present but unparseable is `[]`, a malformed condition that
-       must still be fetched and still red (PR #66).
+       issue that is not OPEN, so reading the issue any earlier would turn
+       "this PR carries nothing for this check to verify" into a
+       merge-blocking exit 2 whenever the linked issue has been closed out
+       from under the PR.
+    3. `_block_bullets(...) is None` — nothing this check can verify — returns
+       before any issue read; the source issue's state is then not this gate's
+       business. Keyed on `is None`, never on falsiness: a corrupted block is
+       `[]` and must still be fetched and still red.
     4. Only then the issue read, and `_unsound_with_liveness` with the PR body
-       already in hand — one `gh` round trip fewer than before in the no-block
-       case, not one more.
+       already in hand — no extra `gh` round trip for the ordering.
 
-    That reorder also changes diagnostic precedence deliberately: when both the
-    PR-body read and the issue read would fail, the operator now sees
-    `_pr_body`'s message rather than the issue-read one. Both still exit 2."""
+    Diagnostic precedence follows from that order: when both the PR-body read
+    and the issue read would fail, the operator sees `_pr_body`'s message.
+    Both exit 2."""
     n = issue_number_from_branch(branch)
     if n is None:
         return []
