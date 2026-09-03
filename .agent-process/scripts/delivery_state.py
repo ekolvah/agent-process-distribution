@@ -50,7 +50,10 @@ _CI_CHECK_NEXT = (
     "run `python .agent-process/scripts/ci_check.py` once in the foreground "
     "(raise the harness timeout — a full run can take minutes)"
 )
-_OPEN_PR_NEXT = "run `python .agent-process/scripts/open_pr.py`"
+_OPEN_PR_NEXT = (
+    "run `python .agent-process/scripts/open_pr.py --title <title> "
+    "--body-file <report>`, filling the PR body per the repository template first"
+)
 _REVIEW_LOOP_NEXT = (
     "run `python .agent-process/scripts/request_codex_review.py --request <PR>`, then "
     "`gh pr checks <PR> --watch`, then `python .agent-process/scripts/review_gate.py <PR>`"
