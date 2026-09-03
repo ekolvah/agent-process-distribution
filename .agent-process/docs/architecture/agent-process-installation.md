@@ -139,8 +139,10 @@ real, repository-owned Project and field IDs that every process runner uses.
 
 ## Updating the process
 
-Run `copier update` from the target repository and review both the copied
-scripts and the referenced workflow tag/SHA. This release changes required
+Run `copier update` from the target repository and review the copied
+scripts; `workflow_references` tracks `@main` by default (issue #72), so a
+plain update no longer carries a SHA to review — a target that deliberately
+re-pinned to a SHA still reviews that pin's bump. This release changes required
 contexts to GitHub's composed `caller / callee` names, so after updating run
 the activation/protection step again; existing v0.1.x protection otherwise
 points at contexts that no workflow publishes.
