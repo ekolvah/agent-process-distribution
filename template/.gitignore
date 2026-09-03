@@ -7,3 +7,5 @@ __pycache__/
 pytest-cache-files-*/
 evidence/
 .ci_check_stamp
+.review_gate_stamp
+.agent_stop_blocks

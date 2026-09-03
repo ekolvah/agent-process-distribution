@@ -10,6 +10,11 @@ Three events, one entry point (mirroring `.agent-process/scripts/codex_hooks.py`
   - `pre-read` (PreToolUse, matcher `Read`) → the same policy applied to the other route:
     a slice over the byte budget is denied with the slice that fits handed back.
   - `on-edit` (PostToolUse, matcher `Edit|Write`) → the checks below.
+  - `stop` (Stop) → `scripts.delivery_state`, which blocks the turn from ending while a
+    delivery on an `issue-*` branch has not reached a terminal review-gate verdict. Reads two
+    local git commands and two stamp files it never writes (`.ci_check_stamp`,
+    `.review_gate_stamp`); it starts no CI, no `gh` call, and no `review_gate.py` run of its
+    own. Bounded by `delivery_state.MAX_CONSECUTIVE_BLOCKS` (see ADR 0021).
 
 `on-edit` reads an adapter payload from stdin and dispatches two cheap checks
 in ONE process (one python spawn per edit):
@@ -53,11 +58,31 @@ import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 try:
     from scripts.navigation_policy import navigation_hint, read_budget_hint
 except ModuleNotFoundError:  # documented direct script entry point
     from navigation_policy import navigation_hint, read_budget_hint
+
+try:
+    from scripts.delivery_state import (
+        MAX_CONSECUTIVE_BLOCKS,
+        BudgetRecord,
+        apply_budget,
+        decide,
+        fingerprint,
+        unreadable_state_decision,
+    )
+except ModuleNotFoundError:  # documented direct script entry point
+    from delivery_state import (
+        MAX_CONSECUTIVE_BLOCKS,
+        BudgetRecord,
+        apply_budget,
+        decide,
+        fingerprint,
+        unreadable_state_decision,
+    )
 
 # ruff exit codes: 0 = clean, 1 = lint findings, >=2 = ruff itself errored.
 _RUFF_EXEC_ERROR = 2
@@ -310,11 +335,99 @@ def pre_read_response(payload: dict) -> dict | None:
 
 _PRE_TOOL_USE = {"pre-bash": pre_bash_response, "pre-read": pre_read_response}
 
+_CI_STAMP_PATH = Path(".ci_check_stamp")
+_GATE_STAMP_PATH = Path(".review_gate_stamp")
+_BUDGET_PATH = Path(".agent_stop_blocks")
+
+
+def _run_git(args: list[str], runner: Callable[..., subprocess.CompletedProcess]) -> str | None:
+    """One local git read; `None` on any failure (missing git, non-zero exit, empty output)."""
+    try:
+        result = runner(["git", *args], text=True, capture_output=True, encoding="utf-8")
+    except (OSError, ValueError):
+        return None
+    if result.returncode != 0 or not isinstance(result.stdout, str):
+        return None
+    output = result.stdout.strip()
+    return output or None
+
+
+def _read_ci_stamp() -> str | None:
+    try:
+        return _CI_STAMP_PATH.read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+def _read_gate_stamp() -> tuple[str, str] | None:
+    try:
+        raw = _GATE_STAMP_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    head, _, verdict = raw.partition(" ")
+    return (head, verdict) if head and verdict else None
+
+
+def _read_budget() -> BudgetRecord | None:
+    try:
+        raw = _BUDGET_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    fp, _, count = raw.partition(" ")
+    if not fp or not count.isdigit():
+        return None
+    return BudgetRecord(fingerprint=fp, consecutive_blocks=int(count))
+
+
+def _write_budget(record: BudgetRecord | None) -> None:
+    """This subcommand's only writer for `.agent_stop_blocks`."""
+    if record is None:
+        _BUDGET_PATH.unlink(missing_ok=True)
+        return
+    _BUDGET_PATH.write_text(f"{record.fingerprint} {record.consecutive_blocks}\n", encoding="utf-8")
+
+
+def stop_response(
+    payload: dict,
+    runner: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+) -> dict | None:
+    """Claude `Stop` hook: block the turn from ending while a delivery is non-terminal.
+
+    The Stop event payload carries nothing this decision needs; state comes from two
+    local git reads (`runner`, injectable for tests — never `ci_check.py`, `gh`, or
+    `review_gate.py`, which this hook must not launch) and two stamp files it never
+    writes. Returns Claude's `{"decision": "block", ...}` shape, a `systemMessage`-only
+    dict once the block budget is exhausted, or `None` to let the turn end silently.
+    """
+    del payload
+    branch = _run_git(["branch", "--show-current"], runner)
+    head = _run_git(["rev-parse", "HEAD"], runner)
+    if branch is None or head is None:
+        decision = unreadable_state_decision()
+        state_fingerprint = "unreadable"
+    else:
+        ci_stamp = _read_ci_stamp()
+        gate_stamp = _read_gate_stamp()
+        decision = decide(branch, head, ci_stamp, gate_stamp)
+        state_fingerprint = fingerprint(branch, head, ci_stamp, gate_stamp)
+    decision, record = apply_budget(decision, state_fingerprint, _read_budget())
+    _write_budget(record)
+    if decision.action == "allow":
+        return None
+    if decision.action == "escalate":
+        return {
+            "systemMessage": (
+                f"delivery not terminal after {MAX_CONSECUTIVE_BLOCKS} consecutive "
+                f"blocks — {decision.reason}. Next: {decision.next_action}"
+            )
+        }
+    return {"decision": "block", "reason": f"{decision.reason} — next: {decision.next_action}"}
+
 
 def main() -> None:
-    if len(sys.argv) < 2 or sys.argv[1] not in {"on-edit", *_PRE_TOOL_USE}:
+    if len(sys.argv) < 2 or sys.argv[1] not in {"on-edit", "stop", *_PRE_TOOL_USE}:
         print(
-            "Usage: python .agent-process/scripts/hooks.py {on-edit|pre-bash|pre-read}"
+            "Usage: python .agent-process/scripts/hooks.py {on-edit|stop|pre-bash|pre-read}"
             " (reads the hook JSON on stdin)",
             file=sys.stderr,
         )
@@ -324,6 +437,13 @@ def main() -> None:
         # PreToolUse denies via exit 0 + JSON on stdout; exit 2 would discard the JSON and
         # feed stderr instead, losing the replacement message this hook exists to deliver.
         response = _PRE_TOOL_USE[sys.argv[1]](payload)
+        if response is not None:
+            print(json.dumps(response))
+        sys.exit(0)
+    if sys.argv[1] == "stop":
+        # Same shape as PreToolUse: JSON on stdout, exit 0 — Stop's "decision": "block"
+        # is read from stdout, not inferred from a non-zero exit code.
+        response = stop_response(payload)
         if response is not None:
             print(json.dumps(response))
         sys.exit(0)
