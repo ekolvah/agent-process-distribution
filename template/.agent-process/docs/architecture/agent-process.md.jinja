@@ -299,6 +299,19 @@ This is the per-issue flow. It applies only after the one-time repository
    maintainer's call and don't gate the loop. A PR is ready once the
    current head has no blocking finding and every required check passes.
 
+A delivery is **terminal** once `review_gate.py` reaches `ready-for-human` or
+`escalate` on the current head; every other state — no CI stamp, no PR yet, a
+`fix-blocking`/`review-pending`/capture-failure verdict, or a verdict recorded
+against an older head — is progress, not a stopping point. A turn-boundary gate
+enforces this instead of the agent's own reading of the loop: on an issue
+branch, the end of an agent turn is a gated event (ADR
+[0021](../adr/0021-the-end-of-an-agent-turn-is-a-gated-event.md)), blocking the
+turn while the delivery is non-terminal and naming the exact next command,
+bounded so an unchanged state escalates with a visible marker rather than
+trapping the session. Claude wires this to its `Stop` hook
+(`hooks.py stop`, `.agent-process/scripts/delivery_state.py`); the Codex
+wiring is deferred (issue #75).
+
 One PR is one logical unit. Do not bypass hooks, push to `main`, force-push,
 reset hard, delete branches forcefully, self-merge, or replace these gates
 with an agent assertion. GitHub branch protection is authoritative; a
@@ -309,7 +322,9 @@ the PR `not ready`.
 
 `python .agent-process/scripts/review_gate.py <PR>` reads the live PR — required contexts on
 the current head, and how many distinct heads `agent-review` has reviewed. It
-changes nothing and posts nothing.
+records its verdict for the judged head to `.review_gate_stamp`, for the
+turn-boundary gate above to read, but changes nothing and posts nothing **on
+the PR**.
 
 | Verdict | Exit code | Meaning |
 | --- | --- | --- |
