@@ -80,6 +80,17 @@ class TestDeliveryBlocker:
 
         assert decision.action == "allow"
 
+    def test_dirty_worktree_blocks_even_on_a_terminal_verdict(self) -> None:
+        """`HEAD` and both stamps are silent about changes made *after* they were
+        written — a dirty worktree means the current state was never checked or
+        reviewed, so it must not read as terminal (agent-review finding on #56)."""
+        decision = decide(
+            _BRANCH, _HEAD, ci_stamp=_HEAD, gate_stamp=(_HEAD, "ready-for-human"), dirty=True
+        )
+
+        assert decision.action == "block"
+        assert "uncommitted" in decision.reason
+
 
 class TestBlockBudget:
     def test_an_unchanged_fingerprint_exhausts_the_budget_and_escalates(self) -> None:

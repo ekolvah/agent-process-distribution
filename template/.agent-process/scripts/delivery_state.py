@@ -66,6 +66,10 @@ _GATE_VERDICT_NEXT = (
 _UNREADABLE_STATE_NEXT = (
     "confirm the git working tree is sane (HEAD and branch resolve), then retry"
 )
+_DIRTY_WORKTREE_NEXT = (
+    "commit or stash the uncommitted changes, then run "
+    "`python .agent-process/scripts/ci_check.py` once in the foreground"
+)
 
 
 @dataclass(frozen=True)
@@ -100,16 +104,22 @@ def decide(
     head: str,
     ci_stamp: str | None,
     gate_stamp: tuple[str, str] | None,
+    dirty: bool = False,
 ) -> Decision:
     """The raw decision table, before the block budget applies.
 
     `ci_stamp` is the content of `.ci_check_stamp` (a bare HEAD sha), or `None` if
     absent. `gate_stamp` is `(head, verdict)` from `.review_gate_stamp`, or `None`
     if absent. Both are compared against `head` as opaque strings — this module
-    never resolves a ref itself.
+    never resolves a ref itself. `dirty` is whether the worktree has uncommitted
+    changes: `head` and both stamps are silent about anything written after they
+    were captured, so a dirty worktree overrides an otherwise-terminal verdict —
+    the current state was never checked or reviewed (agent-review finding on #56).
     """
     if not is_valid_branch_name(branch):
         return _decision("allow", f"{branch!r} is not a delivery branch")
+    if dirty:
+        return _decision("block", "the worktree has uncommitted changes", _DIRTY_WORKTREE_NEXT)
     if ci_stamp != head:
         return _decision("block", "no verified CI run recorded for HEAD", _CI_CHECK_NEXT)
     if gate_stamp is None:
@@ -144,9 +154,10 @@ def fingerprint(
     head: str,
     ci_stamp: str | None,
     gate_stamp: tuple[str, str] | None,
+    dirty: bool = False,
 ) -> str:
     """A stable key for "the same delivery state as last time" (budget tracking)."""
-    raw = f"{branch}␟{head}␟{ci_stamp}␟{gate_stamp}"
+    raw = f"{branch}␟{head}␟{ci_stamp}␟{gate_stamp}␟{dirty}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 

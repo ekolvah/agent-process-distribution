@@ -61,16 +61,17 @@ event, fail closed on unreadable state, bound the block.**
 1. **New gate class.** `.claude/settings.json` gains a `Stop` hook — the
    flow's first session-lifecycle hook; previously only
    `PreToolUse`/`PostToolUse` existed. It fires `hooks.py stop`, which reads
-   two local git values (`git branch --show-current`, `git rev-parse HEAD`)
-   and two single-writer stamp files, and launches no other process — not
-   `ci_check.py`, not `gh`, not `review_gate.py`.
+   three local git values (`git branch --show-current`, `git rev-parse HEAD`,
+   `git status --porcelain`) and two single-writer stamp files, and launches
+   no other process — not `ci_check.py`, not `gh`, not `review_gate.py`.
 2. **State model.** `.agent-process/scripts/delivery_state.py` is a
    transport-neutral pure-function decision table
-   (`decide(branch, head, ci_stamp, gate_stamp) -> Decision`), the shape of
-   `agent_policy.py`/`navigation_policy.py`, so a future Codex adapter (issue
-   #75) is a wiring change, not a redesign. `TERMINAL_VERDICTS =
-   {"ready-for-human", "escalate"}`; every other verdict, and a missing or
-   stale record, is progress. Off an issue branch the gate is inert.
+   (`decide(branch, head, ci_stamp, gate_stamp, dirty) -> Decision`), the
+   shape of `agent_policy.py`/`navigation_policy.py`, so a future Codex
+   adapter (issue #75) is a wiring change, not a redesign. `TERMINAL_VERDICTS
+   = {"ready-for-human", "escalate"}`; every other verdict, a missing or
+   stale record, or an uncommitted change the stamps cannot know about
+   (`dirty`), is progress. Off an issue branch the gate is inert.
 3. **`review_gate.py` gains a local write.** It already computed the verdict
    correctly; it now records `<head> <verdict>` to `.review_gate_stamp` on
    every run (including its own capture-failure exit, stamped `gate-error`,
@@ -114,8 +115,8 @@ event, fail closed on unreadable state, bound the block.**
   local stamp is read from.
 
 **Assumption and rollback.** Assumes a `Stop` hook firing on every turn end,
-including short informational turns, costs two `git` calls and two small file
-reads — negligible relative to the harness round trip. If that assumption
+including short informational turns, costs three `git` calls and two small
+file reads — negligible relative to the harness round trip. If that assumption
 proves false (measurable turn-end latency regression reported), the rollback
 is to drop the `Stop` entry from `.claude/settings.json`; the decision table
 and the stamps remain harmless dead weight until a future adapter reads them.

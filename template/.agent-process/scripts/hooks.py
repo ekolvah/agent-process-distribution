@@ -11,10 +11,12 @@ Three events, one entry point (mirroring `.agent-process/scripts/codex_hooks.py`
     a slice over the byte budget is denied with the slice that fits handed back.
   - `on-edit` (PostToolUse, matcher `Edit|Write`) → the checks below.
   - `stop` (Stop) → `scripts.delivery_state`, which blocks the turn from ending while a
-    delivery on an `issue-*` branch has not reached a terminal review-gate verdict. Reads two
-    local git commands and two stamp files it never writes (`.ci_check_stamp`,
-    `.review_gate_stamp`); it starts no CI, no `gh` call, and no `review_gate.py` run of its
-    own. Bounded by `delivery_state.MAX_CONSECUTIVE_BLOCKS` (see ADR 0021).
+    delivery on an `issue-*` branch has not reached a terminal review-gate verdict. Reads
+    three local git commands (including a dirty-worktree check — a terminal verdict says
+    nothing about uncommitted changes made after it was recorded) and two stamp files it
+    never writes (`.ci_check_stamp`, `.review_gate_stamp`); it starts no CI, no `gh` call,
+    and no `review_gate.py` run of its own. Bounded by `delivery_state.MAX_CONSECUTIVE_BLOCKS`
+    (see ADR 0021).
 
 `on-edit` reads an adapter payload from stdin and dispatches two cheap checks
 in ONE process (one python spawn per edit):
@@ -352,6 +354,25 @@ def _run_git(args: list[str], runner: Callable[..., subprocess.CompletedProcess]
     return output or None
 
 
+def _worktree_dirty(runner: Callable[..., subprocess.CompletedProcess]) -> bool:
+    """Whether the worktree has uncommitted changes.
+
+    Fails closed (`True`) on any read failure: `_run_git` collapses an empty,
+    successful `git status --porcelain` (the clean case) to `None`, which is
+    indistinguishable from a broken read, so this reads the process result
+    directly instead of reusing it.
+    """
+    try:
+        result = runner(
+            ["git", "status", "--porcelain"], text=True, capture_output=True, encoding="utf-8"
+        )
+    except (OSError, ValueError):
+        return True
+    if result.returncode != 0 or not isinstance(result.stdout, str):
+        return True
+    return bool(result.stdout.strip())
+
+
 def _read_ci_stamp() -> str | None:
     try:
         return _CI_STAMP_PATH.read_text(encoding="utf-8").strip() or None
@@ -393,11 +414,12 @@ def stop_response(
 ) -> dict | None:
     """Claude `Stop` hook: block the turn from ending while a delivery is non-terminal.
 
-    The Stop event payload carries nothing this decision needs; state comes from two
-    local git reads (`runner`, injectable for tests — never `ci_check.py`, `gh`, or
-    `review_gate.py`, which this hook must not launch) and two stamp files it never
-    writes. Returns Claude's `{"decision": "block", ...}` shape, a `systemMessage`-only
-    dict once the block budget is exhausted, or `None` to let the turn end silently.
+    The Stop event payload carries nothing this decision needs; state comes from
+    three local git reads (`runner`, injectable for tests — never `ci_check.py`,
+    `gh`, or `review_gate.py`, which this hook must not launch) and two stamp
+    files it never writes. Returns Claude's `{"decision": "block", ...}` shape, a
+    `systemMessage`-only dict once the block budget is exhausted, or `None` to let
+    the turn end silently.
     """
     del payload
     branch = _run_git(["branch", "--show-current"], runner)
@@ -408,8 +430,9 @@ def stop_response(
     else:
         ci_stamp = _read_ci_stamp()
         gate_stamp = _read_gate_stamp()
-        decision = decide(branch, head, ci_stamp, gate_stamp)
-        state_fingerprint = fingerprint(branch, head, ci_stamp, gate_stamp)
+        dirty = _worktree_dirty(runner)
+        decision = decide(branch, head, ci_stamp, gate_stamp, dirty=dirty)
+        state_fingerprint = fingerprint(branch, head, ci_stamp, gate_stamp, dirty=dirty)
     decision, record = apply_budget(decision, state_fingerprint, _read_budget())
     _write_budget(record)
     if decision.action == "allow":

@@ -200,8 +200,8 @@ _BRANCH = "issue-56-bug-keep-delivery-active"
 _HEAD = "a54549ac1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e"  # pragma: allowlist secret
 
 
-def _git_runner(branch: str, head: str) -> tuple[list[list[str]], object]:
-    """A `subprocess.run` double answering only the two local git reads
+def _git_runner(branch: str, head: str, *, dirty: bool = False) -> tuple[list[list[str]], object]:
+    """A `subprocess.run` double answering only the three local git reads
     `stop_response` is allowed to make — no `ci_check.py`, `gh`, or
     `review_gate.py` launch, ever (AC 4)."""
     calls: list[list[str]] = []
@@ -212,6 +212,9 @@ def _git_runner(branch: str, head: str) -> tuple[list[list[str]], object]:
             return subprocess.CompletedProcess(args, 0, stdout=f"{branch}\n", stderr="")
         if args == ["git", "rev-parse", "HEAD"]:
             return subprocess.CompletedProcess(args, 0, stdout=f"{head}\n", stderr="")
+        if args == ["git", "status", "--porcelain"]:
+            stdout = " M dirty-file.py\n" if dirty else ""
+            return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
         raise AssertionError(f"stop_response must not launch: {args}")
 
     return calls, runner
@@ -272,7 +275,7 @@ class TestStopHook:
     ) -> None:
         """`.ci_check_stamp` absent on an issue branch — blocks, and the
         injected runner proves the hook read state rather than re-running it:
-        exactly the two git reads, nothing else."""
+        exactly the three git reads, nothing else."""
         monkeypatch.chdir(tmp_path)
         calls, runner = _git_runner(_BRANCH, _HEAD)
 
@@ -280,7 +283,28 @@ class TestStopHook:
 
         assert response is not None
         assert response["decision"] == "block"
-        assert calls == [["git", "branch", "--show-current"], ["git", "rev-parse", "HEAD"]]
+        assert calls == [
+            ["git", "branch", "--show-current"],
+            ["git", "rev-parse", "HEAD"],
+            ["git", "status", "--porcelain"],
+        ]
+
+    def test_dirty_worktree_blocks_even_on_a_terminal_verdict(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Terminal stamps say nothing about changes made after they were
+        written — an uncommitted edit must not let the turn end silently
+        (agent-review finding on #56)."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".ci_check_stamp").write_text(_HEAD, encoding="utf-8")
+        (tmp_path / ".review_gate_stamp").write_text(f"{_HEAD} ready-for-human", encoding="utf-8")
+        _calls, runner = _git_runner(_BRANCH, _HEAD, dirty=True)
+
+        response = stop_response({}, runner=runner)
+
+        assert response is not None
+        assert response["decision"] == "block"
+        assert "uncommitted" in response["reason"]
 
     def test_unreadable_git_state_fails_closed(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
