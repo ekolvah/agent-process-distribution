@@ -317,9 +317,10 @@ branch, the end of an agent turn is a gated event (ADR
 [0021](../adr/0021-the-end-of-an-agent-turn-is-a-gated-event.md)), blocking the
 turn while the delivery is non-terminal and naming the exact next command,
 bounded so an unchanged state escalates with a visible marker rather than
-trapping the session. Claude wires this to its `Stop` hook
-(`hooks.py stop`, `.agent-process/scripts/delivery_state.py`); the Codex
-wiring is deferred (issue #75).
+trapping the session. Both carriers wire this to their `Stop` hook
+(`hooks.py stop`, `.agent-process/scripts/delivery_state.py`): Claude via
+`.claude/settings.json`, Codex via `.codex/hooks.json`'s `Stop` group
+(`codex_hooks.py stop`, issue #75).
 
 One PR is one logical unit. Do not bypass hooks, push to `main`, force-push,
 reset hard, delete branches forcefully, self-merge, or replace these gates

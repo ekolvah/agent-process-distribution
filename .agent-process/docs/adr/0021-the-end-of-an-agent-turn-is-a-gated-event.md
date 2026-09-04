@@ -121,15 +121,26 @@ proves false (measurable turn-end latency regression reported), the rollback
 is to drop the `Stop` entry from `.claude/settings.json`; the decision table
 and the stamps remain harmless dead weight until a future adapter reads them.
 
+**2026-09-04 amendment.** A second carrier now wires the same hook: Codex's
+`.codex/hooks.json` `Stop` group (`codex_hooks.py stop`, issue #75). The
+rollback is unchanged in kind, only in scope — drop the `Stop` entry from
+`.claude/settings.json`, `.codex/hooks.json`, or both, independently; the
+decision table and the stamps remain harmless dead weight for whichever
+adapter stops reading them.
+
 ### Confirmation
 
 `tests/publisher/test_delivery_state.py` (`TestDeliveryBlocker`,
 `TestBlockBudget`) covers the decision table and the block budget;
-`tests/publisher/test_hooks.py::TestStopHook` covers the adapter, including
-the injected-runner assertion that no `ci_check.py`/`gh`/`review_gate.py`
-process is launched; `tests/agent_process/test_delivery_gate_wiring.py` (+
-`template/` twin) asserts the rendered `.claude/settings.json` actually wires
-the hook — a gate nothing invokes would reproduce this issue's own root
+`tests/publisher/test_hooks.py::TestStopHook` covers the Claude adapter,
+including the injected-runner assertion that no
+`ci_check.py`/`gh`/`review_gate.py` process is launched;
+`tests/publisher/test_codex_hooks.py::TestStopSubcommand` covers the Codex
+adapter the same way. `tests/agent_process/test_delivery_gate_wiring.py` (+
+`template/` twin) asserts the rendered `.claude/settings.json` and
+`.codex/hooks.json` actually wire the hook
+(`TestStopHookWiring`, `TestCodexHookWiring::test_every_event_group_maps_to_its_subcommand`)
+— a gate nothing invokes would reproduce this issue's own root
 cause; `tests/agent_process/test_review_gate.py::TestVerdictStamp` (+
 `template/` twin) covers the new local write. Relates to
 [ADR 0020](0020-a-tracked-deferral-downgrades-a-matching-review-finding.md)

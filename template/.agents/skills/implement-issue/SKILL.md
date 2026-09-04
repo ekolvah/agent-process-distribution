@@ -37,9 +37,11 @@ Do not replace a missing plan with an invented implementation.
    does not replace the checks below or invoke a provider.
 8. Stay active through the review/fix loop, and let
    `python .agent-process/scripts/review_gate.py <PR>` end it — not your own reading of the
-   findings. The Claude adapter now enforces this on the turn boundary itself via a `Stop`
-   hook (ADR 0021); no equivalent hook exists yet for this Codex adapter, so the prose below
-   still carries the obligation here. After creating the PR and after every successful push:
+   findings. Both adapters now enforce this on the turn boundary itself via a `Stop` hook
+   (ADR 0021): Claude through `.claude/settings.json`, this Codex adapter through
+   `.codex/hooks.json`'s `Stop` group (`codex_hooks.py stop`, issue #75) — the prose below
+   still names the obligation for readability, but the gate is what actually ends the turn.
+   After creating the PR and after every successful push:
    - `python .agent-process/scripts/request_codex_review.py --request <PR>` — request the
      current-head review through the authenticated PR-author session.
    - If the fixer's correction addressed a BLOCKING thread, resolve it now — before the
