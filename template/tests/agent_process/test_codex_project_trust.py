@@ -43,7 +43,10 @@ def test_trusted_entry_exits_zero(
 
     trust.main()
 
-    assert "ok" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "ok" in out
+    assert "project trust" in out
+    assert "hook trust" in out
 
 
 def test_no_projects_table_exits_one_with_remediation(

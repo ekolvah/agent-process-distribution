@@ -324,7 +324,9 @@ trapping the session. Both carriers wire this to their `Stop` hook
 the operator has recorded as trusted; confirm that with
 `check_codex_project_trust.py` per
 [the installation guide](agent-process-installation.md#installation-order)
-before relying on this gate on the Codex adapter.
+before relying on this gate on the Codex adapter — that preflight covers
+project trust only, and Codex separately requires per-hook trust before it
+will run one, which the installation guide's hook-trust note covers.
 
 One PR is one logical unit. Do not bypass hooks, push to `main`, force-push,
 reset hard, delete branches forcefully, self-merge, or replace these gates

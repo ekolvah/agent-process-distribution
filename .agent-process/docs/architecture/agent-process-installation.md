@@ -49,13 +49,22 @@ workflows run on every pull request.
 
    | Exit | Meaning | Next action |
    | --- | --- | --- |
-   | `0` | The repository is trusted; Codex will load its hooks. | Continue. |
+   | `0` | The repository is trusted (project trust); Codex will load its `.codex/` layer. | Continue — but see the hook-trust note below before relying on the `Stop` gate. |
    | `1` | No matching entry, or one present but not `trusted`. | Run `codex` once in this repository and accept its folder-trust prompt, or add the `[projects."<path>"]` entry the preflight prints to `~/.codex/config.toml`, then rerun the preflight. |
    | `2` | The git root or `~/.codex/config.toml` could not be resolved or parsed. | Fix the reported cause, then rerun the preflight. |
 
    This is a per-operator, per-machine setting stored outside the
    repository; `copier copy` cannot set it, and a fresh clone or a new
    machine starts untrusted again.
+
+   **Project trust is necessary but not sufficient.** Codex CLI gates
+   *executing* a hook behind a second, separate, per-hook approval it also
+   persists outside the repository. There is no supported non-interactive way
+   to verify that from this preflight — the exit-0 message names this
+   explicitly. Run `codex` once in this repository and confirm no
+   `Hooks need review` prompt appears at startup, or pass
+   `--dangerously-bypass-hook-trust` for unattended invocations that already
+   vet the hook source.
 4. Configure the two review credentials, including
    `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier, then run the
    read-only preflight:

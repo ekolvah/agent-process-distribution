@@ -43,7 +43,10 @@ Do not replace a missing plan with an invented implementation.
    `python .agent-process/scripts/check_codex_project_trust.py` (installation guide)
    confirms this repository is a trusted Codex project — the prose below still names
    the obligation for readability, but the gate is what actually ends the turn once
-   trust is established.
+   trust is established. That preflight covers project trust only; Codex separately
+   requires per-hook trust before it runs one, which it can only confirm
+   interactively (installation guide's hook-trust note) — if the `Stop` hook never
+   seems to fire despite a trusted project, check for that first.
    After creating the PR and after every successful push:
    - `python .agent-process/scripts/request_codex_review.py --request <PR>` — request the
      current-head review through the authenticated PR-author session.

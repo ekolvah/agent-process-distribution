@@ -10,9 +10,24 @@ and still never have it run. This check is read-only and makes that
 otherwise-invisible prerequisite an explicit, scriptable preflight instead of
 an assumption.
 
-Exit 0 means the current repository is trusted. Exit 1 means it is not (no
-matching entry, or one present but not `trusted`). Exit 2 means the git root
-or `config.toml` could not be resolved or parsed.
+Project trust is necessary but not sufficient. Codex CLI gates hook
+*execution* behind a second, separate approval — persisted per-hook in the
+same `config.toml`'s `[hooks.state]` table as `{enabled, trusted_hash}`,
+where `trusted_hash` is compared against an internally computed hash of the
+hook's current definition. That comparison uses a private, unversioned
+algorithm with no supported non-interactive read path (no `codex doctor`
+field, no `codex hooks` subcommand, no documented `--json` output covers it
+as of Codex CLI 0.144.0-alpha.4) — only the interactive TUI's "Hooks need
+review" prompt and `--dangerously-bypass-hook-trust` observe it. This script
+does not attempt to compute or infer hook-trust state: a best-effort guess
+built on an undocumented hash would itself be a new false-positive source,
+the exact failure this preflight exists to prevent. It reports project trust
+only, and says so on success.
+
+Exit 0 means the current repository is trusted (project trust only — see
+above). Exit 1 means it is not (no matching entry, or one present but not
+`trusted`). Exit 2 means the git root or `config.toml` could not be resolved
+or parsed.
 """
 
 from __future__ import annotations
@@ -91,7 +106,16 @@ def main() -> None:
         print(f"cannot read or parse {config_path}: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
     if is_trusted(config, root):
-        print(f"ok: {root} is trusted in {config_path}")
+        print(
+            f"ok: {root} is trusted (project trust) in {config_path}. This does "
+            "not confirm hook trust - Codex CLI requires a separate, per-hook "
+            "approval before it will run anything from .codex/hooks.json, and "
+            "there is no reliable non-interactive way to check that from "
+            "outside Codex. Run `codex` once in this repository and confirm no "
+            '"Hooks need review" prompt appears, or pass '
+            "--dangerously-bypass-hook-trust for unattended invocations that "
+            "already vet the hook source."
+        )
         return
     print(
         f"{root} is not marked trusted in {config_path}; Codex will not load "
