@@ -39,7 +39,7 @@ Do not replace a missing plan with an invented implementation.
    `python .agent-process/scripts/review_gate.py <PR>` end it — not your own reading of the
    findings. Both adapters now enforce this on the turn boundary itself via a `Stop` hook
    (ADR 0021): Claude through `.claude/settings.json`, this Codex adapter through
-   `.codex/hooks.json`'s `Stop` group (`codex_hooks.py stop`, issue #75) — the prose below
+   `.codex/hooks.json`'s `Stop` group (`codex_hooks.py stop`) — the prose below
    still names the obligation for readability, but the gate is what actually ends the turn.
    After creating the PR and after every successful push:
    - `python .agent-process/scripts/request_codex_review.py --request <PR>` — request the

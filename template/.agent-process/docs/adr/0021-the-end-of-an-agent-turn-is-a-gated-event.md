@@ -122,7 +122,7 @@ is to drop the `Stop` entry from `.claude/settings.json`; the decision table
 and the stamps remain harmless dead weight until a future adapter reads them.
 
 **2026-09-04 amendment.** A second carrier now wires the same hook: Codex's
-`.codex/hooks.json` `Stop` group (`codex_hooks.py stop`, issue #75). The
+`.codex/hooks.json` `Stop` group (`codex_hooks.py stop`). The
 rollback is unchanged in kind, only in scope — drop the `Stop` entry from
 `.claude/settings.json`, `.codex/hooks.json`, or both, independently; the
 decision table and the stamps remain harmless dead weight for whichever

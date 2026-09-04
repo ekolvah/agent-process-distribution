@@ -3,8 +3,8 @@ next command when it has not.
 
 Transport-neutral (the shape of `agent_policy.py` / `navigation_policy.py`): every
 function here takes state as arguments and touches neither the filesystem nor a
-subprocess. An adapter (Claude's `hooks.py stop`; Codex's `codex_hooks.py stop`,
-issue #75) reads the local stamps and git state, then calls in.
+subprocess. An adapter (Claude's `hooks.py stop`; Codex's `codex_hooks.py stop`)
+reads the local stamps and git state, then calls in.
 
 Root cause this answers (issue #56): every other step of the delivery flow is
 already a script with an exit code (`check_red.py`, `ci_check.py`, `open_pr.py`,

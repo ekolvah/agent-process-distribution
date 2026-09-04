@@ -320,7 +320,7 @@ bounded so an unchanged state escalates with a visible marker rather than
 trapping the session. Both carriers wire this to their `Stop` hook
 (`hooks.py stop`, `.agent-process/scripts/delivery_state.py`): Claude via
 `.claude/settings.json`, Codex via `.codex/hooks.json`'s `Stop` group
-(`codex_hooks.py stop`, issue #75).
+(`codex_hooks.py stop`).
 
 One PR is one logical unit. Do not bypass hooks, push to `main`, force-push,
 reset hard, delete branches forcefully, self-merge, or replace these gates
