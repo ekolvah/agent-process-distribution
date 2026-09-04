@@ -105,6 +105,16 @@ def test_resolve_refuses_a_thread_with_no_original_commit() -> None:
     assert calls == []
 
 
+def test_resolve_refuses_a_non_blocking_thread() -> None:
+    payload = _payload(threads=[_thread("thread-1", priority="P2", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError, match="not BLOCKING"):
+        resolve(payload, "thread-1", mutate=lambda thread_id: calls.append(thread_id))
+
+    assert calls == []
+
+
 def test_a_mutation_reporting_an_unresolved_thread_fails_loudly() -> None:
     payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
 

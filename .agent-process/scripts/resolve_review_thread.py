@@ -16,32 +16,21 @@ import sys
 from collections.abc import Callable, Sequence
 
 try:
-    from scripts.check_blocking_review_threads import blocking_threads, review_threads
+    from scripts.check_blocking_review_threads import (
+        blocking_threads,
+        fetch_review_threads,
+        head_ref_oid,
+        review_threads,
+    )
     from scripts.gh_io import run_gh
 except ModuleNotFoundError:  # Direct execution from the relocated payload.
-    from check_blocking_review_threads import blocking_threads, review_threads
+    from check_blocking_review_threads import (
+        blocking_threads,
+        fetch_review_threads,
+        head_ref_oid,
+        review_threads,
+    )
     from gh_io import run_gh
-
-_QUERY = """
-query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) {
-    pullRequest(number: $number) {
-      headRefOid
-      reviewThreads(first: 100) {
-        pageInfo { hasNextPage }
-        nodes {
-          id
-          isResolved
-          comments(first: 100) {
-            pageInfo { hasNextPage }
-            nodes { databaseId body url replyTo { id } author { login } originalCommit { oid } }
-          }
-        }
-      }
-    }
-  }
-}
-"""
 
 _MUTATION = """
 mutation($threadId: ID!) {
@@ -50,29 +39,6 @@ mutation($threadId: ID!) {
   }
 }
 """
-
-
-def _fetch(repo: str, pr: int) -> dict:
-    owner, name = repo.split("/", 1)
-    raw = run_gh(
-        [
-            "api",
-            "graphql",
-            "-f",
-            f"query={_QUERY}",
-            "-F",
-            f"owner={owner}",
-            "-F",
-            f"name={name}",
-            "-F",
-            f"number={pr}",
-        ]
-    )
-    return json.loads(raw)
-
-
-def _head_ref_oid(payload: dict) -> str:
-    return str(payload["data"]["repository"]["pullRequest"]["headRefOid"])
 
 
 def list_blocking(payload: dict) -> list[tuple[str, str, str]]:
@@ -87,11 +53,16 @@ def resolve(payload: dict, thread_id: str, *, mutate: Callable[[str], object]) -
     returns its decoded response; injected so a test can stub the transport
     (§II) and so a `gh` exit 0 is never trusted without re-reading `isResolved`.
     """
-    head = _head_ref_oid(payload)
+    head = head_ref_oid(payload)
     threads = {thread.thread_id: thread for thread in review_threads(payload)}
     thread = threads.get(thread_id)
     if thread is None:
         raise RuntimeError(f"no open review thread {thread_id!r} on this PR")
+    if not thread.blocking:
+        raise RuntimeError(
+            f"review thread {thread_id} is not BLOCKING (priority {thread.priority}) — "
+            "only a BLOCKING thread the fixer's correction addressed may be resolved this way"
+        )
     if thread.original_commit_oid is None:
         raise RuntimeError(
             f"review thread {thread_id} has no originalCommit.oid — refusing to resolve blind"
@@ -134,7 +105,7 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> None:
     options = _parse_options(list(sys.argv[1:] if argv is None else argv))
     try:
-        payload = _fetch(options.repo, options.pr)
+        payload = fetch_review_threads(options.repo, options.pr)
         if options.list:
             for thread_id, priority, url in list_blocking(payload):
                 print(f"{priority}\t{thread_id}\t{url}")

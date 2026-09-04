@@ -27,6 +27,7 @@ _QUERY = """
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
+      headRefOid
       reviewThreads(first: 100) {
         pageInfo { hasNextPage }
         nodes {
@@ -56,6 +57,41 @@ class ReviewThread(NamedTuple):
 
 def _normalise_login(value: object) -> str:
     return str(value or "").removesuffix("[bot]").lower()
+
+
+def fetch_review_threads(repo: str, pr: int) -> dict:
+    """Run the shared review-threads GraphQL query. The one reader this required
+    check and the fixer's local thread-resolve entry point both read through, so
+    the thread fields, pagination handling, and request shape never diverge.
+    """
+    owner, name = repo.split("/", 1)
+    raw = run_gh(
+        [
+            "api",
+            "graphql",
+            "-f",
+            f"query={_QUERY}",
+            "-F",
+            f"owner={owner}",
+            "-F",
+            f"name={name}",
+            "-F",
+            f"number={pr}",
+        ]
+    )
+    return json.loads(raw)
+
+
+def head_ref_oid(payload: object) -> str:
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("GraphQL payload is not an object")
+    data = payload.get("data")
+    if not isinstance(data, Mapping) or not isinstance(data.get("repository"), Mapping):
+        raise RuntimeError("GraphQL payload has no repository")
+    pull = data["repository"].get("pullRequest")
+    if not isinstance(pull, Mapping):
+        raise RuntimeError("GraphQL payload has no pull request")
+    return str(pull["headRefOid"])
 
 
 def review_threads(payload: object) -> list[ReviewThread]:
@@ -168,22 +204,8 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> None:
     options = _parse_options(argv)
     try:
-        owner, name = options.repo.split("/", 1)
-        raw = run_gh(
-            [
-                "api",
-                "graphql",
-                "-f",
-                f"query={_QUERY}",
-                "-F",
-                f"owner={owner}",
-                "-F",
-                f"name={name}",
-                "-F",
-                f"number={options.pr}",
-            ]
-        )
-        threads = review_threads(json.loads(raw))
+        payload = fetch_review_threads(options.repo, options.pr)
+        threads = review_threads(payload)
         _publish_classifications(options.repo, options.pr, threads)
         findings = [thread for thread in threads if thread.blocking]
     except (RuntimeError, ValueError, json.JSONDecodeError) as exc:
