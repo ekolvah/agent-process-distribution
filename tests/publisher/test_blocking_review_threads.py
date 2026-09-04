@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 from scripts import check_blocking_review_threads
 from scripts.check_blocking_review_threads import ReviewThread, blocking_threads, review_threads
 
@@ -83,3 +85,10 @@ def test_classification_reply_uses_plain_merge_language(monkeypatch) -> None:
     assert len(calls) == 1
     assert any("**BLOCKING**" in argument for argument in calls[0])
     assert not any("P1" in argument for argument in calls[0])
+
+
+def test_the_required_check_never_resolves_a_thread() -> None:
+    """ADR 0022: the required check only classifies; it must never resolve a thread."""
+    source = inspect.getsource(check_blocking_review_threads)
+    assert "resolveReviewThread" not in source
+    assert "resolve_review_thread" not in source

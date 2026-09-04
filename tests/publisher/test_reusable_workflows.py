@@ -528,3 +528,13 @@ def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
         assert "Classic branch protection matches a" in document
         assert "platform trust anchor" in document
         assert "pull_request_target` as a shortcut" in document
+
+
+def test_no_workflow_step_resolves_a_review_thread() -> None:
+    """ADR 0022: CI classifies findings; only the fixer's local session resolves one."""
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        document = _workflow(path.name)
+        for job in document.get("jobs", {}).values():
+            for step in job.get("steps") or ():
+                assert "resolve_review_thread" not in (step.get("run") or "")
+                assert "resolve_review_thread" not in (step.get("uses") or "")

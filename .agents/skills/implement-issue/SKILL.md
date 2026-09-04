@@ -42,6 +42,13 @@ Do not replace a missing plan with an invented implementation.
    still carries the obligation here. After creating the PR and after every successful push:
    - `python .agent-process/scripts/request_codex_review.py --request <PR>` — request the
      current-head review through the authenticated PR-author session.
+   - If the fixer's correction addressed a BLOCKING thread, resolve it now — before the
+     `agent-review` run on this head reaches its last step —
+     with `python .agent-process/scripts/resolve_review_thread.py --repo OWNER/REPO --pr <PR>
+     --thread <node-id>` (`--list` prints every open BLOCKING thread and its node id).
+     Resolving after that run has already read a red check on this head is a no-op; if the
+     window is missed, re-run the completed `agent-review` run on the unchanged head instead
+     of pushing again (no push, no budget spent).
    - `gh pr checks <PR> --watch` — wait for the checks to finish.
    - `python .agent-process/scripts/review_gate.py <PR>` — its exit code is the decision.
      - `0` (`ready-for-human`): stop, report the PR ready. Any `should-fix` or
@@ -49,8 +56,8 @@ Do not replace a missing plan with an invented implementation.
        is not another round.
      - `10` (`fix-blocking`): inspect the root cause — `gh run view <run-id>
        --log-failed` for a red CI check, the review run for a red
-       `agent-review` — fix it in a separate fixer commit, push, go back to the
-       first bullet.
+       `agent-review` — fix it in a separate fixer commit, push, resolve any BLOCKING
+       thread it addresses (previous bullet), go back to the first bullet.
      - `20` (`escalate`) / `30` (`review-pending`) / `2` (gh or capture
        failure): the PR is `not ready`. Report the named blocker to the
        maintainer instead of handing off the merge decision; for

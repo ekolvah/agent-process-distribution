@@ -66,7 +66,9 @@ Claude fallback PR-review carriers.
 - The user-facing merge classes are **`BLOCKING`** and **`NON-BLOCKING`**.
   Every open Codex finding receives an automated reply with one of those exact
   labels. `BLOCKING` findings must be fixed and their conversations resolved
-  before merge; `NON-BLOCKING` findings are visible maintainer decisions.
+  before merge — the fixer that pushed the correction resolves the thread
+  itself from its own authenticated local session; CI classifies but never
+  resolves a thread. `NON-BLOCKING` findings are visible maintainer decisions.
 - `outcome` and `findings` are tied together for every carrier, with no
   exception for low-severity findings: `clean` requires `findings: []`.
   Attaching even a single `nice-to-have` finding means the outcome cannot be
