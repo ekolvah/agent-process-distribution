@@ -13,9 +13,9 @@ try:
 except ModuleNotFoundError:  # documented direct script entry point
     from agent_policy import denied_reason
 try:
-    from scripts.hooks import run_on_paths
+    from scripts.hooks import run_on_paths, stop_response
 except ModuleNotFoundError:  # documented direct script entry point
-    from hooks import run_on_paths
+    from hooks import run_on_paths, stop_response
 
 _PATCH_PATH = re.compile(r"^\*\*\* (?:Add|Update) File: (.+)$", re.MULTILINE)
 _MOVE_TO_PATH = re.compile(r"^\*\*\* Move to: (.+)$", re.MULTILINE)
@@ -73,9 +73,9 @@ def run_on_edit(payload: dict[str, Any]) -> tuple[int, str]:
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = list(sys.argv[1:] if argv is None else argv)
-    if len(args) != 1 or args[0] not in {"pre-tool", "on-edit"}:
+    if len(args) != 1 or args[0] not in {"pre-tool", "on-edit", "stop"}:
         print(
-            "Usage: python .agent-process/scripts/codex_hooks.py {pre-tool|on-edit}",
+            "Usage: python .agent-process/scripts/codex_hooks.py {pre-tool|on-edit|stop}",
             file=sys.stderr,
         )
         raise SystemExit(2)
@@ -99,6 +99,15 @@ def main(argv: Sequence[str] | None = None) -> None:
             )
             raise SystemExit(2)
         response = pre_tool_response(payload)
+        if response is not None:
+            print(json.dumps(response))
+        return
+
+    if args[0] == "stop":
+        # stop_response discards its payload (state comes from git/stamp reads), so a
+        # malformed Stop payload is not a reason to fail closed here the way `pre-tool`
+        # does; the fail-closed direction is unreadable git state, owned by delivery_state.
+        response = stop_response(payload)
         if response is not None:
             print(json.dumps(response))
         return

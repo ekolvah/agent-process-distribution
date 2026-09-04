@@ -26,6 +26,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$(git rev-parse --show-toplevel)\" && python .agent-process/scripts/codex_hooks.py stop",
+            "timeout": 10,
+            "statusMessage": "Checking delivery turn-boundary gate"
+          }
+        ]
+      }
     ]
   }
 }

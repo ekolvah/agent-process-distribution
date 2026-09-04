@@ -3,7 +3,7 @@ next command when it has not.
 
 Transport-neutral (the shape of `agent_policy.py` / `navigation_policy.py`): every
 function here takes state as arguments and touches neither the filesystem nor a
-subprocess. An adapter (Claude's `hooks.py stop`; a future Codex adapter, issue #75)
+subprocess. An adapter (Claude's `hooks.py stop`; Codex's `codex_hooks.py stop`)
 reads the local stamps and git state, then calls in.
 
 Root cause this answers (issue #56): every other step of the delivery flow is

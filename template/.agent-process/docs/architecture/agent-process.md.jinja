@@ -317,9 +317,16 @@ branch, the end of an agent turn is a gated event (ADR
 [0021](../adr/0021-the-end-of-an-agent-turn-is-a-gated-event.md)), blocking the
 turn while the delivery is non-terminal and naming the exact next command,
 bounded so an unchanged state escalates with a visible marker rather than
-trapping the session. Claude wires this to its `Stop` hook
-(`hooks.py stop`, `.agent-process/scripts/delivery_state.py`); the Codex
-wiring is deferred (issue #75).
+trapping the session. Both carriers wire this to their `Stop` hook
+(`hooks.py stop`, `.agent-process/scripts/delivery_state.py`): Claude via
+`.claude/settings.json`, Codex via `.codex/hooks.json`'s `Stop` group
+(`codex_hooks.py stop`). Codex only loads `.codex/hooks.json` for a project
+the operator has recorded as trusted; confirm that with
+`check_codex_project_trust.py` per
+[the installation guide](agent-process-installation.md#installation-order)
+before relying on this gate on the Codex adapter — that preflight covers
+project trust only, and Codex separately requires per-hook trust before it
+will run one, which the installation guide's hook-trust note covers.
 
 One PR is one logical unit. Do not bypass hooks, push to `main`, force-push,
 reset hard, delete branches forcefully, self-merge, or replace these gates
