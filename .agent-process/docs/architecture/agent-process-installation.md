@@ -41,7 +41,7 @@ workflows run on every pull request.
    Codex project before relying on any of `.codex/hooks.json`'s groups —
    Codex loads a project's `.codex/` layer, hooks included, only for a
    directory the operator has recorded as trusted in their own
-   `~/.codex/config.toml`. Run the read-only preflight:
+   `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`). Run the read-only preflight:
 
    ```bash
    python .agent-process/scripts/check_codex_project_trust.py
@@ -50,8 +50,8 @@ workflows run on every pull request.
    | Exit | Meaning | Next action |
    | --- | --- | --- |
    | `0` | The repository is trusted (project trust); Codex will load its `.codex/` layer. | Continue — but see the hook-trust note below before relying on the `Stop` gate. |
-   | `1` | No matching entry, or one present but not `trusted`. | Run `codex` once in this repository and accept its folder-trust prompt, or add the `[projects."<path>"]` entry the preflight prints to `~/.codex/config.toml`, then rerun the preflight. |
-   | `2` | The git root or `~/.codex/config.toml` could not be resolved or parsed. | Fix the reported cause, then rerun the preflight. |
+   | `1` | No matching entry, or one present but not `trusted`. | Run `codex` once in this repository and accept its folder-trust prompt, or add the `[projects."<path>"]` entry the preflight prints to `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`), then rerun the preflight. |
+   | `2` | The git root or `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`) could not be resolved or parsed. | Fix the reported cause, then rerun the preflight. |
 
    This is a per-operator, per-machine setting stored outside the
    repository; `copier copy` cannot set it, and a fresh clone or a new
@@ -177,6 +177,16 @@ removes that key from `copier-answers.yml` before updating) to pick up
 contexts to GitHub's composed `caller / callee` names, so after updating run
 the activation/protection step again; existing v0.1.x protection otherwise
 points at contexts that no workflow publishes.
+
+This release also adds a `Stop` handler to `.codex/hooks.json` for the Codex
+adapter (ADR 0021). Changing that file changes the hook definition hash
+Codex CLI compares against its persisted per-hook trust, so an already-Codex-adopted
+repository that runs `copier update` gets project trust unchanged but hook
+trust reset for the changed file — the same "necessary but not sufficient"
+gap step 3 names for a first install. After updating, redo that step's
+confirmation: run `codex` once in the repository and confirm no
+`Hooks need review` prompt appears, or pass `--dangerously-bypass-hook-trust`
+for unattended invocations that already vet the hook source.
 
 No adopter installed the pre-`.agent-process/` layout before it moved
 under one root, so this release defines no `copier update` migration path
