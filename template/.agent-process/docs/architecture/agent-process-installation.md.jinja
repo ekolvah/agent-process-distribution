@@ -37,7 +37,26 @@ workflows run on every pull request.
    payload with the marketplace's `/plugin install` command. This is a local
    Claude configuration action; the plugin hooks rely on `.agent-process/scripts/hooks.py`
    copied in the previous step.
-3. Configure the two review credentials, including
+3. If the Codex adapter is adopted, confirm this repository is a trusted
+   Codex project before relying on any of `.codex/hooks.json`'s groups —
+   Codex loads a project's `.codex/` layer, hooks included, only for a
+   directory the operator has recorded as trusted in their own
+   `~/.codex/config.toml`. Run the read-only preflight:
+
+   ```bash
+   python .agent-process/scripts/check_codex_project_trust.py
+   ```
+
+   | Exit | Meaning | Next action |
+   | --- | --- | --- |
+   | `0` | The repository is trusted; Codex will load its hooks. | Continue. |
+   | `1` | No matching entry, or one present but not `trusted`. | Run `codex` once in this repository and accept its folder-trust prompt, or add the `[projects."<path>"]` entry the preflight prints to `~/.codex/config.toml`, then rerun the preflight. |
+   | `2` | The git root or `~/.codex/config.toml` could not be resolved or parsed. | Fix the reported cause, then rerun the preflight. |
+
+   This is a per-operator, per-machine setting stored outside the
+   repository; `copier copy` cannot set it, and a fresh clone or a new
+   machine starts untrusted again.
+4. Configure the two review credentials, including
    `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier, then run the
    read-only preflight:
 
@@ -84,9 +103,9 @@ workflows run on every pull request.
    GitHub does not expose that policy to the common maintainer token (the live
    probe returned 404), so this is an explicit operator check rather than an
    unearned green result.
-4. Activate the GitHub Project with the bootstrap command below. It may write
+5. Activate the GitHub Project with the bootstrap command below. It may write
    remote Project configuration only in `create` mode with `--confirm-create`.
-5. Configure branch protection after bootstrap. This installation guide
+6. Configure branch protection after bootstrap. This installation guide
    reserves the step; [issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18)
    supplies the safe, policy-preserving command.
 

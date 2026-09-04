@@ -320,7 +320,11 @@ bounded so an unchanged state escalates with a visible marker rather than
 trapping the session. Both carriers wire this to their `Stop` hook
 (`hooks.py stop`, `.agent-process/scripts/delivery_state.py`): Claude via
 `.claude/settings.json`, Codex via `.codex/hooks.json`'s `Stop` group
-(`codex_hooks.py stop`).
+(`codex_hooks.py stop`). Codex only loads `.codex/hooks.json` for a project
+the operator has recorded as trusted; confirm that with
+`check_codex_project_trust.py` per
+[the installation guide](agent-process-installation.md#installation-order)
+before relying on this gate on the Codex adapter.
 
 One PR is one logical unit. Do not bypass hooks, push to `main`, force-push,
 reset hard, delete branches forcefully, self-merge, or replace these gates

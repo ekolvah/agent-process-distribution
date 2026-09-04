@@ -37,10 +37,13 @@ Do not replace a missing plan with an invented implementation.
    does not replace the checks below or invoke a provider.
 8. Stay active through the review/fix loop, and let
    `python .agent-process/scripts/review_gate.py <PR>` end it — not your own reading of the
-   findings. Both adapters now enforce this on the turn boundary itself via a `Stop` hook
+   findings. Both adapters wire this on the turn boundary itself via a `Stop` hook
    (ADR 0021): Claude through `.claude/settings.json`, this Codex adapter through
-   `.codex/hooks.json`'s `Stop` group (`codex_hooks.py stop`) — the prose below
-   still names the obligation for readability, but the gate is what actually ends the turn.
+   `.codex/hooks.json`'s `Stop` group (`codex_hooks.py stop`), which only loads once
+   `python .agent-process/scripts/check_codex_project_trust.py` (installation guide)
+   confirms this repository is a trusted Codex project — the prose below still names
+   the obligation for readability, but the gate is what actually ends the turn once
+   trust is established.
    After creating the PR and after every successful push:
    - `python .agent-process/scripts/request_codex_review.py --request <PR>` — request the
      current-head review through the authenticated PR-author session.
