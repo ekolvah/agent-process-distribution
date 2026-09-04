@@ -34,7 +34,7 @@ query($owner: String!, $name: String!, $number: Int!) {
           isResolved
           comments(first: 100) {
             pageInfo { hasNextPage }
-            nodes { databaseId body url replyTo { id } author { login } }
+            nodes { databaseId body url replyTo { id } author { login } originalCommit { oid } }
           }
         }
       }
@@ -51,6 +51,7 @@ class ReviewThread(NamedTuple):
     url: str
     blocking: bool
     classified: bool
+    original_commit_oid: str | None = None
 
 
 def _normalise_login(value: object) -> str:
@@ -106,6 +107,10 @@ def review_threads(payload: object) -> list[ReviewThread]:
             comment_id = comment.get("databaseId")
             if not isinstance(comment_id, int):
                 raise RuntimeError("a Codex review comment has no database ID")
+            original_commit = comment.get("originalCommit")
+            original_commit_oid = (
+                original_commit.get("oid") if isinstance(original_commit, Mapping) else None
+            )
             result.append(
                 ReviewThread(
                     thread_id=str(thread.get("id", "unknown")),
@@ -114,6 +119,9 @@ def review_threads(payload: object) -> list[ReviewThread]:
                     url=str(comment.get("url", "")),
                     blocking=priority.group("number") in {"0", "1"},
                     classified=classified,
+                    original_commit_oid=(
+                        str(original_commit_oid) if isinstance(original_commit_oid, str) else None
+                    ),
                 )
             )
             break

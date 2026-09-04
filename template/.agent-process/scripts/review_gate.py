@@ -73,7 +73,11 @@ _NEXT_ACTIONS: dict[str, str] = {
         "stop the loop and report the PR ready; any should-fix or nice-to-have finding "
         "is the maintainer's call, not another round"
     ),
-    "fix-blocking": "make one minimal fixer commit, push it, then run this gate again",
+    "fix-blocking": (
+        "make one minimal fixer commit, push it, resolve any BLOCKING review thread it "
+        "addresses with `resolve_review_thread.py --thread <node-id>` before the "
+        "agent-review run on this head finishes, then run this gate again"
+    ),
     "escalate": "stop the loop and hand the named anomaly to the maintainer",
     "review-pending": (
         "wait once with `gh pr checks <PR> --watch`, then re-run this gate; a second "
@@ -147,7 +151,10 @@ def _red_reason(red: Sequence[str]) -> str:
         reason += (
             f"; a red {REVIEW_CONTEXT} means either blocking findings or a "
             "review unavailable (empty or malformed outcome, live PR context lost) — "
-            "read the run before changing anything"
+            "read the run before changing anything. If a BLOCKING thread was already "
+            "resolved after this run finished (the resolve missed the window), re-run "
+            "the completed agent-review run on this unchanged head instead of pushing "
+            "again — no push, no budget"
         )
     return reason
 

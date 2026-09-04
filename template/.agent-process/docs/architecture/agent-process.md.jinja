@@ -291,7 +291,16 @@ This is the per-issue flow. It applies only after the one-time repository
    findings for up to three iterations, then loop: after creating the PR and
    after every successful push run
    `python .agent-process/scripts/request_codex_review.py --request <PR>` through the local
-   authenticated PR-author session, then run `gh pr checks <PR> --watch`,
+   authenticated PR-author session. If that push addressed a BLOCKING review
+   thread, resolve it now — before the `agent-review` run on this head reaches
+   its last step — with `python .agent-process/scripts/resolve_review_thread.py
+   --repo OWNER/REPO --pr <PR> --thread <node-id>` (`--list` prints every open
+   BLOCKING thread and its node id); CI never infers a thread's disposition
+   (ADR [0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)),
+   so nothing else will. Resolving after that run has already read a red check
+   on this head is a no-op — if the window is missed, re-run the completed
+   `agent-review` run on the unchanged head instead of pushing again, spending
+   no fixer budget. Then run `gh pr checks <PR> --watch`,
    inspect a failed run with
    `gh run view <run-id> --log-failed`, and ask
    `python .agent-process/scripts/review_gate.py <PR>` whether to continue — its verdict
@@ -329,7 +338,7 @@ the PR**.
 | Verdict | Exit code | Meaning |
 | --- | --- | --- |
 | `ready-for-human` | `0` | Loop over. Report the PR ready; remaining findings are the maintainer's call. |
-| `fix-blocking` | `10` | One minimal fixer commit, push, run the gate again. |
+| `fix-blocking` | `10` | One minimal fixer commit, push, resolve any BLOCKING thread it addresses, run the gate again. |
 | `escalate` | `20` | Loop over with a named anomaly: the fixer budget is spent. |
 | `review-pending` | `30` | Evidence is not final. Wait once with `gh pr checks <PR> --watch`, then re-run the gate; a second `review-pending` goes to the maintainer, never a polling loop. |
 
@@ -344,7 +353,12 @@ unchanged head spends none of it. The verdict goes into `## Agent record`.
 red the check. The workflow replies to every Codex finding with the user-facing
 merge class **BLOCKING** or **NON-BLOCKING**. An open BLOCKING conversation
 independently fails the same required check until it is resolved; an open
-NON-BLOCKING conversation is advisory. A valid result has an explicit empty
+NON-BLOCKING conversation is advisory. CI never infers whether a finding was
+addressed — no isOutdated skip, no self-resolution from this workflow; the
+fixer that pushed the correction resolves the thread itself, from its own
+authenticated local session, with `resolve_review_thread.py`, and may not
+resolve a thread reported against the PR's current head (ADR
+[0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)). A valid result has an explicit empty
 finding list for `clean`, or one or more severity-, confidence-, and
 summary-bearing findings for `rework` or `blocking`; the workflow writes that
 validated evidence and the reviewed head SHA to its check summary. When the

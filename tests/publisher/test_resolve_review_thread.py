@@ -6,8 +6,8 @@ import pytest
 
 from scripts.resolve_review_thread import list_blocking, resolve
 
-_HEAD = "4165198873b01503d9c2e33436cc5d94f98b017d"
-_BEHIND = "98cd7850000000000000000000000000000000"
+_HEAD = "4165198873b01503d9c2e33436cc5d94f98b017d"  # pragma: allowlist secret
+_BEHIND = "98cd7850000000000000000000000000000000"  # pragma: allowlist secret
 
 
 def _thread(

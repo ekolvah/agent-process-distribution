@@ -136,9 +136,9 @@ roles:
       codex: "Codex $implement-issue #N review/fix loop"
     carrier_selection: "run_route"
     adapter: "Codex $implement-issue #N review/fix loop"
-    authority: "May make the minimal correction and push a fixer commit."
+    authority: "May make the minimal correction and push a fixer commit, and may resolve the review thread its correction addresses via resolve_review_thread.py."
     entry_evidence: "Current-head rework or blocking review outcome."
-    completion_evidence: "A new head SHA for a fresh PR review."
+    completion_evidence: "A new head SHA for a fresh PR review, or a resolved BLOCKING thread with no new head when the correction was already pushed."
     activation: "Only after actionable PR-review feedback."
     max_runs: 3
   human_merge:
