@@ -85,6 +85,23 @@ class TestVerdict:
         assert "blocking findings" in verdict.reason
         assert "review unavailable" in verdict.reason
 
+    def test_a_red_agent_review_routes_the_fixer_through_the_resolve_script(self) -> None:
+        """ADR 0022: the fixer resolves the thread its own correction addressed."""
+        evidence = _evidence(checks=_checks({REVIEW_CONTEXT: ("COMPLETED", "FAILURE")}))
+
+        verdict = evaluate(evidence, fixer_budget=3)
+
+        assert verdict.name == "fix-blocking"
+        action = verdict.next_action
+        push_at, resolve_at, rerun_at = (
+            action.find("push it"),
+            action.find("resolve_review_thread.py"),
+            action.find("run this gate again"),
+        )
+        assert -1 not in (push_at, resolve_at, rerun_at)
+        assert push_at < resolve_at < rerun_at
+        assert "no push, no budget" in verdict.reason
+
     def test_red_deterministic_check_is_fix_blocking_and_names_it(self) -> None:
         evidence = _evidence(checks=_checks({"quality / quality": ("COMPLETED", "FAILURE")}))
 

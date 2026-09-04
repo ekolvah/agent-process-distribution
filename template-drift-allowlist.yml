@@ -51,6 +51,8 @@ root_only_paths:
     reason: Reclassified publisher-only (issue #64) — exercises scripts/check_orphan_scope.py, open_pr.py, update_pr_body.py, and verify_pr_link.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_delivery_state.py
     reason: Publisher-only (issue #56) — exercises scripts/delivery_state.py and the hooks.py Stop adapter, byte-static across renders and not owed to consumers as a separate copy.
+  - path: tests/publisher/test_resolve_review_thread.py
+    reason: Publisher-only (issue #77) — exercises scripts/resolve_review_thread.py, byte-static across renders and not owed to consumers as a separate copy.
 expected_difference_paths:
   - path: .agent-process/scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.
