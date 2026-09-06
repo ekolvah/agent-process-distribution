@@ -277,15 +277,46 @@ def test_create_mode_links_builtin_status_and_preserves_all_options(
     def fake_graphql(query: str, variables: dict[str, object]) -> dict[str, object]:
         graph_calls.append(variables)
         if query.startswith("query"):
-            return {"data": {"node": {"fields": {"nodes": [{
-                "id": "status-field", "name": "Status", "options": [
-                    {"id": "status-todo", "name": "Todo", "color": "GRAY", "description": ""},
-                    {"id": "status-progress", "name": "In Progress", "color": "YELLOW", "description": ""},
-                    {"id": "status-done", "name": "Done", "color": "GREEN", "description": ""},
-                ],
-            }]}}}}
+            return {
+                "data": {
+                    "node": {
+                        "fields": {
+                            "nodes": [
+                                {
+                                    "id": "status-field",
+                                    "name": "Status",
+                                    "options": [
+                                        {
+                                            "id": "status-todo",
+                                            "name": "Todo",
+                                            "color": "GRAY",
+                                            "description": "",
+                                        },
+                                        {
+                                            "id": "status-progress",
+                                            "name": "In Progress",
+                                            "color": "YELLOW",
+                                            "description": "",
+                                        },
+                                        {
+                                            "id": "status-done",
+                                            "name": "Done",
+                                            "color": "GREEN",
+                                            "description": "",
+                                        },
+                                    ],
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         assert variables["field"] == "status-field"
-        assert [option["id"] for option in variables["options"][:-1]] == ["status-todo", "status-progress", "status-done"]
+        assert [option["id"] for option in variables["options"][:-1]] == [
+            "status-todo",
+            "status-progress",
+            "status-done",
+        ]
         assert variables["options"][-1]["name"] == "Planned"
         return {"data": {"updateProjectV2Field": {"projectV2Field": {"id": "status-field"}}}}
 
@@ -338,15 +369,37 @@ def test_existing_mode_requires_builtin_status_subset(
 ) -> None:
     destination = render(
         tmp_path,
-        "--data", "github_project_mode=existing",
-        "--data", "github_project_owner=example-org",
-        "--data", "existing_github_project_number=42",
+        "--data",
+        "github_project_mode=existing",
+        "--data",
+        "github_project_owner=example-org",
+        "--data",
+        "existing_github_project_number=42",
     )
     bootstrap = bootstrap_module(destination)
-    fields = {"fields": [
-        {"id": "priority", "name": "Priority", "options": [{"id": "high", "name": "High"}, {"id": "medium", "name": "Medium"}, {"id": "low", "name": "Low"}]},
-        {"id": "status", "name": "Status", "options": [{"id": "todo", "name": "Todo"}, {"id": "planned", "name": "Planned"}, {"id": "progress", "name": "In Progress"}, {"id": "done", "name": "Done"}]},
-    ]}
+    fields = {
+        "fields": [
+            {
+                "id": "priority",
+                "name": "Priority",
+                "options": [
+                    {"id": "high", "name": "High"},
+                    {"id": "medium", "name": "Medium"},
+                    {"id": "low", "name": "Low"},
+                ],
+            },
+            {
+                "id": "status",
+                "name": "Status",
+                "options": [
+                    {"id": "todo", "name": "Todo"},
+                    {"id": "planned", "name": "Planned"},
+                    {"id": "progress", "name": "In Progress"},
+                    {"id": "done", "name": "Done"},
+                ],
+            },
+        ]
+    }
 
     def fake_run(command: list[str]) -> dict[str, object]:
         if command[2] == "view":
@@ -358,8 +411,11 @@ def test_existing_mode_requires_builtin_status_subset(
     monkeypatch.setattr(bootstrap, "_run", fake_run)
     bootstrap.main([])
 
-    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(
+        encoding="utf-8"
+    )
     assert 'STATUS_FIELD_ID = "status"' in settings
+
 
 def test_create_mode_with_literal_owner_skips_resolution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

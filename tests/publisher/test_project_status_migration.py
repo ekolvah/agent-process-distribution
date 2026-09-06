@@ -23,15 +23,23 @@ def migration_module():
 
 
 FIELDS = [
-    {"id": "status", "name": "Status", "options": [
-        {"id": "todo", "name": "Todo", "color": "GRAY", "description": ""},
-        {"id": "progress", "name": "In Progress", "color": "YELLOW", "description": ""},
-        {"id": "done", "name": "Done", "color": "GREEN", "description": ""},
-    ]},
-    {"id": "agent", "name": "Agent status", "options": [
-        {"id": "legacy-planned", "name": "Planned"},
-        {"id": "legacy-progress", "name": "In Progress"},
-    ]},
+    {
+        "id": "status",
+        "name": "Status",
+        "options": [
+            {"id": "todo", "name": "Todo", "color": "GRAY", "description": ""},
+            {"id": "progress", "name": "In Progress", "color": "YELLOW", "description": ""},
+            {"id": "done", "name": "Done", "color": "GREEN", "description": ""},
+        ],
+    },
+    {
+        "id": "agent",
+        "name": "Agent status",
+        "options": [
+            {"id": "legacy-planned", "name": "Planned"},
+            {"id": "legacy-progress", "name": "In Progress"},
+        ],
+    },
 ]
 ITEMS = [
     {"id": "planned-item", "status": "Todo", "agent status": "Planned"},
@@ -42,7 +50,9 @@ ITEMS = [
 
 class TestMigrationPlan:
     def test_default_report_is_read_only_and_lists_field_item_and_view_actions(self) -> None:
-        plan = migration_module().build_plan(FIELDS, ITEMS, [{"name": "Board", "fields": ["agent"]}])
+        plan = migration_module().build_plan(
+            FIELDS, ITEMS, [{"name": "Board", "fields": ["agent"]}]
+        )
         assert plan.option_update["singleSelectOptions"][-1]["name"] == "Planned"
         assert plan.item_updates == (("planned-item", "planned"), ("progress-item", "progress"))
         assert plan.view_dependencies == ("Board",)
@@ -65,4 +75,9 @@ class TestMigrationApply:
 
 class TestLegacyFieldRetirement:
     def test_deletion_requires_confirmation_and_a_view_free_verified_report(self) -> None:
-        assert migration_module().build_plan(FIELDS, ITEMS, [{"name": "Board", "fields": ["agent"]}]).delete_legacy_allowed is False
+        assert (
+            migration_module()
+            .build_plan(FIELDS, ITEMS, [{"name": "Board", "fields": ["agent"]}])
+            .delete_legacy_allowed
+            is False
+        )
