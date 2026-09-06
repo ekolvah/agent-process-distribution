@@ -211,7 +211,7 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     ]
     if symlinked:
         raise ValueError(
-            "retired path(s) sit behind a symlinked parent, refusing to delete: "
+            "retired path(s) sit behind a symlinked or junction parent, refusing to delete: "
             + ", ".join(symlinked)
         )
     became_directories = [
@@ -269,12 +269,19 @@ def _atomic_write(path: Path, content: bytes) -> None:
 
 
 def _has_symlinked_parent(destination: Path, path: Path) -> bool:
-    """Whether a parent between `path` and `destination` is a symlink (or a
-    non-directory), which could resolve `path` outside `destination`.
+    """Whether a parent between `path` and `destination` is a symlink, a
+    Windows directory junction, or a non-directory — any of which could
+    resolve `path` outside `destination`.
+
+    A junction reports `is_dir() == True` and `is_symlink() == False`, so it
+    would otherwise slip past this guard; agent-process is only ever
+    installed onto Windows repositories, so junctions are the one reparse
+    point this needs to recognize (`is_junction()` is always `False` off
+    Windows).
     """
     parent = path.parent
     while parent != destination:
-        if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
+        if parent.is_symlink() or parent.is_junction() or (parent.exists() and not parent.is_dir()):
             return True
         parent = parent.parent
     return False

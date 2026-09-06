@@ -217,6 +217,42 @@ def test_update_refuses_to_delete_a_retired_path_behind_a_symlinked_parent(
     assert decoy.read_bytes() == b"do not touch\n"
 
 
+def test_update_refuses_to_delete_a_retired_path_behind_a_junction_parent(
+    tmp_path: Path,
+) -> None:
+    """A directory junction is not reported as a symlink by
+    `Path.is_symlink()`, so the symlinked-parent guard alone misses it —
+    `unlink()` still follows the junction and can delete outside the
+    adopted destination. Junctions are a Windows-only NTFS concept: agent-process
+    is only ever installed onto Windows repositories, so this hazard has no
+    Unix analogue to also cover (#61 review finding, fourth round).
+    """
+    if sys.platform != "win32":
+        pytest.skip("directory junctions are a Windows-only filesystem feature")
+    import _winapi
+
+    destination = tmp_path / "destination"
+    install_payload(
+        destination,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/sub/retired.py": b"old hook\n",
+        },
+    )
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    decoy = outside / "retired.py"
+    decoy.write_bytes(b"do not touch\n")
+    sub = destination / ".agent-process/sub"
+    shutil.rmtree(sub)
+    _winapi.CreateJunction(str(outside), str(sub))
+
+    with pytest.raises(ValueError, match="junction"):
+        update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
+
+    assert decoy.read_bytes() == b"do not touch\n"
+
+
 def test_preflight_rejects_end_before_begin_markers_before_any_write(tmp_path: Path) -> None:
     """One begin and one end marker are not automatically well-formed: an
     end marker appearing before its begin is unreadable and must fail

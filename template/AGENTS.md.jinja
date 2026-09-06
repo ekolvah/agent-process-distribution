@@ -27,6 +27,12 @@ Claude or Codex adapter is the only permitted executor.
   actual toolchain, not this template's origin project. -->
 - Capture Python subprocess output with `encoding="utf-8"`; do not turn a
   `None` stdout or stderr into an empty string.
+- `adopt_agent_process.py` is only ever run against Windows-hosted consumer
+  repositories. Its retirement-safety code targets Windows-specific
+  filesystem hazards (symlinks, directory junctions, NTFS case-insensitive
+  renames) and intentionally does not defend against Unix-only node types
+  (FIFO, socket, device) that cannot occur there — do not reopen that as a
+  finding.
 - Keep a PR to one logical unit. Update planned docs and ADRs, or explicitly
   record why they do not apply.
 - Follow [Principle V](.agent-process/docs/architecture/principles.md#v-root-cause-before-fix):
