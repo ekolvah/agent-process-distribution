@@ -72,33 +72,55 @@ def update_payload(destination: Path, payload: dict[str, bytes]) -> None:
     _apply(destination, payload)
 
 
+def _fragment_marker_line_indexes(content: str, marker: str) -> list[int]:
+    """Indexes of every line that stands alone as `marker`.
+
+    A line that merely *mentions* a marker as a substring (documentation
+    about the delimiter syntax, for instance) must never be mistaken for the
+    delimiter itself.
+    """
+    return [index for index, line in enumerate(content.splitlines()) if line == marker]
+
+
+def _malformed_fragment_markers(content: str) -> bool:
+    """Whether standalone marker lines admit one unambiguous, ordered fragment."""
+    begins = _fragment_marker_line_indexes(content, _MANAGED_FRAGMENT_BEGIN)
+    ends = _fragment_marker_line_indexes(content, _MANAGED_FRAGMENT_END)
+    if len(begins) != len(ends) or len(begins) > 1:
+        return True
+    return bool(begins) and begins[0] > ends[0]
+
+
 def update_managed_fragment(path: Path, content: str) -> None:
     """Insert or replace one explicit fragment while preserving all other bytes."""
     begin, end = _MANAGED_FRAGMENT_BEGIN, _MANAGED_FRAGMENT_END
     original = path.read_text(encoding="utf-8") if path.exists() else ""
-    begin_count = original.count(begin)
-    end_count = original.count(end)
-    if begin_count != end_count or begin_count > 1:
+    if _malformed_fragment_markers(original):
         raise ValueError(f"malformed agent-process markers in {path}")
+    lines = original.split("\n")
+    begin_index = next((index for index, line in enumerate(lines) if line == begin), None)
     fragment = f"{begin}\n{content.rstrip()}\n{end}"
-    if begin_count:
-        start = original.index(begin)
-        finish = original.index(end, start) + len(end)
-        updated = original[:start] + fragment + original[finish:]
+    if begin_index is not None:
+        end_index = next(
+            index for index in range(begin_index + 1, len(lines)) if lines[index] == end
+        )
+        updated = "\n".join(lines[:begin_index] + [fragment] + lines[end_index + 1 :])
     else:
         separator = "" if not original or original.endswith("\n") else "\n"
         updated = f"{original}{separator}{fragment}\n"
     _atomic_write(path, updated.encode("utf-8"))
 
 
-def _validate_payload(payload: dict[str, bytes]) -> None:
-    invalid = sorted(
-        relative
-        for relative in payload
-        if Path(relative).is_absolute()
-        or ".." in Path(relative).parts
-        or not _is_process_path(relative)
+def _is_reserved_relative_path(relative: str) -> bool:
+    return (
+        not Path(relative).is_absolute()
+        and ".." not in Path(relative).parts
+        and _is_process_path(relative)
     )
+
+
+def _validate_payload(payload: dict[str, bytes]) -> None:
+    invalid = sorted(relative for relative in payload if not _is_reserved_relative_path(relative))
     if invalid:
         raise ValueError("payload has non-reserved destination(s): " + ", ".join(invalid))
 
@@ -155,7 +177,14 @@ def _owned_paths(destination: Path) -> frozenset[str]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"unreadable ownership manifest: {path}") from exc
     paths = data.get("paths") if isinstance(data, dict) else None
-    if not isinstance(paths, list) or not all(isinstance(item, str) for item in paths):
+    if (
+        not isinstance(paths, list)
+        or not all(isinstance(item, str) for item in paths)
+        or not all(_is_reserved_relative_path(item) for item in paths)
+    ):
+        # A path outside the reserved namespace would license `_apply`'s
+        # retirement step to delete it (ADR-0018) — reject a manifest that
+        # names one instead of trusting a hand-edited or malicious file.
         raise ValueError(f"malformed ownership manifest: {path}")
     return frozenset(paths)
 
@@ -170,6 +199,42 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     collisions = report.collisions
     if collisions:
         raise ValueError("payload collides with consumer-owned file(s): " + ", ".join(collisions))
+    # ADR-0018: the manifest, not a hand-picked list, licenses removal — a
+    # path this release no longer ships and no longer owns is retired, not
+    # merely forgotten. Managed-fragment targets are exempt: they are merge
+    # targets holding consumer bytes, never a file this process fully owns.
+    retired = sorted(owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS)
+    symlinked = [
+        relative
+        for relative in retired
+        if _has_symlinked_parent(destination, destination / relative)
+    ]
+    if symlinked:
+        raise ValueError(
+            "retired path(s) sit behind a symlinked or junction parent, refusing to delete: "
+            + ", ".join(symlinked)
+        )
+    became_directories = [
+        relative
+        for relative in retired
+        if (destination / relative).is_dir() and not (destination / relative).is_symlink()
+    ]
+    if became_directories:
+        raise ValueError(
+            "retired path(s) have become directories, refusing to delete: "
+            + ", ".join(became_directories)
+        )
+    unwritable = [
+        relative
+        for relative in retired
+        if not (destination / relative).is_symlink()
+        and (destination / relative).is_file()
+        and not os.access(destination / relative, os.W_OK)
+    ]
+    if unwritable:
+        raise ValueError(
+            "retired path(s) are not writable, refusing to delete: " + ", ".join(unwritable)
+        )
     for relative, content in sorted(payload.items()):
         if relative in _MANAGED_FRAGMENT_TARGETS:
             update_managed_fragment(destination / relative, content.decode("utf-8"))
@@ -185,6 +250,23 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
             continue
         else:
             _atomic_write(destination / relative, content)
+    for relative in retired:
+        path = destination / relative
+        # A path that is merely a case-only (or otherwise non-canonical)
+        # respelling of a payload path just written is not a real removal:
+        # on a case-insensitive or case-preserving destination the two
+        # spellings name the same filesystem entry. `samefile` asks the
+        # filesystem directly instead of guessing from string form — a
+        # guess like `os.path.normcase` is a no-op on POSIX and so misses
+        # this on the default case-insensitive macOS volume.
+        if _retired_path_is_payload_alias(destination, relative, payload):
+            continue
+        if path.is_junction():
+            path.rmdir()
+            print(f"removed retired path: {relative}")
+        elif path.is_file() or path.is_symlink():
+            path.unlink()
+            print(f"removed retired path: {relative}")
     manifest = json.dumps({"paths": sorted(payload)}, indent=2) + "\n"
     _atomic_write(destination / _OWNERSHIP_FILE, manifest.encode("utf-8"))
 
@@ -200,6 +282,47 @@ def _atomic_write(path: Path, content: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _has_symlinked_parent(destination: Path, path: Path) -> bool:
+    """Whether a parent between `path` and `destination` is a symlink, a
+    Windows directory junction, or a non-directory — any of which could
+    resolve `path` outside `destination`.
+
+    A junction reports `is_dir() == True` and `is_symlink() == False`, so it
+    would otherwise slip past this guard; agent-process is only ever
+    installed onto Windows repositories, so junctions are the one reparse
+    point this needs to recognize (`is_junction()` is always `False` off
+    Windows).
+    """
+    parent = path.parent
+    while parent != destination:
+        if parent.is_symlink() or parent.is_junction() or (parent.exists() and not parent.is_dir()):
+            return True
+        parent = parent.parent
+    return False
+
+
+def _retired_path_is_payload_alias(
+    destination: Path, relative: str, payload: dict[str, bytes]
+) -> bool:
+    """Whether a retired path is, on disk, the same entry as a payload path
+    just written — a case-only rename (or other non-canonical respelling) on
+    a case-insensitive or case-preserving destination, not an actual removal.
+    """
+    path = destination / relative
+    if path.is_symlink():
+        return False
+    if not path.exists():
+        return False
+    for payload_relative in payload:
+        payload_path = destination / payload_relative
+        try:
+            if payload_path.exists() and payload_path.samefile(path):
+                return True
+        except OSError:
+            continue
+    return False
+
+
 def _path_conflicts(
     destination: Path, relative: str, content: bytes, owned_paths: frozenset[str]
 ) -> bool:
@@ -207,12 +330,18 @@ def _path_conflicts(
     path = destination / relative
     if path.exists() and not path.is_file():
         return True
-    parent = path.parent
-    while parent != destination:
-        if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
-            return True
-        parent = parent.parent
+    if _has_symlinked_parent(destination, path):
+        return True
     if relative in _MANAGED_FRAGMENT_TARGETS:
+        if path.is_symlink():
+            return True
+        if path.is_file():
+            try:
+                existing = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                return True
+            if _malformed_fragment_markers(existing):
+                return True
         return False
     return path.is_file() and path.read_bytes() != content and relative not in owned_paths
 

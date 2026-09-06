@@ -13,6 +13,7 @@ import yaml
 from scripts.adopt_agent_process import (
     _MANAGED_FRAGMENT_BEGIN,
     _MANAGED_FRAGMENT_END,
+    _MANAGED_FRAGMENT_TARGETS,
     _OWNERSHIP_FILE,
     _PRESERVED_ON_UPDATE_TARGETS,
     _payload_from_directory,
@@ -299,6 +300,155 @@ def test_cli_install_rejects_a_nonexistent_payload_directory(tmp_path: Path) -> 
         (destination / ".agent-process/ownership.json").read_text(encoding="utf-8")
     )
     assert manifest["paths"] == [".agent-process/entry.py"]
+
+
+def test_adoption_into_an_established_repository_preserves_every_product_file(
+    tmp_path: Path,
+) -> None:
+    """Criterion 1: every file class a real established repository already
+    owns — scripts, docs, tests, dependency and project config, and the
+    shared AGENTS.md fragment target — survives adoption byte-identical.
+    """
+    product = {
+        "scripts/build.py": b"#!/usr/bin/env python\nprint('build')\n",
+        "docs/readme.md": b"# Product docs\n",
+        "tests/test_build.py": b"def test_build():\n    assert True\n",
+        "requirements.txt": b"requests==2.0.0\n",
+        "pyproject.toml": b"[project]\nname = 'product'\n",
+        "AGENTS.md": b"# Product instructions\n",
+    }
+    for relative, content in product.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    payload = _payload() | {"AGENTS.md": b"process instructions\n"}
+
+    install_payload(tmp_path, payload)
+
+    for relative, content in product.items():
+        if relative != "AGENTS.md":
+            assert (tmp_path / relative).read_bytes() == content
+    agents = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert agents.startswith("# Product instructions\n")
+    assert (
+        "<!-- agent-process:begin -->\nprocess instructions\n<!-- agent-process:end -->" in agents
+    )
+    assert (tmp_path / ".agent-process/ownership.yml").is_file()
+
+
+def test_no_inert_payload_archive_is_reintroduced(rendered_default: Path) -> None:
+    """Criterion 4: the abandoned staged-archive design (`stage_payload()`,
+    `_ALLOWED_PREFIXES`, a `.agent-process/payload/` directory) never comes
+    back — a rendered consumer receives only the reserved payload itself.
+    """
+    source = (ROOT / ".agent-process/scripts/adopt_agent_process.py").read_text(encoding="utf-8")
+    assert "stage_payload" not in source
+    assert "_ALLOWED_PREFIXES" not in source
+    assert not (rendered_default / ".agent-process/payload").exists()
+
+
+def test_update_managed_fragment_ignores_an_inline_marker_mention(tmp_path: Path) -> None:
+    """Finding 4: a line that only *mentions* both markers as substrings (for
+    example, documentation about the delimiter syntax) is not a real
+    fragment. The old substring search sliced out and discarded every
+    consumer byte between the two mentions instead of treating this as "no
+    fragment yet".
+    """
+    path = tmp_path / "AGENTS.md"
+    original = (
+        "# Docs\n"
+        "Delimiters look like <!-- agent-process:begin --> ... "
+        "<!-- agent-process:end -->.\n"
+    )
+    path.write_text(original, encoding="utf-8")
+
+    update_managed_fragment(path, "process instructions")
+
+    updated = path.read_text(encoding="utf-8")
+    assert updated.startswith(original)
+    assert (
+        "<!-- agent-process:begin -->\nprocess instructions\n<!-- agent-process:end -->" in updated
+    )
+
+
+def test_preflight_rejects_a_symlinked_managed_fragment_target(tmp_path: Path) -> None:
+    """Finding 5 / criterion 6: a symlinked AGENTS.md must be reported by
+    preflight, not silently detached into a regular file by the atomic write
+    inside `update_managed_fragment`.
+    """
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    real = tmp_path / "real-agents.md"
+    real.write_text("# shared\n", encoding="utf-8")
+    try:
+        (destination / "AGENTS.md").symlink_to(real)
+    except OSError:
+        pytest.skip("symlink creation not permitted in this environment")
+
+    report = preflight(destination, {"AGENTS.md": b"process instructions\n"})
+
+    assert report.collisions == ("AGENTS.md",)
+    assert real.read_text(encoding="utf-8") == "# shared\n"
+
+
+def _validity_directory(destination: Path, target: str) -> None:
+    (destination / target).mkdir(parents=True)
+
+
+def _validity_symlink(destination: Path, target: str) -> None:
+    real = destination.parent / f"real-{Path(target).name}"
+    real.write_text("shared\n", encoding="utf-8")
+    (destination / target).symlink_to(real)
+
+
+def _validity_rej_artifact(destination: Path, target: str) -> None:
+    (destination / target).write_text("# product\n", encoding="utf-8")
+    (destination / f"{target}.rej").write_text("<<<<<<<\n", encoding="utf-8")
+
+
+def _validity_malformed_markers(destination: Path, target: str) -> None:
+    (destination / target).write_text(
+        "# product\n<!-- agent-process:begin -->\norphan begin\n", encoding="utf-8"
+    )
+
+
+_DESTINATION_VALIDITY_SCENARIOS = (
+    ("directory", _validity_directory),
+    ("symlink", _validity_symlink),
+    ("rej-artifact", _validity_rej_artifact),
+    ("malformed-markers", _validity_malformed_markers),
+)
+
+
+@pytest.mark.parametrize("target", sorted(_MANAGED_FRAGMENT_TARGETS))
+@pytest.mark.parametrize("name,setup", _DESTINATION_VALIDITY_SCENARIOS)
+def test_managed_fragment_destination_validity_table(
+    tmp_path: Path, name: str, setup, target: str
+) -> None:
+    """Criterion 7: one table for every destination-validity hazard at a
+    managed-fragment target, instead of one bespoke test per finding.
+    """
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    try:
+        setup(destination, target)
+    except OSError:
+        pytest.skip("symlink creation not permitted in this environment")
+    before = {
+        item.relative_to(destination).as_posix(): item.read_bytes()
+        for item in destination.rglob("*")
+        if item.is_file()
+    }
+
+    with pytest.raises(ValueError):
+        install_payload(destination, {target: b"process instructions\n"})
+
+    after = {
+        item.relative_to(destination).as_posix(): item.read_bytes()
+        for item in destination.rglob("*")
+        if item.is_file()
+    }
+    assert after == before
 
 
 def test_install_rejects_a_directory_at_the_ownership_manifest_path(tmp_path: Path) -> None:
