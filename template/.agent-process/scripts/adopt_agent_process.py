@@ -72,19 +72,37 @@ def update_payload(destination: Path, payload: dict[str, bytes]) -> None:
     _apply(destination, payload)
 
 
+def _fragment_marker_line_count(content: str, marker: str) -> int:
+    """Count `marker` only where it stands alone on its own line.
+
+    A line that merely *mentions* a marker as a substring (documentation
+    about the delimiter syntax, for instance) must never be mistaken for the
+    delimiter itself.
+    """
+    return sum(1 for line in content.splitlines() if line == marker)
+
+
+def _malformed_fragment_markers(content: str) -> bool:
+    """Whether standalone marker-line counts admit one unambiguous fragment."""
+    begin_count = _fragment_marker_line_count(content, _MANAGED_FRAGMENT_BEGIN)
+    end_count = _fragment_marker_line_count(content, _MANAGED_FRAGMENT_END)
+    return begin_count != end_count or begin_count > 1
+
+
 def update_managed_fragment(path: Path, content: str) -> None:
     """Insert or replace one explicit fragment while preserving all other bytes."""
     begin, end = _MANAGED_FRAGMENT_BEGIN, _MANAGED_FRAGMENT_END
     original = path.read_text(encoding="utf-8") if path.exists() else ""
-    begin_count = original.count(begin)
-    end_count = original.count(end)
-    if begin_count != end_count or begin_count > 1:
+    if _malformed_fragment_markers(original):
         raise ValueError(f"malformed agent-process markers in {path}")
+    lines = original.split("\n")
+    begin_index = next((index for index, line in enumerate(lines) if line == begin), None)
     fragment = f"{begin}\n{content.rstrip()}\n{end}"
-    if begin_count:
-        start = original.index(begin)
-        finish = original.index(end, start) + len(end)
-        updated = original[:start] + fragment + original[finish:]
+    if begin_index is not None:
+        end_index = next(
+            index for index in range(begin_index + 1, len(lines)) if lines[index] == end
+        )
+        updated = "\n".join(lines[:begin_index] + [fragment] + lines[end_index + 1 :])
     else:
         separator = "" if not original or original.endswith("\n") else "\n"
         updated = f"{original}{separator}{fragment}\n"
@@ -213,6 +231,15 @@ def _path_conflicts(
             return True
         parent = parent.parent
     if relative in _MANAGED_FRAGMENT_TARGETS:
+        if path.is_symlink():
+            return True
+        if path.is_file():
+            try:
+                existing = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                return True
+            if _malformed_fragment_markers(existing):
+                return True
         return False
     return path.is_file() and path.read_bytes() != content and relative not in owned_paths
 
