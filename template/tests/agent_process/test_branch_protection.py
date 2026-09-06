@@ -46,7 +46,12 @@ from scripts.install_branch_protection import (
     install_branch_protection,
 )
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_PAYLOAD_ROOT = Path(__file__).resolve().parent.parent.parent
+_REPO_ROOT = (
+    _PAYLOAD_ROOT.parent
+    if (_PAYLOAD_ROOT / ".github" / "workflows" / "ci.yml.jinja").is_file()
+    else _PAYLOAD_ROOT
+)
 _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 _HOOK = _REPO_ROOT / ".agent-process" / ".githooks" / "pre-push"
 
@@ -86,6 +91,15 @@ class _MemoryProtectionClient:
         self.writes.append(("add_contexts", branch, values))
         checks = self.protection["required_status_checks"]["checks"]
         checks.extend({"context": context, "app_id": 9001} for context in values)
+
+    def enable_required_status_checks(self, branch: str, contexts: Sequence[str]) -> None:
+        self._fail("enable_status_checks")
+        values = tuple(contexts)
+        self.writes.append(("enable_status_checks", branch, values))
+        self.protection["required_status_checks"] = {
+            "strict": True,
+            "checks": [{"context": context, "app_id": 9001} for context in values],
+        }
 
     def set_strict_status_checks(self, branch: str) -> None:
         self._fail("set_strict")

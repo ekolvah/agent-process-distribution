@@ -4,13 +4,15 @@
     python .agent-process/scripts/check_branch_protection.py
 
 Always prints actual `main` contexts, regardless of exit: this is the reproducible
-way to inspect them without opening settings. Exit 0 means match, 1 drift, and 2
-tool failure (unavailable/unauthorized `gh`, malformed JSON, or broken output capture).
-Tool failure must never look like a "no drift" verdict.
+way to inspect them without opening settings. Exit 0 means every process context is
+required (additional consumer checks are preserved information), 1 means a process
+context is missing, and 2 means tool failure (unavailable/unauthorized `gh`, malformed
+JSON, or broken output capture). Tool failure must never look like a clean verdict.
 
-Declaration belongs here, not documentation: its composition is mechanically checked
-against GitHub by this script and repository workflows by a matching guard test, so
-docs reference rather than repeat `REQUIRED_CONTEXTS`, as in `.agent-process/scripts/set_issue_priority.py`.
+The process minimum belongs here, not documentation: its composition is mechanically
+checked against GitHub by this script and repository workflows by a matching guard
+test, so docs reference rather than repeat `REQUIRED_CONTEXTS`, as in
+`.agent-process/scripts/install_branch_protection.py`.
 
 This is a `.githooks/pre-push` developer script, not CI. `GITHUB_TOKEN` lacks
 `administration`, while reading `branches/*/protection` needs admin rights. CI would
@@ -68,11 +70,11 @@ _GH_TIMEOUT_S = 30
 def protection_drift(
     actual: Iterable[str], expected: Iterable[str] = REQUIRED_CONTEXTS
 ) -> tuple[list[str], list[str]]:
-    """`(missing, unexpected)`: divergence in both directions.
+    """Return missing process contexts and preserved consumer contexts.
 
-    Set comparison: GitHub does not guarantee `checks` order. An undeclared context is
-    divergence just like a missing one: composition canon lives in the repository, and a
-    manual addition must reach the operator rather than become normal.
+    Set comparison: GitHub does not guarantee `checks` order. The process declaration is a
+    required minimum, not ownership of the complete repository policy, so extra checks are
+    reported but never treated as drift.
     """
     actual_set, expected_set = set(actual), set(expected)
     return sorted(expected_set - actual_set), sorted(actual_set - expected_set)
@@ -347,8 +349,10 @@ def main(argv: list[str] | None = None) -> None:
     print(f"required status checks on `{BRANCH}`: {', '.join(actual) or '(none)'}")
     print(f"declared in {Path(__file__).name}: {', '.join(REQUIRED_CONTEXTS)}")
 
-    missing, unexpected = protection_drift(actual)
-    if not missing and not unexpected:
+    missing, preserved = protection_drift(actual)
+    if preserved:
+        print(f"preserved consumer-required checks: {', '.join(preserved)}")
+    if not missing:
         return
 
     if options.allow_drift:
@@ -360,22 +364,12 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     if missing:
-        body = json.dumps(
-            {"strict": True, "checks": [{"context": c} for c in REQUIRED_CONTEXTS]},
-            ensure_ascii=False,
-        )
         print(
             f"error: объявлены, но НЕ являются required: {', '.join(missing)} — гейт краснеет "
             f"в UI и ничего не блокирует.\n"
-            f"  починка: echo '{body}' | gh api --method PATCH "
-            f"{_ENDPOINT}/required_status_checks --input -",
-            file=sys.stderr,
-        )
-    if unexpected:
-        print(
-            f"error: required в GitHub, но не объявлены здесь: {', '.join(unexpected)} — если "
-            f"контекст добавлен намеренно, легальный путь один: внести его в REQUIRED_CONTEXTS "
-            f"тем же PR.",
+            "  безопасная починка: сначала проверьте read-only план командой "
+            "`python .agent-process/scripts/install_branch_protection.py`; "
+            "она добавляет контексты без замены consumer policy.",
             file=sys.stderr,
         )
     sys.exit(1)
