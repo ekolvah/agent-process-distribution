@@ -229,7 +229,7 @@ def test_existing_mode_bakes_only_the_selected_project_number(tmp_path: Path) ->
     generated_suite_passes(destination)
 
 
-def test_create_mode_links_fields_and_persists_real_ids(
+def test_create_mode_links_builtin_status_and_preserves_all_options(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
@@ -249,10 +249,12 @@ def test_create_mode_links_fields_and_persists_real_ids(
             },
             {
                 "id": "status-field",
-                "name": "Agent status",
+                "name": "Status",
                 "options": [
-                    {"id": "status-planned", "name": "Planned"},
+                    {"id": "status-todo", "name": "Todo"},
                     {"id": "status-progress", "name": "In Progress"},
+                    {"id": "status-done", "name": "Done"},
+                    {"id": "status-planned", "name": "Planned"},
                 ],
             },
         ]
@@ -309,6 +311,36 @@ def test_create_mode_links_fields_and_persists_real_ids(
         "--repo",
         "example-org/example-repo",
     ] in calls
+    assert not any("Agent status" in command for command in calls)
+
+
+def test_existing_mode_requires_builtin_status_subset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(
+        tmp_path,
+        "--data", "github_project_mode=existing",
+        "--data", "github_project_owner=example-org",
+        "--data", "existing_github_project_number=42",
+    )
+    bootstrap = bootstrap_module(destination)
+    fields = {"fields": [
+        {"id": "priority", "name": "Priority", "options": [{"id": "high", "name": "High"}, {"id": "medium", "name": "Medium"}, {"id": "low", "name": "Low"}]},
+        {"id": "status", "name": "Status", "options": [{"id": "todo", "name": "Todo"}, {"id": "planned", "name": "Planned"}, {"id": "progress", "name": "In Progress"}, {"id": "done", "name": "Done"}]},
+    ]}
+
+    def fake_run(command: list[str]) -> dict[str, object]:
+        if command[2] == "view":
+            return {"id": "project-42"}
+        if command[2] == "field-list":
+            return fields
+        raise AssertionError(f"unexpected mutation: {command}")
+
+    monkeypatch.setattr(bootstrap, "_run", fake_run)
+    bootstrap.main([])
+
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
+    assert 'STATUS_FIELD_ID = "status"' in settings
 
     call_count = len(calls)
     bootstrap.main([])
