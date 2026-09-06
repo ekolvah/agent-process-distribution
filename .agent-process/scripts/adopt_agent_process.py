@@ -224,6 +224,15 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
             "retired path(s) have become directories, refusing to delete: "
             + ", ".join(became_directories)
         )
+    unwritable = [
+        relative
+        for relative in retired
+        if (destination / relative).is_file() and not os.access(destination / relative, os.W_OK)
+    ]
+    if unwritable:
+        raise ValueError(
+            "retired path(s) are not writable, refusing to delete: " + ", ".join(unwritable)
+        )
     for relative, content in sorted(payload.items()):
         if relative in _MANAGED_FRAGMENT_TARGETS:
             update_managed_fragment(destination / relative, content.decode("utf-8"))
@@ -250,7 +259,10 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
         # this on the default case-insensitive macOS volume.
         if _retired_path_is_payload_alias(destination, relative, payload):
             continue
-        if path.is_file() or path.is_symlink():
+        if path.is_junction():
+            path.rmdir()
+            print(f"removed retired path: {relative}")
+        elif path.is_file() or path.is_symlink():
             path.unlink()
             print(f"removed retired path: {relative}")
     manifest = json.dumps({"paths": sorted(payload)}, indent=2) + "\n"
@@ -295,6 +307,8 @@ def _retired_path_is_payload_alias(
     a case-insensitive or case-preserving destination, not an actual removal.
     """
     path = destination / relative
+    if path.is_symlink():
+        return False
     if not path.exists():
         return False
     for payload_relative in payload:

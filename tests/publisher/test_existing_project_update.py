@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -251,6 +252,101 @@ def test_update_refuses_to_delete_a_retired_path_behind_a_junction_parent(
         update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
 
     assert decoy.read_bytes() == b"do not touch\n"
+
+
+def test_update_removes_a_retired_path_replaced_by_a_symlink_pointing_at_a_payload_path(
+    tmp_path: Path,
+) -> None:
+    """`samefile` follows symlinks: a retired path replaced by a symlink that
+    resolves to a payload path just written must still be recognized as
+    needing removal, not mistaken for a same-file case-only alias — the
+    alias check only makes sense between two on-disk regular entries, never
+    when the retired side is itself a symlink (#61 review finding, fourth
+    round).
+    """
+    destination = tmp_path / "destination"
+    install_payload(
+        destination,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/retired.py": b"old hook\n",
+        },
+    )
+    retired = destination / ".agent-process/retired.py"
+    retired.unlink()
+    try:
+        retired.symlink_to(destination / ".agent-process/entry.py")
+    except OSError:
+        pytest.skip("symlink creation not permitted in this environment")
+
+    update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
+
+    assert not retired.is_symlink()
+
+
+def test_update_removes_a_retired_path_thats_become_a_broken_junction(
+    tmp_path: Path,
+) -> None:
+    """A directory junction whose target has since been removed resolves as
+    neither a directory, a file, nor a symlink — `is_junction()` is the only
+    check that still recognizes it, and the retirement loop must ask that
+    directly at the retired leaf itself, not only at ancestors via
+    `_has_symlinked_parent` (#61 review finding, fourth round).
+    """
+    if sys.platform != "win32":
+        pytest.skip("directory junctions are a Windows-only filesystem feature")
+    import _winapi
+
+    destination = tmp_path / "destination"
+    install_payload(
+        destination,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/retired": b"placeholder\n",
+        },
+    )
+    retired = destination / ".agent-process/retired"
+    retired.unlink()
+    target = tmp_path / "junction-target"
+    target.mkdir()
+    _winapi.CreateJunction(str(target), str(retired))
+    shutil.rmtree(target)
+
+    update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
+
+    assert not retired.is_junction()
+
+
+def test_update_refuses_a_retired_read_only_file_before_writing_any_payload(
+    tmp_path: Path,
+) -> None:
+    """Deleting a retired file must be validated before any payload byte is
+    written: a read-only retired file raises `PermissionError` only when
+    `unlink()` finally runs, by which point every new payload file has
+    already landed — leaving a stale ownership manifest and a half-applied
+    update. The retirement hazard must be caught up front, atomically with
+    the other pre-write guards (#61 review finding, fourth round).
+    """
+    if sys.platform != "win32":
+        pytest.skip("read-only attribute enforcement is exercised on Windows")
+    destination = tmp_path / "destination"
+    install_payload(
+        destination,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/retired.py": b"old hook\n",
+        },
+    )
+    retired = destination / ".agent-process/retired.py"
+    retired.chmod(stat.S_IREAD)
+
+    try:
+        with pytest.raises(ValueError, match="retired.py"):
+            update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
+    finally:
+        retired.chmod(stat.S_IWRITE)
+
+    assert (destination / ".agent-process/entry.py").read_bytes() == b"version: 1\n"
 
 
 def test_preflight_rejects_end_before_begin_markers_before_any_write(tmp_path: Path) -> None:
