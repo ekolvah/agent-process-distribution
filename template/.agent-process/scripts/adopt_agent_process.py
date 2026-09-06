@@ -72,21 +72,23 @@ def update_payload(destination: Path, payload: dict[str, bytes]) -> None:
     _apply(destination, payload)
 
 
-def _fragment_marker_line_count(content: str, marker: str) -> int:
-    """Count `marker` only where it stands alone on its own line.
+def _fragment_marker_line_indexes(content: str, marker: str) -> list[int]:
+    """Indexes of every line that stands alone as `marker`.
 
     A line that merely *mentions* a marker as a substring (documentation
     about the delimiter syntax, for instance) must never be mistaken for the
     delimiter itself.
     """
-    return sum(1 for line in content.splitlines() if line == marker)
+    return [index for index, line in enumerate(content.splitlines()) if line == marker]
 
 
 def _malformed_fragment_markers(content: str) -> bool:
-    """Whether standalone marker-line counts admit one unambiguous fragment."""
-    begin_count = _fragment_marker_line_count(content, _MANAGED_FRAGMENT_BEGIN)
-    end_count = _fragment_marker_line_count(content, _MANAGED_FRAGMENT_END)
-    return begin_count != end_count or begin_count > 1
+    """Whether standalone marker lines admit one unambiguous, ordered fragment."""
+    begins = _fragment_marker_line_indexes(content, _MANAGED_FRAGMENT_BEGIN)
+    ends = _fragment_marker_line_indexes(content, _MANAGED_FRAGMENT_END)
+    if len(begins) != len(ends) or len(begins) > 1:
+        return True
+    return bool(begins) and begins[0] > ends[0]
 
 
 def update_managed_fragment(path: Path, content: str) -> None:
@@ -109,14 +111,16 @@ def update_managed_fragment(path: Path, content: str) -> None:
     _atomic_write(path, updated.encode("utf-8"))
 
 
-def _validate_payload(payload: dict[str, bytes]) -> None:
-    invalid = sorted(
-        relative
-        for relative in payload
-        if Path(relative).is_absolute()
-        or ".." in Path(relative).parts
-        or not _is_process_path(relative)
+def _is_reserved_relative_path(relative: str) -> bool:
+    return (
+        not Path(relative).is_absolute()
+        and ".." not in Path(relative).parts
+        and _is_process_path(relative)
     )
+
+
+def _validate_payload(payload: dict[str, bytes]) -> None:
+    invalid = sorted(relative for relative in payload if not _is_reserved_relative_path(relative))
     if invalid:
         raise ValueError("payload has non-reserved destination(s): " + ", ".join(invalid))
 
@@ -173,7 +177,14 @@ def _owned_paths(destination: Path) -> frozenset[str]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"unreadable ownership manifest: {path}") from exc
     paths = data.get("paths") if isinstance(data, dict) else None
-    if not isinstance(paths, list) or not all(isinstance(item, str) for item in paths):
+    if (
+        not isinstance(paths, list)
+        or not all(isinstance(item, str) for item in paths)
+        or not all(_is_reserved_relative_path(item) for item in paths)
+    ):
+        # A path outside the reserved namespace would license `_apply`'s
+        # retirement step to delete it (ADR-0018) — reject a manifest that
+        # names one instead of trusting a hand-edited or malicious file.
         raise ValueError(f"malformed ownership manifest: {path}")
     return frozenset(paths)
 
@@ -188,6 +199,21 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     collisions = report.collisions
     if collisions:
         raise ValueError("payload collides with consumer-owned file(s): " + ", ".join(collisions))
+    # ADR-0018: the manifest, not a hand-picked list, licenses removal — a
+    # path this release no longer ships and no longer owns is retired, not
+    # merely forgotten. Managed-fragment targets are exempt: they are merge
+    # targets holding consumer bytes, never a file this process fully owns.
+    retired = sorted(owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS)
+    blocked = [
+        relative
+        for relative in retired
+        if _has_symlinked_parent(destination, destination / relative)
+    ]
+    if blocked:
+        raise ValueError(
+            "retired path(s) sit behind a symlinked parent, refusing to delete: "
+            + ", ".join(blocked)
+        )
     for relative, content in sorted(payload.items()):
         if relative in _MANAGED_FRAGMENT_TARGETS:
             update_managed_fragment(destination / relative, content.decode("utf-8"))
@@ -203,11 +229,6 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
             continue
         else:
             _atomic_write(destination / relative, content)
-    # ADR-0018: the manifest, not a hand-picked list, licenses removal — a
-    # path this release no longer ships and no longer owns is retired, not
-    # merely forgotten. Managed-fragment targets are exempt: they are merge
-    # targets holding consumer bytes, never a file this process fully owns.
-    retired = sorted(owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS)
     for relative in retired:
         path = destination / relative
         if path.is_file():
@@ -228,6 +249,18 @@ def _atomic_write(path: Path, content: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _has_symlinked_parent(destination: Path, path: Path) -> bool:
+    """Whether a parent between `path` and `destination` is a symlink (or a
+    non-directory), which could resolve `path` outside `destination`.
+    """
+    parent = path.parent
+    while parent != destination:
+        if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
+            return True
+        parent = parent.parent
+    return False
+
+
 def _path_conflicts(
     destination: Path, relative: str, content: bytes, owned_paths: frozenset[str]
 ) -> bool:
@@ -235,11 +268,8 @@ def _path_conflicts(
     path = destination / relative
     if path.exists() and not path.is_file():
         return True
-    parent = path.parent
-    while parent != destination:
-        if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
-            return True
-        parent = parent.parent
+    if _has_symlinked_parent(destination, path):
+        return True
     if relative in _MANAGED_FRAGMENT_TARGETS:
         if path.is_symlink():
             return True

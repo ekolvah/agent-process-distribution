@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -165,3 +166,80 @@ def test_update_removes_retired_owned_paths_and_reports_each_one(
     manifest = json.loads((tmp_path / ".agent-process/ownership.json").read_text(encoding="utf-8"))
     assert manifest["paths"] == [".agent-process/entry.py"]
     assert ".agent-process/retired-hook.py" in capsys.readouterr().out
+
+
+def test_owned_paths_rejects_a_traversing_manifest_entry(tmp_path: Path) -> None:
+    """A hand-edited or malicious ownership manifest must not license
+    deleting a path outside the adopted destination (#61 review finding 1).
+    """
+    outside = tmp_path / "victim.txt"
+    outside.write_bytes(b"do not touch\n")
+    destination = tmp_path / "destination"
+    install_payload(destination, {".agent-process/entry.py": b"version: 1\n"})
+    manifest = destination / ".agent-process/ownership.json"
+    manifest.write_text(json.dumps({"paths": ["../victim.txt"]}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ownership manifest"):
+        update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
+
+    assert outside.read_bytes() == b"do not touch\n"
+
+
+def test_update_refuses_to_delete_a_retired_path_behind_a_symlinked_parent(
+    tmp_path: Path,
+) -> None:
+    """A retired path must never be deleted through a directory that has
+    since become a symlink — the resolved target could sit outside the
+    adopted destination entirely (#61 review finding 1).
+    """
+    destination = tmp_path / "destination"
+    install_payload(
+        destination,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/sub/retired.py": b"old hook\n",
+        },
+    )
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    decoy = outside / "retired.py"
+    decoy.write_bytes(b"do not touch\n")
+    sub = destination / ".agent-process/sub"
+    shutil.rmtree(sub)
+    try:
+        sub.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation not permitted in this environment")
+
+    with pytest.raises(ValueError, match="symlink"):
+        update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
+
+    assert decoy.read_bytes() == b"do not touch\n"
+
+
+def test_preflight_rejects_end_before_begin_markers_before_any_write(tmp_path: Path) -> None:
+    """One begin and one end marker are not automatically well-formed: an
+    end marker appearing before its begin is unreadable and must fail
+    preflight, never `StopIteration` mid-write inside
+    `update_managed_fragment` (#61 review finding 2).
+    """
+    agents = tmp_path / "AGENTS.md"
+    agents.write_text(
+        "# Product\n<!-- agent-process:end -->\nstray body\n<!-- agent-process:begin -->\n",
+        encoding="utf-8",
+    )
+    install_payload(tmp_path, {".agent-process/entry.py": b"version: 1\n"})
+
+    report = preflight(tmp_path, {"AGENTS.md": b"process instructions\n"})
+    assert report.collisions == ("AGENTS.md",)
+
+    with pytest.raises(ValueError, match="AGENTS.md"):
+        update_payload(
+            tmp_path,
+            {"AGENTS.md": b"process instructions\n", ".agent-process/entry.py": b"version: 2\n"},
+        )
+
+    assert agents.read_text(encoding="utf-8") == (
+        "# Product\n<!-- agent-process:end -->\nstray body\n<!-- agent-process:begin -->\n"
+    )
+    assert (tmp_path / ".agent-process/entry.py").read_bytes() == b"version: 1\n"
