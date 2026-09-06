@@ -3,7 +3,7 @@
 
     python .agent-process/scripts/check_branch_protection.py
 
-Always prints actual `main` contexts, regardless of exit: this is the reproducible
+Always prints actual default-branch contexts, regardless of exit: this is the reproducible
 way to inspect them without opening settings. Exit 0 means every process context is
 required (additional consumer checks are preserved information), 1 means a process
 context is missing, and 2 means tool failure (unavailable/unauthorized `gh`, malformed
@@ -42,10 +42,11 @@ import sys
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
+from urllib.parse import quote
 
 import yaml
 
-# Canonical required-context composition for the `main` branch.
+# Canonical required-context composition for the repository's default branch.
 REVIEW_CONTEXT = "agent-review / agent-review"
 REQUIRED_CONTEXTS: tuple[str, ...] = (
     "quality / quality",
@@ -58,13 +59,16 @@ REQUIRED_CONTEXTS: tuple[str, ...] = (
 NOT_REQUIRED: dict[str, str] = {}
 
 
-BRANCH = "main"
 # `gh` substitutes `{owner}`/`{repo}` placeholders; no leading slash, or Windows MSYS
 # rewrites the path.
-_ENDPOINT = f"repos/{{owner}}/{{repo}}/branches/{BRANCH}/protection"
+_REPOSITORY_ENDPOINT = "repos/{owner}/{repo}"
 # One GitHub API GET: generous but finite, as this check precedes the long-running local
 # CI gate and must not hang silently.
 _GH_TIMEOUT_S = 30
+
+
+def _protection_endpoint(branch: str) -> str:
+    return f"{_REPOSITORY_ENDPOINT}/branches/{quote(branch, safe='')}/protection"
 
 
 def protection_drift(
@@ -277,16 +281,11 @@ def unverified_offline_contexts(
     ]
 
 
-def fetch_protection() -> Mapping[str, Any]:
-    """Read branch protection through `gh api`; tool failure → exit 2.
-
-    Code 2 rather than an empty dictionary is deliberate: transient gh failure (auth,
-    rate limit, network) must not mean "no required contexts," i.e. drift — a false diagnosis
-    with the opposite remedy.
-    """
+def _fetch_json(endpoint: str, *, unprotected_is_empty: bool = False) -> Mapping[str, Any]:
+    """Read one GitHub object; tool failure exits 2 instead of becoming policy drift."""
     try:
         result = subprocess.run(
-            ["gh", "api", _ENDPOINT],
+            ["gh", "api", endpoint],
             text=True,
             capture_output=True,
             encoding="utf-8",
@@ -295,20 +294,27 @@ def fetch_protection() -> Mapping[str, Any]:
     except subprocess.TimeoutExpired:
         # Without a timeout, hanging gh (proxy or DNS black hole) blocks pre-push silently.
         print(
-            f"error: `gh api {_ENDPOINT}` не ответил за {_GH_TIMEOUT_S} с — проверка не выполнена.",
+            f"error: `gh api {endpoint}` не ответил за {_GH_TIMEOUT_S} с — проверка не выполнена.",
             file=sys.stderr,
         )
         sys.exit(2)
     if result.stdout is None or result.stderr is None:
         print(
-            f"error: capture failed for `gh api {_ENDPOINT}` (rc={result.returncode}): "
+            f"error: capture failed for `gh api {endpoint}` (rc={result.returncode}): "
             f"stdout={result.stdout!r} stderr={result.stderr!r}",
             file=sys.stderr,
         )
         sys.exit(2)
     if result.returncode != 0:
+        failure = f"{result.stderr}\n{result.stdout}"
+        if (
+            unprotected_is_empty
+            and "HTTP 404" in failure
+            and "branch not protected" in failure.lower()
+        ):
+            return {}
         print(
-            f"error: `gh api {_ENDPOINT}` failed (rc={result.returncode}): "
+            f"error: `gh api {endpoint}` failed (rc={result.returncode}): "
             f"{result.stderr.strip()} — нужен `gh auth` с admin-правами на репозиторий.",
             file=sys.stderr,
         )
@@ -317,18 +323,38 @@ def fetch_protection() -> Mapping[str, Any]:
         payload: Mapping[str, Any] = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         print(
-            f"error: `gh api {_ENDPOINT}` вернул неразбираемый ответ ({exc}): "
+            f"error: `gh api {endpoint}` вернул неразбираемый ответ ({exc}): "
             f"{result.stdout[:200]!r}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    if not isinstance(payload, Mapping):
+        print(
+            f"error: `gh api {endpoint}` вернул JSON не-объект: {type(payload).__name__}",
             file=sys.stderr,
         )
         sys.exit(2)
     return payload
 
 
+def fetch_default_branch() -> str:
+    """Resolve the branch the repository itself declares as default."""
+    branch = _fetch_json(_REPOSITORY_ENDPOINT).get("default_branch")
+    if not isinstance(branch, str) or not branch.strip():
+        print("error: GitHub repository response has no valid default branch", file=sys.stderr)
+        sys.exit(2)
+    return branch
+
+
+def fetch_protection(branch: str = "main") -> Mapping[str, Any]:
+    """Read classic protection; an unprotected existing branch is policy drift."""
+    return _fetch_json(_protection_endpoint(branch), unprotected_is_empty=True)
+
+
 def main(argv: list[str] | None = None) -> None:
     """Print actual context composition and return the verdict through exit code."""
     parser = argparse.ArgumentParser(
-        description=f"Сверить required status checks ветки `{BRANCH}` с объявлением в этом файле."
+        description="Сверить required status checks default-ветки с объявлением в этом файле."
     )
     parser.add_argument(
         "--allow-drift",
@@ -341,12 +367,13 @@ def main(argv: list[str] | None = None) -> None:
     )
     options = parser.parse_args(argv)
 
-    actual = contexts_from_protection(fetch_protection())
+    branch = fetch_default_branch()
+    actual = contexts_from_protection(fetch_protection(branch))
     workflows_dir = Path(".github/workflows")
     if workflows_dir.is_dir():
         for notice in unverified_offline_contexts(load_workflows(workflows_dir)):
             print(notice)
-    print(f"required status checks on `{BRANCH}`: {', '.join(actual) or '(none)'}")
+    print(f"required status checks on `{branch}`: {', '.join(actual) or '(none)'}")
     print(f"declared in {Path(__file__).name}: {', '.join(REQUIRED_CONTEXTS)}")
 
     missing, preserved = protection_drift(actual)

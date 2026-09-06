@@ -20,7 +20,6 @@ There are three independent layers here:
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
@@ -306,10 +305,11 @@ class TestDriftDetection:
         assert preserved == ["review"]
         import scripts.check_branch_protection as guard
 
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
         monkeypatch.setattr(
             guard,
             "fetch_protection",
-            lambda: {
+            lambda _branch: {
                 "required_status_checks": {
                     "checks": [
                         *({"context": context} for context in REQUIRED_CONTEXTS),
@@ -326,10 +326,11 @@ class TestDriftDetection:
     ) -> None:
         import scripts.check_branch_protection as guard
 
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
         monkeypatch.setattr(
             guard,
             "fetch_protection",
-            lambda: {"required_status_checks": {"checks": []}},
+            lambda _branch: {"required_status_checks": {"checks": []}},
         )
         with pytest.raises(SystemExit) as exc:
             guard.main([])
@@ -366,10 +367,13 @@ class TestAllowDrift:
     def _patch_actual(monkeypatch: pytest.MonkeyPatch, contexts: list[str]) -> None:
         import scripts.check_branch_protection as guard
 
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
         monkeypatch.setattr(
             guard,
             "fetch_protection",
-            lambda: {"required_status_checks": {"checks": [{"context": c} for c in contexts]}},
+            lambda _branch: {
+                "required_status_checks": {"checks": [{"context": c} for c in contexts]}
+            },
         )
 
     def test_drift_without_the_flag_still_exits_one(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -462,6 +466,17 @@ class TestProtectionFetch:
         assert contexts_from_protection({}) == ()
         assert contexts_from_protection({"required_status_checks": {}}) == ()
 
+    def test_unprotected_branch_is_drift_not_infrastructure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._fake_run(
+            monkeypatch,
+            stdout='{"message":"Branch not protected"}',
+            stderr="gh: Branch not protected (HTTP 404)",
+            rc=1,
+        )
+        assert fetch_protection() == {}
+
     def test_null_required_status_checks_is_drift_not_crash(self) -> None:
         """Explicit JSON `null` differs from a missing key; a traceback would yield code 1."""
         assert contexts_from_protection({"required_status_checks": None}) == ()
@@ -484,16 +499,42 @@ class TestProtectionFetch:
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Actual list is always printed—the reproducible way to see it."""
-        from scripts.check_branch_protection import main
+        import scripts.check_branch_protection as guard
 
         payload = {
             "required_status_checks": {"checks": [{"context": c} for c in REQUIRED_CONTEXTS]}
         }
-        self._fake_run(monkeypatch, stdout=json.dumps(payload), stderr="", rc=0)
-        main([])
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
+        monkeypatch.setattr(guard, "fetch_protection", lambda _branch: payload)
+        guard.main([])
         printed = capsys.readouterr().out
         for context in REQUIRED_CONTEXTS:
             assert context in printed
+
+    def test_main_audits_the_repository_default_branch(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        import scripts.check_branch_protection as guard
+
+        seen: list[str] = []
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "stable", raising=False)
+        monkeypatch.setattr(
+            guard,
+            "fetch_protection",
+            lambda *branches: (
+                seen.extend(branches)
+                or {
+                    "required_status_checks": {
+                        "checks": [{"context": context} for context in REQUIRED_CONTEXTS]
+                    }
+                }
+            ),
+        )
+
+        guard.main([])
+
+        assert seen == ["stable"]
+        assert "`stable`" in capsys.readouterr().out
 
 
 class TestDeclarationMatchesWorkflows:
