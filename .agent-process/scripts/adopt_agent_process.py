@@ -227,7 +227,9 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     unwritable = [
         relative
         for relative in retired
-        if (destination / relative).is_file() and not os.access(destination / relative, os.W_OK)
+        if not (destination / relative).is_symlink()
+        and (destination / relative).is_file()
+        and not os.access(destination / relative, os.W_OK)
     ]
     if unwritable:
         raise ValueError(

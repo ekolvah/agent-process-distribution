@@ -349,6 +349,43 @@ def test_update_refuses_a_retired_read_only_file_before_writing_any_payload(
     assert (destination / ".agent-process/entry.py").read_bytes() == b"version: 1\n"
 
 
+def test_update_removes_a_retired_symlink_even_when_its_target_is_read_only(
+    tmp_path: Path,
+) -> None:
+    """The read-only retirement guard must not follow a retired symlink to
+    its target: unlinking a symlink only needs write access to the
+    directory entry itself, never to whatever it points at, so a read-only
+    target must not block the removal (#61 review finding, fifth round).
+    """
+    if sys.platform != "win32":
+        pytest.skip("read-only attribute enforcement is exercised on Windows")
+    destination = tmp_path / "destination"
+    install_payload(
+        destination,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/retired.py": b"old hook\n",
+        },
+    )
+    target = tmp_path / "read-only-target.py"
+    target.write_bytes(b"do not touch\n")
+    target.chmod(stat.S_IREAD)
+    retired = destination / ".agent-process/retired.py"
+    retired.unlink()
+    try:
+        retired.symlink_to(target)
+    except OSError:
+        pytest.skip("symlink creation not permitted in this environment")
+
+    try:
+        update_payload(destination, {".agent-process/entry.py": b"version: 2\n"})
+    finally:
+        target.chmod(stat.S_IWRITE)
+
+    assert not retired.is_symlink()
+    assert target.read_bytes() == b"do not touch\n"
+
+
 def test_preflight_rejects_end_before_begin_markers_before_any_write(tmp_path: Path) -> None:
     """One begin and one end marker are not automatically well-formed: an
     end marker appearing before its begin is unreadable and must fail
