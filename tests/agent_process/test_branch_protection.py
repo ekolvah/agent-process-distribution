@@ -20,10 +20,11 @@ There are three independent layers here:
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
+from collections.abc import Mapping, Sequence
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -39,10 +40,244 @@ from scripts.check_branch_protection import (
     protection_drift,
     unverified_offline_contexts,
 )
+from scripts.install_branch_protection import (
+    BranchProtectionError,
+    install_branch_protection,
+)
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_PAYLOAD_ROOT = Path(__file__).resolve().parent.parent.parent
+_REPO_ROOT = (
+    _PAYLOAD_ROOT.parent
+    if (_PAYLOAD_ROOT / ".github" / "workflows" / "ci.yml.jinja").is_file()
+    else _PAYLOAD_ROOT
+)
 _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 _HOOK = _REPO_ROOT / ".agent-process" / ".githooks" / "pre-push"
+
+
+class _MemoryProtectionClient:
+    """Stateful double: tests assert policy effects, not subprocess spelling."""
+
+    def __init__(
+        self,
+        protection: Mapping[str, Any] | None,
+        *,
+        default_branch: Any = "main",
+        fail_on: str | None = None,
+    ) -> None:
+        self.repository: Mapping[str, Any] = {"default_branch": default_branch}
+        self.protection: Any = deepcopy(protection)
+        self.fail_on = fail_on
+        self.writes: list[tuple[Any, ...]] = []
+        self.protection_reads = 0
+
+    def _fail(self, operation: str) -> None:
+        if self.fail_on == operation:
+            raise BranchProtectionError(f"{operation} unavailable")
+
+    def get_repository(self) -> Mapping[str, Any]:
+        self._fail("repository")
+        return self.repository
+
+    def get_protection(self, branch: str) -> Mapping[str, Any] | None:
+        self._fail("protection")
+        self.protection_reads += 1
+        return deepcopy(self.protection)
+
+    def add_required_contexts(self, branch: str, contexts: Sequence[str]) -> None:
+        self._fail("add_contexts")
+        values = tuple(contexts)
+        self.writes.append(("add_contexts", branch, values))
+        checks = self.protection["required_status_checks"]["checks"]
+        checks.extend({"context": context, "app_id": 9001} for context in values)
+
+    def enable_required_status_checks(self, branch: str, contexts: Sequence[str]) -> None:
+        self._fail("enable_status_checks")
+        values = tuple(contexts)
+        self.writes.append(("enable_status_checks", branch, values))
+        self.protection["required_status_checks"] = {
+            "strict": True,
+            "checks": [{"context": context, "app_id": 9001} for context in values],
+        }
+
+    def set_strict_status_checks(self, branch: str) -> None:
+        self._fail("set_strict")
+        self.writes.append(("set_strict", branch))
+        self.protection["required_status_checks"]["strict"] = True
+
+    def set_admin_enforcement(self, branch: str) -> None:
+        self._fail("set_admins")
+        self.writes.append(("set_admins", branch))
+        self.protection["enforce_admins"] = {"enabled": True}
+
+    def create_protection(self, branch: str, payload: Mapping[str, Any]) -> None:
+        self._fail("create")
+        self.writes.append(("create", branch, deepcopy(payload)))
+        self.protection = deepcopy(payload)
+
+
+def _protected_policy(*, strict: bool = True, admins: bool = True) -> dict[str, Any]:
+    return {
+        "required_status_checks": {
+            "strict": strict,
+            "checks": [
+                {"context": "consumer / test", "app_id": 71},
+                {"context": REQUIRED_CONTEXTS[0], "app_id": 15368},
+            ],
+        },
+        "enforce_admins": {"enabled": admins},
+        "required_pull_request_reviews": {
+            "required_approving_review_count": 2,
+            "bypass_pull_request_allowances": {"apps": [{"slug": "release-bot"}]},
+        },
+        "restrictions": {"teams": [{"slug": "maintainers"}]},
+        "required_linear_history": {"enabled": True},
+        "allow_force_pushes": {"enabled": True},
+        "allow_deletions": {"enabled": False},
+        "required_conversation_resolution": {"enabled": True},
+        "lock_branch": {"enabled": False},
+        "allow_fork_syncing": {"enabled": True},
+    }
+
+
+class TestProtectionInstallation:
+    def test_protected_branch_adds_only_missing_contexts_and_preserves_policy(self) -> None:
+        before = _protected_policy()
+        client = _MemoryProtectionClient(before)
+
+        report = install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
+
+        missing = tuple(context for context in REQUIRED_CONTEXTS if context != REQUIRED_CONTEXTS[0])
+        assert client.writes == [("add_contexts", "main", missing)]
+        assert report.changed is True
+        assert client.protection_reads == 2
+        assert (
+            client.protection["required_pull_request_reviews"]
+            == before["required_pull_request_reviews"]
+        )
+        assert client.protection["restrictions"] == before["restrictions"]
+        for field in (
+            "required_linear_history",
+            "allow_force_pushes",
+            "allow_deletions",
+            "required_conversation_resolution",
+            "lock_branch",
+            "allow_fork_syncing",
+        ):
+            assert client.protection[field] == before[field]
+        original_pairs = {
+            (check["context"], check.get("app_id"))
+            for check in before["required_status_checks"]["checks"]
+        }
+        after_pairs = {
+            (check["context"], check.get("app_id"))
+            for check in client.protection["required_status_checks"]["checks"]
+        }
+        assert original_pairs <= after_pairs
+
+    def test_protected_branch_enables_strict_and_admin_through_narrow_subresources(self) -> None:
+        policy = _protected_policy(strict=False, admins=False)
+        policy["required_status_checks"]["checks"].extend(
+            {"context": context, "app_id": 15368} for context in REQUIRED_CONTEXTS[1:]
+        )
+        client = _MemoryProtectionClient(policy)
+
+        install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
+
+        assert client.writes == [("set_strict", "main"), ("set_admins", "main")]
+
+    def test_unprotected_default_branch_creates_the_documented_baseline(self) -> None:
+        client = _MemoryProtectionClient(None, default_branch="stable")
+
+        install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
+
+        assert client.writes == [
+            (
+                "create",
+                "stable",
+                {
+                    "required_status_checks": {
+                        "strict": True,
+                        "checks": [{"context": context} for context in REQUIRED_CONTEXTS],
+                    },
+                    "enforce_admins": True,
+                    "required_pull_request_reviews": None,
+                    "restrictions": None,
+                    "allow_force_pushes": False,
+                    "allow_deletions": False,
+                },
+            )
+        ]
+        assert client.protection_reads == 2
+
+    def test_dry_run_and_failed_preflight_make_no_writes(self, tmp_path: Path) -> None:
+        dry_run = _MemoryProtectionClient(_protected_policy(strict=False, admins=False))
+        report = install_branch_protection(dry_run, workflows_dir=_WORKFLOWS)
+        assert report.changed is False
+        assert report.actions
+        assert dry_run.writes == []
+
+        malformed_repository = _MemoryProtectionClient(None, default_branch=42)
+        with pytest.raises(BranchProtectionError, match="default branch"):
+            install_branch_protection(
+                malformed_repository, confirm_write=True, workflows_dir=_WORKFLOWS
+            )
+        assert malformed_repository.writes == []
+
+        malformed_protection = _MemoryProtectionClient(None)
+        malformed_protection.protection = []
+        with pytest.raises(BranchProtectionError, match="protection"):
+            install_branch_protection(
+                malformed_protection, confirm_write=True, workflows_dir=_WORKFLOWS
+            )
+        assert malformed_protection.writes == []
+
+        unavailable_auth = _MemoryProtectionClient(None, fail_on="repository")
+        with pytest.raises(BranchProtectionError, match="repository unavailable"):
+            install_branch_protection(
+                unavailable_auth, confirm_write=True, workflows_dir=_WORKFLOWS
+            )
+        assert unavailable_auth.writes == []
+
+        invalid_workflows = tmp_path / "workflows"
+        invalid_workflows.mkdir()
+        (invalid_workflows / "ci.yml").write_text(
+            "on: [pull_request]\njobs:\n  unrelated: {}\n", encoding="utf-8"
+        )
+        invalid_declaration = _MemoryProtectionClient(None)
+        with pytest.raises(BranchProtectionError, match="workflow declaration"):
+            install_branch_protection(
+                invalid_declaration, confirm_write=True, workflows_dir=invalid_workflows
+            )
+        assert invalid_declaration.writes == []
+
+    def test_partial_failure_is_visible_and_rerun_converges(self) -> None:
+        client = _MemoryProtectionClient(
+            _protected_policy(strict=False, admins=False), fail_on="set_admins"
+        )
+
+        with pytest.raises(BranchProtectionError, match="partial.*add.*strict.*rerun"):
+            install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
+
+        assert [write[0] for write in client.writes] == ["add_contexts", "set_strict"]
+        client.fail_on = None
+        report = install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
+        assert client.writes[-1] == ("set_admins", "main")
+        assert report.changed is True
+
+    def test_configured_rerun_is_a_noop(self) -> None:
+        policy = _protected_policy()
+        policy["required_status_checks"]["checks"].extend(
+            {"context": context, "app_id": 15368} for context in REQUIRED_CONTEXTS[1:]
+        )
+        client = _MemoryProtectionClient(policy)
+
+        report = install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
+
+        assert report.actions == ()
+        assert report.changed is False
+        assert client.writes == []
+        assert client.protection_reads == 1
 
 
 class TestDriftDetection:
@@ -61,11 +296,48 @@ class TestDriftDetection:
         assert missing == ["pr-link"]
         assert unexpected == []
 
-    def test_extra_context_in_github_is_drift(self) -> None:
-        """An undeclared context is also drift: the canonical set lives in the repository."""
-        missing, unexpected = protection_drift(("quality", "review"), ("quality",))
+    def test_extra_consumer_context_is_preserved_and_not_drift(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """The process owns a minimum; a consumer may require additional checks."""
+        missing, preserved = protection_drift(("quality", "review"), ("quality",))
         assert missing == []
-        assert unexpected == ["review"]
+        assert preserved == ["review"]
+        import scripts.check_branch_protection as guard
+
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
+        monkeypatch.setattr(
+            guard,
+            "fetch_protection",
+            lambda _branch: {
+                "required_status_checks": {
+                    "checks": [
+                        *({"context": context} for context in REQUIRED_CONTEXTS),
+                        {"context": "consumer / test"},
+                    ]
+                }
+            },
+        )
+        guard.main([])
+        assert "preserved consumer-required checks: consumer / test" in capsys.readouterr().out
+
+    def test_missing_context_output_points_to_installer_without_inline_patch(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        import scripts.check_branch_protection as guard
+
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
+        monkeypatch.setattr(
+            guard,
+            "fetch_protection",
+            lambda _branch: {"required_status_checks": {"checks": []}},
+        )
+        with pytest.raises(SystemExit) as exc:
+            guard.main([])
+        assert exc.value.code == 1
+        output = capsys.readouterr().err
+        assert "install_branch_protection.py" in output
+        assert "--method PATCH" not in output
 
     def test_exact_match_is_clean(self) -> None:
         """A match yields an empty verdict in both directions."""
@@ -95,10 +367,13 @@ class TestAllowDrift:
     def _patch_actual(monkeypatch: pytest.MonkeyPatch, contexts: list[str]) -> None:
         import scripts.check_branch_protection as guard
 
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
         monkeypatch.setattr(
             guard,
             "fetch_protection",
-            lambda: {"required_status_checks": {"checks": [{"context": c} for c in contexts]}},
+            lambda _branch: {
+                "required_status_checks": {"checks": [{"context": c} for c in contexts]}
+            },
         )
 
     def test_drift_without_the_flag_still_exits_one(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -191,6 +466,17 @@ class TestProtectionFetch:
         assert contexts_from_protection({}) == ()
         assert contexts_from_protection({"required_status_checks": {}}) == ()
 
+    def test_unprotected_branch_is_drift_not_infrastructure(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._fake_run(
+            monkeypatch,
+            stdout='{"message":"Branch not protected"}',
+            stderr="gh: Branch not protected (HTTP 404)",
+            rc=1,
+        )
+        assert fetch_protection() == {}
+
     def test_null_required_status_checks_is_drift_not_crash(self) -> None:
         """Explicit JSON `null` differs from a missing key; a traceback would yield code 1."""
         assert contexts_from_protection({"required_status_checks": None}) == ()
@@ -213,16 +499,42 @@ class TestProtectionFetch:
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Actual list is always printed—the reproducible way to see it."""
-        from scripts.check_branch_protection import main
+        import scripts.check_branch_protection as guard
 
         payload = {
             "required_status_checks": {"checks": [{"context": c} for c in REQUIRED_CONTEXTS]}
         }
-        self._fake_run(monkeypatch, stdout=json.dumps(payload), stderr="", rc=0)
-        main([])
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "main")
+        monkeypatch.setattr(guard, "fetch_protection", lambda _branch: payload)
+        guard.main([])
         printed = capsys.readouterr().out
         for context in REQUIRED_CONTEXTS:
             assert context in printed
+
+    def test_main_audits_the_repository_default_branch(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        import scripts.check_branch_protection as guard
+
+        seen: list[str] = []
+        monkeypatch.setattr(guard, "fetch_default_branch", lambda: "stable", raising=False)
+        monkeypatch.setattr(
+            guard,
+            "fetch_protection",
+            lambda *branches: (
+                seen.extend(branches)
+                or {
+                    "required_status_checks": {
+                        "checks": [{"context": context} for context in REQUIRED_CONTEXTS]
+                    }
+                }
+            ),
+        )
+
+        guard.main([])
+
+        assert seen == ["stable"]
+        assert "`stable`" in capsys.readouterr().out
 
 
 class TestDeclarationMatchesWorkflows:

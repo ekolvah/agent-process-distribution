@@ -114,9 +114,32 @@ workflows run on every pull request.
    unearned green result.
 5. Activate the GitHub Project with the bootstrap command below. It may write
    remote Project configuration only in `create` mode with `--confirm-create`.
-6. Configure branch protection after bootstrap. This installation guide
-   reserves the step; [issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18)
-   supplies the safe, policy-preserving command.
+6. Inspect the branch-protection plan. This command authenticates with `gh`, resolves
+   the repository's real default branch, validates the local workflow declaration,
+   and reads live classic protection, but performs no remote write:
+
+   ```bash
+   python .agent-process/scripts/install_branch_protection.py
+   ```
+
+   After reviewing the exact actions, authorize this installation explicitly:
+
+   ```bash
+   python .agent-process/scripts/install_branch_protection.py --confirm-write
+   ```
+
+   On an already protected branch, the installer adds only missing process contexts
+   and changes only strict checking or administrator enforcement when either is off.
+   Existing checks and App bindings, review policy, push restrictions, and every other
+   consumer-owned field remain in place. If protection is absent, the confirmed command
+   creates one baseline: strict process checks, administrator enforcement, no invented
+   review or push restriction, and force-push/deletion disabled. Every confirmed run
+   re-reads GitHub and verifies those postconditions.
+
+   Several narrow API writes cannot be atomic. If a later call fails after an earlier
+   one succeeded, the command exits non-zero, prints observed progress, and asks you to
+   rerun the same idempotent command. Do not replace that recovery with a full-list
+   branch-protection update: it can remove consumer policy.
 
 Enable the copied local pre-push probe after reviewing it:
 
@@ -235,8 +258,7 @@ collision surface that made `--force` tempting, but the reviewable adoption
 tool for an established repository does not ship with this release and is
 tracked separately. Perform a render or an update on a clean branch and submit
 its resulting diff for review. Remote branch-protection changes remain the
-separate responsibility of
-[issue #18](https://github.com/ekolvah/agent-process-distribution/issues/18).
+separate, explicitly confirmed installation step above.
 
 ## Incomplete activation
 
