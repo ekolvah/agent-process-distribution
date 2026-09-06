@@ -203,6 +203,16 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
             continue
         else:
             _atomic_write(destination / relative, content)
+    # ADR-0018: the manifest, not a hand-picked list, licenses removal — a
+    # path this release no longer ships and no longer owns is retired, not
+    # merely forgotten. Managed-fragment targets are exempt: they are merge
+    # targets holding consumer bytes, never a file this process fully owns.
+    retired = sorted(owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS)
+    for relative in retired:
+        path = destination / relative
+        if path.is_file():
+            path.unlink()
+            print(f"removed retired path: {relative}")
     manifest = json.dumps({"paths": sorted(payload)}, indent=2) + "\n"
     _atomic_write(destination / _OWNERSHIP_FILE, manifest.encode("utf-8"))
 
