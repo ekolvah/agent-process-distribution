@@ -1,4 +1,4 @@
-# Input data for the self-hosting drift gate.
+# Input data for the self-hosting drift gate introduced by issue #6.
 #
 # Every entry is intentionally absent from template/ or differs from its rendered
 # counterpart. Add a path only with the reason that makes a generated copy wrong.
@@ -18,9 +18,9 @@ root_only_paths:
   - path: tests/publisher/test_self_installed_process.py
     reason: Verifies this repository's self-application rather than consumer behavior.
   - path: tests/publisher/test_template_drift.py
-    reason: Reserved for the root-only drift gate.
+    reason: Reserved for the root-only drift gate in issue #6.
   - path: docs/adr/0013-template-source-self-hosting.md
-    reason: Reserved for the source-sync ADR introduced with the drift gate.
+    reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
   - path: copier.yml
     reason: Defines this repository's Copier source; consumers receive only its rendered payload.
   - path: pyproject.toml
@@ -36,23 +36,23 @@ root_only_paths:
   - path: tests/publisher/test_workflow_references.py
     reason: Verifies publisher workflow pins rather than rendered consumer behavior.
   - path: tests/publisher/test_test_suite_ownership.py
-    reason: Verifies the publisher/consumer test-suite split itself, not a rendered consumer.
+    reason: Verifies the publisher/consumer test-suite split itself (issue #20), not a rendered consumer.
   - path: tests/publisher/test_hooks.py
-    reason: Reclassified publisher-only — exercises scripts/hooks.py, byte-static across renders and not owed to consumers as a separate copy.
+    reason: Reclassified publisher-only (issue #20) — exercises scripts/hooks.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_codex_hooks.py
-    reason: Reclassified publisher-only — exercises scripts/codex_hooks.py, byte-static across renders and not owed to consumers as a separate copy.
+    reason: Reclassified publisher-only (issue #20) — exercises scripts/codex_hooks.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_payload_layout.py
-    reason: Verifies the single-root payload invariant in the publisher source.
+    reason: Verifies the single-root payload invariant in the publisher source (issue #55).
   - path: tests/publisher/test_bare_consumer_quality.py
-    reason: Integration smoke test against a rendered bare consumer; exercises the publisher's reusable-quality workflow, not a file a consumer receives.
+    reason: Integration smoke test against a rendered bare consumer; exercises the publisher's reusable-quality workflow, not a file a consumer receives (issue #55/#57).
   - path: tests/publisher/test_existing_project_installation.py
-    reason: Verifies the adoption CLI's ownership invariant in the publisher source, not a file a consumer receives.
+    reason: Verifies the adoption CLI's ownership invariant in the publisher source (issue #59), not a file a consumer receives.
   - path: tests/publisher/test_deferred_scope.py
-    reason: Reclassified publisher-only — exercises scripts/check_orphan_scope.py, open_pr.py, update_pr_body.py, and verify_pr_link.py, byte-static across renders and not owed to consumers as a separate copy.
+    reason: Reclassified publisher-only (issue #64) — exercises scripts/check_orphan_scope.py, open_pr.py, update_pr_body.py, and verify_pr_link.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_delivery_state.py
-    reason: Publisher-only — exercises scripts/delivery_state.py and the hooks.py Stop adapter, byte-static across renders and not owed to consumers as a separate copy.
+    reason: Publisher-only (issue #56) — exercises scripts/delivery_state.py and the hooks.py Stop adapter, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_resolve_review_thread.py
-    reason: Publisher-only — exercises scripts/resolve_review_thread.py, byte-static across renders and not owed to consumers as a separate copy.
+    reason: Publisher-only (issue #77) — exercises scripts/resolve_review_thread.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_existing_project_update.py
     reason: Verifies the adoption CLI's update-path invariants in the publisher source, not a file a consumer receives.
 expected_difference_paths:
