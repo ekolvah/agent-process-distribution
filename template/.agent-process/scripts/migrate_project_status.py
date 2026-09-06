@@ -56,9 +56,13 @@ def build_plan(fields: object, items: object, views: object) -> MigrationPlan:
     planned = _option_id(status, "Planned")
     preserved_options: list[dict[str, object]] = []
     for option in options:
-        if not isinstance(option, dict) or not all(key in option for key in ("id", "name", "color", "description")):
+        if not isinstance(option, dict) or not all(
+            key in option for key in ("id", "name", "color", "description")
+        ):
             raise ValueError("Status option lacks id/name/color/description; refusing replacement")
-        preserved_options.append({key: option[key] for key in ("id", "name", "color", "description")})
+        preserved_options.append(
+            {key: option[key] for key in ("id", "name", "color", "description")}
+        )
     option_update: dict[str, object] | None = None
     if planned is None:
         preserved_options.append({"name": "Planned", "color": "BLUE", "description": ""})
@@ -99,8 +103,11 @@ def build_plan(fields: object, items: object, views: object) -> MigrationPlan:
 
 def _graphql(query: str, variables: dict[str, object]) -> dict[str, Any]:
     completed = subprocess.run(
-        ["gh", "api", "graphql", "--input", "-"], input=json.dumps({"query": query, "variables": variables}),
-        text=True, capture_output=True, encoding="utf-8"
+        ["gh", "api", "graphql", "--input", "-"],
+        input=json.dumps({"query": query, "variables": variables}),
+        text=True,
+        capture_output=True,
+        encoding="utf-8",
     )
     if completed.stdout is None or completed.stderr is None:
         raise RuntimeError("gh api graphql output capture failed")
@@ -119,7 +126,11 @@ def _configured_project() -> tuple[str, str, str]:
         import project_settings
     project_settings = importlib.reload(project_settings)
     project_settings.require_configured()
-    return project_settings.PROJECT_ID, project_settings.PROJECT_NUMBER, project_settings.PROJECT_OWNER
+    return (
+        project_settings.PROJECT_ID,
+        project_settings.PROJECT_NUMBER,
+        project_settings.PROJECT_OWNER,
+    )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -144,19 +155,38 @@ def main(argv: list[str] | None = None) -> None:
                     row["agent status"] = value.get("name") or ""
             items.append(row)
         views = [
-            {"name": view["name"], "fields": [field["id"] for field in view["configuration"]["visibleFields"]["nodes"]]}
+            {
+                "name": view["name"],
+                "fields": [
+                    field["id"] for field in view["configuration"]["visibleFields"]["nodes"]
+                ],
+            }
             for view in data["views"]["nodes"]
         ]
         plan = build_plan(fields, items, views)
-        print(json.dumps({"option_update": plan.option_update, "item_updates": plan.item_updates, "preserved_done": plan.preserved_item_ids, "view_dependencies": plan.view_dependencies}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "option_update": plan.option_update,
+                    "item_updates": plan.item_updates,
+                    "preserved_done": plan.preserved_item_ids,
+                    "view_dependencies": plan.view_dependencies,
+                },
+                indent=2,
+            )
+        )
         if not ns.confirm_write:
             return
         if ns.delete_agent_status:
-            raise RuntimeError("legacy-field deletion requires a separately verified, view-free report")
+            raise RuntimeError(
+                "legacy-field deletion requires a separately verified, view-free report"
+            )
         if plan.option_update:
             mutation = """mutation($input: UpdateProjectV2FieldInput!) { updateProjectV2Field(input: $input) { projectV2Field { ... on ProjectV2SingleSelectField { id } } } }"""
             _graphql(mutation, {"input": plan.option_update})
-        print("ok: option/item migration requires a fresh postcondition capture before settings are written")
+        print(
+            "ok: option/item migration requires a fresh postcondition capture before settings are written"
+        )
     except (KeyError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc

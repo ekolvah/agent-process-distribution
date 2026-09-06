@@ -158,17 +158,25 @@ def _ensure_builtin_planned(project_id: str) -> None:
     payload = _graphql(query, {"project": project_id})
     node = payload.get("data", {}).get("node", {})
     nodes = node.get("fields", {}).get("nodes", []) if isinstance(node, dict) else []
-    status = next((field for field in nodes if isinstance(field, dict) and field.get("name") == "Status"), None)
+    status = next(
+        (field for field in nodes if isinstance(field, dict) and field.get("name") == "Status"),
+        None,
+    )
     if not isinstance(status, dict) or not status.get("id"):
         raise RuntimeError("Project lacks built-in Status field")
     options = status.get("options")
     if not isinstance(options, list):
         raise RuntimeError("built-in Status has no readable options")
-    if any(isinstance(option, dict) and str(option.get("name", "")).casefold() == "planned" for option in options):
+    if any(
+        isinstance(option, dict) and str(option.get("name", "")).casefold() == "planned"
+        for option in options
+    ):
         return
     preserved = []
     for option in options:
-        if not isinstance(option, dict) or not all(key in option for key in ("id", "name", "color", "description")):
+        if not isinstance(option, dict) or not all(
+            key in option for key in ("id", "name", "color", "description")
+        ):
             raise RuntimeError("built-in Status option is incomplete; refusing replacement")
         preserved.append({key: option[key] for key in ("id", "name", "color", "description")})
     preserved.append({"name": "Planned", "color": "BLUE", "description": ""})
