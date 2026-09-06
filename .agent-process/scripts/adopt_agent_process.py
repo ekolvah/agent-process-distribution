@@ -203,7 +203,16 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     # path this release no longer ships and no longer owns is retired, not
     # merely forgotten. Managed-fragment targets are exempt: they are merge
     # targets holding consumer bytes, never a file this process fully owns.
-    retired = sorted(owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS)
+    # A payload path that is merely a case-only rename of an owned path is
+    # not retired on a case-insensitive destination: the two spellings name
+    # the same filesystem entry, and deleting "the old one" would delete the
+    # payload write that just landed under the new spelling.
+    payload_aliases = {os.path.normcase(relative) for relative in payload}
+    retired = sorted(
+        relative
+        for relative in owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS
+        if os.path.normcase(relative) not in payload_aliases
+    )
     blocked = [
         relative
         for relative in retired
@@ -231,7 +240,7 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
             _atomic_write(destination / relative, content)
     for relative in retired:
         path = destination / relative
-        if path.is_file():
+        if path.is_file() or path.is_symlink():
             path.unlink()
             print(f"removed retired path: {relative}")
     manifest = json.dumps({"paths": sorted(payload)}, indent=2) + "\n"

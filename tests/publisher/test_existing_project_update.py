@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -112,7 +113,7 @@ def test_cli_preflight_recognizes_ownership_on_an_already_adopted_destination(
             str(payload_dir),
         ],
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         check=False,
     )
 
@@ -243,3 +244,49 @@ def test_preflight_rejects_end_before_begin_markers_before_any_write(tmp_path: P
         "# Product\n<!-- agent-process:end -->\nstray body\n<!-- agent-process:begin -->\n"
     )
     assert (tmp_path / ".agent-process/entry.py").read_bytes() == b"version: 1\n"
+
+
+def test_update_preserves_a_normcase_equal_payload_path(tmp_path: Path) -> None:
+    """A case-only rename with unchanged bytes must not be treated as
+    retire-then-recreate: on a case-insensitive destination the old and new
+    spellings are the same filesystem entry, and unlinking "the retired
+    spelling" after the payload write would delete the file the update just
+    wrote (#61 review finding, second round).
+    """
+    install_payload(tmp_path, {".agent-process/entry.py": b"version: 1\n"})
+
+    update_payload(tmp_path, {".agent-process/Entry.py": b"version: 1\n"})
+
+    manifest = json.loads((tmp_path / ".agent-process/ownership.json").read_text(encoding="utf-8"))
+    assert manifest["paths"] == [".agent-process/Entry.py"]
+    if os.path.normcase("A") == os.path.normcase("a"):
+        assert (tmp_path / ".agent-process/Entry.py").read_bytes() == b"version: 1\n"
+    else:
+        assert not (tmp_path / ".agent-process/entry.py").exists()
+
+
+def test_update_removes_a_retired_path_thats_become_a_broken_symlink(tmp_path: Path) -> None:
+    """A retired path that has degraded into a broken symlink (or a symlink
+    to a directory) must still be unlinked and dropped from the manifest —
+    `is_file()` alone misses both cases and would silently strand the link
+    while reporting success (#61 review finding, second round).
+    """
+    install_payload(
+        tmp_path,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/retired-hook.py": b"old hook\n",
+        },
+    )
+    hook = tmp_path / ".agent-process/retired-hook.py"
+    hook.unlink()
+    try:
+        hook.symlink_to(tmp_path / "missing-target")
+    except OSError:
+        pytest.skip("symlink creation not permitted in this environment")
+
+    update_payload(tmp_path, {".agent-process/entry.py": b"version: 2\n"})
+
+    assert not hook.is_symlink()
+    manifest = json.loads((tmp_path / ".agent-process/ownership.json").read_text(encoding="utf-8"))
+    assert manifest["paths"] == [".agent-process/entry.py"]
