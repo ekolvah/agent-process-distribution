@@ -204,9 +204,26 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     # merely forgotten. Managed-fragment targets are exempt: they are merge
     # targets holding consumer bytes, never a file this process fully owns.
     retired = sorted(owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS)
-    hazards = [relative for relative in retired if _retirement_hazard(destination, relative)]
-    if hazards:
-        raise ValueError("retired path(s) cannot be safely retired: " + ", ".join(hazards))
+    symlinked = [
+        relative
+        for relative in retired
+        if _has_symlinked_parent(destination, destination / relative)
+    ]
+    if symlinked:
+        raise ValueError(
+            "retired path(s) sit behind a symlinked parent, refusing to delete: "
+            + ", ".join(symlinked)
+        )
+    became_directories = [
+        relative
+        for relative in retired
+        if (destination / relative).is_dir() and not (destination / relative).is_symlink()
+    ]
+    if became_directories:
+        raise ValueError(
+            "retired path(s) have become directories, refusing to delete: "
+            + ", ".join(became_directories)
+        )
     for relative, content in sorted(payload.items()):
         if relative in _MANAGED_FRAGMENT_TARGETS:
             update_managed_fragment(destination / relative, content.decode("utf-8"))
@@ -261,21 +278,6 @@ def _has_symlinked_parent(destination: Path, path: Path) -> bool:
             return True
         parent = parent.parent
     return False
-
-
-def _retirement_hazard(destination: Path, relative: str) -> bool:
-    """Whether a retired path cannot be safely deleted without more context.
-
-    A symlinked parent could resolve `relative` outside `destination`. A
-    retired path that has become a real directory can never satisfy the
-    file-or-symlink check `_apply` uses to delete it — silently leaving it
-    in place while dropping it from the manifest would violate §IV, so this
-    is surfaced as a blocking error instead.
-    """
-    path = destination / relative
-    if _has_symlinked_parent(destination, path):
-        return True
-    return path.is_dir() and not path.is_symlink()
 
 
 def _retired_path_is_payload_alias(
