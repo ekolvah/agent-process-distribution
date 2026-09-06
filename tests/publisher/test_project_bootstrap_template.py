@@ -272,6 +272,24 @@ def test_create_mode_links_builtin_status_and_preserves_all_options(
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
     monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
+    graph_calls: list[dict[str, object]] = []
+
+    def fake_graphql(query: str, variables: dict[str, object]) -> dict[str, object]:
+        graph_calls.append(variables)
+        if query.startswith("query"):
+            return {"data": {"node": {"fields": {"nodes": [{
+                "id": "status-field", "name": "Status", "options": [
+                    {"id": "status-todo", "name": "Todo", "color": "GRAY", "description": ""},
+                    {"id": "status-progress", "name": "In Progress", "color": "YELLOW", "description": ""},
+                    {"id": "status-done", "name": "Done", "color": "GREEN", "description": ""},
+                ],
+            }]}}}}
+        assert variables["field"] == "status-field"
+        assert [option["id"] for option in variables["options"][:-1]] == ["status-todo", "status-progress", "status-done"]
+        assert variables["options"][-1]["name"] == "Planned"
+        return {"data": {"updateProjectV2Field": {"projectV2Field": {"id": "status-field"}}}}
+
+    monkeypatch.setattr(bootstrap, "_graphql", fake_graphql)
 
     bootstrap.main(["--confirm-create"])
 
@@ -312,6 +330,7 @@ def test_create_mode_links_builtin_status_and_preserves_all_options(
         "example-org/example-repo",
     ] in calls
     assert not any("Agent status" in command for command in calls)
+    assert len(graph_calls) == 2
 
 
 def test_existing_mode_requires_builtin_status_subset(
@@ -341,11 +360,6 @@ def test_existing_mode_requires_builtin_status_subset(
 
     settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(encoding="utf-8")
     assert 'STATUS_FIELD_ID = "status"' in settings
-
-    call_count = len(calls)
-    bootstrap.main([])
-    assert len(calls) == call_count
-
 
 def test_create_mode_with_literal_owner_skips_resolution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

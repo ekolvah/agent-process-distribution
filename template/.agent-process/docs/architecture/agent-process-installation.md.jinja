@@ -174,9 +174,10 @@ The copied process is inactive until its GitHub Project is configured. Run:
 python .agent-process/scripts/bootstrap_github_project.py{% if github_project_mode == "create" %} --confirm-create{% endif %}
 ```
 
-In `existing` mode, bootstrap reads the selected Project and verifies that it
-has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`
-(`Planned`, `In Progress`). It writes no configuration until all checks pass.
+In `existing` mode, bootstrap reads the selected Project and verifies `Priority`
+(`High`, `Medium`, `Low`) plus the built-in `Status` field containing `Planned`
+and `In Progress`. `Todo` and `Done` are expected GitHub-owned options; the
+process never creates or selects a second `Agent status` field.
 
 In `create` mode, `--confirm-create` is an explicit approval for the remote
 write. Bootstrap checks GitHub authentication, creates a Project, links the
@@ -187,6 +188,19 @@ prints the exact `gh project delete` command for the maintainer.
 On successful activation bootstrap atomically writes
 `.agent-process/scripts/project_settings.py`. Review and commit that file. It contains the
 real, repository-owned Project and field IDs that every process runner uses.
+
+For an already activated legacy Project, first inspect the migration without a
+write, then explicitly confirm the printed option/item plan:
+
+```bash
+python .agent-process/scripts/migrate_project_status.py
+python .agent-process/scripts/migrate_project_status.py --confirm-write
+```
+
+The migration preserves built-in `Done`, re-reads its changes before writing
+generated settings, and reports partial remote progress for a safe rerun. It
+does not delete `Agent status` or alter a Project view by default; retirement is
+a separately confirmed operation only after its report has no view dependency.
 
 ## Updating the process
 
