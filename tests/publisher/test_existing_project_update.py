@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -246,23 +245,59 @@ def test_preflight_rejects_end_before_begin_markers_before_any_write(tmp_path: P
     assert (tmp_path / ".agent-process/entry.py").read_bytes() == b"version: 1\n"
 
 
-def test_update_preserves_a_normcase_equal_payload_path(tmp_path: Path) -> None:
+def test_update_preserves_a_case_only_rename_alias_of_a_payload_path(tmp_path: Path) -> None:
     """A case-only rename with unchanged bytes must not be treated as
     retire-then-recreate: on a case-insensitive destination the old and new
-    spellings are the same filesystem entry, and unlinking "the retired
-    spelling" after the payload write would delete the file the update just
-    wrote (#61 review finding, second round).
+    spellings are the same filesystem entry on disk, and unlinking "the
+    retired spelling" after the payload write would delete the file the
+    update just wrote. Detection must ask the filesystem (`samefile`), not
+    guess from `os.path.normcase` — that guess is a no-op on POSIX and so
+    misses this on the default case-insensitive macOS volume (#61 review
+    finding, third round).
     """
     install_payload(tmp_path, {".agent-process/entry.py": b"version: 1\n"})
+    entry = tmp_path / ".agent-process/entry.py"
+    renamed = tmp_path / ".agent-process/Entry.py"
+    # Same physical entry found through a differently-cased lookup, before
+    # the update ever runs, is exactly what makes the destination
+    # case-insensitive — no explicit rename needed to observe it.
+    is_case_insensitive = renamed.exists()
 
     update_payload(tmp_path, {".agent-process/Entry.py": b"version: 1\n"})
 
     manifest = json.loads((tmp_path / ".agent-process/ownership.json").read_text(encoding="utf-8"))
     assert manifest["paths"] == [".agent-process/Entry.py"]
-    if os.path.normcase("A") == os.path.normcase("a"):
-        assert (tmp_path / ".agent-process/Entry.py").read_bytes() == b"version: 1\n"
+    assert renamed.read_bytes() == b"version: 1\n"
+    if is_case_insensitive:
+        assert entry.samefile(renamed)
     else:
-        assert not (tmp_path / ".agent-process/entry.py").exists()
+        assert not entry.exists()
+
+
+def test_update_rejects_a_retired_path_thats_become_a_real_directory(tmp_path: Path) -> None:
+    """A retired path that has been replaced by a real directory can never
+    satisfy the file-or-symlink check the deletion loop uses, so silently
+    leaving it in place while dropping it from the manifest would report
+    success without performing the promised retirement (§IV) — this must be
+    rejected instead (#61 review finding, third round).
+    """
+    install_payload(
+        tmp_path,
+        {
+            ".agent-process/entry.py": b"version: 1\n",
+            ".agent-process/retired-hook.py": b"old hook\n",
+        },
+    )
+    hook = tmp_path / ".agent-process/retired-hook.py"
+    hook.unlink()
+    hook.mkdir()
+
+    with pytest.raises(ValueError, match="retired-hook.py"):
+        update_payload(tmp_path, {".agent-process/entry.py": b"version: 2\n"})
+
+    assert hook.is_dir()
+    manifest = json.loads((tmp_path / ".agent-process/ownership.json").read_text(encoding="utf-8"))
+    assert manifest["paths"] == [".agent-process/entry.py", ".agent-process/retired-hook.py"]
 
 
 def test_update_removes_a_retired_path_thats_become_a_broken_symlink(tmp_path: Path) -> None:

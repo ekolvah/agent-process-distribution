@@ -203,26 +203,10 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
     # path this release no longer ships and no longer owns is retired, not
     # merely forgotten. Managed-fragment targets are exempt: they are merge
     # targets holding consumer bytes, never a file this process fully owns.
-    # A payload path that is merely a case-only rename of an owned path is
-    # not retired on a case-insensitive destination: the two spellings name
-    # the same filesystem entry, and deleting "the old one" would delete the
-    # payload write that just landed under the new spelling.
-    payload_aliases = {os.path.normcase(relative) for relative in payload}
-    retired = sorted(
-        relative
-        for relative in owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS
-        if os.path.normcase(relative) not in payload_aliases
-    )
-    blocked = [
-        relative
-        for relative in retired
-        if _has_symlinked_parent(destination, destination / relative)
-    ]
-    if blocked:
-        raise ValueError(
-            "retired path(s) sit behind a symlinked parent, refusing to delete: "
-            + ", ".join(blocked)
-        )
+    retired = sorted(owned_paths - payload.keys() - _MANAGED_FRAGMENT_TARGETS)
+    hazards = [relative for relative in retired if _retirement_hazard(destination, relative)]
+    if hazards:
+        raise ValueError("retired path(s) cannot be safely retired: " + ", ".join(hazards))
     for relative, content in sorted(payload.items()):
         if relative in _MANAGED_FRAGMENT_TARGETS:
             update_managed_fragment(destination / relative, content.decode("utf-8"))
@@ -240,6 +224,15 @@ def _apply(destination: Path, payload: dict[str, bytes]) -> None:
             _atomic_write(destination / relative, content)
     for relative in retired:
         path = destination / relative
+        # A path that is merely a case-only (or otherwise non-canonical)
+        # respelling of a payload path just written is not a real removal:
+        # on a case-insensitive or case-preserving destination the two
+        # spellings name the same filesystem entry. `samefile` asks the
+        # filesystem directly instead of guessing from string form — a
+        # guess like `os.path.normcase` is a no-op on POSIX and so misses
+        # this on the default case-insensitive macOS volume.
+        if _retired_path_is_payload_alias(destination, relative, payload):
+            continue
         if path.is_file() or path.is_symlink():
             path.unlink()
             print(f"removed retired path: {relative}")
@@ -267,6 +260,41 @@ def _has_symlinked_parent(destination: Path, path: Path) -> bool:
         if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
             return True
         parent = parent.parent
+    return False
+
+
+def _retirement_hazard(destination: Path, relative: str) -> bool:
+    """Whether a retired path cannot be safely deleted without more context.
+
+    A symlinked parent could resolve `relative` outside `destination`. A
+    retired path that has become a real directory can never satisfy the
+    file-or-symlink check `_apply` uses to delete it — silently leaving it
+    in place while dropping it from the manifest would violate §IV, so this
+    is surfaced as a blocking error instead.
+    """
+    path = destination / relative
+    if _has_symlinked_parent(destination, path):
+        return True
+    return path.is_dir() and not path.is_symlink()
+
+
+def _retired_path_is_payload_alias(
+    destination: Path, relative: str, payload: dict[str, bytes]
+) -> bool:
+    """Whether a retired path is, on disk, the same entry as a payload path
+    just written — a case-only rename (or other non-canonical respelling) on
+    a case-insensitive or case-preserving destination, not an actual removal.
+    """
+    path = destination / relative
+    if not path.exists():
+        return False
+    for payload_relative in payload:
+        payload_path = destination / payload_relative
+        try:
+            if payload_path.exists() and payload_path.samefile(path):
+                return True
+        except OSError:
+            continue
     return False
 
 
