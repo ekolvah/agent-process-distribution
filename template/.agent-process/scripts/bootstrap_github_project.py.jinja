@@ -4,7 +4,7 @@
 The Copier answer selected ``{{ github_project_mode }}``. Reusing a Project is
 read-only until all required fields have been verified. Creating a Project is
 an external write and therefore requires ``--confirm-create``. Appending the
-process-owned ``Planned`` option to an existing Project requires a separate
+process-owned ``Planned`` option to an activated Project requires a separate
 ``--confirm-status-setup`` confirmation.
 """
 
@@ -169,18 +169,19 @@ def _ensure_builtin_planned(project_id: str) -> None:
     options = status.get("options")
     if not isinstance(options, list):
         raise RuntimeError("built-in Status has no readable options")
-    if any(
-        isinstance(option, dict) and str(option.get("name", "")).casefold() == "planned"
-        for option in options
-    ):
-        return
     preserved = []
+    names: set[str] = set()
     for option in options:
         if not isinstance(option, dict) or not all(
             key in option for key in ("id", "name", "color", "description")
         ):
             raise RuntimeError("built-in Status option is incomplete; refusing replacement")
         preserved.append({key: option[key] for key in ("id", "name", "color", "description")})
+        names.add(str(option["name"]).casefold())
+    if "in progress" not in names:
+        raise RuntimeError("built-in Status lacks required In Progress option")
+    if "planned" in names:
+        return
     preserved.append({"name": "Planned", "color": "BLUE", "description": ""})
     mutation = """mutation($field: ID!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) { updateProjectV2Field(input: {fieldId: $field, singleSelectOptions: $options}) { projectV2Field { ... on ProjectV2SingleSelectField { id } } } }"""
     _graphql(mutation, {"field": str(status["id"]), "options": preserved})
@@ -246,15 +247,49 @@ def _create() -> tuple[str, str, str]:
         _rollback_created_project(number, exc)
 
 
-def _already_configured() -> bool:
+def _configured_project() -> tuple[str, str, str] | None:
     try:
         import project_settings
 
         project_settings = importlib.reload(project_settings)
         project_settings.require_configured()
     except (ImportError, RuntimeError):
-        return False
-    return True
+        return None
+    return (
+        str(project_settings.PROJECT_NUMBER),
+        str(project_settings.PROJECT_ID),
+        str(project_settings.PROJECT_OWNER),
+    )
+
+
+def _already_configured() -> bool:
+    return _configured_project() is not None
+
+
+def _status_setup_target() -> tuple[str, str, str]:
+    configured = _configured_project()
+    if configured is not None:
+        return configured
+    if MODE != "existing" or not EXISTING_NUMBER:
+        raise RuntimeError(
+            "--confirm-status-setup needs an activated Project or existing_github_project_number"
+        )
+    viewed = _run(
+        [
+            "gh",
+            "project",
+            "view",
+            EXISTING_NUMBER,
+            "--owner",
+            OWNER,
+            "--format",
+            "json",
+        ]
+    )
+    project_id = str(viewed.get("id", ""))
+    if not project_id:
+        raise RuntimeError("`gh project view` returned no id")
+    return EXISTING_NUMBER, project_id, OWNER
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -267,12 +302,25 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--confirm-status-setup",
         action="store_true",
-        help="allow appending Planned to built-in Status in existing mode",
+        help="allow appending Planned to built-in Status in an activated Project",
     )
     ns = parser.parse_args(argv)
-    if ns.confirm_status_setup and MODE != "existing":
-        parser.error("--confirm-status-setup is only valid in existing mode")
-    if _already_configured() and not ns.confirm_status_setup:
+    if ns.confirm_status_setup:
+        try:
+            number, project_id, owner = _status_setup_target()
+            _ensure_builtin_planned(project_id)
+            _write(number, project_id, _fields(number), owner)
+        except (OSError, RuntimeError) as exc:
+            print(
+                "error: GitHub Project status setup did not update the agent process: "
+                f"{exc}. Fix the problem and rerun this command; "
+                f"{SETTINGS_PATH} is unchanged.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(f"ok: GitHub Project {number} Status is configured; commit {SETTINGS_PATH}")
+        return
+    if _already_configured():
         print("ok: GitHub Project bootstrap is already configured")
         return
     try:
@@ -302,8 +350,6 @@ def main(argv: list[str] | None = None) -> None:
             number, project_id = EXISTING_NUMBER, str(viewed.get("id", ""))
             if not project_id:
                 raise RuntimeError("`gh project view` returned no id")
-            if ns.confirm_status_setup:
-                _ensure_builtin_planned(project_id)
             _write(number, project_id, _fields(number), OWNER)
     except (OSError, RuntimeError) as exc:
         print(

@@ -189,8 +189,9 @@ On successful activation bootstrap atomically writes
 `.agent-process/scripts/project_settings.py`. Review and commit that file. It contains the
 real, repository-owned Project and field IDs that every process runner uses.
 
-For an already activated Project that lacks built-in `Status: Planned`, run the
-explicit status setup after reviewing the source change:
+For an activated Project that lacks built-in `Status: Planned`, run the explicit
+status setup after reviewing the source change. It uses committed generated
+settings, so it works whether the Project was originally created or reused:
 
 ```bash
 python .agent-process/scripts/bootstrap_github_project.py --confirm-status-setup

@@ -26,12 +26,12 @@ Planned while supplying all existing option ids, names, colours, and description
 to GitHub's replacement-style field mutation. The process owns Planned/In
 Progress; GitHub automations own Todo/Done.
 
-For an existing Project, `--confirm-status-setup` appends Planned only after a
-full option read, then re-reads the field before generated settings change. It
-does not inspect or transform item values. After source and generated settings
-receive current-head review, a separate live preflight confirms no view uses
-Agent status; only then is the obsolete field deleted. Its values are
-intentionally discarded.
+For an activated Project, `--confirm-status-setup` uses its generated settings,
+appends Planned only after a full option read, and re-reads the field before
+generated settings change. It validates In Progress before any mutation and does
+not inspect or transform item values. After source and generated settings receive
+current-head review, a separate live preflight confirms no view uses Agent status;
+only then is the obsolete field deleted. Its values are intentionally discarded.
 
 ### Consequences
 

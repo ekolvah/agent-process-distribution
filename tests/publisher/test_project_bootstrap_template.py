@@ -511,6 +511,36 @@ def test_existing_mode_confirmed_status_setup_re_reads_before_writing_settings(
     assert events.index("update-status") < events.index("field-list")
 
 
+def test_confirmed_status_setup_targets_an_activated_create_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
+    bootstrap = bootstrap_module(destination)
+    writes: list[tuple[str, str, str]] = []
+
+    monkeypatch.setattr(
+        bootstrap,
+        "_configured_project",
+        lambda: ("7", "project-7", "octocat"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "_ensure_builtin_planned",
+        lambda project_id: writes.append(("ensure", project_id, "")),
+    )
+    monkeypatch.setattr(bootstrap, "_fields", lambda number: [{"id": "status"}])
+    monkeypatch.setattr(
+        bootstrap,
+        "_write",
+        lambda number, project_id, fields, owner: writes.append((number, project_id, owner)),
+    )
+
+    bootstrap.main(["--confirm-status-setup"])
+
+    assert writes == [("ensure", "project-7", ""), ("7", "project-7", "octocat")]
+
+
 def test_existing_mode_preflight_failure_keeps_settings_unchanged(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -543,7 +573,20 @@ def test_existing_mode_preflight_failure_keeps_settings_unchanged(
                             {
                                 "id": "status",
                                 "name": "Status",
-                                "options": [{"id": "todo", "name": "Todo"}],
+                                "options": [
+                                    {
+                                        "id": "todo",
+                                        "name": "Todo",
+                                        "color": "GRAY",
+                                        "description": "",
+                                    },
+                                    {
+                                        "id": "done",
+                                        "name": "Done",
+                                        "color": "GREEN",
+                                        "description": "",
+                                    },
+                                ],
                             }
                         ]
                     }
@@ -561,7 +604,7 @@ def test_existing_mode_preflight_failure_keeps_settings_unchanged(
     assert 'PROJECT_ID = ""' in (
         destination / ".agent-process" / "scripts" / "project_settings.py"
     ).read_text(encoding="utf-8")
-    assert "incomplete" in capsys.readouterr().err
+    assert "In Progress" in capsys.readouterr().err
 
 
 def test_rendered_project_does_not_ship_project_status_migrator(rendered_default: Path) -> None:
