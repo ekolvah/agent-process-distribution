@@ -179,6 +179,9 @@ In `existing` mode, bootstrap reads the selected Project and verifies `Priority`
 and `In Progress`. `Todo` and `Done` are expected GitHub-owned options; the
 process never creates or selects a second `Agent status` field.
 
+If an initial existing-mode activation lacks `Status: Planned`, run the same
+confirmed setup command below instead of the unconfirmed activation command.
+
 In `create` mode, `--confirm-create` is an explicit approval for the remote
 write. Bootstrap checks GitHub authentication, creates a Project, links the
 repository, and adds the required fields. If a later setup operation fails,
@@ -189,9 +192,9 @@ On successful activation bootstrap atomically writes
 `.agent-process/scripts/project_settings.py`. Review and commit that file. It contains the
 real, repository-owned Project and field IDs that every process runner uses.
 
-For an activated Project that lacks built-in `Status: Planned`, run the explicit
-status setup after reviewing the source change. It uses committed generated
-settings, so it works whether the Project was originally created or reused:
+For an activated Project that lacks built-in `Status: Planned`, or for initial
+existing-mode activation that lacks it, run the explicit status setup after
+reviewing the source change. It uses committed generated settings when present:
 
 ```bash
 python .agent-process/scripts/bootstrap_github_project.py --confirm-status-setup

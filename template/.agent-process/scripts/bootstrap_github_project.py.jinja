@@ -262,11 +262,13 @@ def _configured_project() -> tuple[str, str, str] | None:
         project_settings.require_configured()
     except (ImportError, RuntimeError):
         return None
-    return (
-        str(project_settings.PROJECT_NUMBER),
-        str(project_settings.PROJECT_ID),
-        str(project_settings.PROJECT_OWNER),
-    )
+    owner = str(project_settings.PROJECT_OWNER)
+    if owner == "@me":
+        viewer = _run(["gh", "api", "user"])
+        owner = str(viewer.get("login", "")).strip()
+        if not owner:
+            raise RuntimeError("cannot resolve the configured @me Project owner")
+    return str(project_settings.PROJECT_NUMBER), str(project_settings.PROJECT_ID), owner
 
 
 def _already_configured() -> bool:

@@ -560,6 +560,23 @@ def test_confirmed_status_setup_targets_an_activated_create_project(
     assert field_reads == [("7", "octocat"), ("7", "octocat")]
 
 
+def test_configured_project_resolves_persisted_at_me_owner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
+    bootstrap = bootstrap_module(destination)
+    settings = ModuleType("project_settings")
+    settings.PROJECT_NUMBER = "7"
+    settings.PROJECT_ID = "project-7"
+    settings.PROJECT_OWNER = "@me"
+    settings.require_configured = lambda: None
+    monkeypatch.setitem(sys.modules, "project_settings", settings)
+    monkeypatch.setattr(bootstrap.importlib, "reload", lambda module: module)
+    monkeypatch.setattr(bootstrap, "_run", lambda command: {"login": "octocat"})
+
+    assert bootstrap._configured_project() == ("7", "project-7", "octocat")
+
+
 def test_existing_mode_preflight_failure_keeps_settings_unchanged(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -839,6 +856,44 @@ def test_create_mode_rolls_back_late_activation_failures(
 
     monkeypatch.setattr(bootstrap, "_run", fake_run)
     monkeypatch.setattr(bootstrap, "_checked", lambda command: calls.append(command) or "")
+    monkeypatch.setattr(
+        bootstrap,
+        "_graphql",
+        lambda query, variables: {
+            "data": {
+                "node": {
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "status-field",
+                                "name": "Status",
+                                "options": [
+                                    {
+                                        "id": "todo",
+                                        "name": "Todo",
+                                        "color": "GRAY",
+                                        "description": "",
+                                    },
+                                    {
+                                        "id": "progress",
+                                        "name": "In Progress",
+                                        "color": "YELLOW",
+                                        "description": "",
+                                    },
+                                    {
+                                        "id": "done",
+                                        "name": "Done",
+                                        "color": "GREEN",
+                                        "description": "",
+                                    },
+                                ],
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+    )
     if failure == "settings-write":
         monkeypatch.setattr(bootstrap, "_write", fail_write)
 
