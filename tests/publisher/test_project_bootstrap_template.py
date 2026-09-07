@@ -488,7 +488,7 @@ def test_existing_mode_confirmed_status_setup_re_reads_before_writing_settings(
                 }
             }
         assert variables["field"] == "status"
-        assert [option["id"] for option in variables["options"][:-1]] == [
+        assert [option["optionId"] for option in variables["options"][:-1]] == [
             "todo",
             "progress",
             "done",
