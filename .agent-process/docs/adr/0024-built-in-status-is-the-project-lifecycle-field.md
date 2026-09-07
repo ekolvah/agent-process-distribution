@@ -10,14 +10,14 @@ decision-makers: ekolvah
 
 The process previously wrote Planned/In Progress to a custom Agent status field
 while GitHub's default board used built-in Status. One issue could therefore be
-planned yet appear in Todo; a live Project also contained Done plus legacy In
-Progress, proving a blind value copy would regress terminal state.
+planned yet appear in Todo. Existing Agent status values are stale, are not a
+source of truth, and are deliberately not retained by this decision.
 
 ## Considered Options
 
 * Retain two lifecycle fields.
-* Replace the built-in Status option list or all item values.
-* Use built-in Status, preserve option identities, and migrate explicitly.
+* Replace the built-in Status option list or migrate all item values.
+* Use built-in Status, preserve option identities, and delete the legacy field.
 
 ## Decision Outcome
 
@@ -26,19 +26,20 @@ Planned while supplying all existing option ids, names, colours, and description
 to GitHub's replacement-style field mutation. The process owns Planned/In
 Progress; GitHub automations own Todo/Done.
 
-Migration is read-only until --confirm-write, preserves Done, re-reads item
-postconditions before generated settings change, and reports partial progress
-instead of inventing rollback. Agent status retirement and view edits are not
-normal migration work; deletion needs a separate confirmed, view-free report.
+For an existing Project, `--confirm-status-setup` appends Planned only after a
+full option read, then re-reads the field before generated settings change. It
+does not inspect or transform item values. After source and generated settings
+receive current-head review, a separate live preflight confirms no view uses
+Agent status; only then is the obsolete field deleted. Its values are
+intentionally discarded.
 
 ### Consequences
 
 * Good, because board columns and process state have one source of truth.
-* Good, because option identities and terminal values are retained.
-* Bad, because legacy migration is an explicit operational step with visible
-  partial-state recovery rather than an automatic bootstrap side effect.
+* Good, because option identities are retained and stale secondary data is gone.
+* Bad, because deleting the legacy field permanently discards its values.
 
 ### Confirmation
 
-Publisher migration and bootstrap tests cover option preservation, Status subset
-validation, terminal preservation, report-only default, and rerun planning.
+Publisher bootstrap tests cover option preservation, Status subset validation,
+confirmed existing-project setup, and preflight failure before settings writes.

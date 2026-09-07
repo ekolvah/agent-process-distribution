@@ -189,18 +189,20 @@ On successful activation bootstrap atomically writes
 `.agent-process/scripts/project_settings.py`. Review and commit that file. It contains the
 real, repository-owned Project and field IDs that every process runner uses.
 
-For an already activated legacy Project, first inspect the migration without a
-write, then explicitly confirm the printed option/item plan:
+For an already activated Project that lacks built-in `Status: Planned`, run the
+explicit status setup after reviewing the source change:
 
 ```bash
-python .agent-process/scripts/migrate_project_status.py
-python .agent-process/scripts/migrate_project_status.py --confirm-write
+python .agent-process/scripts/bootstrap_github_project.py --confirm-status-setup
 ```
 
-The migration preserves built-in `Done`, re-reads its changes before writing
-generated settings, and reports partial remote progress for a safe rerun. It
-does not delete `Agent status` or alter a Project view by default; retirement is
-a separately confirmed operation only after its report has no view dependency.
+The command appends only missing `Planned`, preserves all existing Status option
+identities, re-reads the field, and then writes generated settings. It never
+migrates individual item values. Review and commit those settings, then after
+current-head review re-read all Project views. If none uses the old field, delete
+the custom `Agent status` field with `gh project field-delete --id <field-id>`.
+That one-time cleanup permanently discards values stored only in that field;
+there is no recovery or migration command.
 
 ## Updating the process
 
