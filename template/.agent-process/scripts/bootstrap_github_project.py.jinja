@@ -40,8 +40,8 @@ def _run(command: list[str]) -> dict[str, Any]:
         raise RuntimeError(f"invalid JSON from {' '.join(command)}") from exc
 
 
-def _fields(number: str) -> list[dict[str, Any]]:
-    data = _run(["gh", "project", "field-list", number, "--owner", OWNER, "--format", "json"])
+def _fields(number: str, owner: str = OWNER) -> list[dict[str, Any]]:
+    data = _run(["gh", "project", "field-list", number, "--owner", owner, "--format", "json"])
     fields = data.get("fields")
     if not isinstance(fields, list):
         raise RuntimeError("`gh project field-list` returned no fields list")
@@ -176,7 +176,14 @@ def _ensure_builtin_planned(project_id: str) -> None:
             key in option for key in ("id", "name", "color", "description")
         ):
             raise RuntimeError("built-in Status option is incomplete; refusing replacement")
-        preserved.append({key: option[key] for key in ("id", "name", "color", "description")})
+        preserved.append(
+            {
+                "optionId": option["id"],
+                "name": option["name"],
+                "color": option["color"],
+                "description": option["description"],
+            }
+        )
         names.add(str(option["name"]).casefold())
     if "in progress" not in names:
         raise RuntimeError("built-in Status lacks required In Progress option")
@@ -308,8 +315,10 @@ def main(argv: list[str] | None = None) -> None:
     if ns.confirm_status_setup:
         try:
             number, project_id, owner = _status_setup_target()
+            fields = _fields(number, owner)
+            _field(fields, ("Priority",), {"high", "medium", "low"})
             _ensure_builtin_planned(project_id)
-            _write(number, project_id, _fields(number), owner)
+            _write(number, project_id, _fields(number, owner), owner)
         except (OSError, RuntimeError) as exc:
             print(
                 "error: GitHub Project status setup did not update the agent process: "
@@ -329,7 +338,7 @@ def main(argv: list[str] | None = None) -> None:
                 parser.error("create mode needs --confirm-create")
             number, project_id, owner = _create()
             try:
-                _write(number, project_id, _fields(number), owner)
+                _write(number, project_id, _fields(number, owner), owner)
             except (OSError, RuntimeError) as exc:
                 _rollback_created_project(number, exc)
         else:
@@ -350,7 +359,7 @@ def main(argv: list[str] | None = None) -> None:
             number, project_id = EXISTING_NUMBER, str(viewed.get("id", ""))
             if not project_id:
                 raise RuntimeError("`gh project view` returned no id")
-            _write(number, project_id, _fields(number), OWNER)
+            _write(number, project_id, _fields(number, OWNER), OWNER)
     except (OSError, RuntimeError) as exc:
         print(
             "error: GitHub Project bootstrap did not activate the agent process: "
