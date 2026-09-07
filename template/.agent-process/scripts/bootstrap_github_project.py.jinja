@@ -54,7 +54,7 @@ def _field(
     for field in fields:
         values = field.get("options")
         option_names = {
-            str(option.get("name", "")).strip().lower()
+            str(option.get("name", "")).strip().casefold()
             for option in values or []
             if isinstance(option, dict)
         }
@@ -65,11 +65,15 @@ def _field(
 
 
 def _option_ids(field: dict[str, Any], expected: dict[str, str]) -> dict[str, str]:
-    result = {
-        key: str(option["id"])
-        for key, label in expected.items()
+    available = {
+        str(option.get("name", "")).strip().casefold(): str(option["id"])
         for option in field.get("options", [])
-        if isinstance(option, dict) and option.get("name") == label and option.get("id")
+        if isinstance(option, dict) and option.get("id")
+    }
+    result = {
+        key: available[label.casefold()]
+        for key, label in expected.items()
+        if label.casefold() in available
     }
     if set(result) != set(expected):
         raise RuntimeError(f"field {field.get('name')!r} has incomplete options")
@@ -178,7 +182,7 @@ def _ensure_builtin_planned(project_id: str) -> None:
             raise RuntimeError("built-in Status option is incomplete; refusing replacement")
         preserved.append(
             {
-                "optionId": option["id"],
+                "id": option["id"],
                 "name": option["name"],
                 "color": option["color"],
                 "description": option["description"],
@@ -262,13 +266,35 @@ def _configured_project() -> tuple[str, str, str] | None:
         project_settings.require_configured()
     except (ImportError, RuntimeError):
         return None
+    number = str(project_settings.PROJECT_NUMBER)
+    project_id = str(project_settings.PROJECT_ID)
     owner = str(project_settings.PROJECT_OWNER)
     if owner == "@me":
-        viewer = _run(["gh", "api", "user"])
-        owner = str(viewer.get("login", "")).strip()
+        query = """query($project: ID!) { node(id: $project) { __typename ... on ProjectV2 { id number owner { __typename ... on User { login } ... on Organization { login } } } } }"""
+        payload = _graphql(query, {"project": project_id})
+        node = payload.get("data", {}).get("node", {})
+        if (
+            not isinstance(node, dict)
+            or node.get("__typename") != "ProjectV2"
+            or str(node.get("id", "")) != project_id
+        ):
+            raise RuntimeError("configured PROJECT_ID does not identify a readable Project")
+        remote_number = str(node.get("number", ""))
+        if remote_number != number:
+            raise RuntimeError(
+                f"configured PROJECT_ID belongs to Project number {remote_number}, "
+                f"not configured number {number}"
+            )
+        project_owner = node.get("owner")
+        if not isinstance(project_owner, dict) or project_owner.get("__typename") not in {
+            "User",
+            "Organization",
+        }:
+            raise RuntimeError("configured Project has no supported owner")
+        owner = str(project_owner.get("login", "")).strip()
         if not owner:
-            raise RuntimeError("cannot resolve the configured @me Project owner")
-    return str(project_settings.PROJECT_NUMBER), str(project_settings.PROJECT_ID), owner
+            raise RuntimeError("cannot resolve the configured Project owner")
+    return number, project_id, owner
 
 
 def _already_configured() -> bool:

@@ -201,7 +201,9 @@ python .agent-process/scripts/bootstrap_github_project.py --confirm-status-setup
 ```
 
 The command appends only missing `Planned`, preserves all existing Status option
-identities, re-reads the field, and then writes generated settings. It never
+identities, re-reads the field, and then writes generated settings. For older
+settings that stored `@me`, it derives the canonical owner and verifies the
+Project number from the stored Project node before any field read. It never
 migrates individual item values. Review and commit those settings, then after
 current-head review re-read all Project views. If none uses the old field, delete
 the custom `Agent status` field with `gh project field-delete --id <field-id>`.

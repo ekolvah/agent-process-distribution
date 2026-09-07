@@ -312,11 +312,15 @@ def test_create_mode_links_builtin_status_and_preserves_all_options(
                 }
             }
         assert variables["field"] == "status-field"
-        assert [option["optionId"] for option in variables["options"][:-1]] == [
+        assert [option["id"] for option in variables["options"][:-1]] == [
             "status-todo",
             "status-progress",
             "status-done",
         ]
+        assert all(
+            set(option) == {"id", "name", "color", "description"}
+            for option in variables["options"][:-1]
+        )
         assert variables["options"][-1]["name"] == "Planned"
         return {"data": {"updateProjectV2Field": {"projectV2Field": {"id": "status-field"}}}}
 
@@ -393,8 +397,8 @@ def test_existing_mode_requires_builtin_status_subset(
                 "name": "Status",
                 "options": [
                     {"id": "todo", "name": "Todo"},
-                    {"id": "planned", "name": "Planned"},
-                    {"id": "progress", "name": "In Progress"},
+                    {"id": "planned", "name": "pLaNnEd"},
+                    {"id": "progress", "name": "IN PROGRESS"},
                     {"id": "done", "name": "Done"},
                 ],
             },
@@ -415,6 +419,7 @@ def test_existing_mode_requires_builtin_status_subset(
         encoding="utf-8"
     )
     assert 'STATUS_FIELD_ID = "status"' in settings
+    assert 'STATUS_OPTION_IDS = {"planned": "planned", "in-progress": "progress"}' in settings
 
 
 def test_existing_mode_confirmed_status_setup_re_reads_before_writing_settings(
@@ -488,11 +493,15 @@ def test_existing_mode_confirmed_status_setup_re_reads_before_writing_settings(
                 }
             }
         assert variables["field"] == "status"
-        assert [option["optionId"] for option in variables["options"][:-1]] == [
+        assert [option["id"] for option in variables["options"][:-1]] == [
             "todo",
             "progress",
             "done",
         ]
+        assert all(
+            set(option) == {"id", "name", "color", "description"}
+            for option in variables["options"][:-1]
+        )
         assert variables["options"][-1]["name"] == "Planned"
         remote_updated = True
         events.append("update-status")
@@ -560,8 +569,9 @@ def test_confirmed_status_setup_targets_an_activated_create_project(
     assert field_reads == [("7", "octocat"), ("7", "octocat")]
 
 
-def test_configured_project_resolves_persisted_at_me_owner(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("owner_type", ["User", "Organization"])
+def test_configured_project_resolves_persisted_at_me_from_project_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, owner_type: str
 ) -> None:
     destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
     bootstrap = bootstrap_module(destination)
@@ -572,9 +582,68 @@ def test_configured_project_resolves_persisted_at_me_owner(
     settings.require_configured = lambda: None
     monkeypatch.setitem(sys.modules, "project_settings", settings)
     monkeypatch.setattr(bootstrap.importlib, "reload", lambda module: module)
-    monkeypatch.setattr(bootstrap, "_run", lambda command: {"login": "octocat"})
+    monkeypatch.setattr(
+        bootstrap,
+        "_run",
+        lambda command: pytest.fail(
+            f"configured owner must not depend on current viewer: {command}"
+        ),
+    )
 
-    assert bootstrap._configured_project() == ("7", "project-7", "octocat")
+    def project_identity(query: str, variables: dict[str, object]) -> dict[str, object]:
+        assert variables == {"project": "project-7"}
+        assert "... on User" in query
+        assert "... on Organization" in query
+        return {
+            "data": {
+                "node": {
+                    "__typename": "ProjectV2",
+                    "id": "project-7",
+                    "number": 7,
+                    "owner": {"__typename": owner_type, "login": "owner-a"},
+                }
+            }
+        }
+
+    monkeypatch.setattr(bootstrap, "_graphql", project_identity)
+
+    assert bootstrap._configured_project() == ("7", "project-7", "owner-a")
+
+
+def test_configured_project_rejects_number_mismatch_before_field_reads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(tmp_path, "--data", "github_repository=example-org/example-repo")
+    bootstrap = bootstrap_module(destination)
+    settings = ModuleType("project_settings")
+    settings.PROJECT_NUMBER = "7"
+    settings.PROJECT_ID = "project-8"
+    settings.PROJECT_OWNER = "@me"
+    settings.require_configured = lambda: None
+    monkeypatch.setitem(sys.modules, "project_settings", settings)
+    monkeypatch.setattr(bootstrap.importlib, "reload", lambda module: module)
+    monkeypatch.setattr(
+        bootstrap,
+        "_run",
+        lambda command: pytest.fail(f"mismatched identity must fail before field reads: {command}"),
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "_graphql",
+        lambda query, variables: {
+            "data": {
+                "node": {
+                    "__typename": "ProjectV2",
+                    "id": "project-8",
+                    "number": 8,
+                    "owner": {"__typename": "User", "login": "owner-a"},
+                }
+            }
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="number 8.*configured number 7"):
+        bootstrap._configured_project()
 
 
 def test_existing_mode_preflight_failure_keeps_settings_unchanged(

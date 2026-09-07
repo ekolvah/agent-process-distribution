@@ -22,11 +22,13 @@ source of truth, and are deliberately not retained by this decision.
 ## Decision Outcome
 
 Chosen: **built-in Status is the only lifecycle field.** Bootstrap appends
-Planned while supplying all existing option ids, names, colours, and descriptions
-to GitHub's replacement-style field mutation. The process owns Planned/In
+Planned while supplying all existing option `id`, name, colour, and description
+values to GitHub's replacement-style field mutation. The process owns Planned/In
 Progress; GitHub automations own Todo/Done.
 
 For an activated Project, `--confirm-status-setup` uses its generated settings,
+resolves a persisted `@me` owner from the stored Project node rather than the
+current viewer, and rejects a Project-number mismatch before reading fields. It
 appends Planned only after a full option read, and re-reads the field before
 generated settings change. It validates In Progress before any mutation and does
 not inspect or transform item values. After source and generated settings receive
