@@ -417,6 +417,159 @@ def test_existing_mode_requires_builtin_status_subset(
     assert 'STATUS_FIELD_ID = "status"' in settings
 
 
+def test_existing_mode_confirmed_status_setup_re_reads_before_writing_settings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = render(
+        tmp_path,
+        "--data",
+        "github_project_mode=existing",
+        "--data",
+        "github_project_owner=example-org",
+        "--data",
+        "existing_github_project_number=42",
+    )
+    bootstrap = bootstrap_module(destination)
+    remote_updated = False
+    events: list[str] = []
+
+    priority = {
+        "id": "priority",
+        "name": "Priority",
+        "options": [
+            {"id": "high", "name": "High"},
+            {"id": "medium", "name": "Medium"},
+            {"id": "low", "name": "Low"},
+        ],
+    }
+    status = {
+        "id": "status",
+        "name": "Status",
+        "options": [
+            {"id": "todo", "name": "Todo"},
+            {"id": "progress", "name": "In Progress"},
+            {"id": "done", "name": "Done"},
+        ],
+    }
+
+    def fake_run(command: list[str]) -> dict[str, object]:
+        events.append("field-list" if command[2] == "field-list" else command[2])
+        if command[2] == "view":
+            return {"id": "project-42"}
+        if command[2] == "field-list":
+            reread_status = {**status, "options": [*status["options"]]}
+            if remote_updated:
+                reread_status["options"].append({"id": "planned", "name": "Planned"})
+            return {"fields": [priority, reread_status]}
+        raise AssertionError(f"unexpected command: {command}")
+
+    def fake_graphql(query: str, variables: dict[str, object]) -> dict[str, object]:
+        nonlocal remote_updated
+        if query.startswith("query"):
+            return {
+                "data": {
+                    "node": {
+                        "fields": {
+                            "nodes": [
+                                {
+                                    **status,
+                                    "options": [
+                                        {
+                                            **option,
+                                            "color": "GRAY",
+                                            "description": "",
+                                        }
+                                        for option in status["options"]
+                                    ],
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        assert variables["field"] == "status"
+        assert [option["id"] for option in variables["options"][:-1]] == [
+            "todo",
+            "progress",
+            "done",
+        ]
+        assert variables["options"][-1]["name"] == "Planned"
+        remote_updated = True
+        events.append("update-status")
+        return {"data": {"updateProjectV2Field": {"projectV2Field": {"id": "status"}}}}
+
+    monkeypatch.setattr(bootstrap, "_run", fake_run)
+    monkeypatch.setattr(bootstrap, "_graphql", fake_graphql)
+
+    bootstrap.main(["--confirm-status-setup"])
+
+    settings = (destination / ".agent-process" / "scripts" / "project_settings.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'STATUS_FIELD_ID = "status"' in settings
+    assert '"planned": "planned"' in settings
+    assert events.index("update-status") < events.index("field-list")
+
+
+def test_existing_mode_preflight_failure_keeps_settings_unchanged(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    destination = render(
+        tmp_path,
+        "--data",
+        "github_project_mode=existing",
+        "--data",
+        "github_project_owner=example-org",
+        "--data",
+        "existing_github_project_number=42",
+    )
+    bootstrap = bootstrap_module(destination)
+    mutations: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        bootstrap,
+        "_run",
+        lambda command: {"id": "project-42"} if command[2] == "view" else {},
+    )
+
+    def incomplete_status(query: str, variables: dict[str, object]) -> dict[str, object]:
+        if not query.startswith("query"):
+            mutations.append(variables)
+        return {
+            "data": {
+                "node": {
+                    "fields": {
+                        "nodes": [
+                            {
+                                "id": "status",
+                                "name": "Status",
+                                "options": [{"id": "todo", "name": "Todo"}],
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+    monkeypatch.setattr(bootstrap, "_graphql", incomplete_status)
+
+    with pytest.raises(SystemExit) as exc:
+        bootstrap.main(["--confirm-status-setup"])
+
+    assert exc.value.code == 1
+    assert mutations == []
+    assert 'PROJECT_ID = ""' in (
+        destination / ".agent-process" / "scripts" / "project_settings.py"
+    ).read_text(encoding="utf-8")
+    assert "incomplete" in capsys.readouterr().err
+
+
+def test_rendered_project_does_not_ship_project_status_migrator(rendered_default: Path) -> None:
+    assert not (
+        rendered_default / ".agent-process" / "scripts" / "migrate_project_status.py"
+    ).exists()
+
+
 def test_create_mode_with_literal_owner_skips_resolution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
