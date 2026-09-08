@@ -246,6 +246,28 @@ def test_clean_prefix_ignores_everything_after_the_prefix() -> None:
     ) == {"outcome": "clean", "findings": []}
 
 
+def test_clean_prefix_rejects_a_reviewed_commit_for_a_different_head() -> None:
+    assert (
+        request_codex_review.find_clean_comment(
+            [
+                _request(),
+                _clean_comment(
+                    body=(
+                        "Codex Review: Didn't find any major issues. "
+                        "Another round soon, please!\n\n"
+                        "**Reviewed commit:** `bbbbbbbbbb`"
+                    )
+                ),
+            ],
+            author_login="author",
+            head_sha=_HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            reviewer=_REVIEWER,
+        )
+        is None
+    )
+
+
 def test_clean_prefix_ignores_content_after_a_reviewed_commit() -> None:
     assert request_codex_review.find_clean_comment(
         [
