@@ -246,6 +246,35 @@ def test_full_sha_clean_comment_is_clean_evidence() -> None:
         _clean_comment(author="another-bot[bot]"),
         _clean_comment(body="Codex Review: clean\n\n**Reviewed commit:** `aaaaaaaaaa`"),
         _clean_comment(
+            body=f"Codex Review: Didn't find any serious issues.\n\n**Reviewed commit:** `{_HEAD[:10]}`"
+        ),
+        _clean_comment(
+            body=(
+                "Codex Review: Didn't find any major issues. "
+                + ("B" * 121)
+                + f"\n\n**Reviewed commit:** `{_HEAD[:10]}`"
+            )
+        ),
+        _clean_comment(
+            body=(
+                "Codex Review: Didn't find any major issues. Breezy<unsafe>\n\n"
+                f"**Reviewed commit:** `{_HEAD[:10]}`"
+            )
+        ),
+        _clean_comment(
+            body=(
+                "Codex Review: Didn't find any major issues.\nBreezy!\n\n"
+                f"**Reviewed commit:** `{_HEAD[:10]}`"
+            )
+        ),
+        _clean_comment(
+            body=(
+                "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                "Additional marker prose\n\n"
+                f"**Reviewed commit:** `{_HEAD[:10]}`"
+            )
+        ),
+        _clean_comment(
             body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `not-a-sha`"
         ),
         _clean_comment(
@@ -338,7 +367,15 @@ def test_poll_checks_supported_clean_comment_before_declaring_current_head_evide
     monkeypatch.setattr(
         request_codex_review,
         "_fetch_request_comments",
-        lambda *_args: [_request(), _clean_comment()],
+        lambda *_args: [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`"
+                )
+            ),
+        ],
     )
     monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
     monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])

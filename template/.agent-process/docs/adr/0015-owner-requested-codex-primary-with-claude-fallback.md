@@ -37,10 +37,11 @@ waits for Codex's standard GitHub review on the current PR head and translates
 native priorities into the shared contract: P0/P1 are blocking, P2 is
 should-fix, and P3 is nice-to-have. The observed clean connector comment is
 also a narrow accepted transport only when its configured reviewer identity,
-one of two exact supported observed shapes — a known `Codex Review`
-clean-marker first line with one SHA-bound 10-hex `**Reviewed commit:**`, or
-`No findings.` with one full `Reviewed head SHA:` — plus an eligible owner
-request and
+one of two supported shapes — an exact `Codex Review: Didn't find any major
+issues.` prefix with an optional 1–120-character ASCII plain-text suffix on
+that first line, only blank lines before one SHA-bound 10-hex `**Reviewed
+commit:**`, or `No findings.` with one full `Reviewed head SHA:` — plus an
+eligible owner request and
 head/request/comment timestamps all bind it to the current head. The gate
 orders valid native reviews, clean reactions, and clean comments by GitHub
 timestamp, with the stricter non-clean outcome winning an equal-time tie; no
@@ -49,6 +50,13 @@ review invalidates older clean transports instead of reviving a stale result.
 A valid Codex verdict is final for that head, including when the PR changes
 agent-process policy files. Only missing, stale, or malformed Codex evidence
 invokes Claude.
+
+**2026-09-08 amendment.** PR #89 observed the trusted connector's
+`Breezy!` suffix after the unchanged semantic clean prefix. The former
+two-sentence allowlist rejected it and unnecessarily entered Claude fallback.
+The bounded first-line grammar above admits that compatibility variation
+without widening author, request, SHA, marker-layout, timestamp, or precedence
+trust checks.
 
 The default branch still owns parsing, outcome enforcement, and the required
 workflow contract where the installed version is available. Human-only merge
@@ -74,7 +82,8 @@ Claude is not a mandatory second opinion on a valid Codex review.
 
 `tests/test_request_codex_review.py` covers owner-session dispatch, native
 priority translation, current-head binding, clean owner reactions, the
-SHA-bound clean-comment transport, timestamp precedence, and malformed evidence.
+SHA-bound clean-comment transport including its bounded suffix grammar,
+timestamp precedence, and malformed evidence.
 `tests/test_reusable_workflows.py` checks that Codex is primary, Claude runs
 only after invalid or unavailable evidence, and enforcement executes from the
 trusted checkout.

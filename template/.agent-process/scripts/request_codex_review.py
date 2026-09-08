@@ -35,11 +35,8 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 REQUEST_BODY = "@codex review"
-_CLEAN_COMMENT_MARKERS = frozenset(
-    {
-        "Codex Review: Didn't find any major issues. :tada:",
-        "Codex Review: Didn't find any major issues. What shall we delve into next?",
-    }
+_SHA_BOUND_CLEAN_COMMENT_MARKER = re.compile(
+    r"^Codex Review: Didn't find any major issues\.(?: [A-Za-z0-9:!?][A-Za-z0-9 .,!?:;\"'()_-]{0,119})?$"
 )
 _REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
 _REVIEWED_HEAD = re.compile(r"^Reviewed head SHA: `(?P<sha>[0-9a-f]{40})`$")
@@ -267,15 +264,18 @@ def _clean_comment_candidates(
         ):
             continue
         lines = body.splitlines()
-        reviewed_commits = [line for line in lines if "Reviewed commit" in line]
+        reviewed_commits = [
+            (index, line) for index, line in enumerate(lines) if "Reviewed commit" in line
+        ]
         reviewed_heads = [line for line in lines if "Reviewed head SHA" in line]
         if (
             lines
-            and lines[0] in _CLEAN_COMMENT_MARKERS
+            and _SHA_BOUND_CLEAN_COMMENT_MARKER.fullmatch(lines[0])
             and len(reviewed_commits) == 1
             and not reviewed_heads
+            and all(not line.strip() for line in lines[1 : reviewed_commits[0][0]])
         ):
-            reviewed = _REVIEWED_COMMIT.fullmatch(reviewed_commits[0])
+            reviewed = _REVIEWED_COMMIT.fullmatch(reviewed_commits[0][1])
             matches_head = reviewed is not None and head_sha.startswith(reviewed["sha"])
         elif (
             lines
