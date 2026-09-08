@@ -262,6 +262,27 @@ def test_sha_bound_clean_comment_rejects_nonblank_content_after_reviewed_commit(
     )
 
 
+def test_sha_bound_clean_comment_rejects_a_priority_in_its_suffix() -> None:
+    assert (
+        request_codex_review.find_clean_comment(
+            [
+                _request(),
+                _clean_comment(
+                    body=(
+                        "Codex Review: Didn't find any major issues. P1 data loss detected!\n\n"
+                        f"**Reviewed commit:** `{_HEAD[:10]}`"
+                    )
+                ),
+            ],
+            author_login="author",
+            head_sha=_HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            reviewer=_REVIEWER,
+        )
+        is None
+    )
+
+
 def test_sha_bound_clean_comment_accepts_the_known_codex_details_footer() -> None:
     assert request_codex_review.find_clean_comment(
         [
