@@ -240,6 +240,25 @@ def test_sha_bound_breezy_clean_comment_is_clean_evidence() -> None:
     ) == {"outcome": "clean", "findings": []}
 
 
+def test_clean_prefix_ignores_everything_after_the_prefix() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. "
+                    "Another round soon, please!\n\n"
+                    "The remainder of this comment is not review evidence."
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
 def test_sha_bound_clean_comment_rejects_nonblank_content_after_reviewed_commit() -> None:
     assert (
         request_codex_review.find_clean_comment(
