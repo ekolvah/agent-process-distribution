@@ -227,6 +227,28 @@ def test_sha_bound_breezy_clean_comment_is_clean_evidence() -> None:
     ) == {"outcome": "clean", "findings": []}
 
 
+def test_sha_bound_clean_comment_rejects_nonblank_content_after_reviewed_commit() -> None:
+    assert (
+        request_codex_review.find_clean_comment(
+            [
+                _request(),
+                _clean_comment(
+                    body=(
+                        "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                        f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
+                        "P1 production data is corrupted"
+                    )
+                ),
+            ],
+            author_login="author",
+            head_sha=_HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            reviewer=_REVIEWER,
+        )
+        is None
+    )
+
+
 def test_full_sha_clean_comment_is_clean_evidence() -> None:
     assert request_codex_review.find_clean_comment(
         [
