@@ -38,9 +38,11 @@ native priorities into the shared contract: P0/P1 are blocking, P2 is
 should-fix, and P3 is nice-to-have. The observed clean connector comment is
 also a narrow accepted transport only when its configured reviewer identity
 starts the comment with the exact `Codex Review: Didn't find any major
-issues.` prefix. The parser deliberately does not classify or constrain the
-remaining comment text. `No findings.` remains a separate transport with one
-full `Reviewed head SHA:`; an eligible owner request and
+issues.` prefix. The prefix is the only semantic clean marker: the parser
+does not classify or constrain other comment prose. One exact 10-hex
+`Reviewed commit:` marker still binds the comment to the current head.
+`No findings.` remains a separate transport with one full
+`Reviewed head SHA:`; an eligible owner request and
 head/request/comment timestamps bind both transports to the current head. The gate
 orders valid native reviews, clean reactions, and clean comments by GitHub
 timestamp, with the stricter non-clean outcome winning an equal-time tie; no
@@ -54,9 +56,9 @@ invokes Claude.
 `Breezy!` suffix after the unchanged semantic clean prefix. The former
 two-sentence allowlist rejected it and unnecessarily entered Claude fallback.
 The prefix-only grammar admits compatibility variations without an ever-growing
-text allowlist. It intentionally ignores every character after the exact
-prefix while retaining connector identity, owner request, timestamp, and
-native-review precedence checks.
+text allowlist. It intentionally ignores every other prose character after
+the exact prefix, while retaining the non-semantic SHA binding, connector
+identity, owner request, timestamp, and native-review precedence checks.
 
 The default branch still owns parsing, outcome enforcement, and the required
 workflow contract where the installed version is available. Human-only merge

@@ -36,6 +36,7 @@ _SEVERITIES = {
 }
 REQUEST_BODY = "@codex review"
 _CLEAN_COMMENT_PREFIX = "Codex Review: Didn't find any major issues."
+_REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
 _REVIEWED_HEAD = re.compile(r"^Reviewed head SHA: `(?P<sha>[0-9a-f]{40})`$")
 
 
@@ -263,7 +264,13 @@ def _clean_comment_candidates(
         lines = body.splitlines()
         reviewed_heads = [line for line in lines if "Reviewed head SHA" in line]
         if body.startswith(_CLEAN_COMMENT_PREFIX):
-            matches_head = True
+            reviewed_commits = [line for line in lines if "Reviewed commit" in line]
+            reviewed = (
+                _REVIEWED_COMMIT.fullmatch(reviewed_commits[0])
+                if len(reviewed_commits) == 1
+                else None
+            )
+            matches_head = reviewed is not None and head_sha.startswith(reviewed["sha"])
         elif (
             lines
             and lines[0] == "No findings."
