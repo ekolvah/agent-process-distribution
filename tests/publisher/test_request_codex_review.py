@@ -196,11 +196,163 @@ def test_clean_reaction_must_follow_the_github_observed_head_transition() -> Non
         "Codex Review: Didn't find any major issues. What shall we delve into next?",
     ],
 )
-def test_sha_bound_clean_comment_is_clean_evidence(marker: str) -> None:
+def test_clean_prefix_is_clean_evidence(marker: str) -> None:
     assert request_codex_review.find_clean_comment(
         [
             _request(),
             _clean_comment(body=f"{marker}\n\n**Reviewed commit:** `{_HEAD[:10]}`"),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_with_breezy_is_clean_evidence() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_ignores_everything_after_the_prefix() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. "
+                    "Another round soon, please!\n\n"
+                    "The remainder of this comment is not review evidence.\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
+                    "More connector metadata that is not review evidence."
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_rejects_a_reviewed_commit_for_a_different_head() -> None:
+    assert (
+        request_codex_review.find_clean_comment(
+            [
+                _request(),
+                _clean_comment(
+                    body=(
+                        "Codex Review: Didn't find any major issues. "
+                        "Another round soon, please!\n\n"
+                        "**Reviewed commit:** `bbbbbbbbbb`"
+                    )
+                ),
+            ],
+            author_login="author",
+            head_sha=_HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            reviewer=_REVIEWER,
+        )
+        is None
+    )
+
+
+def test_clean_prefix_requires_one_reviewed_commit() -> None:
+    assert (
+        request_codex_review.find_clean_comment(
+            [
+                _request(),
+                _clean_comment(body="Codex Review: Didn't find any major issues. Breezy!"),
+            ],
+            author_login="author",
+            head_sha=_HEAD,
+            head_observed_at="2026-08-24T08:31:00Z",
+            reviewer=_REVIEWER,
+        )
+        is None
+    )
+
+
+def test_clean_prefix_ignores_content_after_a_reviewed_commit() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
+                    "P1 production data is corrupted"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_ignores_a_priority_in_its_continuation() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. P1 data loss detected!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_ignores_substantive_prose_in_its_continuation() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. "
+                    "Warning: production data is corrupted!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_ignores_connector_details_footer() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
+                    "Connector details may change without affecting clean evidence."
+                )
+            ),
         ],
         author_login="author",
         head_sha=_HEAD,
@@ -228,17 +380,7 @@ def test_full_sha_clean_comment_is_clean_evidence() -> None:
         _clean_comment(author="another-bot[bot]"),
         _clean_comment(body="Codex Review: clean\n\n**Reviewed commit:** `aaaaaaaaaa`"),
         _clean_comment(
-            body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `not-a-sha`"
-        ),
-        _clean_comment(
-            body=(
-                "Codex Review: Didn't find any major issues. :tada:\n\n"
-                "**Reviewed commit:** `aaaaaaaaaa`\n"
-                "**Reviewed commit:** `aaaaaaaaaa`"
-            )
-        ),
-        _clean_comment(
-            body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `bbbbbbbbbb`"
+            body=f"Codex Review: Didn't find any serious issues.\n\n**Reviewed commit:** `{_HEAD[:10]}`"
         ),
         _clean_comment(body=f"No findings.\n\nReviewed head SHA: `{'b' * 40}`"),
         _clean_comment(
@@ -320,7 +462,15 @@ def test_poll_checks_supported_clean_comment_before_declaring_current_head_evide
     monkeypatch.setattr(
         request_codex_review,
         "_fetch_request_comments",
-        lambda *_args: [_request(), _clean_comment()],
+        lambda *_args: [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`"
+                )
+            ),
+        ],
     )
     monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
     monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
