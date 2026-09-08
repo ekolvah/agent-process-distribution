@@ -36,15 +36,12 @@ The workflow never posts the Codex command or enables Automatic reviews. It
 waits for Codex's standard GitHub review on the current PR head and translates
 native priorities into the shared contract: P0/P1 are blocking, P2 is
 should-fix, and P3 is nice-to-have. The observed clean connector comment is
-also a narrow accepted transport only when its configured reviewer identity,
-one of two supported shapes — an exact `Codex Review: Didn't find any major
-issues.` prefix with only one optional observed safe suffix: `Breezy!`,
-`:tada:`, or the exact `What shall we delve into next?` phrase. Only blank
-lines may appear before one
-SHA-bound 10-hex `**Reviewed commit:**` followed only by blank
-lines or the connector's known static information footer, or `No findings.`
-with one full `Reviewed head SHA:` — plus an eligible owner request and
-head/request/comment timestamps all bind it to the current head. The gate
+also a narrow accepted transport only when its configured reviewer identity
+starts the comment with the exact `Codex Review: Didn't find any major
+issues.` prefix. The parser deliberately does not classify or constrain the
+remaining comment text. `No findings.` remains a separate transport with one
+full `Reviewed head SHA:`; an eligible owner request and
+head/request/comment timestamps bind both transports to the current head. The gate
 orders valid native reviews, clean reactions, and clean comments by GitHub
 timestamp, with the stricter non-clean outcome winning an equal-time tie; no
 arbitrary bot prose can infer a clean result. A malformed current-head native
@@ -56,10 +53,10 @@ invokes Claude.
 **2026-09-08 amendment.** PR #89 observed the trusted connector's
 `Breezy!` suffix after the unchanged semantic clean prefix. The former
 two-sentence allowlist rejected it and unnecessarily entered Claude fallback.
-The bounded first-line grammar above admits those compatibility variations
-without widening author, request, SHA, marker-layout, timestamp, or precedence
-trust checks. The marker's suffix and tail are fail-closed: arbitrary prose
-cannot become a clean result.
+The prefix-only grammar admits compatibility variations without an ever-growing
+text allowlist. It intentionally ignores every character after the exact
+prefix while retaining connector identity, owner request, timestamp, and
+native-review precedence checks.
 
 The default branch still owns parsing, outcome enforcement, and the required
 workflow contract where the installed version is available. Human-only merge

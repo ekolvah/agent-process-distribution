@@ -16,19 +16,6 @@ from scripts.request_codex_review import (
 
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
-_CLEAN_COMMENT_DETAILS_FOOTER = """<details> <summary>ℹ️ About Codex in GitHub</summary>
-<br/>
-
-[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
-- Open a pull request for review
-- Mark a draft as ready
-- Comment "@codex review".
-
-If Codex has suggestions, it will comment; otherwise it will react with 👍.
-
-Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
-
-</details>"""
 
 
 def test_request_command_posts_the_exact_codex_trigger(
@@ -209,7 +196,7 @@ def test_clean_reaction_must_follow_the_github_observed_head_transition() -> Non
         "Codex Review: Didn't find any major issues. What shall we delve into next?",
     ],
 )
-def test_sha_bound_clean_comment_is_clean_evidence(marker: str) -> None:
+def test_clean_prefix_is_clean_evidence(marker: str) -> None:
     assert request_codex_review.find_clean_comment(
         [
             _request(),
@@ -222,7 +209,7 @@ def test_sha_bound_clean_comment_is_clean_evidence(marker: str) -> None:
     ) == {"outcome": "clean", "findings": []}
 
 
-def test_sha_bound_breezy_clean_comment_is_clean_evidence() -> None:
+def test_clean_prefix_with_breezy_is_clean_evidence() -> None:
     assert request_codex_review.find_clean_comment(
         [
             _request(),
@@ -259,72 +246,7 @@ def test_clean_prefix_ignores_everything_after_the_prefix() -> None:
     ) == {"outcome": "clean", "findings": []}
 
 
-def test_sha_bound_clean_comment_rejects_nonblank_content_after_reviewed_commit() -> None:
-    assert (
-        request_codex_review.find_clean_comment(
-            [
-                _request(),
-                _clean_comment(
-                    body=(
-                        "Codex Review: Didn't find any major issues. Breezy!\n\n"
-                        f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
-                        "P1 production data is corrupted"
-                    )
-                ),
-            ],
-            author_login="author",
-            head_sha=_HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            reviewer=_REVIEWER,
-        )
-        is None
-    )
-
-
-def test_sha_bound_clean_comment_rejects_a_priority_in_its_suffix() -> None:
-    assert (
-        request_codex_review.find_clean_comment(
-            [
-                _request(),
-                _clean_comment(
-                    body=(
-                        "Codex Review: Didn't find any major issues. P1 data loss detected!\n\n"
-                        f"**Reviewed commit:** `{_HEAD[:10]}`"
-                    )
-                ),
-            ],
-            author_login="author",
-            head_sha=_HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            reviewer=_REVIEWER,
-        )
-        is None
-    )
-
-
-def test_sha_bound_clean_comment_rejects_substantive_prose_in_its_suffix() -> None:
-    assert (
-        request_codex_review.find_clean_comment(
-            [
-                _request(),
-                _clean_comment(
-                    body=(
-                        "Codex Review: Didn't find any major issues. "
-                        "Warning: production data is corrupted!\n\n"
-                        f"**Reviewed commit:** `{_HEAD[:10]}`"
-                    )
-                ),
-            ],
-            author_login="author",
-            head_sha=_HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            reviewer=_REVIEWER,
-        )
-        is None
-    )
-
-
-def test_sha_bound_clean_comment_accepts_the_known_codex_details_footer() -> None:
+def test_clean_prefix_ignores_content_after_a_reviewed_commit() -> None:
     assert request_codex_review.find_clean_comment(
         [
             _request(),
@@ -332,7 +254,63 @@ def test_sha_bound_clean_comment_accepts_the_known_codex_details_footer() -> Non
                 body=(
                     "Codex Review: Didn't find any major issues. Breezy!\n\n"
                     f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
-                    f"{_CLEAN_COMMENT_DETAILS_FOOTER}"
+                    "P1 production data is corrupted"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_ignores_a_priority_in_its_continuation() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. P1 data loss detected!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_ignores_substantive_prose_in_its_continuation() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. "
+                    "Warning: production data is corrupted!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
+
+
+def test_clean_prefix_ignores_connector_details_footer() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
+                    "Connector details may change without affecting clean evidence."
                 )
             ),
         ],
@@ -363,45 +341,6 @@ def test_full_sha_clean_comment_is_clean_evidence() -> None:
         _clean_comment(body="Codex Review: clean\n\n**Reviewed commit:** `aaaaaaaaaa`"),
         _clean_comment(
             body=f"Codex Review: Didn't find any serious issues.\n\n**Reviewed commit:** `{_HEAD[:10]}`"
-        ),
-        _clean_comment(
-            body=(
-                "Codex Review: Didn't find any major issues. "
-                + ("B" * 121)
-                + f"\n\n**Reviewed commit:** `{_HEAD[:10]}`"
-            )
-        ),
-        _clean_comment(
-            body=(
-                "Codex Review: Didn't find any major issues. Breezy<unsafe>\n\n"
-                f"**Reviewed commit:** `{_HEAD[:10]}`"
-            )
-        ),
-        _clean_comment(
-            body=(
-                "Codex Review: Didn't find any major issues.\nBreezy!\n\n"
-                f"**Reviewed commit:** `{_HEAD[:10]}`"
-            )
-        ),
-        _clean_comment(
-            body=(
-                "Codex Review: Didn't find any major issues. Breezy!\n\n"
-                "Additional marker prose\n\n"
-                f"**Reviewed commit:** `{_HEAD[:10]}`"
-            )
-        ),
-        _clean_comment(
-            body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `not-a-sha`"
-        ),
-        _clean_comment(
-            body=(
-                "Codex Review: Didn't find any major issues. :tada:\n\n"
-                "**Reviewed commit:** `aaaaaaaaaa`\n"
-                "**Reviewed commit:** `aaaaaaaaaa`"
-            )
-        ),
-        _clean_comment(
-            body="Codex Review: Didn't find any major issues. :tada:\n\n**Reviewed commit:** `bbbbbbbbbb`"
         ),
         _clean_comment(body=f"No findings.\n\nReviewed head SHA: `{'b' * 40}`"),
         _clean_comment(

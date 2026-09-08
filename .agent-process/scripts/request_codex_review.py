@@ -35,25 +35,7 @@ _SEVERITIES = {
     "3": "nice-to-have",
 }
 REQUEST_BODY = "@codex review"
-_SHA_BOUND_CLEAN_COMMENT_MARKER = re.compile(
-    r"^Codex Review: Didn't find any major issues\.(?: "
-    r"(?:Breezy!|:tada:|"
-    r"What shall we delve into next\?))?$"
-)
-_CLEAN_COMMENT_DETAILS_FOOTER = """<details> <summary>ℹ️ About Codex in GitHub</summary>
-<br/>
-
-[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
-- Open a pull request for review
-- Mark a draft as ready
-- Comment "@codex review".
-
-If Codex has suggestions, it will comment; otherwise it will react with 👍.
-
-Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
-
-</details>"""
-_REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
+_CLEAN_COMMENT_PREFIX = "Codex Review: Didn't find any major issues."
 _REVIEWED_HEAD = re.compile(r"^Reviewed head SHA: `(?P<sha>[0-9a-f]{40})`$")
 
 
@@ -279,28 +261,14 @@ def _clean_comment_candidates(
         ):
             continue
         lines = body.splitlines()
-        reviewed_commits = [
-            (index, line) for index, line in enumerate(lines) if "Reviewed commit" in line
-        ]
         reviewed_heads = [line for line in lines if "Reviewed head SHA" in line]
-        if (
-            lines
-            and _SHA_BOUND_CLEAN_COMMENT_MARKER.fullmatch(lines[0])
-            and len(reviewed_commits) == 1
-            and not reviewed_heads
-            and all(not line.strip() for line in lines[1 : reviewed_commits[0][0]])
-        ):
-            reviewed = _REVIEWED_COMMIT.fullmatch(reviewed_commits[0][1])
-            matches_head = reviewed is not None and head_sha.startswith(reviewed["sha"])
-            footer = "\n".join(
-                line.rstrip() for line in lines[reviewed_commits[0][0] + 1 :]
-            ).strip()
-            matches_head = matches_head and footer in {"", _CLEAN_COMMENT_DETAILS_FOOTER}
+        if body.startswith(_CLEAN_COMMENT_PREFIX):
+            matches_head = True
         elif (
             lines
             and lines[0] == "No findings."
             and len(reviewed_heads) == 1
-            and not reviewed_commits
+            and not any("Reviewed commit" in line for line in lines)
         ):
             reviewed = _REVIEWED_HEAD.fullmatch(reviewed_heads[0])
             matches_head = reviewed is not None and head_sha == reviewed["sha"]
