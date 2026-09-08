@@ -36,7 +36,7 @@ _SEVERITIES = {
 }
 REQUEST_BODY = "@codex review"
 _SHA_BOUND_CLEAN_COMMENT_MARKER = re.compile(
-    r"^Codex Review: Didn't find any major issues\.(?: [A-Za-z0-9:!?][A-Za-z0-9 .,!?:;\"'()_-]{0,119})?$"
+    r"^Codex Review: Didn't find any major issues\.(?: (?![^\r\n]*\bP[0-3]\b)[A-Za-z0-9:!?][A-Za-z0-9 .,!?:;\"'()_-]{0,119})?$"
 )
 _CLEAN_COMMENT_DETAILS_FOOTER = """<details> <summary>ℹ️ About Codex in GitHub</summary>
 <br/>
