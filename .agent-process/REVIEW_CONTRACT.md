@@ -50,8 +50,9 @@ Claude fallback PR-review carriers.
   review are evidence for the current head SHA. A clean issue comment is also
   accepted only when the configured Codex reviewer posts one of two supported
   shapes: an exact `Codex Review: Didn't find any major issues.` prefix with
-  an optional 1–120-character ASCII plain-text suffix with no `P0`–`P3`
-  priority token on that first line, only blank lines before one `**Reviewed
+  only one optional observed safe suffix: `Breezy!`, `:tada:`, or the exact
+  `What shall we delve into next?` phrase. Only blank lines may appear before
+  one `**Reviewed
   commit:**` 10-hex prefix followed only by blank lines or the connector's
   known static information footer, or `No findings.` with one `Reviewed
   head SHA:` full SHA in backticks. The SHA must bind to the current head, and
