@@ -51,7 +51,8 @@ Claude fallback PR-review carriers.
   accepted only when the configured Codex reviewer posts one of two supported
   shapes: an exact `Codex Review: Didn't find any major issues.` prefix with
   an optional 1–120-character ASCII plain-text suffix on that first line, only
-  blank lines before one `**Reviewed commit:**` 10-hex prefix, or `No
+  blank lines before one `**Reviewed commit:**` 10-hex prefix followed only
+  by blank lines or the connector's known static information footer, or `No
   findings.` with one `Reviewed head SHA:` full SHA in backticks. The SHA
   must bind to the current head, and the comment must follow both the observed
   head transition and an eligible owner request. Native reviews,

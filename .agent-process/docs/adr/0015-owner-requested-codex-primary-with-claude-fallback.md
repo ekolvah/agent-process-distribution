@@ -40,8 +40,9 @@ also a narrow accepted transport only when its configured reviewer identity,
 one of two supported shapes — an exact `Codex Review: Didn't find any major
 issues.` prefix with an optional 1–120-character ASCII plain-text suffix on
 that first line, only blank lines before one SHA-bound 10-hex `**Reviewed
-commit:**`, or `No findings.` with one full `Reviewed head SHA:` — plus an
-eligible owner request and
+commit:**` followed only by blank lines or the connector's known static
+information footer, or `No findings.` with one full `Reviewed head SHA:` —
+plus an eligible owner request and
 head/request/comment timestamps all bind it to the current head. The gate
 orders valid native reviews, clean reactions, and clean comments by GitHub
 timestamp, with the stricter non-clean outcome winning an equal-time tie; no
@@ -56,7 +57,8 @@ invokes Claude.
 two-sentence allowlist rejected it and unnecessarily entered Claude fallback.
 The bounded first-line grammar above admits that compatibility variation
 without widening author, request, SHA, marker-layout, timestamp, or precedence
-trust checks.
+trust checks. The marker's tail is also fail-closed: arbitrary post-SHA prose
+cannot become a discarded finding.
 
 The default branch still owns parsing, outcome enforcement, and the required
 workflow contract where the installed version is available. Human-only merge

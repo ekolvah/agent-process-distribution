@@ -38,6 +38,19 @@ REQUEST_BODY = "@codex review"
 _SHA_BOUND_CLEAN_COMMENT_MARKER = re.compile(
     r"^Codex Review: Didn't find any major issues\.(?: [A-Za-z0-9:!?][A-Za-z0-9 .,!?:;\"'()_-]{0,119})?$"
 )
+_CLEAN_COMMENT_DETAILS_FOOTER = """<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>"""
 _REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
 _REVIEWED_HEAD = re.compile(r"^Reviewed head SHA: `(?P<sha>[0-9a-f]{40})`$")
 
@@ -277,6 +290,10 @@ def _clean_comment_candidates(
         ):
             reviewed = _REVIEWED_COMMIT.fullmatch(reviewed_commits[0][1])
             matches_head = reviewed is not None and head_sha.startswith(reviewed["sha"])
+            footer = "\n".join(
+                line.rstrip() for line in lines[reviewed_commits[0][0] + 1 :]
+            ).strip()
+            matches_head = matches_head and footer in {"", _CLEAN_COMMENT_DETAILS_FOOTER}
         elif (
             lines
             and lines[0] == "No findings."

@@ -16,6 +16,19 @@ from scripts.request_codex_review import (
 
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
+_CLEAN_COMMENT_DETAILS_FOOTER = """<details> <summary>ℹ️ About Codex in GitHub</summary>
+<br/>
+
+[Your team has set up Codex to review pull requests in this repo](https://chatgpt.com/codex/cloud/settings/general). Reviews are triggered when you
+- Open a pull request for review
+- Mark a draft as ready
+- Comment "@codex review".
+
+If Codex has suggestions, it will comment; otherwise it will react with 👍.
+
+Codex can also answer questions or update the PR. Try commenting "@codex address that feedback".
+
+</details>"""
 
 
 def test_request_command_posts_the_exact_codex_trigger(
@@ -247,6 +260,25 @@ def test_sha_bound_clean_comment_rejects_nonblank_content_after_reviewed_commit(
         )
         is None
     )
+
+
+def test_sha_bound_clean_comment_accepts_the_known_codex_details_footer() -> None:
+    assert request_codex_review.find_clean_comment(
+        [
+            _request(),
+            _clean_comment(
+                body=(
+                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
+                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
+                    f"{_CLEAN_COMMENT_DETAILS_FOOTER}"
+                )
+            ),
+        ],
+        author_login="author",
+        head_sha=_HEAD,
+        head_observed_at="2026-08-24T08:31:00Z",
+        reviewer=_REVIEWER,
+    ) == {"outcome": "clean", "findings": []}
 
 
 def test_full_sha_clean_comment_is_clean_evidence() -> None:
