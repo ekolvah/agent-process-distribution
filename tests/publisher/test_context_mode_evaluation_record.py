@@ -57,9 +57,9 @@ RECORD = (
 
 # The pinned snapshot the issue fixed before any work began. Hard-coded here so that editing
 # the record cannot silently re-point the evaluation at a different upstream state.
-SNAPSHOT_COMMIT = "95b4e08bf07c5e16690d8669643f9d1b825d51be"
+SNAPSHOT_COMMIT = "95b4e08bf07c5e16690d8669643f9d1b825d51be"  # pragma: allowlist secret
 SNAPSHOT_PACKAGE = "context-mode@1.0.169"
-SNAPSHOT_DIGEST = "sha512-94JIaFuLjF9SO2BsGTrbGtyT44K95+9OC8BdbaL/UT76xOkanJLfUR5CzmNw+GELXZQqH4nBrKg9wjBnSFkVnQ=="
+SNAPSHOT_DIGEST = "sha512-94JIaFuLjF9SO2BsGTrbGtyT44K95+9OC8BdbaL/UT76xOkanJLfUR5CzmNw+GELXZQqH4nBrKg9wjBnSFkVnQ=="  # pragma: allowlist secret
 
 STOP_LABELS = ("stop-1", "stop-2", "stop-3")
 OPEN_LABELS = ("open-a", "open-b")
