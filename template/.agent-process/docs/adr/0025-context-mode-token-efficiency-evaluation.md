@@ -83,7 +83,7 @@ revives-if: a later issue proposes that the process itself ship, render, or requ
 open-a: open — Codex gates hook execution behind a per-hook trusted_hash in $CODEX_HOME/config.toml computed by a private, unversioned algorithm with no supported non-interactive read path; this repository deliberately refuses to compute or infer it (check_codex_project_trust.py), so only an operator running codex interactively can confirm it.
 open-b: closed — both hosts publish per-session billed-token categories on local disk, so a pilot can be scored rather than guessed. The Claude route writes one JSONL per session under ~/.claude/projects/<repo-slug>/ whose assistant messages each carry usage with input_tokens, cache_creation_input_tokens, cache_read_input_tokens and output_tokens; the Codex route writes rollout-*.jsonl under ~/.codex/sessions/ whose token_usage_record events carry input_tokens, cached_input_tokens, cache_write_input_tokens, output_tokens and reasoning_output_tokens at turn and thread level. 53 Claude transcripts and 118 Codex rollouts for this repository already exist, so the baseline is computable with nothing installed; a reader must not sum the Claude iterations array on top of the message-level usage, nor Codex turn totals on top of thread totals.
 decision: retain for future re-evaluation — no stop condition fired and the install path is bounded for local use, but open-a is unresolved, which caps the outcome below adoption; the candidate is held, uninstalled and unconfigured, pending the measurement that decides whether a saving exists at all.
-rollback: nothing was installed or configured, so there is no machine state to undo; the change is this record, its rendered root copy, and one publisher test, and reverting the merge removes all three. Retention adds no runtime surface of its own: if the measurement finds no saving, this record is re-recorded as not planned in place, and no rollback beyond that edit is owed.
+rollback: nothing was installed or configured, so there is no machine state to undo; the change is this record and its rendered root copy, and reverting the merge removes both. Retention adds no runtime surface of its own: if the measurement finds no saving, this record is re-recorded as not planned in place, and no rollback beyond that edit is owed.
 follow-up: #94 measures the per-category token baseline of this repository's existing sessions and the best-case ceiling of the offloading mechanism against a threshold fixed before the numbers are read; a runtime pilot stays unauthorised until that ceiling clears the threshold and open-a is resolved.
 ```
 
@@ -106,14 +106,21 @@ follow-up: #94 measures the per-category token baseline of this repository's exi
 
 ### Confirmation
 
-`tests/publisher/test_context_mode_evaluation_record.py` holds this record to
-the pinned snapshot identifiers, a recorded verdict for every stop and open
-condition, the raw-bytes versus billed-token distinction, and the internal
-consistency between the verdicts and the decision — a fired stop condition
-cannot stand beside an adoption, an unresolved open condition cannot stand
-beside one either, and a retained outcome must name a tracked follow-up issue
-rather than trailing off. The rendered root copy is proved by
-`tests/publisher/test_template_drift.py`.
+No automated guard holds this record to its shape, and that is a decision rather
+than an omission. For a document the failure mode that matters is an untrue
+statement, and a schema check over labelled lines cannot see one: an earlier
+draft of this record graded its first stop condition `fired` on an install path
+that is in fact gated, and a presence-and-consistency guard passed that draft
+without complaint. Do not re-add one — its yield on the one real defect was
+zero, and its cost was a permanent constraint on every later re-recording of
+this decision.
+
+What confirms a research record is reproducibility, which the record carries
+above: the snapshot commit, the package version, and the published digest
+identify one exact artefact, so any reader can re-fetch the same bytes and check
+each claim of evidence against them. `npm pack context-mode@1.0.169` yields
+1,166,887 bytes over 354 files whose computed sha512 equals `snapshot-digest`.
+The rendered root copy is proved by `tests/publisher/test_template_drift.py`.
 
 ## More Information
 

@@ -55,8 +55,6 @@ root_only_paths:
     reason: Publisher-only (issue #77) — exercises scripts/resolve_review_thread.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_existing_project_update.py
     reason: Verifies the adoption CLI's update-path invariants in the publisher source, not a file a consumer receives.
-  - path: tests/publisher/test_context_mode_evaluation_record.py
-    reason: Publisher-only (issue #92) — asserts one specific decision record is complete and self-consistent; a consumer that prunes that record would inherit a red test about this repository's tool-evaluation history.
 expected_difference_paths:
   - path: .agent-process/scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.
