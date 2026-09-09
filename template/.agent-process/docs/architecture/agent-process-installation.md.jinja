@@ -174,9 +174,13 @@ The copied process is inactive until its GitHub Project is configured. Run:
 python .agent-process/scripts/bootstrap_github_project.py{% if github_project_mode == "create" %} --confirm-create{% endif %}
 ```
 
-In `existing` mode, bootstrap reads the selected Project and verifies that it
-has `Priority` (`High`, `Medium`, `Low`) and either `Agent status` or `Status`
-(`Planned`, `In Progress`). It writes no configuration until all checks pass.
+In `existing` mode, bootstrap reads the selected Project and verifies `Priority`
+(`High`, `Medium`, `Low`) plus the built-in `Status` field containing `Planned`
+and `In Progress`. `Todo` and `Done` are expected GitHub-owned options; the
+process never creates or selects a second `Agent status` field.
+
+If an initial existing-mode activation lacks `Status: Planned`, run the same
+confirmed setup command below instead of the unconfirmed activation command.
 
 In `create` mode, `--confirm-create` is an explicit approval for the remote
 write. Bootstrap checks GitHub authentication, creates a Project, links the
@@ -187,6 +191,24 @@ prints the exact `gh project delete` command for the maintainer.
 On successful activation bootstrap atomically writes
 `.agent-process/scripts/project_settings.py`. Review and commit that file. It contains the
 real, repository-owned Project and field IDs that every process runner uses.
+
+For an activated Project that lacks built-in `Status: Planned`, or for initial
+existing-mode activation that lacks it, run the explicit status setup after
+reviewing the source change. It uses committed generated settings when present:
+
+```bash
+python .agent-process/scripts/bootstrap_github_project.py --confirm-status-setup
+```
+
+The command appends only missing `Planned`, preserves all existing Status option
+identities, re-reads the field, and then writes generated settings. For older
+settings that stored `@me`, it derives the canonical owner and verifies the
+Project number from the stored Project node before any field read. It never
+migrates individual item values. Review and commit those settings, then after
+current-head review re-read all Project views. If none uses the old field, delete
+the custom `Agent status` field with `gh project field-delete --id <field-id>`.
+That one-time cleanup permanently discards values stored only in that field;
+there is no recovery or migration command.
 
 ## Updating the process
 

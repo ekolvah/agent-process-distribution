@@ -476,7 +476,7 @@ the generated root copy.
    `python .agent-process/scripts/set_issue_priority.py <N> <High|Medium|Low>`. Propose High
    for user-facing bugs and process work, Medium for agentic capability work
    outside the process, Low otherwise; name the rule used.
-5. The process owns exactly two board Status transitions, written from
+5. The process owns exactly two built-in board Status transitions, written from
    scripts a role already runs: `Planned` from `--mark-planned`, `In
    Progress` from `issue_branch.py`. `Todo` and `Done` belong to the
    built-in Project automations; `.agent-process/scripts/set_issue_status.py` rejects them.
