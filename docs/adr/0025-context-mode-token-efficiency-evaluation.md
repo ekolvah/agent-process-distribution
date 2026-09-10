@@ -53,22 +53,24 @@ saving it could produce, measured on this repository's own sessions and taken at
 its most generous, does not reach the threshold the owner fixed before any
 number was read.
 
-The threshold was **40 %** of measured cost, recorded on issue #94 on
-2026-09-10, before the instrument ran. The best case, charging the mechanism
-nothing at all for what it adds back, is **38.9 %**. Charging it the cheapest
+The threshold was **40 %** of measured cost, recorded on 2026-09-10 against the
+issue that commissioned this measurement, before the instrument ran (#94). The
+best case, charging the mechanism
+nothing at all for what it adds back, is **36.7 %**. Charging it the cheapest
 plausible round-trip cost — one extra request for every fourth offloaded
 payload, so three quarters of all offloads are assumed never to be read back —
-brings it to **32.6 %**. At one extra request per offloaded payload it is
-**13.7 %**. The verdict does not depend on which of those is right: every one of
+brings it to **30.5 %**. At one extra request per offloaded payload it is
+**11.8 %**. The verdict does not depend on which of those is right: every one of
 them is below 40 %.
 
-The gross figure alone would have been too close to call. It rests on
-apportioning measured `cache_creation` tokens between tool output and everything
-else by character count, and a ±10 % error in the relative token density of tool
-output moves it across the threshold (34.9 % at ×0.8, 42.0 % at ×1.2). What
-settles the question is the charge-back, which the assumption does not touch:
-even the most favourable density tested, ×1.4, nets out at 38.4 % once the
-cheapest round-trip charge is applied.
+The method has one free parameter, and it does not rescue the candidate. The
+result rests on apportioning measured `cache_creation` tokens between tool
+output and everything else by character count, which assumes the two have
+comparable token density. Varying that density by ±20 % moves the gross figure
+between **32.9 %** and **39.8 %** — the whole band stays below the threshold.
+Only an implausible ×1.4 crosses it, at 42.3 %, and even that nets out at
+36.1 % once the cheapest round-trip charge is applied. There is no setting of
+the assumption under which this candidate clears 40 %.
 
 The reason is visible in the baseline and is not about this candidate. Replayed
 context is 60 % of cost on both routes independently — 60.7 % on Claude, 60.1 %
@@ -106,8 +108,11 @@ open-b: closed and measured — both hosts publish per-session billed-token cate
 instrument: ccusage@19.0.3, sha512-10dKbFiRtqYThjl6L3CcAusSp+VDH9IX64S/fg8DJvaJcfADAXwqFHJCjWJXGoI6EAlc9eWThj43XIchWengpw==, MIT, obtained with npm pack and digest-verified before unpacking, run from the unpacked tarball with node and never installed. 19.0.3 is the last release that is readable JavaScript: 20.x is a launcher that spawns a prebuilt native binary from a platform-specific optional dependency, which cannot be read the way this repository read the candidate in Stage A. The package declares no install scripts at all, and the only outbound URL anywhere in its bundle is the LiteLLM price table on raw.githubusercontent.com, which --offline does not request.
 cross-check: the instrument's arithmetic was checked against an independent walk of the same files before its numbers were used, and the check corrected this evaluation twice rather than the instrument. It found the 41 subagent transcripts a non-recursive count had missed, and it showed that duplicate transcript lines are not always identical: 544 of 8,279 response groups carry a growing output_tokens snapshot, so keeping the first line undercounts output by 12.6% while keeping the last matches. ccusage keeps the last, so the defect reported upstream as ryoppippi/ccusage#888 does not appear in this corpus. After both corrections the independent totals agree with the instrument to within 0.1% on fresh input, cache creation and cache read; the residual is this measurement's own session still being written.
 baseline: 50 Claude sessions and 40 Codex sessions for this repository, measured 2026-09-10. Converted to input-equivalents at published ratios — Anthropic cache write 1.25x, cache read 0.1x, output 5x the model's input price; OpenAI cached input 0.1x, output and reasoning output 8x — the shares are: replayed context 60.4%, output 21.5%, cache creation 10.9%, fresh input 7.2%. The two routes agree independently on the dominant term: 60.7% on Claude, 60.1% on Codex. In raw tokens the same corpus is 96.9% cache read on Claude and 96.8% cached input on Codex, which is why raw tokens are not the unit here. Per-session spread, Claude: median 7.3M raw tokens, p25 0.87M, p75 23.2M, max 206M. Codex: median 7.3M, p25 1.7M, p75 23.6M, max 117M. Models are mixed and priced differently, which is why no single price table was used: Claude Sonnet 5 carried 79.8% of raw tokens and Opus 5 19.4%, with a 0.9% tail of other models. One of the 94 Claude files carries no usage record at all; it is reported as no data, not as zero.
-ceiling: 38.9% gross, 32.6% net, against a 40% threshold recorded on issue #94 before the instrument ran. Method, applied to all 94 Claude transcripts and using no tokenizer: the cache-prefix identity makes cache_creation at response k exactly what entered context since response k-1, so the measured token count is apportioned between tool output and everything else by the character counts of the intervening records, and the growing prefix is charged its measured cache_read at the tool-output share accumulated so far. Every tool-output byte is then treated as free, which is the best case by construction. The gross result is sensitive to the one assumption it makes — that tool output and prose have comparable token density — moving between 34.9% and 42.0% as that density varies by a fifth either way. The net result is not: the mechanism has to be read back through extra requests, each paying the full cache_read of the prefix it lands on (mean 101,713 tokens, 10,171 input-equivalents) plus its own output (mean 607 tokens, 3,037 input-equivalents), and 2,580 of 8,141 tool results are over 2 KB and therefore worth offloading at all. Charging one extra request per four offloaded payloads costs 6.3 percentage points, which puts even the most favourable density tested at 38.4%. Charging one per payload leaves 13.7%.
-decision: not planned — no stop condition fired and the install path is bounded for local use, but the best-case ceiling is 38.9% before charge-back and 32.6% after, against a 40% threshold fixed before the numbers were read. The candidate is not adopted, not piloted, and not held open: what limits this repository's spend is the length of the conversation being replayed, not the size of individual tool payloads, and no offloading mechanism addresses that.
+ceiling: 36.7% gross, 30.5% net, against a 40% threshold recorded on issue #94 before the instrument ran. Method, applied to all 94 Claude transcripts and using no tokenizer: the cache-prefix identity makes cache_creation at response k exactly what entered context since response k-1, so the measured token count is apportioned between tool output and everything else by the character counts of the intervening records, and the growing prefix is charged its measured cache_read at the tool-output share accumulated so far. Every tool-output byte is then treated as free, which is the best case by construction.
+ceiling-caveat: the identity is not unconditional and the measurement does not assume it is. A session that compacts, resumes past the cache TTL, or otherwise lands on a replaced prefix reports a cache_read lower than cache_read(k-1) + cache_creation(k-1); the accumulated tool-output share then describes context that is no longer present, and carrying it across the boundary would charge unrelated cache cost to removable payloads. The accumulators reset to zero at every such break — 151 of them across 8,343 responses — which under-attributes rather than over-attributes, since a compaction summary may itself contain tool output and this counts none of it. Enforcing the reset lowered the gross figure from 38.9% to 36.7%; a first draft of this record quoted the higher number, and the correction came from review rather than from the author.
+ceiling-sensitivity: the one free parameter is the relative token density of tool output against prose, which the character-count apportioning assumes to be 1.0. At +/-20% the gross figure moves between 32.9% and 39.8%, so the entire band is below the threshold; only an implausible x1.4 crosses, at 42.3%.
+ceiling-chargeback: the mechanism must read offloaded payloads back through extra requests, each paying the full cache_read of the prefix it lands on (mean 101,668 tokens, 10,167 input-equivalents) plus its own output (mean 607 tokens, 3,035 input-equivalents), for 13,202 input-equivalents per extra request. 2,566 of 8,188 tool results exceed 2 KB and are therefore worth offloading at all. Charging one extra request per four offloaded payloads costs 6.2 percentage points, which puts even the x1.4 density at 36.1%; charging one per payload leaves 11.8%.
+decision: not planned — no stop condition fired and the install path is bounded for local use, but the best-case ceiling is 36.7% before charge-back and 30.5% after, against a 40% threshold fixed before the numbers were read. The candidate is not adopted, not piloted, and not held open: what limits this repository's spend is the length of the conversation being replayed, not the size of individual tool payloads, and no offloading mechanism addresses that.
 rollback: nothing was installed or configured, so there is no machine state to undo. The instrument was run from a digest-verified tarball unpacked under Git-ignored evidence/ and never installed; deleting that directory removes it. The change is this record and its rendered root copy, and reverting the merge removes both.
 follow-up: none for this candidate. The baseline is the reusable result: replayed context at 60% of cost on both routes is a measured fact about this repository, and any later proposal aimed at token spend is scored against it with the same instrument and the same conversion, so the next evaluation starts from a number rather than from a vendor's claim.
 ```
@@ -132,7 +137,10 @@ follow-up: none for this candidate. The baseline is the reusable result: replaye
   this decision supplies none; that gap is unaddressed, not resolved.
 * Bad, because the ceiling is measured on the Claude corpus only — the Codex
   rollouts carry no per-response cache-prefix identity to apportion against — so
-  the 38.9 % is assumed to carry to a route whose category shares merely match.
+  the 36.7 % is assumed to carry to a route whose category shares merely match.
+* Neutral, because this record does not ship: it is publisher-only, so a
+  consumer of the process inherits neither the measurement nor the verdict, and
+  is free to evaluate the same candidate against its own numbers.
 * Neutral, because `open-a` (Codex per-hook trust) stays open and is now moot:
   it was a gate on a pilot that will not happen, and it is not carried forward
   as work.
@@ -172,10 +180,21 @@ The scripts that produced Stage B's numbers are deliberately not committed. They
 are one-shot analysis over files that exist on one machine, they ship to no
 consumer repository, and there is nothing for a later change to regress against;
 they live under Git-ignored `evidence/issue-94/` with the JSON they emitted.
-This follows the same reading as PR #93, and it is stated here rather than left
-as an unexplained absence of tests.
+This follows the reading already applied to the previous delivery of this
+evaluation (#93), and it is stated here rather than left as an unexplained
+absence of tests.
 
-The rendered root copy is proved by `tests/publisher/test_template_drift.py`.
+This record is publisher-only. It lives in `docs/adr/` beside ADR 0013 rather
+than in `.agent-process/docs/adr/`, which is the payload consumers receive,
+because everything it decides is local to this repository: the baseline is one
+machine's sessions, and the verdict is a purchasing decision about a developer's
+local tooling, not a process contract anyone inherits. Rendered into a consumer
+it would assert measurements of a repository that was never measured, and could
+close an evaluation that repository is entitled to run for itself. The cost of
+that placement is stated plainly: the MADR structural guard in
+`tests/agent_process/test_adr_records.py` scans only the payload directory, so
+this file is outside it — as ADR 0013 already is. Widening that guard is a
+separate concern from this decision and is not done here.
 
 ## More Information
 

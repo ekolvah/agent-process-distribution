@@ -21,6 +21,8 @@ root_only_paths:
     reason: Reserved for the root-only drift gate in issue #6.
   - path: docs/adr/0013-template-source-self-hosting.md
     reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
+  - path: docs/adr/0025-context-mode-token-efficiency-evaluation.md
+    reason: Records one machine's measured token baseline and a local tooling verdict; a consumer would inherit assertions about a repository it never measured.
   - path: copier.yml
     reason: Defines this repository's Copier source; consumers receive only its rendered payload.
   - path: pyproject.toml
