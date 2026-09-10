@@ -54,23 +54,36 @@ its most generous, does not reach the threshold the owner fixed before any
 number was read.
 
 The threshold was **40 %** of measured cost, recorded on 2026-09-10 against the
-issue that commissioned this measurement, before the instrument ran (#94). The
-best case, charging the mechanism
-nothing at all for what it adds back, is **36.7 %**. Charging it the cheapest
-plausible round-trip cost — one extra request for every fourth offloaded
-payload, so three quarters of all offloads are assumed never to be read back —
-brings it to **30.5 %**. At one extra request per offloaded payload it is
-**11.8 %**. The verdict does not depend on which of those is right: every one of
-them is below 40 %.
+issue that commissioned this measurement, before the instrument ran (#94). Both
+routes were measured separately, neither extrapolated from the other. Charging
+the mechanism nothing at all for what it adds back, the best case is
+**17.8–28.7 %** on the Claude route and **20.3–31.3 %** on the Codex route.
+Charging it the cheapest plausible round-trip cost — one extra request for every
+fourth offloaded payload, so three quarters of all offloads are assumed never to
+be read back — brings those to **11.6–22.5 %** and **13.2–24.1 %**. The two
+routes agree, and both are far below 40 %.
 
-The method has one free parameter, and it does not rescue the candidate. The
-result rests on apportioning measured `cache_creation` tokens between tool
-output and everything else by character count, which assumes the two have
-comparable token density. Varying that density by ±20 % moves the gross figure
-between **32.9 %** and **39.8 %** — the whole band stays below the threshold.
-Only an implausible ×1.4 crosses it, at 42.3 %, and even that nets out at
-36.1 % once the cheapest round-trip charge is applied. There is no setting of
-the assumption under which this candidate clears 40 %.
+Each figure is a range because the method's one free parameter was measured
+rather than assumed. The apportioning splits tokens between tool output and
+everything else by character count, which presumes comparable token density; the
+corpus answers that directly, since every interval between two responses is one
+equation relating its character split to the token count the host billed for it.
+Fitted over 8 020 intervals, tool output carries **0.30 to 0.63** the tokens per
+character that prose does — it is markedly *less* dense, not equally dense. The
+earlier draft's assumption of 1.0 therefore overstated the candidate's case
+throughout, and the range above replaces a band that had been chosen rather than
+observed.
+
+Held at that discarded assumption of 1.0 the figures are 36.5 % and 38.7 %
+gross, still below the threshold; the candidate would need roughly twice the
+measured density to reach it. There is one construction that clears 40 %:
+assuming every replaced context prefix consists entirely of tool output, which
+puts the gross figure at 56.9 % and 67.0 %. That is recorded because it is the
+strict upper bound and a reader is entitled to it, and it is rejected on
+evidence rather than on preference — 87 of the Claude route's 151 prefix breaks
+are compactions whose replacement summary is written into the transcript as
+ordinary prose and re-enters the measurement through the normal path, and the
+remainder are cache misses on unchanged context.
 
 The reason is visible in the baseline and is not about this candidate. Replayed
 context is 60 % of cost on both routes independently — 60.7 % on Claude, 60.1 %
@@ -108,11 +121,12 @@ open-b: closed and measured — both hosts publish per-session billed-token cate
 instrument: ccusage@19.0.3, sha512-10dKbFiRtqYThjl6L3CcAusSp+VDH9IX64S/fg8DJvaJcfADAXwqFHJCjWJXGoI6EAlc9eWThj43XIchWengpw==, MIT, obtained with npm pack and digest-verified before unpacking, run from the unpacked tarball with node and never installed. 19.0.3 is the last release that is readable JavaScript: 20.x is a launcher that spawns a prebuilt native binary from a platform-specific optional dependency, which cannot be read the way this repository read the candidate in Stage A. The package declares no install scripts at all, and the only outbound URL anywhere in its bundle is the LiteLLM price table on raw.githubusercontent.com, which --offline does not request.
 cross-check: the instrument's arithmetic was checked against an independent walk of the same files before its numbers were used, and the check corrected this evaluation twice rather than the instrument. It found the 41 subagent transcripts a non-recursive count had missed, and it showed that duplicate transcript lines are not always identical: 544 of 8,279 response groups carry a growing output_tokens snapshot, so keeping the first line undercounts output by 12.6% while keeping the last matches. ccusage keeps the last, so the defect reported upstream as ryoppippi/ccusage#888 does not appear in this corpus. After both corrections the independent totals agree with the instrument to within 0.1% on fresh input, cache creation and cache read; the residual is this measurement's own session still being written.
 baseline: 50 Claude sessions and 40 Codex sessions for this repository, measured 2026-09-10. Converted to input-equivalents at published ratios — Anthropic cache write 1.25x, cache read 0.1x, output 5x the model's input price; OpenAI cached input 0.1x, output and reasoning output 8x — the shares are: replayed context 60.4%, output 21.5%, cache creation 10.9%, fresh input 7.2%. The two routes agree independently on the dominant term: 60.7% on Claude, 60.1% on Codex. In raw tokens the same corpus is 96.9% cache read on Claude and 96.8% cached input on Codex, which is why raw tokens are not the unit here. Per-session spread, Claude: median 7.3M raw tokens, p25 0.87M, p75 23.2M, max 206M. Codex: median 7.3M, p25 1.7M, p75 23.6M, max 117M. Models are mixed and priced differently, which is why no single price table was used: Claude Sonnet 5 carried 79.8% of raw tokens and Opus 5 19.4%, with a 0.9% tail of other models. One of the 94 Claude files carries no usage record at all; it is reported as no data, not as zero.
-ceiling: 36.7% gross, 30.5% net, against a 40% threshold recorded on issue #94 before the instrument ran. Method, applied to all 94 Claude transcripts and using no tokenizer: the cache-prefix identity makes cache_creation at response k exactly what entered context since response k-1, so the measured token count is apportioned between tool output and everything else by the character counts of the intervening records, and the growing prefix is charged its measured cache_read at the tool-output share accumulated so far. Every tool-output byte is then treated as free, which is the best case by construction.
-ceiling-caveat: the identity is not unconditional and the measurement does not assume it is. A session that compacts, resumes past the cache TTL, or otherwise lands on a replaced prefix reports a cache_read lower than cache_read(k-1) + cache_creation(k-1); the accumulated tool-output share then describes context that is no longer present, and carrying it across the boundary would charge unrelated cache cost to removable payloads. The accumulators reset to zero at every such break — 151 of them across 8,343 responses — which under-attributes rather than over-attributes, since a compaction summary may itself contain tool output and this counts none of it. Enforcing the reset lowered the gross figure from 38.9% to 36.7%; a first draft of this record quoted the higher number, and the correction came from review rather than from the author.
-ceiling-sensitivity: the one free parameter is the relative token density of tool output against prose, which the character-count apportioning assumes to be 1.0. At +/-20% the gross figure moves between 32.9% and 39.8%, so the entire band is below the threshold; only an implausible x1.4 crosses, at 42.3%.
-ceiling-chargeback: the mechanism must read offloaded payloads back through extra requests, each paying the full cache_read of the prefix it lands on (mean 101,668 tokens, 10,167 input-equivalents) plus its own output (mean 607 tokens, 3,035 input-equivalents), for 13,202 input-equivalents per extra request. 2,566 of 8,188 tool results exceed 2 KB and are therefore worth offloading at all. Charging one extra request per four offloaded payloads costs 6.2 percentage points, which puts even the x1.4 density at 36.1%; charging one per payload leaves 11.8%.
-decision: not planned — no stop condition fired and the install path is bounded for local use, but the best-case ceiling is 36.7% before charge-back and 30.5% after, against a 40% threshold fixed before the numbers were read. The candidate is not adopted, not piloted, and not held open: what limits this repository's spend is the length of the conversation being replayed, not the size of individual tool payloads, and no offloading mechanism addresses that.
+ceiling-method: no tokenizer is involved. For the Claude route the cache-prefix identity makes cache_creation at response k exactly what entered context since response k-1, so the measured token count is apportioned between tool output and everything else by the character counts of the intervening records, and the growing prefix is charged its measured cache_read at the tool-output share accumulated so far. The Codex route is measured the same way from its own rollouts, where input_tokens and cached_input_tokens are nested so the freshly charged portion is their difference, custom_tool_call_output and function_call_output carry the payloads, and a compacted record marks a boundary. Every tool-output byte is then treated as free, which is the best case by construction.
+ceiling-claude: 94 transcripts, 93 scored, 8,388 responses, 8,225 tool results. Gross 17.8% to 28.7% across the measured density range, 36.5% at the discarded 1.0 assumption. Net at one extra request per four offloaded payloads: 11.6% to 22.5%. 2,584 tool results exceed 2 KB and are worth offloading at all; an extra request costs the full cache_read of the prefix it lands on (mean 101,741 tokens) plus its own output (mean 607 tokens), 13,214 input-equivalents in total.
+ceiling-codex: 40 rollouts, 4,973 charged requests, 4,612 tool results. Gross 20.3% to 31.3%, 38.7% at the 1.0 assumption. Net at the same charge-back: 13.2% to 24.1%. 1,708 payloads exceed 2 KB; an extra request costs 16,277 input-equivalents (mean cached prefix 117,725 tokens, mean output 563). The route was measured rather than inferred from the Claude result, because matching aggregate cache shares do not constrain how much of a cached prefix is tool output. That the two agree anyway is a result, not an assumption.
+ceiling-density: the one free parameter is measured, not assumed. Each interval between two responses gives one equation relating its tool/other character split to the cache_creation tokens the host billed for it; least squares over 8,020 intervals puts tool output at 0.30 to 0.63 the tokens per character of prose. The two ends are two models: fitting only the two character streams explains 57% of the billed tokens and gives 0.63, while adding a per-interval constant of 1,380 tokens for context that enters without appearing as message characters — tool schemas, system content, reasoning blocks — explains all of them and gives 0.30. Both say the same thing qualitatively: tool output tokenizes more cheaply than prose, so the earlier 1.0 assumption overstated the candidate's case, and reaching the threshold would take roughly twice the measured density.
+ceiling-breaks: the cache-prefix identity is not unconditional, and where it breaks the accumulated composition is not guessed. On the Claude route 151 breaks appear in 8,388 responses; 87 are compactions, which the transcript records as compact_boundary and whose replacement summary re-enters as ordinary message characters, so the accumulator resets there, and the remaining 64 are cache misses on unchanged context, where composition is carried. On the Codex route the reported cached count falls short of the previous prompt on almost every request — cached input is 96.8% of prompt tokens overall, so the shortfall is routine partial caching rather than context loss — and only the 24 recorded compactions reset. Three alternative handlings bracket the choice: resetting at every break, carrying at every break, and assuming every replaced prefix is entirely tool output. The first two move the Claude figure between 36.8% and 38.9% at the 1.0 assumption; the third reaches 56.9%, and is the only construction anywhere in this evaluation that clears 40%. It is recorded as the strict upper bound and rejected because a compaction summary is model-written prose, not tool output.
+decision: not planned — no stop condition fired and the install path is bounded for local use, but the best-case ceiling is 17.8% to 31.3% gross across both routes at the measured density, and 11.6% to 24.1% after the cheapest round-trip charge, against a 40% threshold fixed before the numbers were read. The candidate is not adopted, not piloted, and not held open: what limits this repository's spend is the length of the conversation being replayed, not the size of individual tool payloads, and no offloading mechanism addresses that.
 rollback: nothing was installed or configured, so there is no machine state to undo. The instrument was run from a digest-verified tarball unpacked under Git-ignored evidence/ and never installed; deleting that directory removes it. The change is this record and its rendered root copy, and reverting the merge removes both.
 follow-up: none for this candidate. The baseline is the reusable result: replayed context at 60% of cost on both routes is a measured fact about this repository, and any later proposal aimed at token spend is scored against it with the same instrument and the same conversion, so the next evaluation starts from a number rather than from a vendor's claim.
 ```
@@ -135,9 +149,13 @@ follow-up: none for this candidate. The baseline is the reusable result: replaye
   in this decision shortens a conversation.
 * Bad, because the Codex route still has no token-economy mechanism at all, and
   this decision supplies none; that gap is unaddressed, not resolved.
-* Bad, because the ceiling is measured on the Claude corpus only — the Codex
-  rollouts carry no per-response cache-prefix identity to apportion against — so
-  the 36.7 % is assumed to carry to a route whose category shares merely match.
+* Good, because the free parameter is measured on the corpus rather than
+  bounded by a chosen band, and the measurement went against the author's
+  earlier assumption instead of confirming it.
+* Bad, because the ceiling is an upper bound on one mechanism's saving and not a
+  prediction of any real one: it assumes every offloaded byte becomes free,
+  which no implementation achieves, so it can only ever refute a candidate and
+  never endorse one.
 * Neutral, because this record does not ship: it is publisher-only, so a
   consumer of the process inherits neither the measurement nor the verdict, and
   is free to evaluate the same candidate against its own numbers.
@@ -172,9 +190,11 @@ on a later corpus yields different numbers — that is the measurement working,
 not drifting. What is reproducible is the method: the instrument is pinned by
 version and digest under `instrument`, the conversion ratios are stated under
 `baseline`, the apportioning rule and the charge-back arithmetic are stated
-under `ceiling`, and the sensitivity of the one assumption to a ±20 % error is
-given rather than left to the reader. A reader who disagrees with a ratio or an
-assumption can recompute the verdict from the figures printed here.
+under `ceiling-method` and the two per-route lines, the one free parameter is
+measured and its fit reported under `ceiling-density`, and the three alternative
+handlings of a cache break are given with their results under `ceiling-breaks`
+rather than left to the reader. A reader who disagrees with a ratio or a
+handling can recompute the verdict from the figures printed here.
 
 The scripts that produced Stage B's numbers are deliberately not committed. They
 are one-shot analysis over files that exist on one machine, they ship to no
