@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -988,3 +989,54 @@ def test_rendered_runtime_scripts_do_not_refer_to_removed_project_answers(
         assert "github_project_number" not in text
         assert "GitHub Project 1" not in text
         assert "hardcoded constants" not in text
+
+
+def _rendered_resource_attributes(destination: Path) -> dict[str, str]:
+    settings = json.loads((destination / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    raw = settings["env"]["OTEL_RESOURCE_ATTRIBUTES"]
+    assert "{{" not in raw and "{%" not in raw, f"template left un-interpolated: {raw!r}"
+    return dict(part.split("=", 1) for part in raw.split(","))
+
+
+def test_rendered_telemetry_attribution_follows_the_answered_repository(
+    tmp_path: Path,
+) -> None:
+    """Issue #97: the project attribute is the adopter's own repository.
+
+    `claude_adapter_installed` is passed explicitly because `copier.yml` defaults it
+    to `false`, and the conditional directory would otherwise render no settings file
+    at all.
+    """
+    destination = render(
+        tmp_path,
+        "--data",
+        "claude_adapter_installed=true",
+        "--data",
+        "github_repository=example-org/example-repo",
+    )
+
+    attributes = _rendered_resource_attributes(destination)
+
+    assert attributes["vcs.repository.name"] == "example-org/example-repo"
+    assert attributes["vcs.repository.url.full"] == "https://github.com/example-org/example-repo"
+    assert "agent-process-distribution" not in str(attributes)
+
+
+def test_rendered_telemetry_attribution_falls_back_to_the_repo_name(tmp_path: Path) -> None:
+    """`github_repository` defaults to an empty string (`copier.yml:47`), so the
+    fallback is the realistic adopter path, not an edge case. An adopter without a
+    canonical URL gets no URL pair rather than a guessed one."""
+    destination = render(
+        tmp_path,
+        "--data",
+        "claude_adapter_installed=true",
+        "--data",
+        "github_repository=",
+        "--data",
+        "repo_name=example-fallback",
+    )
+
+    attributes = _rendered_resource_attributes(destination)
+
+    assert attributes["vcs.repository.name"] == "example-fallback"
+    assert "vcs.repository.url.full" not in attributes
