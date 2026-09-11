@@ -48,10 +48,10 @@ saving can be measured at all.
 ## Decision Outcome
 
 Chosen: **not planned.** No stop condition fired on the verified artefact — the
-candidate is not rejected as unsafe or unusable. It is rejected because the
-saving it could produce, measured on this repository's own sessions and taken at
-its most generous, does not reach the threshold the owner fixed before any
-number was read.
+candidate is not rejected as unsafe or unusable. It is rejected because every
+measurement of the saving it could produce, taken on this repository's own
+sessions and charging the mechanism nothing for what it adds back, falls short
+of the threshold the owner fixed before any number was read.
 
 The threshold was **40 %** of measured cost, recorded on 2026-09-10 against the
 issue that commissioned this measurement, before the instrument ran (#94). Each
@@ -84,9 +84,10 @@ else puts it at **0.103**; the bound is 0.484. Those are gross savings of
 against its bound of 0.269 — a gross saving of **26.4 %**, or **19.3 %** after
 the round-trip charge.
 
-Five estimates across two routes, then, all below the threshold, and one
-one-sided bound above it on one route. The decision follows the estimates and
-records the bound as exactly what it is.
+Five figures across two routes, then: three measurements at 6.7 %, 14.4 % and
+26.4 %, one bound at 31.4 % that closes the Claude route, and one bound at
+52.1 % that does not close the Codex route. The decision follows the
+measurements and records the loose bound as exactly what it is.
 
 The reason is visible in the baseline and is not about this candidate. Replayed
 context is 60 % of cost on both routes independently — 60.7 % on Claude, 60.1 %
