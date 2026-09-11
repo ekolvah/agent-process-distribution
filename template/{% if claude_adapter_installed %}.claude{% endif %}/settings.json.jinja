@@ -1,4 +1,7 @@
 {
+  "env": {
+    "OTEL_RESOURCE_ATTRIBUTES": "vcs.repository.name={{ github_repository or repo_name }}{% if github_repository %},vcs.repository.url.full=https://github.com/{{ github_repository }}{% endif %}"
+  },
   "permissions": {
     "deny": [
       "Bash(git push origin main)",
