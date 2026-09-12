@@ -40,7 +40,17 @@ _PACKED_PATTERN = r"^cpt[|][^|]+[|][^|]+[|][^|]+$"
 _PACKED_PREFIX = "cpt|"
 _REQUIRED_FIELDS = ("project", "task_id", "attempt_id", "started_at")
 
+# Codex exports ~200 metric names, mostly histograms; one app-server session put
+# ~14 800 series into the tenant and pinned it at max_global_series_per_user, after
+# which every new task-labelled series was silently discarded. Only the turn-level
+# metrics the measurement reads survive; Claude names are untouched.
+CODEX_CARDINALITY_FILTER = (
+    'HasPrefix(name, "codex") and not IsMatch(name, "^codex[._](turn[._]token_usage'
+    '|turn[._]e2e_duration_ms|conversation[._]turn_count|process[._]start)$")'
+)
+
 REQUIRED_ALLOY_STATEMENTS = (
+    CODEX_CARDINALITY_FILTER,
     'set(attributes["vcs.repository.name"], resource.attributes["vcs.repository.name"]) '
     'where resource.attributes["vcs.repository.name"] != nil',
     'set(attributes["task_id"], resource.attributes["task_id"]) '
@@ -180,8 +190,15 @@ def compose_claude_settings(
             f"attempt_id={attempt_id}",
         )
     )
+    # The layer selects the metrics exporter itself: a shell without the owner's
+    # OTEL_* variables would otherwise run Claude with zero metric readers and the
+    # measured launch would export nothing without any error. Logs keep the
+    # caller's direct route and headers.
     return {
         "env": {
+            "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+            "OTEL_METRICS_EXPORTER": "otlp",
+            "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL": "http/protobuf",
             "OTEL_RESOURCE_ATTRIBUTES": attributes,
             "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": METRICS_ENDPOINT,
         }
@@ -344,7 +361,11 @@ def resolve_outcomes(attempts: list[dict[str, str]], source: PullRequestSource) 
 def check_host(alloy_config: str, *, metrics_endpoint: str | None) -> HostCheck:
     """Check only non-secret owner-host invariants."""
     errors = [
-        "Alloy task-attribution transform is incomplete"
+        (
+            "Alloy Codex cardinality filter is missing"
+            if statement == CODEX_CARDINALITY_FILTER
+            else "Alloy task-attribution transform is incomplete"
+        )
         for statement in REQUIRED_ALLOY_STATEMENTS
         if statement not in alloy_config
     ]

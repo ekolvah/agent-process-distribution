@@ -187,10 +187,16 @@ app session — cannot be attributed retroactively.
 
 - **Claude** gets one complete settings layer written to a temporary file under
   the ledger directory and passed as `--settings <path>`. It carries the whole
-  `OTEL_RESOURCE_ATTRIBUTES` value (project, task, attempt) plus
-  `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`. The file is removed in a `finally`
-  path; the repository `.claude/settings.json` is never touched. A command that
-  already contains `--settings` is refused rather than merged.
+  `OTEL_RESOURCE_ATTRIBUTES` value (project, task, attempt),
+  `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, and the metrics switch itself
+  (`CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_METRICS_EXPORTER=otlp`,
+  `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=http/protobuf`). **Observed**: a shell
+  without the User-scope `OTEL_*` variables started Claude with zero metric
+  readers (`getOtlpReaders: types=[]` in the debug log) and the measured launch
+  exported nothing, with exit code 0; the layer now selects the exporter so the
+  launch does not depend on the caller's shell. The file is removed in a
+  `finally` path; the repository `.claude/settings.json` is never touched. A
+  command that already contains `--settings` is refused rather than merged.
 - **Codex** gets `-c otel.environment=cpt|<project>|<task>|<attempt>`. The
   encoder rejects the `|` delimiter and empty components; the decoder is the
   same contract read back, so the launcher can never emit a value the collector
@@ -203,7 +209,15 @@ User-scope `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`; the generic
 `OTEL_EXPORTER_OTLP_ENDPOINT` remains and still carries Claude logs directly to
 Grafana Cloud. Codex keeps sending to the same receiver.
 
-The datapoint-context `otelcol.processor.transform` promotes, in order:
+The receiver feeds an `otelcol.processor.filter "codex_cardinality"` first. It
+drops every metric whose name starts with `codex` except
+`codex.turn.token_usage`, `codex.turn.e2e_duration_ms`,
+`codex.conversation.turn_count`, and `codex.process.start` (dot or underscore
+spelling); Claude names pass untouched. The reason is the tenant series limit
+described [below](#the-tenant-series-limit-is-a-precondition). `doctor` fails
+when the filter expression is absent.
+
+The datapoint-context `otelcol.processor.transform` then promotes, in order:
 
 1. Claude resource `vcs.repository.name`, `task_id`, `attempt_id` → datapoint
    attributes of the same names.
@@ -223,8 +237,9 @@ probes (full Claude, bypass Claude, packed Codex, legacy Codex, host-default
 listed above.
 
 `python scripts/owner_task_attribution.py doctor` checks that the active config
-contains every promotion rule, that the User-scope metrics endpoint is the local
-receiver, and that the listener answers. It prints no endpoint credentials.
+contains the cardinality filter and every promotion rule, that the User-scope
+metrics endpoint is the local receiver, and that the listener answers. It
+prints no endpoint credentials.
 
 ### Unassigned is the audit signal
 
@@ -249,9 +264,13 @@ repository+issue). Malformed records and overlapping windows fail non-zero.
 Before the transform was extended the previous config was copied to
 `~/.config/alloy/config.alloy.issue-101.prechange`, the candidate passed
 `alloy.exe validate --stability.level=experimental`, and Alloy was restarted
-with its existing arguments. Rollback is the reverse: restore that file, unset
-the User-scope `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, restart Alloy the same way,
-and confirm the listener on `127.0.0.1:4318`.
+with its existing arguments. The cardinality filter went in the same way with
+the backup `~/.config/alloy/config.alloy.issue-101.prefilter`; that restart also
+removed a debugging `otelcol.exporter.debug` left from the probe session and
+went through `~/.config/alloy/run-alloy.ps1`, so stdout/stderr are redirected
+again. Rollback is the reverse: restore the wanted backup, unset the User-scope
+`OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, restart Alloy through `run-alloy.ps1`, and
+confirm the listener on `127.0.0.1:4318`.
 
 Historical series are not relabelled. The cut-over is the first normal,
 long-lived Claude and Codex launch through the wrapper whose token series carry
@@ -270,3 +289,13 @@ failing part; the tenant is. Check
 `grafanacloud_instance_samples_discarded_per_second{reason="per_user_series_limit"}`
 in the `grafanacloud-usage` datasource before reading any live result as
 evidence.
+
+The `codex_cardinality` filter is the standing mitigation: only the four
+turn-level Codex names the measurement reads reach the tenant. **Observed** on
+2026-09-12 after the restart: `grafanacloud_instance_memory_series` fell from
+15 000 to 2 311 and the discard rate to zero; a `codex_turn_token_usage` probe
+with a packed `env` arrived with all three labels, while
+`codex_sse_event_duration_ms` and `codex_websocket_request_duration_ms` probes
+through the same receiver produced no series. This narrows the Codex metric set
+the collector forwards, which the ADR records as an amendment to its original
+"add attributes only" boundary.

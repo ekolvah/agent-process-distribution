@@ -92,6 +92,11 @@ class TestClaudeLaunch:
             "attempt_id": "issue-101-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         }
         assert env["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] == ("http://127.0.0.1:4318/v1/metrics")
+        # A caller shell without the exporter selection must not turn a measured
+        # launch into a silent no-op: the layer switches the metrics route on itself.
+        assert env["CLAUDE_CODE_ENABLE_TELEMETRY"] == "1"
+        assert env["OTEL_METRICS_EXPORTER"] == "otlp"
+        assert env["OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"] == "http/protobuf"
         assert "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT" not in env
         assert "OTEL_EXPORTER_OTLP_HEADERS" not in env
 
@@ -259,6 +264,19 @@ class TestHostDoctor:
         assert result.errors == ()
         assert "password" not in repr(result).lower()
         assert "token" not in repr(result).lower()
+
+    def test_rejects_config_without_codex_cardinality_filter(self) -> None:
+        # Without the filter Codex's ~200 histogram names saturate the tenant series
+        # limit and every new task-labelled series is silently discarded.
+        config = "\n".join(
+            statement
+            for statement in attribution.REQUIRED_ALLOY_STATEMENTS
+            if statement != attribution.CODEX_CARDINALITY_FILTER
+        )
+        result = attribution.check_host(config, metrics_endpoint="http://127.0.0.1:4318/v1/metrics")
+        assert not result.ok
+        assert any("cardinality" in error for error in result.errors)
+        assert 'IsMatch(name, "^codex' in attribution.CODEX_CARDINALITY_FILTER
 
     def test_rejects_missing_transform_or_wrong_endpoint(self) -> None:
         result = attribution.check_host("", metrics_endpoint="https://example.invalid/v1/metrics")

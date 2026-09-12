@@ -72,9 +72,33 @@ Attempt starts are append-only under
 jointly identify reuse. GitHub PR timestamps supply outcomes; an earlier attempt
 without a PR is superseded only when a later attempt starts.
 
+The Claude settings layer also selects the metrics exporter
+(`CLAUDE_CODE_ENABLE_TELEMETRY`, `OTEL_METRICS_EXPORTER`,
+`OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`): a shell without the owner's `OTEL_*`
+variables started Claude with zero metric readers and the measured launch
+exported nothing with exit code 0. The launch must not depend on the caller's
+shell for the very thing it exists to guarantee.
+
 The launcher, tests, this ADR, and the measurement setup are root-only. No file
 or setting from this decision is rendered into a consumer or installed by the
 Claude plugin.
+
+### Amendment: the Collector also narrows the Codex metric set
+
+The original boundary was "adding attributes is the only mutation". The live
+check showed that this is insufficient on the owner's Grafana Cloud stack:
+Codex exports roughly two hundred metric names, most of them histograms, and a
+single app-server session put ~14 800 `codex_*` series into the tenant, whose
+`max_global_series_per_user` is 15 000. At the limit every new label set —
+including every task-labelled series — was discarded with
+`per_user_series_limit`, silently and with HTTP 200.
+
+An `otelcol.processor.filter` therefore sits between the receiver and the
+transform and drops every `codex*` metric except `codex.turn.token_usage`,
+`codex.turn.e2e_duration_ms`, `codex.conversation.turn_count`, and
+`codex.process.start`. Claude names are untouched. The doctor command treats the
+filter expression as required. Names, temporality, `job`, `instance`, and the
+exporter chain stay unchanged for what passes.
 
 ### Host change and rollback
 
@@ -82,7 +106,10 @@ The active Alloy file is backed up before replacement. A candidate must pass the
 installed `alloy.exe validate` command. Alloy restarts with the exact existing
 arguments in a hidden window, and the local listener is checked. A failed start
 restores the prior file and user metrics endpoint, restarts the prior process,
-and exits non-zero.
+and exits non-zero. The amendment above was installed the same way
+(`config.alloy.issue-101.prefilter` backup, `validate`, restart through the
+owner's `run-alloy.ps1`); a debugging `otelcol.exporter.debug` from the probe
+session was removed in that restart.
 
 ### Cut-over
 
