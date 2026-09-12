@@ -102,6 +102,26 @@ def _alloy_component_body(config: str, component: str, label: str) -> str | None
     return None
 
 
+def _metrics_output_targets(component_body: str) -> tuple[str, ...]:
+    """Return the explicitly wired metrics targets from one component's output block."""
+    match = re.search(r"^\s*output\s*\{", component_body, flags=re.MULTILINE)
+    if match is None:
+        return ()
+    depth = 1
+    for index in range(match.end(), len(component_body)):
+        if component_body[index] == "{":
+            depth += 1
+        elif component_body[index] == "}":
+            depth -= 1
+            if depth == 0:
+                output = component_body[match.end() : index]
+                targets = re.search(r"\bmetrics\s*=\s*\[([^]]*)\]", output, flags=re.DOTALL)
+                if targets is None:
+                    return ()
+                return tuple(re.findall(r"\botelcol[.\w]+[.]input\b", targets.group(1)))
+    return ()
+
+
 def _has_active_attribution_pipeline(config: str) -> bool:
     """Confirm the owner attribution processors sit on the receiver-to-exporter path."""
     receiver = _alloy_component_body(config, "otelcol.receiver.otlp", "codex")
@@ -119,11 +139,14 @@ def _has_active_attribution_pipeline(config: str) -> bool:
     return (
         CODEX_CARDINALITY_FILTER in cardinality
         and all(statement in transform for statement in transform_rules)
-        and "otelcol.processor.filter.codex_cardinality.input" in receiver
-        and "otelcol.processor.transform.codex_attribution.input" in cardinality
-        and "otelcol.processor.deltatocumulative.codex.input" in transform
-        and "otelcol.processor.batch.codex.input" in delta
-        and "otelcol.exporter.otlphttp.grafana.input" in batch
+        and _metrics_output_targets(receiver)
+        == ("otelcol.processor.filter.codex_cardinality.input",)
+        and _metrics_output_targets(cardinality)
+        == ("otelcol.processor.transform.codex_attribution.input",)
+        and _metrics_output_targets(transform)
+        == ("otelcol.processor.deltatocumulative.codex.input",)
+        and _metrics_output_targets(delta) == ("otelcol.processor.batch.codex.input",)
+        and _metrics_output_targets(batch) == ("otelcol.exporter.otlphttp.grafana.input",)
     )
 
 

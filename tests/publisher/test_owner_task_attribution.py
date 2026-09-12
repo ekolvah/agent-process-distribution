@@ -255,7 +255,10 @@ class TestAttemptLedger:
 
 class TestHostDoctor:
     @staticmethod
-    def _sanitized_config(*, transform_output: str | None = None) -> str:
+    def _sanitized_config(
+        *, receiver_output: str | None = None, transform_output: str | None = None
+    ) -> str:
+        receiver_output = receiver_output or "otelcol.processor.filter.codex_cardinality.input"
         transform_output = transform_output or "otelcol.processor.deltatocumulative.codex.input"
         transform_statements = "\n".join(
             statement
@@ -264,7 +267,7 @@ class TestHostDoctor:
         )
         return f"""\
 otelcol.receiver.otlp "codex" {{
-  output {{ metrics = [otelcol.processor.filter.codex_cardinality.input] }}
+  output {{ metrics = [{receiver_output}] }}
 }}
 otelcol.processor.filter "codex_cardinality" {{
   metrics {{ metric = [`{attribution.CODEX_CARDINALITY_FILTER}`] }}
@@ -311,6 +314,20 @@ otelcol.exporter.otlphttp "grafana" {{}}
     def test_rejects_disconnected_transform_even_when_all_rules_are_present(self) -> None:
         result = attribution.check_host(
             self._sanitized_config(transform_output="otelcol.processor.batch.codex.input"),
+            metrics_endpoint="http://127.0.0.1:4318/v1/metrics",
+        )
+
+        assert not result.ok
+        assert any("pipeline" in error for error in result.errors)
+
+    def test_rejects_processor_bypassing_fanout(self) -> None:
+        result = attribution.check_host(
+            self._sanitized_config(
+                receiver_output=(
+                    "otelcol.processor.filter.codex_cardinality.input, "
+                    "otelcol.processor.batch.codex.input"
+                )
+            ),
             metrics_endpoint="http://127.0.0.1:4318/v1/metrics",
         )
 
