@@ -410,4 +410,6 @@ def test_owner_task_attribution_is_root_only(rendered_default: Path) -> None:
     for relative in expected:
         assert (ROOT / relative).is_file()
         assert not (rendered_default / relative).exists()
-    assert not (rendered_default / ".claude-plugin" / "scripts" / "owner_task_attribution.py").exists()
+    assert not (
+        rendered_default / ".claude-plugin" / "scripts" / "owner_task_attribution.py"
+    ).exists()

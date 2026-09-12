@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import importlib.util
+import json
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -16,6 +17,7 @@ SPEC = importlib.util.spec_from_file_location(
 )
 assert SPEC is not None and SPEC.loader is not None
 attribution = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = attribution
 SPEC.loader.exec_module(attribution)
 
 
@@ -61,6 +63,20 @@ class TestTaskIdentity:
 
 
 class TestClaudeLaunch:
+    def test_windows_command_resolves_an_executable_shim(self) -> None:
+        probes: list[str] = []
+
+        def which(value: str) -> str | None:
+            probes.append(value)
+            return "C:/npm/claude.cmd" if value == "claude.cmd" else None
+
+        assert attribution.resolve_command(["claude", "-p", "ok"], windows=True, which=which) == [
+            "C:/npm/claude.cmd",
+            "-p",
+            "ok",
+        ]
+        assert probes == ["claude.exe", "claude.cmd"]
+
     def test_complete_settings_and_metrics_only_endpoint(self) -> None:
         settings = attribution.compose_claude_settings(
             project=PROJECT,
@@ -75,9 +91,7 @@ class TestClaudeLaunch:
             "task_id": "issue-101",
             "attempt_id": "issue-101-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         }
-        assert env["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] == (
-            "http://127.0.0.1:4318/v1/metrics"
-        )
+        assert env["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] == ("http://127.0.0.1:4318/v1/metrics")
         assert "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT" not in env
         assert "OTEL_EXPORTER_OTLP_HEADERS" not in env
 
