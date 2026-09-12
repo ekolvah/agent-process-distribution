@@ -1,4 +1,7 @@
 {
+  "env": {
+    "OTEL_RESOURCE_ATTRIBUTES": "vcs.repository.name=ekolvah/agent-process-distribution,vcs.repository.url.full=https://github.com/ekolvah/agent-process-distribution"
+  },
   "permissions": {
     "deny": [
       "Bash(git push origin main)",

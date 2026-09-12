@@ -21,6 +21,10 @@ root_only_paths:
     reason: Reserved for the root-only drift gate in issue #6.
   - path: docs/adr/0013-template-source-self-hosting.md
     reason: Reserved for the source-sync ADR introduced with the drift gate in issue #6.
+  - path: docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md
+    reason: Records this repository's own telemetry boundary decision; a consumer would inherit assertions about a tenant and a collector it never measured.
+  - path: docs/telemetry-measurement-setup.md
+    reason: Describes the owner's host telemetry setup — transport variables, collector, dashboards by UID; a consumer would inherit configuration it does not have.
   - path: copier.yml
     reason: Defines this repository's Copier source; consumers receive only its rendered payload.
   - path: pyproject.toml
