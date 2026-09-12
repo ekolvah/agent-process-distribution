@@ -26,35 +26,5 @@ Status: draft
   decided by which chat the person opens. No file records a "default adapter".
 - **ROLE-5** (SHOULD) Implementer and fixer are one skill: after the PR is open the same
   run waits for checks and reviews and applies fixes (`40-implementation.md`, IMPL-5).
-
-## Rationale
-
-v1 kept `roles.yaml` with `adapter_routes`, `carrier_selection`, `adapter_files`,
-`adapter_independence` and `max_runs` per role, read by an orchestrator and by the issue
-validator. The table above carries the same information in ten lines of `AGENTS.md`, and
-the person choosing a chat is the routing. The independence of the architect reviewer
-(Claude subagent = independent, Codex = self) stays visible in the issue text — the
-validator no longer resolves it from a map.
-
-Codex hooks are dropped (`.codex/hooks.json`, `codex_hooks.py`,
-`check_codex_project_trust.py`). What is lost: in Codex, a lint error surfaces at
-`ci_check` instead of immediately after the edit — one extra cycle at the end of a task;
-the command deny-list was defense in depth behind branch protection, which stays
-authoritative. What is gained: no trust preflight, one installation step fewer, no
-dependency on a feature Codex still flags experimental.
-
-## Non-goals
-
-- A discovery role in the core; a project that needs fixture capture keeps it locally.
-- Budgets or run counters per role.
-
-## Open questions
-
-- Restore Codex hooks when Codex ships them as a stable feature; settled by re-running the
-  post-edit lint through both agents and comparing review rounds (`70-telemetry.md`).
-
-## Traceability
-
-- ADR 0009 (discovery role) — moved out of the core.
-- ADR 0015 (Codex primary, Claude fallback) — superseded; see `50-review-and-merge.md`.
-- `.agents/orchestration/roles.yaml` — replaced by ROLE-2.
+- **ROLE-6** (MUST NOT) No discovery role in the core, no budgets or run counters per role,
+  no Codex hooks.

@@ -79,10 +79,6 @@ root_only_paths:
     reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
   - path: docs/spec/80-maintenance.md
     reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
-  - path: docs/spec/90-migration-v1-v2.md
-    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
-  - path: tests/publisher/test_spec_structure.py
-    reason: Guards the publisher-only docs/spec format (issue #105); consumers have no spec directory.
 expected_difference_paths:
   - path: .agent-process/scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.
