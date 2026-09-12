@@ -256,7 +256,11 @@ class TestAttemptLedger:
 class TestHostDoctor:
     @staticmethod
     def _sanitized_config(
-        *, receiver_output: str | None = None, transform_output: str | None = None
+        *,
+        receiver_output: str | None = None,
+        transform_output: str | None = None,
+        statements_block: str = "metric_statements",
+        statements_context: str = "datapoint",
     ) -> str:
         receiver_output = receiver_output or "otelcol.processor.filter.codex_cardinality.input"
         transform_output = transform_output or "otelcol.processor.deltatocumulative.codex.input"
@@ -274,7 +278,7 @@ otelcol.processor.filter "codex_cardinality" {{
   output {{ metrics = [otelcol.processor.transform.codex_attribution.input] }}
 }}
 otelcol.processor.transform "codex_attribution" {{
-  metric_statements {{ context = "datapoint" statements = [{transform_statements}] }}
+  {statements_block} {{ context = "{statements_context}" statements = [{transform_statements}] }}
   output {{ metrics = [{transform_output}] }}
 }}
 otelcol.processor.deltatocumulative "codex" {{
@@ -333,3 +337,20 @@ otelcol.exporter.otlphttp "grafana" {{}}
 
         assert not result.ok
         assert any("pipeline" in error for error in result.errors)
+
+    @pytest.mark.parametrize(
+        ("block", "context"),
+        [("trace_statements", "span"), ("metric_statements", "metric")],
+    )
+    def test_rejects_rules_outside_the_datapoint_metric_statements(
+        self, block: str, context: str
+    ) -> None:
+        # The same OTTL text under trace_statements or in metric context never
+        # touches metric datapoints, so the connected route ships no labels.
+        result = attribution.check_host(
+            self._sanitized_config(statements_block=block, statements_context=context),
+            metrics_endpoint="http://127.0.0.1:4318/v1/metrics",
+        )
+
+        assert not result.ok
+        assert any("transform" in error for error in result.errors)

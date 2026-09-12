@@ -81,25 +81,41 @@ REQUIRED_ALLOY_STATEMENTS = (
 )
 
 
+def _block_bodies(text: str, header: str) -> list[str]:
+    """Return the bodies of every brace block whose header matches the pattern."""
+    bodies: list[str] = []
+    for match in re.finditer(rf"^\s*{header}\s*\{{", text, flags=re.MULTILINE):
+        depth = 1
+        for index in range(match.end(), len(text)):
+            if text[index] == "{":
+                depth += 1
+            elif text[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    bodies.append(text[match.end() : index])
+                    break
+    return bodies
+
+
 def _alloy_component_body(config: str, component: str, label: str) -> str | None:
     """Return one active Alloy component body, excluding line comments."""
     uncommented = re.sub(r"(?m)//.*$", "", config)
-    match = re.search(
-        rf'^\s*{re.escape(component)}\s+"{re.escape(label)}"\s*\{{',
-        uncommented,
-        flags=re.MULTILINE,
+    bodies = _block_bodies(uncommented, rf'{re.escape(component)}\s+"{re.escape(label)}"')
+    return bodies[0] if bodies else None
+
+
+def _datapoint_metric_statements(transform_body: str) -> str:
+    """Return only the transform rules that run on metric datapoints.
+
+    The same OTTL text under ``trace_statements`` or in ``metric`` context never
+    touches datapoints, so a substring match over the whole component would
+    accept a transform that labels nothing.
+    """
+    return "\n".join(
+        body
+        for body in _block_bodies(transform_body, "metric_statements")
+        if re.search(r'context\s*=\s*"datapoint"', body)
     )
-    if match is None:
-        return None
-    depth = 1
-    for index in range(match.end(), len(uncommented)):
-        if uncommented[index] == "{":
-            depth += 1
-        elif uncommented[index] == "}":
-            depth -= 1
-            if depth == 0:
-                return uncommented[match.end() : index]
-    return None
 
 
 def _metrics_output_targets(component_body: str) -> tuple[str, ...]:
@@ -136,9 +152,10 @@ def _has_active_attribution_pipeline(config: str) -> bool:
     assert receiver is not None and cardinality is not None and transform is not None
     assert delta is not None and batch is not None
     transform_rules = REQUIRED_ALLOY_STATEMENTS[1:]
+    datapoint_rules = _datapoint_metric_statements(transform)
     return (
         CODEX_CARDINALITY_FILTER in cardinality
-        and all(statement in transform for statement in transform_rules)
+        and all(statement in datapoint_rules for statement in transform_rules)
         and _metrics_output_targets(receiver)
         == ("otelcol.processor.filter.codex_cardinality.input",)
         and _metrics_output_targets(cardinality)
@@ -438,10 +455,8 @@ def check_host(alloy_config: str, *, metrics_endpoint: str | None) -> HostCheck:
     errors = []
     if cardinality is None or CODEX_CARDINALITY_FILTER not in cardinality:
         errors.append("Alloy Codex cardinality filter is missing")
-    if any(
-        transform is None or statement not in transform
-        for statement in REQUIRED_ALLOY_STATEMENTS[1:]
-    ):
+    datapoint_rules = "" if transform is None else _datapoint_metric_statements(transform)
+    if any(statement not in datapoint_rules for statement in REQUIRED_ALLOY_STATEMENTS[1:]):
         errors.append("Alloy task-attribution transform is incomplete")
     if not _has_active_attribution_pipeline(alloy_config):
         errors.append("Alloy task-attribution pipeline is disconnected")
