@@ -254,10 +254,38 @@ class TestAttemptLedger:
 
 
 class TestHostDoctor:
+    @staticmethod
+    def _sanitized_config(*, transform_output: str | None = None) -> str:
+        transform_output = transform_output or "otelcol.processor.deltatocumulative.codex.input"
+        transform_statements = "\n".join(
+            statement
+            for statement in attribution.REQUIRED_ALLOY_STATEMENTS
+            if statement != attribution.CODEX_CARDINALITY_FILTER
+        )
+        return f"""\
+otelcol.receiver.otlp "codex" {{
+  output {{ metrics = [otelcol.processor.filter.codex_cardinality.input] }}
+}}
+otelcol.processor.filter "codex_cardinality" {{
+  metrics {{ metric = [`{attribution.CODEX_CARDINALITY_FILTER}`] }}
+  output {{ metrics = [otelcol.processor.transform.codex_attribution.input] }}
+}}
+otelcol.processor.transform "codex_attribution" {{
+  metric_statements {{ context = "datapoint" statements = [{transform_statements}] }}
+  output {{ metrics = [{transform_output}] }}
+}}
+otelcol.processor.deltatocumulative "codex" {{
+  output {{ metrics = [otelcol.processor.batch.codex.input] }}
+}}
+otelcol.processor.batch "codex" {{
+  output {{ metrics = [otelcol.exporter.otlphttp.grafana.input] }}
+}}
+otelcol.exporter.otlphttp "grafana" {{}}
+"""
+
     def test_accepts_sanitized_transform_and_metrics_route(self) -> None:
-        config = "\n".join(attribution.REQUIRED_ALLOY_STATEMENTS)
         result = attribution.check_host(
-            config,
+            self._sanitized_config(),
             metrics_endpoint="http://127.0.0.1:4318/v1/metrics",
         )
         assert result.ok
@@ -268,11 +296,7 @@ class TestHostDoctor:
     def test_rejects_config_without_codex_cardinality_filter(self) -> None:
         # Without the filter Codex's ~200 histogram names saturate the tenant series
         # limit and every new task-labelled series is silently discarded.
-        config = "\n".join(
-            statement
-            for statement in attribution.REQUIRED_ALLOY_STATEMENTS
-            if statement != attribution.CODEX_CARDINALITY_FILTER
-        )
+        config = self._sanitized_config().replace(attribution.CODEX_CARDINALITY_FILTER, "false")
         result = attribution.check_host(config, metrics_endpoint="http://127.0.0.1:4318/v1/metrics")
         assert not result.ok
         assert any("cardinality" in error for error in result.errors)
@@ -283,3 +307,12 @@ class TestHostDoctor:
         assert not result.ok
         assert any("Alloy" in error for error in result.errors)
         assert any("metrics endpoint" in error for error in result.errors)
+
+    def test_rejects_disconnected_transform_even_when_all_rules_are_present(self) -> None:
+        result = attribution.check_host(
+            self._sanitized_config(transform_output="otelcol.processor.batch.codex.input"),
+            metrics_endpoint="http://127.0.0.1:4318/v1/metrics",
+        )
+
+        assert not result.ok
+        assert any("pipeline" in error for error in result.errors)

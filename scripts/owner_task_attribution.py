@@ -81,6 +81,52 @@ REQUIRED_ALLOY_STATEMENTS = (
 )
 
 
+def _alloy_component_body(config: str, component: str, label: str) -> str | None:
+    """Return one active Alloy component body, excluding line comments."""
+    uncommented = re.sub(r"(?m)//.*$", "", config)
+    match = re.search(
+        rf'^\s*{re.escape(component)}\s+"{re.escape(label)}"\s*\{{',
+        uncommented,
+        flags=re.MULTILINE,
+    )
+    if match is None:
+        return None
+    depth = 1
+    for index in range(match.end(), len(uncommented)):
+        if uncommented[index] == "{":
+            depth += 1
+        elif uncommented[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return uncommented[match.end() : index]
+    return None
+
+
+def _has_active_attribution_pipeline(config: str) -> bool:
+    """Confirm the owner attribution processors sit on the receiver-to-exporter path."""
+    receiver = _alloy_component_body(config, "otelcol.receiver.otlp", "codex")
+    cardinality = _alloy_component_body(config, "otelcol.processor.filter", "codex_cardinality")
+    transform = _alloy_component_body(config, "otelcol.processor.transform", "codex_attribution")
+    delta = _alloy_component_body(config, "otelcol.processor.deltatocumulative", "codex")
+    batch = _alloy_component_body(config, "otelcol.processor.batch", "codex")
+    exporter = _alloy_component_body(config, "otelcol.exporter.otlphttp", "grafana")
+    components = (receiver, cardinality, transform, delta, batch, exporter)
+    if any(body is None for body in components):
+        return False
+    assert receiver is not None and cardinality is not None and transform is not None
+    assert delta is not None and batch is not None
+    transform_rules = REQUIRED_ALLOY_STATEMENTS[1:]
+    return (
+        CODEX_CARDINALITY_FILTER in cardinality
+        and all(statement in transform for statement in transform_rules)
+        and "otelcol.processor.filter.codex_cardinality.input" in receiver
+        and "otelcol.processor.transform.codex_attribution.input" in cardinality
+        and "otelcol.processor.deltatocumulative.codex.input" in transform
+        and "otelcol.processor.batch.codex.input" in delta
+        and "otelcol.exporter.otlphttp.grafana.input" in batch
+    )
+
+
 class PullRequestSource(Protocol):
     """External boundary used by attempt outcome resolution."""
 
@@ -360,15 +406,22 @@ def resolve_outcomes(attempts: list[dict[str, str]], source: PullRequestSource) 
 
 def check_host(alloy_config: str, *, metrics_endpoint: str | None) -> HostCheck:
     """Check only non-secret owner-host invariants."""
-    errors = [
-        (
-            "Alloy Codex cardinality filter is missing"
-            if statement == CODEX_CARDINALITY_FILTER
-            else "Alloy task-attribution transform is incomplete"
-        )
-        for statement in REQUIRED_ALLOY_STATEMENTS
-        if statement not in alloy_config
-    ]
+    cardinality = _alloy_component_body(
+        alloy_config, "otelcol.processor.filter", "codex_cardinality"
+    )
+    transform = _alloy_component_body(
+        alloy_config, "otelcol.processor.transform", "codex_attribution"
+    )
+    errors = []
+    if cardinality is None or CODEX_CARDINALITY_FILTER not in cardinality:
+        errors.append("Alloy Codex cardinality filter is missing")
+    if any(
+        transform is None or statement not in transform
+        for statement in REQUIRED_ALLOY_STATEMENTS[1:]
+    ):
+        errors.append("Alloy task-attribution transform is incomplete")
+    if not _has_active_attribution_pipeline(alloy_config):
+        errors.append("Alloy task-attribution pipeline is disconnected")
     if metrics_endpoint != METRICS_ENDPOINT:
         errors.append(f"metrics endpoint must be {METRICS_ENDPOINT}")
     return HostCheck(ok=not errors, errors=tuple(dict.fromkeys(errors)))
