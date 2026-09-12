@@ -4,6 +4,10 @@ Use [the agent development process](.agent-process/docs/architecture/agent-proce
 source of truth. Roles are interchangeable: do not assume that the current
 Claude or Codex adapter is the only permitted executor.
 
+The **target** process is specified in [`docs/spec/`](docs/spec/README.md); an issue
+names the requirement IDs it implements, and a PR that changes target behaviour updates the
+spec in the same PR; a PR that only touches a v1 mechanism the target drops does not. Until v2 lands the document above stays the enforced contract.
+
 ## Codex adapter
 
 - A repository must be activated once before its first delivery. Follow

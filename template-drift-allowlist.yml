@@ -59,6 +59,28 @@ root_only_paths:
     reason: Publisher-only (issue #77) — exercises scripts/resolve_review_thread.py, byte-static across renders and not owed to consumers as a separate copy.
   - path: tests/publisher/test_existing_project_update.py
     reason: Verifies the adoption CLI's update-path invariants in the publisher source, not a file a consumer receives.
+  - path: docs/spec/README.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/00-goals.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/10-distribution.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/20-roles.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/30-planning.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/40-implementation.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/50-review-and-merge.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/60-state.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/70-telemetry.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: docs/spec/80-maintenance.md
+    reason: Publisher-only system spec of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
 expected_difference_paths:
   - path: .agent-process/scripts/project_settings.py
     reason: The source repository records its activated Project IDs; rendered consumers begin unconfigured.
+  - path: AGENTS.md
+    reason: The publisher's AGENTS.md points agents at docs/spec (issue #105), which consumers do not receive; the rendered copy carries no such pointer.
