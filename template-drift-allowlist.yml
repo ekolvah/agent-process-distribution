@@ -25,6 +25,12 @@ root_only_paths:
     reason: Records this repository's own telemetry boundary decision; a consumer would inherit assertions about a tenant and a collector it never measured.
   - path: docs/telemetry-measurement-setup.md
     reason: Describes the owner's host telemetry setup — transport variables, collector, dashboards by UID; a consumer would inherit configuration it does not have.
+  - path: docs/adr/0027-owner-host-normalizes-per-task-agent-telemetry.md
+    reason: Records the owner's private host telemetry routing and attribution codec; consumers neither inherit nor operate that measurement stack.
+  - path: scripts/owner_task_attribution.py
+    reason: Owner-only launcher for the private workstation telemetry experiment; it is not an agent-process delivery capability.
+  - path: tests/publisher/test_owner_task_attribution.py
+    reason: Verifies the owner-only launcher and host diagnostics, not consumer behavior.
   - path: copier.yml
     reason: Defines this repository's Copier source; consumers receive only its rendered payload.
   - path: pyproject.toml

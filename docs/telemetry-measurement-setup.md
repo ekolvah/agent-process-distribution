@@ -1,7 +1,8 @@
 # Agent telemetry measurement setup
 
 **Question this document answers:** how agent token usage is exported, where it
-lands, and which label identifies the project it was spent on.
+lands, which label identifies the project it was spent on, and which labels
+identify the task and delivery attempt.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
 Until this file existed, the whole configuration lived on one machine and in one
@@ -115,12 +116,15 @@ mode (`codex-app-server`, `codex_cli_rs`, `codex_exec`) rather than by project,
 and `instance` is absent from every series in the tenant, so for one `job` the
 value flips per invocation and the join is ambiguous.
 
-The two routes take different paths out of the machine, and that is what makes a
-collector-side fix possible for one of them and unnecessary for the other:
+The two routes took different paths out of the machine when project attribution
+landed (#97), and that is what made a collector-side fix possible for one of
+them and unnecessary for the other:
 
-- **Claude Code** exports straight to Grafana Cloud over 443. It never touches
-  the collector, and it does not need to — its attributes are already on the
-  datapoints.
+- **Claude Code** exported straight to Grafana Cloud over 443. Its project
+  attributes were already on the datapoints. With per-task attribution its
+  *metrics* go through the collector too — see
+  [Per-task attribution](#per-task-attribution) — while its logs keep the
+  direct route.
 - **Codex** exports to a local Grafana Alloy instance on `127.0.0.1:4318`, which
   forwards to the same Grafana Cloud tenant.
 
@@ -150,3 +154,150 @@ The collector configuration lives on the owner's machine, outside this
 repository, for the same reason the transport variables do: it is host state, not
 project state, and a consumer of this template must not inherit it. Changing it
 is an owner decision each time.
+
+## Per-task attribution
+
+A session is neither an issue nor a delivery attempt, so `session_id` cannot
+answer "what did this task cost". Two more labels ride next to
+`vcs_repository_name` on every measured token series: `task_id` (`issue-N`) and
+`attempt_id` (`issue-N-<uuid>`). The decision and its boundaries are in
+[ADR 0027](adr/0027-owner-host-normalizes-per-task-agent-telemetry.md).
+
+**Owner-only.** Everything in this section is root-only host state:
+`scripts/owner_task_attribution.py`, its test, the ADR, the Alloy transform, the
+User-scope metrics endpoint, and the attempt ledger. None of it is rendered by
+Copier or installed by the Claude plugin; `template-drift-allowlist.yml` declares
+the files and `test_owner_task_attribution_is_root_only` proves the absence.
+
+### Launching a measured task
+
+```
+python scripts/owner_task_attribution.py launch --issue N --carrier claude [--new-attempt] -- claude
+python scripts/owner_task_attribution.py launch --issue N --carrier codex  [--new-attempt] -- codex
+```
+
+The launcher derives the project from `gh repo view` in the current checkout,
+takes the issue from `--issue` (or, when omitted, from the branch through
+`open_pr.ISSUE_BRANCH_RE`; a branch that names no issue launches as
+`unassigned`), and creates or reuses one attempt id before the agent process
+starts. Planner, implementer, resume, and fixer launches for the same
+repository+issue reuse the latest attempt; `--new-attempt` opens another.
+Switching issues is a new launch. An agent that is already running — an IDE or
+app session — cannot be attributed retroactively.
+
+- **Claude** gets one complete settings layer written to a temporary file under
+  the ledger directory and passed as `--settings <path>`. It carries the whole
+  `OTEL_RESOURCE_ATTRIBUTES` value (project, task, attempt),
+  `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, and the metrics switch itself
+  (`CLAUDE_CODE_ENABLE_TELEMETRY=1`, `OTEL_METRICS_EXPORTER=otlp`,
+  `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=http/protobuf`). **Observed**: a shell
+  without the User-scope `OTEL_*` variables started Claude with zero metric
+  readers (`getOtlpReaders: types=[]` in the debug log) and the measured launch
+  exported nothing, with exit code 0; the layer now selects the exporter so the
+  launch does not depend on the caller's shell. The file is removed in a
+  `finally` path; the repository `.claude/settings.json` is never touched. A
+  command that already contains `--settings` is refused rather than merged.
+- **Codex** gets `-c otel.environment=cpt|<project>|<task>|<attempt>`. The
+  encoder rejects the `|` delimiter and empty components; the decoder is the
+  same contract read back, so the launcher can never emit a value the collector
+  would not recognize.
+
+### What the collector does with it
+
+Claude metrics now go to `http://127.0.0.1:4318/v1/metrics` through the
+User-scope `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`; the generic
+`OTEL_EXPORTER_OTLP_ENDPOINT` remains and still carries Claude logs directly to
+Grafana Cloud. Codex keeps sending to the same receiver.
+
+The receiver feeds an `otelcol.processor.filter "codex_cardinality"` first. It
+drops every metric whose name starts with `codex` except
+`codex.turn.token_usage`, `codex.turn.e2e_duration_ms`,
+`codex.conversation.turn_count`, and `codex.process.start` (dot or underscore
+spelling); Claude names pass untouched. The reason is the tenant series limit
+described [below](#the-tenant-series-limit-is-a-precondition). `doctor` fails
+when the filter expression is absent.
+
+The datapoint-context `otelcol.processor.transform` then promotes, in order:
+
+1. Claude resource `vcs.repository.name`, `task_id`, `attempt_id` → datapoint
+   attributes of the same names.
+2. A Codex `env` that matches the anchored `^cpt|…|…|…$` shape → the same three
+   attributes through OTTL `Split`.
+3. A Codex `env` without the `cpt|` prefix → project-only, the pre-existing
+   behaviour (#97).
+4. Anything else: `task_id="unassigned"`, `attempt_id="unassigned"`; a `cpt|`
+   value that fails the shape also gets `vcs.repository.name="unattributed"` and
+   `attribution_error="malformed"`.
+
+Adding attributes is the only mutation. Metric names, temporality, `job`,
+`instance`, the delta-to-cumulative and batch stages, and the exporter chain are
+unchanged. **Observed** on the installed Alloy 1.18.1 with six sanitized OTLP
+probes (full Claude, bypass Claude, packed Codex, legacy Codex, host-default
+`unattributed`, malformed packed): each produced exactly the datapoint attributes
+listed above.
+
+`python scripts/owner_task_attribution.py doctor` checks that the active config
+contains the cardinality filter and every promotion rule, that the User-scope
+metrics endpoint is the local receiver, and that the listener answers. It
+prints no endpoint credentials.
+
+### Unassigned is the audit signal
+
+A measured window is valid only when it contains no `task_id="unassigned"`
+traffic for the project. Unassigned traffic means some role ran outside the
+launcher — a plain `claude` or `codex` start, an IDE session, or a malformed
+Codex value — and the token-efficiency measurement rejects such a window rather
+than guessing (#99). A bypass never inherits the previous task's labels.
+
+### Attempts and outcomes
+
+The ledger is append-only JSON lines at
+`%LOCALAPPDATA%\agent-process\telemetry\attempts.jsonl`, outside every
+worktree. `python scripts/owner_task_attribution.py outcomes` joins each start
+window with the live PRs whose head branch names the same issue and reports
+`merged`, `closed_unmerged`, `open`, or `superseded_without_pr` (an earlier
+attempt without a PR, superseded only by a later start for the same
+repository+issue). Malformed records and overlapping windows fail non-zero.
+
+### Host change, rollback, and cut-over
+
+Before the transform was extended the previous config was copied to
+`~/.config/alloy/config.alloy.issue-101.prechange`, the candidate passed
+`alloy.exe validate --stability.level=experimental`, and Alloy was restarted
+with its existing arguments. The cardinality filter went in the same way with
+the backup `~/.config/alloy/config.alloy.issue-101.prefilter`; that restart also
+removed a debugging `otelcol.exporter.debug` left from the probe session and
+went through `~/.config/alloy/run-alloy.ps1`, so stdout/stderr are redirected
+again. Rollback is the reverse: restore the wanted backup, unset the User-scope
+`OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, restart Alloy through `run-alloy.ps1`, and
+confirm the listener on `127.0.0.1:4318`.
+
+Historical series are not relabelled. The cut-over is the first normal,
+long-lived Claude and Codex launch through the wrapper whose token series carry
+matching project/task/attempt labels in Grafana; the ADR records that timestamp
+(2026-09-12 17:44 +03:00). Codex reports `codex.turn.token_usage` as a histogram,
+so per-task Codex totals are read from `codex_turn_token_usage_sum` by
+`token_type`, while Claude totals stay in `claude_code_token_usage_tokens_total`.
+
+### The tenant series limit is a precondition
+
+Grafana Cloud's `max_global_series_per_user` for this stack is 15 000. Codex
+exports roughly two hundred metric names, most of them histograms, and a single
+app-server session put ~14 800 `codex_*` series into the head block on
+2026-09-12. While `grafanacloud_instance_memory_series` sits at the limit every
+*new* label set — including every task-labelled series — is discarded with
+`per_user_series_limit`, silently and with HTTP 200. The transform is not the
+failing part; the tenant is. Check
+`grafanacloud_instance_samples_discarded_per_second{reason="per_user_series_limit"}`
+in the `grafanacloud-usage` datasource before reading any live result as
+evidence.
+
+The `codex_cardinality` filter is the standing mitigation: only the four
+turn-level Codex names the measurement reads reach the tenant. **Observed** on
+2026-09-12 after the restart: `grafanacloud_instance_memory_series` fell from
+15 000 to 2 311 and the discard rate to zero; a `codex_turn_token_usage` probe
+with a packed `env` arrived with all three labels, while
+`codex_sse_event_duration_ms` and `codex_websocket_request_duration_ms` probes
+through the same receiver produced no series. This narrows the Codex metric set
+the collector forwards, which the ADR records as an amendment to its original
+"add attributes only" boundary.
