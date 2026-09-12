@@ -115,8 +115,11 @@ session was removed in that restart.
 
 Historical series are not relabelled. The cut-over is the timestamp of the first
 normal Claude and Codex token series observed in Grafana with matching project,
-task, and attempt labels. Until that live check passes, the implementation is not
-ready for a PR.
+task, and attempt labels. That check passed on 2026-09-12 at 17:44 (+03:00):
+the Codex series `codex_turn_token_usage_sum` arrived with the three labels of the
+wrapped attempt while the Claude series of the same issue had been visible since
+earlier that day; both bypass controls carried `unassigned`. Codex reports token
+usage as a histogram, so per-task totals are read from the `_sum` series.
 
 ### Consequences
 

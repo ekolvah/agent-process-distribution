@@ -275,7 +275,9 @@ confirm the listener on `127.0.0.1:4318`.
 Historical series are not relabelled. The cut-over is the first normal,
 long-lived Claude and Codex launch through the wrapper whose token series carry
 matching project/task/attempt labels in Grafana; the ADR records that timestamp
-once observed.
+(2026-09-12 17:44 +03:00). Codex reports `codex.turn.token_usage` as a histogram,
+so per-task Codex totals are read from `codex_turn_token_usage_sum` by
+`token_type`, while Claude totals stay in `claude_code_token_usage_tokens_total`.
 
 ### The tenant series limit is a precondition
 
