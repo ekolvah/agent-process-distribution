@@ -7,10 +7,11 @@ Status: draft
 
 ## Requirements
 
-- **IMPL-1** (MUST) RED first: the implementer writes the failing test from the issue's
-  `## Test plan` and proves it red with `check_red` before writing code. The project's
-  test-runner command is declared in `AGENTS.md`; the only requirement on it is an exit
-  code.
+- **IMPL-1** (MUST) RED first for behavioural changes: the implementer writes the failing
+  test from the issue's `## Test plan` and proves it red with `check_red` before writing
+  code. Documentation-only, rename and one-line non-behavioural changes are exempt
+  (`principles.md` §I). The project's test-runner command is declared in `AGENTS.md`; the
+  only requirement on it is an exit code.
 - **IMPL-2** (MUST) The project's `ci_check` is the single source of truth for quality
   checks; the pre-push git hook and the reusable workflow run the same command.
 - **IMPL-3** (MUST) Branch and PR use GitHub's own linking: `gh issue develop -c N`
