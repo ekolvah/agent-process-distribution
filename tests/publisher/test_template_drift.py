@@ -396,3 +396,18 @@ def test_volatile_answer_keys_are_excluded() -> None:
     answers = template_drift.load_answers(ROOT)
 
     assert not template_drift.VOLATILE_ANSWER_KEYS & answers.keys()
+
+
+def test_owner_task_attribution_is_root_only(rendered_default: Path) -> None:
+    allowlist = template_drift.load_allowlist(ROOT)
+    expected = {
+        "scripts/owner_task_attribution.py",
+        "tests/publisher/test_owner_task_attribution.py",
+        "docs/adr/0027-owner-host-normalizes-per-task-agent-telemetry.md",
+    }
+
+    assert expected <= allowlist.root_only_paths
+    for relative in expected:
+        assert (ROOT / relative).is_file()
+        assert not (rendered_default / relative).exists()
+    assert not (rendered_default / ".claude-plugin" / "scripts" / "owner_task_attribution.py").exists()
