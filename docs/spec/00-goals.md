@@ -20,8 +20,8 @@ Status: draft
   ([`principles.md`](../../.agent-process/docs/architecture/principles.md#goal-function)).
 - **GOAL-6** (SHOULD) v2 is accepted when: core scripts ≤ 1 000 lines and workflows
   ≤ 150 lines; a new project is installed with one plugin command plus `init` in ≤ 10
-  minutes; an update needs no manual merge; the metrics in `70-telemetry.md` are no worse
-  than v1 on the same task types.
+  minutes; an update never needs a three-way merge of process files (DIST-6); the
+  metrics in `70-telemetry.md` are no worse than v1 on the same task types.
 - **GOAL-7** (MUST NOT) The core contains no orchestrator that invokes models or routes
   evidence, no provider failover inside CI, and no template mirror of the repository; the
   person is the orchestrator.

@@ -7,7 +7,7 @@ written, and how it relates to issues and ADRs.
 | --- | --- | --- | --- |
 | **System spec** | how the process is built | `docs/spec/NN-area.md` | living: edited in the same PR as the change |
 | **Change spec** | what changes this time | the GitHub issue | until the PR merges |
-| **ADR** | why a decision was taken, what it supersedes | `docs/adr/` | immutable |
+| **ADR** | why a decision was taken, what it supersedes | [`.agent-process/docs/adr/`](../../.agent-process/docs/adr/) | immutable |
 
 The spec holds requirements only. Rationale, alternatives, traceability to earlier
 decisions and open questions belong to the ADR or the issue that introduces or changes

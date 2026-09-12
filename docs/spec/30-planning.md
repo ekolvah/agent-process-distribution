@@ -18,7 +18,7 @@ Status: draft
 - **PLAN-4** (MUST) The person approves the plan; that approval is the gate. The
   validator checks only that the headings exist and `## Agent handoff` is filled.
 - **PLAN-5** (MUST) The issue references the system-spec requirement IDs it implements;
-  a PR that changes behaviour updates the spec in the same PR.
+  a PR that changes target behaviour updates the spec in the same PR.
 - **PLAN-6** (SHOULD) Bugs ship a reproducing test before the fix (`40-implementation.md`,
   IMPL-1); the core does not prescribe how evidence is captured.
 - **PLAN-7** (MUST NOT) No per-label section sets; no `discovery` role or fixture-capture
