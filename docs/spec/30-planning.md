@@ -19,7 +19,12 @@ Status: draft
   validator checks only that the headings exist and `## Agent handoff` is filled.
 - **PLAN-5** (MUST) The issue references the system-spec requirement IDs it implements;
   a PR that changes target behaviour updates the spec in the same PR.
-- **PLAN-6** (SHOULD) Bugs ship a reproducing test before the fix (`40-implementation.md`,
-  IMPL-1); the core does not prescribe how evidence is captured.
-- **PLAN-7** (MUST NOT) No per-label section sets; no `discovery` role or fixture-capture
-  script in the core; agents do not change issue labels.
+- **PLAN-6** (MUST) For a bug, the plan records the reproduction (the failing test of
+  IMPL-1, or the exact observation when a test needs project-specific capture) and the
+  root cause before the fix is designed. The core does not prescribe how evidence is
+  captured.
+- **PLAN-7** (MUST NOT) No per-label section sets; no separate `discovery` role or
+  fixture-capture script in the core — reproduction is a step of planning (PLAN-6).
+- **PLAN-8** (MUST) Every acceptance criterion in the issue maps to a named test in
+  `## Test plan`, or carries `n/a: <reason>`; a criterion without a test is an architect
+  review finding (PLAN-3).

@@ -22,11 +22,10 @@ Status: draft
   pinned by tag in consumers; a breaking change is a major tag with a migration note.
 - **MAINT-6** (MUST) Every ADR that adds to the core states what would be deleted if the
   addition stopped paying for itself.
-- **MAINT-7** (MUST) Size budget: core scripts ≤ 1 000 lines, workflows ≤ 150 lines
-  (GOAL-6). Exceeding it is a finding, not a default.
+- **MAINT-7** (MUST) Size budget: core scripts ≤ 1 000 lines, workflows ≤ 150 lines.
+  Exceeding it is a finding, not a default.
 - **MAINT-8** (SHOULD) Deterministic rules live in scripts with exit codes, prohibitions in
   deny-lists or hooks, never in prose the agent has to remember
   (`principles.md`, "scripts over instructions").
-- **MAINT-9** (MUST NOT) No self-applied template of this repository; no backward
-  compatibility of internal script APIs — only the skill's user-facing commands and the
-  reusable workflow inputs are contracts.
+- **MAINT-9** (MUST NOT) No backward compatibility of internal script APIs — only the
+  skill's user-facing commands and the reusable workflow inputs are contracts.

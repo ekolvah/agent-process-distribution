@@ -16,11 +16,12 @@ Status: draft
   attributes, task and attempt identity are created by the launcher before the agent
   starts.
 - **TELE-3** (MUST) Process versions are compared on per-PR metrics, never on raw token
-  sums: tokens per merged PR by role (plan / implement / fix), review rounds per PR, share
-  of PRs merged without a fixer commit, agent turns per issue.
+  sums: tokens per merged PR by role (plan / implement / fix), cycle time per PR
+  (IMPL-9), review rounds per PR, share of PRs merged without a fixer commit, agent
+  turns per issue.
 - **TELE-4** (MUST) Every measured task records the process version tag it ran under, so
   an A/B between v1 and v2 is a filter.
 - **TELE-5** (SHOULD) A launch that bypasses the launcher is labelled `unassigned` and is
   the audit signal, never charged to the previous task.
-- **TELE-6** (MUST NOT) No telemetry configuration shipped to consumers; no session-level
-  accounting (one session spans several issues; one issue spans several sessions).
+- **TELE-6** (MUST NOT) No session-level accounting: one session spans several issues,
+  one issue spans several sessions.

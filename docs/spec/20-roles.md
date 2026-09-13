@@ -24,7 +24,3 @@ Status: draft
   issue's `## Agent handoff` section, not a catalogue file.
 - **ROLE-4** (MUST) Any route selection is the person's: which agent runs a role is
   decided by which chat the person opens. No file records a "default adapter".
-- **ROLE-5** (SHOULD) Implementer and fixer are one skill: after the PR is open the same
-  run waits for checks and reviews and applies fixes (`40-implementation.md`, IMPL-5).
-- **ROLE-6** (MUST NOT) No discovery role in the core, no budgets or run counters per role,
-  no Codex hooks.

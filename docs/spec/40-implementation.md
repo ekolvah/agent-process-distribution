@@ -13,7 +13,8 @@ Status: draft
   (`principles.md` §I). The project's test-runner command is declared in `AGENTS.md`; the
   only requirement on it is an exit code.
 - **IMPL-2** (MUST) The project's `ci_check` is the single source of truth for quality
-  checks; the pre-push git hook and the reusable workflow run the same command.
+  checks and runs the **whole** test suite, never a changed-files subset; the pre-push
+  git hook and the reusable workflow run the same command on every push.
 - **IMPL-3** (MUST) Branch and PR use GitHub's own linking: `gh issue develop -c N`
   creates the linked branch, the PR links to the issue automatically, the merge closes it.
 - **IMPL-4** (MUST) Shift-left feedback in Claude: a PostToolUse hook runs the linter for
@@ -27,5 +28,8 @@ Status: draft
   has an open PR with pending checks or unresolved threads, and names the next command.
 - **IMPL-7** (MUST) Principles (`principles.md`) reach the agent through the plugin's
   rules as one short file.
-- **IMPL-8** (MUST NOT) No per-project test-runner adapter in the core; no budgets
-  (`max_runs`) or delivery state file; no Codex-side hooks.
+- **IMPL-8** (MUST NOT) No budgets (`max_runs`) for agent runs; no Codex-side hooks.
+- **IMPL-9** (MUST) Cycle time — from `In progress` (STAT-3) to a mergeable PR (checks
+  green, threads resolved) — contains no human step: reviews start on PR open (REVW-1),
+  the implementing run applies findings (IMPL-5), and the person is asked only to merge
+  (REVW-5). It is measured per PR (TELE-3).

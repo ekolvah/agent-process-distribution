@@ -18,10 +18,7 @@ Status: draft
 - **GOAL-5** (MUST) Priorities in strict order: (1) minimize future bug-fixing and support,
   (2) minimize token spend, (3) keep the process predictable and under user control
   ([`principles.md`](../../.agent-process/docs/architecture/principles.md#goal-function)).
-- **GOAL-6** (SHOULD) v2 is accepted when: core scripts ≤ 1 000 lines and workflows
-  ≤ 150 lines; a new project is installed with one plugin command plus `init` in ≤ 10
-  minutes; an update never needs a three-way merge of process files (DIST-6); the
-  metrics in `70-telemetry.md` are no worse than v1 on the same task types.
-- **GOAL-7** (MUST NOT) The core contains no orchestrator that invokes models or routes
-  evidence, no provider failover inside CI, and no template mirror of the repository; the
-  person is the orchestrator.
+- **GOAL-6** (SHOULD) v2 is accepted when: the size budget of MAINT-7 holds; a new
+  project is installed with one plugin command plus `init` in ≤ 10 minutes; an update
+  never needs a three-way merge of process files (DIST-6); the metrics in
+  `70-telemetry.md` are no worse than v1 on the same task types.

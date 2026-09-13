@@ -17,8 +17,6 @@ Status: draft
 - **STAT-4** (MUST) Priority is a Project field set when the issue is created; the skill
   asks the person for it.
 - **STAT-5** (MUST) The stage of a delivery is readable from GitHub alone: Project
-  status, linked branch, PR checks, review threads. An agent or a person resuming work
-  reads those, not a local ledger.
+  status, linked branch, PR checks, review threads.
 - **STAT-6** (MUST NOT) No custom status values beyond the Project's own; the process
-  does not create the Project (`init` links to an existing one); no local attempt ledger
-  for delivery.
+  does not create the Project (`init` links to an existing one).
