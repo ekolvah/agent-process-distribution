@@ -20,15 +20,18 @@ Status: draft
 
 - **DIST-3** (MUST) The consumer footprint is created by one command,
   `/agent-process:init`, and consists of: `.github/workflows/agent-process.yml` (~15
-  lines), `.github/ISSUE_TEMPLATE/task.yml`, `AGENTS.md` (pointer to the skills and the
-  project's `ci_check` command), the ruleset applied once, a repository variable with the
-  Project number. Process files are **not copied** into the consumer.
+  lines), `.github/ISSUE_TEMPLATE/task.yml`, `AGENTS.md` (pointer to the skills, the
+  project's `ci_check` command and its test-runner command for IMPL-1), the pre-push git
+  hook of IMPL-2, the ruleset applied once, a repository variable with the Project
+  number. Process files are **not copied** into the consumer.
 - **DIST-4** (MUST) Scripts run from where they are delivered: from the skill directory
   when an agent runs them, from a checkout of this repository inside the reusable workflow
   when CI runs them.
 - **DIST-5** (MUST) A consumer extends the process **beside** it, never inside it: its own
-  workflows, its own `ci_check`, its own rules and skills under its own paths. The process
-  never edits consumer files and never requires a consumer to edit process files.
+  workflows, its own `ci_check`, its own rules and skills under its own paths. The
+  footprint of DIST-3 is process-owned and `init` may rewrite it (existing `AGENTS.md` is
+  appended to, never replaced); every other consumer file is never edited by the process,
+  and a consumer never edits process files.
 - **DIST-6** (MUST) Updating is replacement, never a merge: plugin update, `git pull`, tag
   bump. Any per-consumer value lives in a repository variable or `AGENTS.md`, not in a
   templated process file.
