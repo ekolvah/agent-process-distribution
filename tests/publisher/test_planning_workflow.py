@@ -17,6 +17,18 @@ SCHEMA = ROOT / "openspec" / "schemas" / "agent-process" / "schema.yaml"
 CONFIG = ROOT / "openspec" / "config.yaml"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 FINISH = ROOT / ".agent-process" / "scripts" / "finish_change.py"
+_V1_ENTRY_POINTS = (
+    "commands/plan.md",
+    "commands/implement.md",
+    "agents/discovery.md",
+    ".agents/skills/plan-issue",
+    ".agents/skills/implement-issue",
+    ".agents/orchestration/change-classes.yaml",
+    ".agent-process/scripts/validate_issue_sections.py",
+    ".agent-process/scripts/capture_external_fixture.py",
+    ".agent-process/scripts/check_fixture_ratchet.py",
+    "tests/agent_process/test_validate_issue_status.py",
+)
 
 
 def test_roles_and_carriers() -> None:
@@ -61,3 +73,9 @@ def test_pinned_openspec() -> None:
 def test_reviewer_keeps_the_store() -> None:
     """The subagent runs its commands in the store the propose run selected."""
     assert "--store" in REVIEWER.read_text(encoding="utf-8")
+
+
+def test_label_change() -> None:
+    """Scenario: Label change — no per-label artifact sets, no discovery role, no v1 planner."""
+    present = [p for p in _V1_ENTRY_POINTS if (ROOT / p).exists()]
+    assert present == []
