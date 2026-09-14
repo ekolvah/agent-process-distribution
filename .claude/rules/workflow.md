@@ -13,18 +13,15 @@ Before invoking a planner or implementer in a newly adopted repository, follow
 The generated `.agent-process/scripts/project_settings.py` must be committed before the
 process can move issue statuses.
 
-Claude is an available `planner` adapter: `/plan #N` runs the
-[planner runbook](../../.agent-process/docs/architecture/agent-process.md#planner-runbook)
-and invokes the local `architect-reviewer` subagent.
+Claude is an available `planner` adapter: `/opsx:propose` runs the OpenSpec propose
+workflow with the project rules of `openspec/config.yaml` and invokes the local
+`architect-reviewer` subagent for the `architect-review` artifact
+([planning](../../.agent-process/docs/architecture/agent-process.md#planning)).
 
-Claude also carries `discovery` through the `discovery` subagent that the same
-`/plan #N` run invokes on a bug issue whose Evidence block is not
-yet accepted. There is no separate human entry point: the role is chained
-inside the planner run, the way the architect review already is.
-
-Claude also adapts `implementer` and `fixer` through
-`/implement #N`, so one agent carries an issue from plan to PR.
-The role catalogue selects the default adapter and route for this project.
+Claude also adapts `implementer` and `fixer` through `/opsx:apply <change>`, whose
+task list carries the delivery steps
+([deterministic delivery flow](../../.agent-process/docs/architecture/agent-process.md#deterministic-delivery-flow)),
+so one agent carries a change from approved plan to archived PR.
 
 When creating an issue, ask the user for priority and set the GitHub Project
-field with `python .agent-process/scripts/set_issue_priority.py <N> <High|Medium|Low>`.
+field with `python .agent-process/scripts/set_status.py <N> "Todo" --priority <High|Medium|Low>`.

@@ -131,20 +131,13 @@ be designed is how an external system is read or classified, observation of
 that live system is part of locating the failure; repository reasoning alone
 is not evidence.
 
-Preserve the response under `evidence/issue-<N>/` with a reproducible command
-appropriate to that source — working-tree-only planning evidence, ignored by
-Git and kept locally only until merge; a verified, safe, compressed
-observation record in the public issue is the durable review artifact, not
-the full payload. [The agent process](agent-process.md#issue-contract) names
-the read-only capture route per external source and the observation fields
-the evidence record must carry: the failing record plus an exact valid record
-from the same captured response (replacing it with a sibling feed or category
-is data loss, not preservation), the fix boundaries compared, and the
-production call path traced before claiming a narrow fix needs another fetch.
-Captured bytes become a committed regression fixture only when a
-production-behaviour test reads them in the same commit.
-The regression test exercises both the valid and invalid records through one
-same-input regression test, so preservation is proven rather than inferred.
+Reproduction is a step of planning: the `proposal` rule in `openspec/config.yaml`
+says what the proposal records (the failing test, or the exact observation when
+a test needs project-specific capture, and the root cause) before the design
+exists. The core does not prescribe how evidence is captured; the target project
+does. Captured bytes become a committed regression fixture only when a
+production-behaviour test reads them in the same commit, and that test proves
+preservation (the valid record still passes) rather than inferring it.
 
 No workarounds, shims, retries, broader try/except, or CI-bypass flags are
 accepted as fixes when the underlying mechanism is not understood. If the
@@ -185,7 +178,7 @@ dependencies / packages / build steps are not added without asking first — pre
 and existing repo packages.
 
 Mostly not machine-gated: "over-complicated" is a semantic judgement, enforced at
-**plan stage** by the [architect review contract](agent-process.md#architect-review-contract),
+**plan stage** by the [architect review](agent-process.md#planning),
 whose reviewer reads the [goal function](#goal-function) above. The diff-stage
 automated review ([`REVIEW_CONTRACT.md`](../../REVIEW_CONTRACT.md)) blocks only two
 narrow, worktree-verifiable triggers as a second pass: an added indirection with a

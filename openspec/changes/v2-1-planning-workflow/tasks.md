@@ -54,13 +54,13 @@
 
 ## 4. Remove v1 planning
 
-- [ ] 4.1 `git rm -r commands/plan.md commands/implement.md agents/discovery.md
+- [x] 4.1 `git rm -r commands/plan.md commands/implement.md agents/discovery.md
   .agents/skills/plan-issue .agents/skills/implement-issue .agents/orchestration/change-classes.yaml
   .agent-process/scripts/validate_issue_sections.py .agent-process/scripts/capture_external_fixture.py
   .agent-process/scripts/check_fixture_ratchet.py tests/agent_process/test_validate_issue_status.py`;
   give `tests/agent_process/test_adr_records.py` its own `## ` section parser; verify
   `python -m pytest tests/agent_process/test_adr_records.py -q` green and `test_roles_and_carriers` green.
-- [ ] 4.2 `.agent-process/docs/architecture/agent-process.md`: delete §Discovery runbook,
+- [x] 4.2 `.agent-process/docs/architecture/agent-process.md`: delete §Discovery runbook,
   §Planner runbook, §Architect review contract, the evidence-capture table and the
   planner/implementer steps of §Deterministic delivery flow; one paragraph points at `openspec/`
   and the `tasks` rule. `principles.md` §V: "reproduction is a step of planning; the `proposal`
