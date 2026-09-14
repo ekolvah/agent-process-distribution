@@ -35,9 +35,10 @@ Dashboards are referred to by UID rather than by URL, for the same reason:
 vcs.repository.name=<owner>/<repository>,vcs.repository.url.full=https://github.com/<owner>/<repository>
 ```
 
-The template renders both pairs from the Copier answers, so a new adoption
-inherits its own value rather than this repository's. The URL pair is omitted
-when `github_repository` is left blank — there is no canonical URL to state, and
+Each adoption carries its own value, never this repository's. Until `init`
+(v2-2) writes the pairs, an adopter sets them by hand — the Copier render that
+used to fill them from the answers file was retired with the template mirror
+(#119). The URL pair is omitted when the repository has no canonical GitHub URL;
 a guessed one is worse than an absent one.
 
 `vcs.repository.name` and `vcs.repository.url.full` are documented OpenTelemetry
@@ -85,21 +86,18 @@ variable set at the same time, the **settings value wins outright**: the
 process-environment value appears nowhere in the telemetry. A settings-level
 `OTEL_RESOURCE_ATTRIBUTES` therefore *replaces* an adopter's own resource-attribute
 set rather than adding to it. An adopter who already sets that variable loses
-their attributes silently on the next render, and must fold their own pairs into
-the rendered value by hand.
+their attributes silently once the process writes the settings value, and must
+fold their own pairs into that value by hand.
 
-## What a render does not get
+## What a Codex-only adoption does not get
 
-`claude_adapter_installed` defaults to `false`. A default or Codex-only adoption
-renders no `.claude/` directory at all and therefore gets **no attribution from
-the template**. That is the safe direction — an unlabelled tree reads on the
-dashboard as "not this project" rather than being silently folded in — but it is
-not a no-op: such an adoption has to carry the attribute some other way before
-its numbers can be compared with anything.
-
-The same applies to trees in this repository's own neighbourhood that have a
-`.claude/settings.json` without Copier answers. They get the `env` key by hand or
-they stay unlabelled.
+A Codex-only adoption has no `.claude/settings.json` and therefore gets **no
+attribution from the process**. That is the safe direction — an unlabelled tree
+reads on the dashboard as "not this project" rather than being silently folded
+in — but it is not a no-op: such an adoption has to carry the attribute some
+other way before its numbers can be compared with anything. The same applies to
+any tree with a `.claude/settings.json` that lacks the `env` key: it gets the
+key by hand or it stays unlabelled.
 
 ## The Codex route needs the collector
 
