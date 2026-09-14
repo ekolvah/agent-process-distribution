@@ -110,22 +110,23 @@ def wait_for_pr(
     timeout: float = DEFAULT_TIMEOUT,
 ) -> int:
     start = clock()
-    settled: list[str] | None = None
+    settled: tuple[str, list[str]] | None = None
     while True:
         view = _json(
             gh, ["gh", "pr", "view", str(pr), "--json", "statusCheckRollup,headRefOid,url"]
         )
         checks: list[dict[str, Any]] = view.get("statusCheckRollup") or []
         pending = [c for c in checks if not _concluded(c)]
-        names = sorted(_name(c) for c in checks)
         # Workflows attach to a new head one run at a time (observed: all queued within
         # seconds of the push, the rollup empty before that). Required contexts are not
         # readable without admin rights, so the rollup is trusted only once it is concluded
-        # on two consecutive polls with the same set of checks — a late run is never hidden
-        # behind a fast one that already passed.
-        if checks and not pending and names == settled:
+        # on two consecutive polls of the same head with the same set of checks — a late run
+        # is never hidden behind a fast one that already passed, and a push between the two
+        # polls restarts the settling.
+        identity = (str(view.get("headRefOid")), sorted(_name(c) for c in checks))
+        if checks and not pending and identity == settled:
             break
-        settled = names if checks and not pending else None
+        settled = identity if checks and not pending else None
         if clock() - start >= timeout:
             names = ", ".join(_name(c) for c in pending) or "no checks appeared"
             print(

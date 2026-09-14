@@ -24,8 +24,8 @@ rework (`v2-4`), removing the v1 twins (`v2-4`).
 
 ## Decisions
 
-- **`wait_for_pr` trusts a concluded rollup only when two consecutive polls list the same
-  checks.** An empty rollup or a running check is "pending"; threads are read only after
+- **`wait_for_pr` trusts a concluded rollup only when two consecutive polls of the same
+  head list the same checks.** An empty rollup or a running check is "pending"; threads are read only after
   that. Exit 0: nothing unresolved; 1: failed checks or unresolved threads printed;
   3: `--timeout` (default 30 min). Alternative: read the required contexts — needs admin.
 - **`set_status.py` resolves the Project from the issue's own item, else from the single
@@ -34,7 +34,7 @@ rework (`v2-4`), removing the v1 twins (`v2-4`).
   from `set_issue_status.py`/`set_issue_priority.py` on purpose: those die in `v2-4`.
 - **`finish_change` closes the loop itself.** The apply skill marks a task after running it,
   and `openspec archive` moves `tasks.md`; so the last task is one script that marks its own
-  box first. It refuses to run over an existing lock (exit 2) and removes the lock a
+  box first. It refuses a worktree that is not clean and an existing lock (exit 2) and removes the lock a
   successful archive leaves (upstream defect above; the removal branch goes when a pinned
   release contains the fix).
 - **`check_red --report` reuses the runner's verdict.** A node id selects testcases by
