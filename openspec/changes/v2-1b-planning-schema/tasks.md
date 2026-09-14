@@ -30,7 +30,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 `git status --short` empty; push (output to a file);
+- [x] 4.1 `git status --short` empty; push (output to a file);
   `gh pr create --base v2-1a-delivery-scripts --title v2-1b-planning-schema --body-file <report>`
   (change name, part 2 of 3 of #111, the scenario → test map, deferrals);
   `python .agent-process/scripts/request_codex_review.py --request <PR>`; verify `gh pr view`
