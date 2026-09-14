@@ -1,0 +1,16 @@
+schema: spec-driven
+
+context: |
+  Language: en. Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  This repository publishes an agent development process for GitHub projects worked by
+  Claude Code and Codex. Three artifacts, three questions:
+  - openspec/specs/<capability>/spec.md — what the process does (implemented; grows by archive)
+  - openspec/changes/<name>/ — what a change adds; archived when its PR merges
+  - .agent-process/docs/adr/ — why (decisions, alternatives, deletion conditions)
+  Specs hold requirements and scenarios only: no rationale, no non-goals, no open questions
+  (those go to the ADR or the change's design.md). One scenario per requirement is enough
+  when it names the observable outcome. Requirement titles are the identity tests refer to:
+  keep them short and stable; a rename is a RENAMED delta plus the test rename in one PR.
+  The v2 target is delivered by the changes v2-0 … v2-6 (tracking issue #107); until they
+  archive, the enforced process is v1 (.agent-process/docs/architecture/).
