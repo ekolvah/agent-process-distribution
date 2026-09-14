@@ -35,20 +35,20 @@
 
 ## 3. Scripts and agent
 
-- [ ] 3.1 `.agent-process/scripts/set_status.py <N> "<Status>" [--priority "<name>"]` per
+- [x] 3.1 `.agent-process/scripts/set_status.py <N> "<Status>" [--priority "<name>"]` per
   `design.md` (project by item or by linked Project, names → ids, `item-add` when absent, exit 2
   on unknown option or several Projects, helpers duplicated on purpose — docstring); verify
   `test_tracking_issue_created` and `test_priority_field_drift` green.
-- [ ] 3.2 `.agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]` per `design.md`
+- [x] 3.2 `.agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]` per `design.md`
   (checks concluded → threads; exit 0/1/3, default 30 min); verify `test_pending_review` green.
-- [ ] 3.3 `.agent-process/scripts/finish_change.py <change>`: lock check (exit 2) → mark its own
+- [x] 3.3 `.agent-process/scripts/finish_change.py <change>`: lock check (exit 2) → mark its own
   task → `openspec archive <change> -y` → remove the leftover lock → commit → push →
   `request_codex_review.py --request <PR>` when present (say so when not) → `wait_for_pr`;
   verify `test_archive_commit` green.
-- [ ] 3.4 `.agent-process/scripts/check_red.py --report <junit.xml> <node ids>`: parse the
+- [x] 3.4 `.agent-process/scripts/check_red.py --report <junit.xml> <node ids>`: parse the
   report, spawn nothing, v1 CLI unchanged; `AGENTS.md` declares the runner command and the
   report path; verify `test_behavioural_change` and `tests/agent_process/test_ci_check.py` green.
-- [ ] 3.5 Rewrite `agents/architect-reviewer.md`: writes `architect-review.md` from
+- [x] 3.5 Rewrite `agents/architect-reviewer.md`: writes `architect-review.md` from
   `openspec instructions architect-review --change <name> --json`; no issue sections; verify
   `git grep -n "issue section\|validate_issue" agents/` is empty.
 
