@@ -6,18 +6,6 @@ footprint it leaves there.
 
 ## Requirements
 
-### Requirement: Layered delivery through Copier
-The provider-neutral core and the Codex skills (`.agents/skills/`) SHALL reach a consumer as
-one Copier render; the Claude adapter files SHALL reach it through the Claude Code plugin
-marketplace (`.claude-plugin/`, this repository as the marketplace). CI logic is the core's
-one referenced component: pinned reusable GitHub workflows
-(`.github/workflows/reusable-*.yml`) that the thin caller workflows in the Copier payload
-call.
-
-#### Scenario: Consumer callers are thin
-- **WHEN** a consumer project is rendered
-- **THEN** its workflows only call the reusable workflows and carry no gate logic of their own
-
 ### Requirement: CI runs the trusted driver, not the PR's copy
 The reusable quality workflow SHALL execute the process driver from the trusted default
 branch against the PR worktree, so a PR cannot change what checks it.

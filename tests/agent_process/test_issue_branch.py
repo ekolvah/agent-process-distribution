@@ -263,28 +263,27 @@ class TestStatusTransition:
 
 
 def _load_unconfigured_project_settings() -> ModuleType:
-    """Load a real, unconfigured `project_settings.py` — never a hand-written stand-in.
+    """Load the real `project_settings.py` next to `issue_branch.py` and blank its IDs.
 
-    Prefers the template source's pristine copy, which stays blank even in this
-    repository's own activated self-hosted checkout; a rendered consumer under
-    test has no `template/` of its own, but there the sibling next to
-    `issue_branch.py` is blank too, because rendering has not run bootstrap.
+    The `require_configured` logic under test is the module's own; only the data
+    is reset to the state bootstrap leaves before activation (the pristine copy
+    used to come from the Copier template, deleted by #119).
     """
-    start = Path(__file__).resolve()
-    module_path = None
-    for candidate in (start, *start.parents):
-        candidate_path = (
-            candidate / "template" / ".agent-process" / "scripts" / "project_settings.py"
-        )
-        if candidate_path.exists():
-            module_path = candidate_path
-            break
-    if module_path is None:
-        module_path = Path(issue_branch.__file__).with_name("project_settings.py")
+    module_path = Path(issue_branch.__file__).with_name("project_settings.py")
     spec = importlib.util.spec_from_file_location("project_settings", module_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    for name in (
+        "PROJECT_NUMBER",
+        "PROJECT_OWNER",
+        "PROJECT_ID",
+        "PRIORITY_FIELD_ID",
+        "STATUS_FIELD_ID",
+    ):
+        setattr(module, name, "")
+    module.PRIORITY_OPTION_IDS = {}
+    module.STATUS_OPTION_IDS = {}
     return module
 
 

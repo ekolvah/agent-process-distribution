@@ -425,41 +425,14 @@ the target repository's own files, configuration, or local integration. A
 copied production script is not by itself justification for copying all of
 its publisher unit tests.
 
-Publisher-only tests live under `tests/publisher/` and never reach a rendered
-consumer. Consumer tests originate under `template/tests/agent_process/` and
-render below the reserved `tests/agent_process/` subtree — the only path a
-process test may occupy in a consumer's `tests/` root; a copier update never
-places one elsewhere. `template-drift-allowlist.yml` declares each publisher
-test file's own `root_only_paths` row with its own `reason:`, never a
-directory-wide exemption, so a stray file dropped into `tests/publisher/`
-still fails the drift gate (`.agent-process/scripts/template_drift.py`) as an undeclared
-extra file.
+Publisher-only tests live under `tests/publisher/`; consumer tests live under the
+reserved `tests/agent_process/` subtree — the only path a process test may occupy
+in a consumer's `tests/` root.
 
 Run either suite independently — `python -m pytest tests/publisher` or
 `python -m pytest tests/agent_process` — or both together with the documented
 full command, `python -m pytest` (also what `python .agent-process/scripts/ci_check.py`
-runs). Before running `copier update` against a repository that predates this
-split, run `python .agent-process/scripts/check_consumer_test_collision.py <path>` **from an
-up-to-date checkout of this distribution repository**, with `<path>` pointing
-at the target repository — not from inside the target repository itself,
-since a pre-split consumer does not yet have this script (`copier update`
-only installs it once the update completes). The check renders the current
-template against the target's own recorded answers and reports, with the
-exact colliding relative path, any file already occupying a location the
-template's closed root set reserves for itself — `.agent-process/`, the
-reserved `tests/agent_process/` subtree, and the rest of
-[ADR 0019](../adr/0019-single-root-agent-process-layout.md)'s closed root
-set — a case Copier's own `--conflict` handling does not catch, since it
-only marks conflicts for paths it previously tracked through a prior
-render's diff.
-
-## Maintaining this distribution
-
-This section applies only when maintaining `agent-process-distribution` itself,
-not when delivering an issue in a repository that received its payload.
-
-Edit a payload file in `template/` and re-render its root copy; never hand-edit
-the generated root copy.
+runs).
 
 ## Governance conventions
 

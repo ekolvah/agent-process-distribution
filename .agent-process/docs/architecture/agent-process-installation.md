@@ -3,6 +3,12 @@
 **Question this document answers:** How does a repository install and activate
 the agent process before its first issue delivery?
 
+> **Retired.** The Copier installation and update path described below was deleted
+> with the template mirror (#119, `v2-0b-delete-copier-mirror`); the scripts it names no
+> longer exist. Installation returns as `init` in `v2-2-delivery` (#112). The text is kept
+> as history and for its trust-boundary paragraphs, which `reusable-quality.yml` still
+> follows.
+
 This document describes the one-time repository setup. It is separate from
 the [delivery flow](agent-process.md): installation prepares the repository;
 delivery flow handles one issue at a time.

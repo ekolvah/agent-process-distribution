@@ -86,10 +86,9 @@ class TestTelemetryAttribution:
 
         project = attributes["vcs.repository.name"]
         assert project, "the project attribute must not be empty"
-        # Which of the two answers wins is a template rule, tested once against the
-        # real template in tests/publisher/test_project_bootstrap_template.py; this
-        # copy only asserts the value is one of them and so cannot drift into a
-        # second encoding of the fallback.
+        # Which of the two answers wins was a template rule (mirror deleted by
+        # #119); this test only asserts the value is one of them and so cannot
+        # drift into a second encoding of the fallback.
         assert project in {answers.get("github_repository"), answers.get("repo_name")}
 
     def test_the_carrier_stays_a_multi_pair_list(self) -> None:
@@ -104,8 +103,7 @@ class TestTelemetryAttribution:
             assert len(attributes) >= 2
         else:
             # An adopter who left `github_repository` blank has no canonical URL,
-            # so the pair is omitted rather than guessed. `template_drift` and T2
-            # cover the rendering rule itself.
+            # so the pair is omitted rather than guessed.
             assert "vcs.repository.url.full" not in attributes
 
 

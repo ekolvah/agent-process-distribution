@@ -90,10 +90,6 @@ _EXPECTED_SCOPE_DIRS = (
     ".agent-process/docs/architecture",
     ".claude/rules",
 )
-# See `test_doc_links.py`: a source repository can declare source-only documentation
-# prefixes without giving ordinary rendered projects a silent opt-out.
-_EXCLUDED_PREFIXES = tuple(["template/"])
-
 # Non-issue uses of the sigil: rule number and board number. The dictionary is **closed**—the exact
 # condition for rejecting the date branch (ledger **AC**) and selecting this one. It does not live only in
 # `.md` scope: three commits in this PR were needed to clean `.py` and `.toml`; prose was insufficient.
@@ -203,11 +199,7 @@ def _tracked_files() -> tuple[str, ...]:
         encoding="utf-8",
         check=True,
     )
-    return tuple(
-        name
-        for name in result.stdout.split("\0")
-        if name and not name.startswith(_EXCLUDED_PREFIXES)
-    )
+    return tuple(name for name in result.stdout.split("\0") if name)
 
 
 def _tracked_docs() -> tuple[str, ...]:

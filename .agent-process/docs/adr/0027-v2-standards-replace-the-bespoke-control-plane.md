@@ -151,7 +151,7 @@ Superseded records and what replaces each:
 
 * ADR 0011 (Copier + marketplace distribution) → plugin + skills + reusable workflows (`v2-2`).
 * ADR 0013 (`docs/adr/`, self-applied root gated against a working-tree render) → no mirror,
-  nothing to gate (`v2-2`).
+  nothing to gate (`v2-0b`, pulled forward from `v2-2`).
 * ADR 0015 (owner-requested Codex review with Claude fallback) → advisory review by both apps,
   threads block via the ruleset (`v2-4`).
 * ADR 0019 (every process-owned path under `.agent-process/`) → no rendered payload in
@@ -173,3 +173,17 @@ Lessons from v1 that the specs do not repeat:
 * A procedure written per adapter diverges; write it once and let adapters call it.
 * Open questions are settled by observation in the step that touches them, and recorded
   here — not by reading vendor docs ahead of the step.
+
+Observations from v2-0b (`v2-0b-delete-copier-mirror`, #119):
+
+* The Copier render had exactly one consumer — this repository. Deleting the mirror before
+  `v2-1` instead of inside `v2-2` turned every later step into a root-only change; the cost
+  of one PR (114 deleted files, 5 edited tests) against the doubled diff of two steps.
+* Between `v2-0b` and `v2-2` the repository has no installation path. The three
+  `distribution` requirements that survive (`CI runs the trusted driver`, `The process
+  footprint is one root`, `This repository dogfoods its own process`) keep scenarios worded
+  around a render that no longer exists; they are restated by the `v2-2` delta together
+  with `init` rather than reworded twice.
+* One test outside the render suite depended on the mirror as data, not as a subject:
+  `test_issue_branch.py` loaded the template's pristine `project_settings.py` as its
+  "unconfigured" fixture. A mirror is a hidden fixture for tests that never mention it.

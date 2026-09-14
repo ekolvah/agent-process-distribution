@@ -1,2 +1,0 @@
-# Bash does not survive CRLF in its shebang on a Windows clone.
-.githooks/** text eol=lf
