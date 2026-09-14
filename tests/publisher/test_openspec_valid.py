@@ -18,11 +18,11 @@ ROOT = Path(__file__).resolve().parents[2]
 OPENSPEC = "@fission-ai/openspec@1.13.0"
 
 
-def test_openspec_changes_and_specs_validate_strictly() -> None:
+def _openspec(*args: str) -> subprocess.CompletedProcess[str]:
     npx = shutil.which("npx")
     assert npx, "npx not found: Node is required to validate openspec/ (see AGENTS.md)"
-    completed = subprocess.run(
-        [npx, "-y", OPENSPEC, "validate", "--strict", "--all"],
+    return subprocess.run(
+        [npx, "-y", OPENSPEC, *args],
         cwd=ROOT,
         env={**os.environ, "OPENSPEC_TELEMETRY": "0"},
         capture_output=True,
@@ -32,5 +32,15 @@ def test_openspec_changes_and_specs_validate_strictly() -> None:
         check=False,
         timeout=180,
     )
+
+
+def test_openspec_changes_and_specs_validate_strictly() -> None:
+    completed = _openspec("validate", "--strict", "--all")
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert "0 failed" in completed.stdout, completed.stdout
+
+
+def test_forked_schema_validates() -> None:
+    """The forked `agent-process` schema (v2-1) stays valid against the OpenSpec it was forked from."""
+    completed = _openspec("schema", "validate", "agent-process")
+    assert completed.returncode == 0, completed.stdout + completed.stderr
