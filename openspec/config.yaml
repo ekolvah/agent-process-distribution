@@ -44,9 +44,10 @@ rules:
       High/Medium/Low) → `gh issue develop -c <N> --name <change>` from fresh origin/main →
       `python .agent-process/scripts/set_status.py <N> "In Progress"`.
     - >-
-      Group 1 — RED first: write the tests of the scenario → test map, verify
-      `python .agent-process/scripts/check_red.py <paths or node ids>` exits 0, commit
-      before any implementation.
+      Group 1 — RED first: write the tests of the scenario → test map, run the test
+      runner AGENTS.md declares (it writes the JUnit report there), verify
+      `python .agent-process/scripts/check_red.py --report <report path> <node ids>` exits 0,
+      commit before any implementation.
     - >-
       Implementation groups: one task per scenario, design decision or review finding,
       each with its verify command.

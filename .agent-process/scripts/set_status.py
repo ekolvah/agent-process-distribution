@@ -34,10 +34,12 @@ _PROJECTS_QUERY = (
 def run_gh(cmd: list[str]) -> str:
     """Run `gh`; a non-zero exit raises with the captured stderr (visible failure)."""
     result = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
+    if result.stdout is None or result.stderr is None:
+        raise RuntimeError(f"`{' '.join(cmd)}`: broken capture (stdout or stderr is None)")
     if result.returncode != 0:
-        detail = (result.stderr or "").strip() or "no stderr"
+        detail = result.stderr.strip() or "no stderr"
         raise RuntimeError(f"`{' '.join(cmd)}` failed (rc={result.returncode}): {detail}")
-    return result.stdout or ""
+    return result.stdout
 
 
 def _json(gh: Gh, cmd: list[str]) -> Any:

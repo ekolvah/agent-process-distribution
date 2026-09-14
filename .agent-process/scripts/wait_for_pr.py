@@ -5,8 +5,9 @@ Usage: python .agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 
 The implementing run ends only after checks and reviews: a running check (the `agent-review`
 check waiting for the requested Codex review included) is a pending review, so the script
-polls `gh pr view --json statusCheckRollup` until every check on the head concluded and
-only then reads the unresolved review threads. Exit 0: nothing unresolved; 1: failed checks
+polls `gh pr view --json statusCheckRollup` until at least one check exists on the head and
+every one concluded (an empty rollup is the gap between a push and the workflows attaching),
+and only then reads the unresolved review threads. Exit 0: nothing unresolved; 1: failed checks
 or unresolved threads, each printed with its location; 3: `--timeout` (default 30 minutes)
 elapsed while something was still running. Stays until `v2-4` reworks review.
 """
@@ -36,10 +37,12 @@ _THREADS_QUERY = (
 
 def run_gh(cmd: list[str]) -> str:
     result = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
+    if result.stdout is None or result.stderr is None:
+        raise RuntimeError(f"`{' '.join(cmd)}`: broken capture (stdout or stderr is None)")
     if result.returncode != 0:
-        detail = (result.stderr or "").strip() or "no stderr"
+        detail = result.stderr.strip() or "no stderr"
         raise RuntimeError(f"`{' '.join(cmd)}` failed (rc={result.returncode}): {detail}")
-    return result.stdout or ""
+    return result.stdout
 
 
 def _json(gh: Gh, cmd: list[str]) -> Any:
@@ -113,17 +116,17 @@ def wait_for_pr(
         )
         checks: list[dict[str, Any]] = view.get("statusCheckRollup") or []
         pending = [c for c in checks if not _concluded(c)]
-        if not pending:
+        # An empty rollup is the window between a push and the workflows attaching to the
+        # head: nothing has concluded, so it is pending, not clean.
+        if checks and not pending:
             break
         if clock() - start >= timeout:
-            names = ", ".join(_name(c) for c in pending)
+            names = ", ".join(_name(c) for c in pending) or "no checks appeared"
             print(
                 f"timeout after {int(timeout)}s; still running on {view.get('headRefOid')}: {names}"
             )
             return 3
         sleep(POLL_SECONDS)
-    if not checks:
-        print(f"no checks on {view.get('headRefOid')} ({view.get('url')})")
     failed = [c for c in checks if _failed(c)]
     for check in failed:
         print(f"failed: {_name(check)} {_url(check)}".rstrip())

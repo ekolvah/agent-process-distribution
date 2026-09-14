@@ -265,6 +265,33 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     code, out = run([_rollup(green, running)], _threads(), timeout=120)
     assert code == 3 and "timeout" in out.lower()
 
+    # Right after a push the rollup is empty until the workflows attach: pending, not clean.
+    code, out = run([_rollup(), _rollup(green, done)], _threads())
+    assert code == 0
+    code, out = run([_rollup()], _threads(), timeout=120)
+    assert code == 3 and "no checks" in out.lower()
+
+
+@pytest.mark.parametrize(
+    ("script", "attr"),
+    [("set_status", "run_gh"), ("wait_for_pr", "run_gh"), ("finish_change", "_runner")],
+)
+def test_none_capture_is_an_error(monkeypatch: pytest.MonkeyPatch, script: str, attr: str) -> None:
+    """AGENTS.md: a `None` stdout or stderr is a broken capture, never an empty string."""
+    module = _script(script)
+
+    class _Completed:
+        returncode = 0
+        stdout = None
+        stderr = None
+
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **k: _Completed())
+    runner = getattr(module, attr)
+    if attr == "_runner":
+        runner = runner(Path("."))
+    with pytest.raises(RuntimeError, match="capture"):
+        runner(["gh", "repo", "view"])
+
 
 def test_archive_commit(tmp_path: Path) -> None:
     """Scenarios: Archive commit, Stale archive lock, Behaviour change."""

@@ -41,10 +41,12 @@ def _runner(root: Path) -> Run:
         result = subprocess.run(
             [exe, *cmd[1:]], cwd=root, text=True, capture_output=True, encoding="utf-8"
         )
+        if result.stdout is None or result.stderr is None:
+            raise RuntimeError(f"`{' '.join(cmd)}`: broken capture (stdout or stderr is None)")
         if result.returncode != 0:
-            detail = (result.stderr or result.stdout or "").strip() or "no output"
+            detail = (result.stderr or result.stdout).strip() or "no output"
             raise RuntimeError(f"`{' '.join(cmd)}` failed (rc={result.returncode}): {detail}")
-        return result.stdout or ""
+        return result.stdout
 
     return run
 
