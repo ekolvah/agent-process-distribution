@@ -9,7 +9,8 @@ removes the lock a successful archive leaves behind, commits, pushes, re-request
 review when `request_codex_review.py` is present (the `agent-review` check binds to the
 head, so every push needs a new request; says so when the script is absent) and runs
 `wait_for_pr` on the new head. Exit codes: 0 clean; the `wait_for_pr` code otherwise;
-2 when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
+2 when the worktree is not clean (the archive commit must be the only thing left to push)
+or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
 archive aborted and its state must be inspected before anything is archived on top of it.
 The person merges.
 """
@@ -83,10 +84,18 @@ def finish_change(
             file=sys.stderr,
         )
         return 2
+    dirty = run(["git", "status", "--porcelain"]).strip()
+    if dirty:
+        print(
+            "error: the worktree is not clean — commit or drop these before archiving, or "
+            f"the pushed head would not carry them:\n{dirty}",
+            file=sys.stderr,
+        )
+        return 2
     tasks = root / "openspec" / "changes" / change / "tasks.md"
     if tasks.exists():
         _mark_own_task(tasks, change)
-    run(["npx", "-y", "@fission-ai/openspec@latest", "archive", change, "-y"])
+    run(["npx", "-y", "@fission-ai/openspec@1.13.0", "archive", change, "-y"])
     if lock.exists():
         lock.unlink()
         print(f"removed {LOCK} left by a successful archive")
