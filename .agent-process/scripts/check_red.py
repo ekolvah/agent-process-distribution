@@ -142,18 +142,23 @@ def _selects(node_id: str, classname: str, name: str) -> bool:
     junit `classname` is the dotted module path plus any test class; a parametrized
     `name` carries its `[params]` suffix, which a node id without brackets still selects.
     A node id whose last segment is a test class selects every test of that class and of
-    the classes nested in it.
+    the classes nested in it. A `[params]` suffix belongs to the last segment whatever it
+    contains (`test_p[a::b]` is one test), so `::` is a delimiter only before it.
     """
     path, _, rest = node_id.replace("\\", "/").partition("::")
     module = path.removesuffix(".py").strip("/").replace("/", ".")
     if not rest:
         return classname == module or classname.startswith(module + ".")
-    *classes, last = rest.split("::")
-    scope = ".".join([module, *classes, last])
-    if classname == scope or classname.startswith(scope + "."):
-        return True
+    segments, bracket, params = rest.partition("[")
+    *classes, last = segments.split("::")
+    if not bracket:
+        scope = ".".join([module, *classes, last])
+        if classname == scope or classname.startswith(scope + "."):
+            return True
     if classname != ".".join([module, *classes]):
         return False
+    if bracket:
+        return name == last + bracket + params
     return name == last or name.startswith(last + "[")
 
 

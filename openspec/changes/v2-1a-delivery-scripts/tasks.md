@@ -29,9 +29,18 @@
   `set_status --priority`, the "ask the person" clause moves with the rule; verify
   `test_delivery_scripts.py` green.
 
+## 2b. Review round 2 (PR 122)
+
+- [x] 2b.1 RED: a push between the settled poll and the thread query restarts the settling;
+  `::` inside a `[params]` suffix is part of the test id; commit.
+- [x] 2b.2 `wait_for_pr`: the thread query returns `headRefOid` and a differing head restarts
+  the settling; `check_red._selects` splits `::` only before `[`; `finish_change` pins
+  `@fission-ai/openspec@1.13.0` (the version `test_openspec_valid.py` validates against;
+  PR 123 round 1); verify `test_pending_review`, `test_parametrized_node_id`; commit.
+
 ## 3. Verify
 
-- [x] 3.1 `npx -y @fission-ai/openspec@latest validate --strict --all` green.
+- [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.
 - [x] 3.2 `python .agent-process/scripts/ci_check.py` green.
 
 ## 4. Deliver

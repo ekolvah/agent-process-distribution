@@ -95,7 +95,7 @@ def finish_change(
     tasks = root / "openspec" / "changes" / change / "tasks.md"
     if tasks.exists():
         _mark_own_task(tasks, change)
-    run(["npx", "-y", "@fission-ai/openspec@latest", "archive", change, "-y"])
+    run(["npx", "-y", "@fission-ai/openspec@1.13.0", "archive", change, "-y"])
     if lock.exists():
         lock.unlink()
         print(f"removed {LOCK} left by a successful archive")

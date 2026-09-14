@@ -29,7 +29,7 @@ POLL_SECONDS = 30
 _GREEN = {"SUCCESS", "NEUTRAL", "SKIPPED"}
 _THREADS_QUERY = (
     "query($owner:String!,$name:String!,$pr:Int!,$after:String){"
-    "repository(owner:$owner,name:$name){pullRequest(number:$pr){"
+    "repository(owner:$owner,name:$name){pullRequest(number:$pr){headRefOid "
     "reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}"
     "nodes{id isResolved path line comments(first:1){nodes{author{login} body url}}}}}}}"
 )
@@ -73,10 +73,12 @@ def _url(check: dict[str, Any]) -> str:
     return str(check.get("detailsUrl") or check.get("targetUrl") or "")
 
 
-def _unresolved_threads(gh: Gh, pr: int) -> list[dict[str, Any]]:
+def _unresolved_threads(gh: Gh, pr: int) -> tuple[str, list[dict[str, Any]]]:
+    """The PR's head as the thread query sees it, and its unresolved threads."""
     repo = _json(gh, ["gh", "repo", "view", "--json", "owner,name"])
     owner, name = str(repo["owner"]["login"]), str(repo["name"])
     threads: list[dict[str, Any]] = []
+    head = ""
     after: str | None = None
     while True:
         cmd = [
@@ -94,10 +96,11 @@ def _unresolved_threads(gh: Gh, pr: int) -> list[dict[str, Any]]:
         ]
         if after:
             cmd += ["-F", f"after={after}"]
-        page = _json(gh, cmd)["data"]["repository"]["pullRequest"]["reviewThreads"]
+        pull = _json(gh, cmd)["data"]["repository"]["pullRequest"]
+        head, page = str(pull.get("headRefOid")), pull["reviewThreads"]
         threads += [t for t in page["nodes"] if not t.get("isResolved")]
         if not page["pageInfo"].get("hasNextPage"):
-            return threads
+            return head, threads
         after = str(page["pageInfo"].get("endCursor"))
 
 
@@ -125,8 +128,16 @@ def wait_for_pr(
         # polls restarts the settling.
         identity = (str(view.get("headRefOid")), sorted(_name(c) for c in checks))
         if checks and not pending and identity == settled:
-            break
-        settled = identity if checks and not pending else None
+            # The thread query is the last network request; it reports the head it saw,
+            # so a push landing after the settled poll restarts the settling on the new
+            # head instead of the old head's checks being reported with the new threads.
+            head, threads = _unresolved_threads(gh, pr)
+            if head == identity[0]:
+                break
+            print(f"new head {head} after the checks settled on {identity[0]}; waiting again")
+            settled = None
+        else:
+            settled = identity if checks and not pending else None
         if clock() - start >= timeout:
             names = ", ".join(_name(c) for c in pending) or "no checks appeared"
             print(
@@ -137,7 +148,6 @@ def wait_for_pr(
     failed = [c for c in checks if _failed(c)]
     for check in failed:
         print(f"failed: {_name(check)} {_url(check)}".rstrip())
-    threads = _unresolved_threads(gh, pr)
     for thread in threads:
         first = (thread.get("comments") or {}).get("nodes") or [{}]
         comment = first[0]
