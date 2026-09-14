@@ -1,0 +1,47 @@
+## Purpose
+How the process gets correct implementations out of agents, how rework after CI is kept
+low, and how an agent turn ends.
+
+## ADDED Requirements
+
+### Requirement: RED first for behavioural changes
+The implementer SHALL write the failing test named in `tasks.md` and prove it red with
+`check_red` before writing code; this is a `config.yaml` rule on `tasks`.
+Documentation-only, rename and one-line non-behavioural changes are exempt (`principles.md`
+§I). The project's test-runner command SHALL be declared in `AGENTS.md` together with the path
+of the JUnit XML report it writes; `check_red` reads that report and requires nothing else
+of the runner.
+
+#### Scenario: Behavioural change
+- **WHEN** the implementer starts a behavioural task
+- **THEN** the first commit contains a test that `check_red` reports as failing
+
+### Requirement: GitHub links branch, PR and issue
+The delivery tasks SHALL create the tracking issue when absent and the linked branch with
+`gh issue develop -c N`; the PR links to the issue automatically and the merge closes it.
+
+#### Scenario: Merge
+- **WHEN** the PR from the linked branch merges
+- **THEN** the issue closes without a body-text convention
+
+### Requirement: Delivery steps are tasks of every change
+The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with the delivery tasks
+(tracking issue with priority, `gh issue develop -c`, `set_status In progress`) and end with
+`ci_check`, the PR, the `wait_for_pr` loop and one last task, `finish_change <change>`.
+`finish_change` SHALL mark its own task done, run `openspec archive <change> -y`, commit,
+push and wait for that head with `wait_for_pr`, leaving a clean worktree and nothing for the
+apply loop to edit. After the tracking issue exists no delivery task SHALL prompt the person.
+
+#### Scenario: Archive commit
+- **WHEN** `finish_change` pushes the archive commit
+- **THEN** it waits for that commit's checks and reviews before the run ends, and the worktree is clean
+
+### Requirement: The implementing run ends only after checks and reviews
+The implementing run SHALL end only after the PR's checks and reviews are in on its head.
+One blocking script, `wait_for_pr`, SHALL wait for checks and review threads and print the
+unresolved ones; the run SHALL apply them and wait again until nothing is unresolved, or
+reply on a thread it leaves to the person and end.
+
+#### Scenario: Pending review
+- **WHEN** the PR is open and a review is pending
+- **THEN** the run is blocked in `wait_for_pr` and cannot report completion

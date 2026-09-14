@@ -4,6 +4,13 @@ Use [the agent development process](.agent-process/docs/architecture/agent-proce
 source of truth. Roles are interchangeable: do not assume that the current
 Claude or Codex adapter is the only permitted executor.
 
+The **target** process is specified with [OpenSpec](https://github.com/Fission-AI/OpenSpec):
+`openspec/specs/` holds what is implemented, `openspec/changes/` what is pending (the
+tracking issue #107 lists the v2 changes), `openspec/config.yaml` the conventions. A PR that
+changes target behaviour carries its change's spec delta (`openspec validate --strict`); a
+PR that only touches a v1 mechanism the target drops does not. Until v2 lands the document
+above stays the enforced contract.
+
 ## Codex adapter
 
 - A repository must be activated once before its first delivery. Follow
