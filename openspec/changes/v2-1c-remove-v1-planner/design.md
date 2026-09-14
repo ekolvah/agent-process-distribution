@@ -25,7 +25,8 @@ orchestrator, `open_pr.py` and `roles.yaml` (`v2-4`, `v2-5`); `init` (`v2-2`).
 ## Risks / Trade-offs
 
 - [A consumer repository still calls `/plan`] → the command is gone with a clear "unknown
-  command"; the installation guide and `agent-process.md#planning` name the replacement.
+  command"; the installation guide and the planning section of `agent-process.md` name
+  the replacement.
 - [Doc links to removed anchors] → `test_doc_links` and `test_agent_orchestrator` resolve
   every anchor.
 
