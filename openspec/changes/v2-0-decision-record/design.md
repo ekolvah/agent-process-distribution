@@ -45,8 +45,8 @@ measurement module shipped to consumers.
 
 ## Migration Plan
 
-Tracking issue #107. Each change v2-N is one PR against `main`, archived on merge; v1 keeps
-working until v2-5 deletes it. Rollback of any step is a revert of its PR.
+Each change v2-N is one PR against `main`, archived on merge (tracking issue #107); v1
+keeps working until v2-5 deletes it. Rollback of any step is a revert of its PR.
 
 ## Open Questions
 
