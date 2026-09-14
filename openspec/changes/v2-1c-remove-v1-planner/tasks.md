@@ -20,6 +20,12 @@
   observations record the split; verify `test_doc_links`, `test_doc_narrative`,
   `test_adr_records`, `test_agent_orchestrator` green; commit.
 
+## 2a. Review round 1 (PR 124)
+
+- [x] 2a.1 `agent-process.md` Governance conventions name the v2 gates (`gh issue develop`,
+  `set_status.py`, no validator, the v1 status scripts out of the flow until `v2-4`/`v2-5`);
+  verify `test_doc_links`, `test_doc_narrative` green; commit.
+
 ## 3. Verify
 
 - [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.

@@ -238,23 +238,24 @@ runs).
 
 ## Governance conventions
 
-1. Create issue branches only with `python .agent-process/scripts/issue_branch.py <N>` (starts
-   from fresh `origin/main`); never create a branch directly.
+1. Create issue branches only with `gh issue develop -c <N> --name <change>` from fresh
+   `origin/main` (Group 0 of the `tasks` rule); the linked branch closes the issue on
+   merge, so the PR body names the issue as a plain reference, never `Closes`.
 2. Keep one PR to one logical unit. A temporary CI unblock for an unrelated
    failure may accompany the blocked change only with a tracked follow-up for
    the root cause.
 3. Assign exactly one type label: `bug` for broken behaviour; then
    `perf`/`security`/`enhancement` for user-visible work; otherwise
    `refactor`, `testing`, `ci`, `documentation`, or `chore` by changed area.
-   The validator fails on zero or several type labels.
-4. Ask the user for issue priority, then set it with
-   `python .agent-process/scripts/set_issue_priority.py <N> <High|Medium|Low>`. Propose High
-   for user-facing bugs and process work, Medium for agentic capability work
-   outside the process, Low otherwise; name the rule used.
-5. The process owns exactly two built-in board Status transitions, written from
-   scripts a role already runs: `Planned` from `--mark-planned`, `In
-   Progress` from `issue_branch.py`. `Todo` and `Done` belong to the
-   built-in Project automations; `.agent-process/scripts/set_issue_status.py` rejects them.
+4. Ask the person for issue priority (High for user-facing bugs and process work,
+   Medium for agentic capability work outside the process, Low otherwise; name
+   the rule used) and write it with
+   `python .agent-process/scripts/set_status.py <N> "<status>" --priority <High|Medium|Low>`.
+5. The process writes one board Status itself: `In Progress`, from `set_status.py`
+   in Group 0 of the `tasks` rule. `Todo` and `Done` belong to the built-in Project
+   automations. The v1 scripts `issue_branch.py`, `set_issue_priority.py` and
+   `set_issue_status.py` are not part of the delivery flow; they go with the
+   control plane in `v2-4`/`v2-5`.
 6. If a `requirements*.in` file changes, run `pip-compile` for its matching
    lockfile in the same commit.
 7. Trivial non-behavioural one-line changes may skip the issue workflow only

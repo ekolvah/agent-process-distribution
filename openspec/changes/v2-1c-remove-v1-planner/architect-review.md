@@ -13,6 +13,11 @@ this repository's session); a removal whose one scenario a test proves.
 - §IV · ADR 0009 deleted would lose the record of why discovery was a role → applied:
   superseded by ADR 0027.
 
+- §IV · the Governance conventions of `agent-process.md` still named `issue_branch.py`, the
+  removed validator and `--mark-planned` beside the new planning section (PR 124 round 1,
+  P1) → applied: the section names the v2 gates; the v1 status scripts are out of the flow
+  until `v2-4`/`v2-5`.
+
 ## Scenario coverage
 
 - planning / Label change → `test_label_change` (`tasks.md` names it)
