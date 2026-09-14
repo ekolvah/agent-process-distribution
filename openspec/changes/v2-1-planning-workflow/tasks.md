@@ -1,36 +1,37 @@
 ## 0. Delivery
 
-- [ ] 0.1 Tracking issue exists (#111, priority set). `gh issue develop -c 111 --name v2-1-planning-workflow`
+- [x] 0.1 Tracking issue exists (#111, priority set). `gh issue develop -c 111 --name v2-1-planning-workflow`
   from fresh `origin/main`; `python .agent-process/scripts/set_issue_status.py 111 in-progress`;
   verify `git branch --show-current` prints the change name.
 
 ## 1. RED
 
-- [ ] 1.1 `tests/publisher/test_planning_workflow.py` with the six tests of the scenario → test
+- [x] 1.1 `tests/publisher/test_planning_workflow.py` with the six tests of the scenario → test
   map below (`test_roles_and_carriers`, `test_behavioural_change`, `test_tracking_issue_created`,
   `test_priority_field_drift`, `test_pending_review`, `test_archive_commit`) and the
   `schema validate agent-process` case in `tests/publisher/test_openspec_valid.py`; verify
-  `python .agent-process/scripts/check_red.py tests/publisher/test_planning_workflow.py tests/publisher/test_openspec_valid.py`
+  `python .agent-process/scripts/check_red.py tests/publisher/test_planning_workflow.py tests/publisher/test_openspec_valid.py::test_forked_schema_validates`
   exits 0 (v1 mode); commit.
 
 ## 2. OpenSpec configuration
 
-- [ ] 2.1 `npx -y @fission-ai/openspec@latest schema fork spec-driven agent-process`; insert
+- [x] 2.1 `npx -y @fission-ai/openspec@latest schema fork spec-driven agent-process`; insert
   `architect-review` between `design` and `tasks`; verify `openspec schema validate agent-process` green.
-- [ ] 2.2 `openspec/config.yaml`: `schema: agent-process`; `rules:` — `proposal` (bug:
+- [x] 2.2 `openspec/config.yaml`: `schema: agent-process`; `rules:` — `proposal` (bug:
   reproduction + root cause before design), `tasks` (delivery template: tracking issue with
   priority → `gh issue develop -c` → `set_status "In progress"` → RED first with `check_red` →
   … → `ci_check` → `gh pr create` → `request_codex_review.py --request <PR>` (v1, until `v2-4`)
   → `wait_for_pr` → apply threads, at most three rounds → `finish_change <change>`; scenario →
   named test or `n/a: <reason>`), `architect-review` (principles §I–VII; an unmapped scenario is
   a finding); verify `openspec instructions tasks --change v2-1-planning-workflow --json` shows the rule.
-- [ ] 2.3 Write `openspec/changes/v2-1-planning-workflow/architect-review.md` (self-review
+- [x] 2.3 Write `openspec/changes/v2-1-planning-workflow/architect-review.md` (self-review
   against principles §I–VII; unmapped scenarios as findings); verify
   `openspec status --change v2-1-planning-workflow` shows 5/5 artifacts and
   `openspec validate --strict --all` green.
-- [ ] 2.4 Measure `openspec instructions proposal --change v2-1-planning-workflow --json` byte
+- [x] 2.4 Measure `openspec instructions proposal --change v2-1-planning-workflow --json` byte
   size with the current `context` and with principles §I–VII appended; verify both numbers are
-  noted for task 5.3.
+  noted for task 5.3 (measured: 6 829 bytes with `context` of 1 273; 20 695 bytes with the
+  whole `principles.md` appended — under the 51 200-byte cap on `context`).
 
 ## 3. Scripts and agent
 
