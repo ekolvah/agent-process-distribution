@@ -62,7 +62,7 @@
   push, re-request, at most three rounds; verify exit 0 (three rounds applied; the round-4
   thread — ticks of the Deliver group left uncommitted before `finish_change` — is left to
   the person with a reply).
-- [ ] 4.3 `python .agent-process/scripts/finish_change.py v2-1b-planning-schema`; verify
+- [x] 4.3 `python .agent-process/scripts/finish_change.py v2-1b-planning-schema`; verify
   `openspec/specs/{roles,planning}/spec.md` exist and no `.openspec-archive.lock` is tracked.
   The person merges.
 
