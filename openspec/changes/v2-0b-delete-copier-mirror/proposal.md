@@ -47,7 +47,8 @@ makes every later step a root-only change.
 - Edited: `.github/workflows/reusable-quality.yml`, `tests/publisher/test_reusable_workflows.py`
   (three tests read `template/`), `tests/agent_process/{test_doc_links,test_doc_narrative,test_branch_protection,test_issue_branch,test_delivery_gate_wiring}.py`
   (`test_issue_branch` loaded the template's pristine `project_settings.py` as its unconfigured fixture; it now blanks the real module's IDs), `AGENTS.md` (the `adopt_agent_process.py` bullet),
-  `.agent-process/scripts/ci_check.py`, `.agent-process/docs/architecture/{agent-process,agent-process-installation}.md`,
+  `.agent-process/scripts/{ci_check,project_settings}.py` (`project_settings` pointed at the deleted bootstrap script),
+  `.agent-process/docs/architecture/{agent-process,agent-process-installation}.md`, `docs/telemetry-measurement-setup.md` (render wording),
   ADR 0027, `openspec/specs/distribution/spec.md` (through the archive).
 - Consumers: none affected — no repository runs `copier update` against this source.
 - Later steps: v2-1 (#111) and v2-2 (#112) are already replanned as root-only changes on top of this one.
