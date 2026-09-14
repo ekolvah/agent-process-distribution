@@ -7,4 +7,4 @@
 ## 2. Verify
 
 - [ ] 2.1 Core scripts ≤ 1 000 lines, workflows ≤ 150 lines; `test_doc_links` green
-- [ ] 2.2 `openspec archive v2-5-delete-control-plane` after merge
+- [ ] 2.2 `openspec archive v2-5-delete-control-plane` as the last commit of the PR

@@ -12,4 +12,4 @@
 ## 3. Verify
 
 - [ ] 3.1 On a real PR: both reviewers comment on open, a thread blocks via the ruleset, cycle time from In progress to mergeable has no human step (`PR opened`)
-- [ ] 3.2 `openspec archive v2-4-review-and-state` after merge
+- [ ] 3.2 `openspec archive v2-4-review-and-state` as the last commit of the PR

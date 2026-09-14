@@ -39,12 +39,14 @@ The person SHALL approve the change; nothing implements before the person runs
 - **THEN** no other script judges its content; the person does
 
 ### Requirement: A behaviour change carries its spec delta
-A PR that changes target behaviour SHALL carry the change's spec delta; merging the PR
-archives the change, so `openspec/specs/` is what is implemented.
+A PR that changes target behaviour SHALL carry the change's spec delta, and its last
+commit SHALL be `openspec archive <change>` (pushed by the implementing run once checks are
+green and no thread is unresolved), so `openspec/specs/` on `main` is what is implemented and
+no second PR is needed.
 
 #### Scenario: Behaviour change
 - **WHEN** a PR changes what the process does
-- **THEN** the same PR contains the delta and the change is archived on merge
+- **THEN** the same PR contains the delta and, as its last commit, the archived change
 
 ### Requirement: Bugs are reproduced before the fix is designed
 For a bug, the proposal SHALL record the reproduction (the failing test, or the exact

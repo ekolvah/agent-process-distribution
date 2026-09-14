@@ -3,11 +3,12 @@
 ### Requirement: PR review is advisory
 The Codex GitHub app SHALL review every PR by its own configuration and a short
 `claude-code-action` workflow SHALL review the diff. Neither verdict SHALL be classified by
-a script or turned into a required check.
+a script or turned into a required check; an unresolved thread blocks merging through the
+ruleset's conversation resolution, not through the verdict.
 
 #### Scenario: Blocking finding
-- **WHEN** a reviewer reports a blocking finding
-- **THEN** the merge button state does not change; the thread stays unresolved
+- **WHEN** a reviewer reports a blocking finding as a thread
+- **THEN** no check turns red and the PR is unmergeable until the thread is resolved
 
 ### Requirement: The reviewer reads the diff and the scenarios
 The reviewer SHALL read the diff together with the change's spec delta and report a test

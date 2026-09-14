@@ -17,7 +17,7 @@ measurement module shipped to consumers.
 
 - **Specs and planning = OpenSpec.** Living spec in `openspec/specs/`, changes as deltas
   with scenarios, `/opsx:propose` as the planner, `/opsx:apply` inside the implementer,
-  `openspec archive` on merge; project rules via `openspec/config.yaml`, architect review as
+  `openspec archive` as the last commit of the implementing PR; project rules via `openspec/config.yaml`, architect review as
   an artifact of a forked schema. Chosen over GitHub Spec Kit by a Kepner-Tregoe trade study
   (Spec Kit has no living system spec showing implemented vs pending) and over a bespoke
   `plan-issue` skill (same loop, iterated by one team instead of many).
@@ -45,7 +45,7 @@ measurement module shipped to consumers.
 
 ## Migration Plan
 
-Each change v2-N is one PR against `main`, archived on merge (tracking issue #107); v1
+Each change v2-N is one PR against `main`, archived by its last commit (tracking issue #107); v1
 keeps working until v2-5 deletes it. Rollback of any step is a revert of its PR.
 
 ## Open Questions

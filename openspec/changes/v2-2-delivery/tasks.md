@@ -20,4 +20,4 @@
 
 - [ ] 4.1 Remove `template/`, `copier.yml`, `template_drift.py`, `adopt_agent_process.py`, `template-drift-allowlist.yml`, `tests/publisher/test_template_drift.py`, `test_existing_project_*`
 - [ ] 4.2 Test named after `Repository inventory`; this repository installs its plugin from the local marketplace (`Process change`)
-- [ ] 4.3 Verify: `init` on an empty repository in ≤ 10 minutes; `openspec archive v2-2-delivery` after merge
+- [ ] 4.3 Verify: `init` on an empty repository in ≤ 10 minutes; `openspec archive v2-2-delivery` as the last commit of the PR

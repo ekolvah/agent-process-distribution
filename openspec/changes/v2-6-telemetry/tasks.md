@@ -6,4 +6,4 @@
 
 ## 2. Verify
 
-- [ ] 2.1 v1 vs v2 report on the same task types; `openspec archive v2-6-telemetry` after merge
+- [ ] 2.1 v1 vs v2 report on the same task types; `openspec archive v2-6-telemetry` as the last commit of the PR

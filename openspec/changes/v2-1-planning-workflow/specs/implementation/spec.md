@@ -24,9 +24,10 @@ requirement on it is an exit code.
 - **THEN** the issue closes without a body-text convention
 
 ### Requirement: The implementing run ends only after checks and reviews
-`implement-change` SHALL end only after the PR's checks and reviews are in. Its last step
-SHALL be one blocking script, `wait_for_pr`, that waits for checks and review threads and
-prints the unresolved ones.
+`implement-change` SHALL end only after the PR's checks and reviews are in. One blocking
+script, `wait_for_pr`, SHALL wait for checks and review threads and print the unresolved
+ones; the run SHALL apply them and wait again until nothing is unresolved, or reply on a
+thread it leaves to the person and end.
 
 #### Scenario: Pending review
 - **WHEN** the PR is open and a review is pending

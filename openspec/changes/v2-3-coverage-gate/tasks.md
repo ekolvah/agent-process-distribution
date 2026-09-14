@@ -8,4 +8,4 @@
 
 - [ ] 2.1 `tests/test_spec_coverage.py`: every requirement title under `openspec/specs/` appears in a test name or docstring
 - [ ] 2.2 Test named after `Test deleted`
-- [ ] 2.3 Verify: a PR with an uncovered scenario is not mergeable; `openspec archive v2-3-coverage-gate` after merge
+- [ ] 2.3 Verify: a PR with an uncovered scenario is not mergeable; `openspec archive v2-3-coverage-gate` as the last commit of the PR
