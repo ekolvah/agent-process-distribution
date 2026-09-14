@@ -23,7 +23,7 @@ dependency (`npx @fission-ai/openspec@<version>`), not a channel.
 
 #### Scenario: Update is a native command
 - **WHEN** a new process version is published
-- **THEN** a consumer updates with `/plugin marketplace update`, `git pull` of the checkout and a Dependabot PR, with no other step
+- **THEN** a consumer updates with `/plugin marketplace update`, `git pull` of the checkout, a Dependabot PR and, when the release bumps the OpenSpec pin, `openspec update`; no other step
 
 ### Requirement: Consumer footprint created by init
 `/agent-process:init` SHALL create the whole consumer footprint: `.github/workflows/agent-process.yml`

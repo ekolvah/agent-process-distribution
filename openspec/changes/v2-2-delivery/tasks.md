@@ -1,3 +1,7 @@
+## 0. Delivery
+
+- [ ] 0.1 Tracking issue for this change (ask the person for the priority, set the Project field); `gh issue develop -c <N>`; `set_status <N> "In progress"`
+
 ## 1. Plugin and Codex
 
 - [ ] 1.1 `.claude-plugin/plugin.json` + `marketplace.json`; skills, `agents/architect-reviewer.md`, `rules/principles.md`, `settings.json` deny-list
@@ -20,4 +24,10 @@
 
 - [ ] 4.1 Remove `template/`, `copier.yml`, `template_drift.py`, `adopt_agent_process.py`, `template-drift-allowlist.yml`, `tests/publisher/test_template_drift.py`, `test_existing_project_*`
 - [ ] 4.2 Test named after `Repository inventory`; this repository installs its plugin from the local marketplace (`Process change`)
-- [ ] 4.3 Verify: `init` on an empty repository in ≤ 10 minutes; `openspec archive v2-2-delivery` as the last commit of the PR
+- [ ] 4.3 Verify: `init` on an empty repository in ≤ 10 minutes
+
+## 5. Deliver
+
+- [ ] 5.1 `ci_check` green; open the PR (body: change name, tracked deferrals as issue links)
+- [ ] 5.2 `wait_for_pr`; apply every unresolved thread or reply on the one left to the person; repeat until nothing is unresolved
+- [ ] 5.3 `finish_change v2-2-delivery` — marks this task, `openspec archive v2-2-delivery -y`, commit, push, `wait_for_pr` on that head
