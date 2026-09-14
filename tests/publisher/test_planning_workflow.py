@@ -58,6 +58,9 @@ def test_pinned_openspec() -> None:
         assert OPENSPEC in text, path
 
 
-def test_reviewer_keeps_the_store() -> None:
-    """The subagent runs its commands in the store the propose run selected."""
-    assert "--store" in REVIEWER.read_text(encoding="utf-8")
+def test_one_planning_home() -> None:
+    """A change lives in the repository whose PR archives it: no registered store anywhere."""
+    context = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["context"]
+    assert "registered store" in context
+    for path in (CONFIG, REVIEWER):
+        assert "--store" not in path.read_text(encoding="utf-8"), path
