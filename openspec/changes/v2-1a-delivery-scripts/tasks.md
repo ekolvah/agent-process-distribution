@@ -1,6 +1,6 @@
 ## 0. Delivery
 
-- [x] 0.1 Tracking issue #111 (priority set); branch `v2-1a-delivery-scripts` from fresh
+- [x] 0.1 Tracking issue exists, priority set (#111); branch `v2-1a-delivery-scripts` from fresh
   `origin/main`; `python .agent-process/scripts/set_issue_status.py 111 in-progress`.
 
 ## 1. Carried over from PR 121
@@ -21,8 +21,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 `npx -y @fission-ai/openspec@latest validate --strict --all` green.
-- [ ] 3.2 `python .agent-process/scripts/ci_check.py` green.
+- [x] 3.1 `npx -y @fission-ai/openspec@latest validate --strict --all` green.
+- [x] 3.2 `python .agent-process/scripts/ci_check.py` green.
 
 ## 4. Deliver
 
