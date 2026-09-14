@@ -59,10 +59,18 @@ class _Gh:
         if head == ["gh", "repo", "view"]:
             return json.dumps({"owner": {"login": "owner"}, "name": "repo"})
         if head == ["gh", "api", "graphql"]:
-            return json.dumps({"data": {"repository": {"projectsV2": {"nodes": self.projects}}}})
-        if head == ["gh", "issue", "view"]:
             return json.dumps(
-                {"url": "https://github.com/owner/repo/issues/7", "projectItems": self.items}
+                {
+                    "data": {
+                        "repository": {
+                            "issue": {
+                                "url": "https://github.com/owner/repo/issues/7",
+                                "projectItems": {"nodes": self.items},
+                            },
+                            "projectsV2": {"nodes": self.projects},
+                        }
+                    }
+                }
             )
         if head == ["gh", "project", "field-list"]:
             return json.dumps(_FIELDS)
@@ -168,7 +176,7 @@ def test_priority_field_drift(capsys: pytest.CaptureFixture[str]) -> None:
 def test_issue_in_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
     """An issue whose Project is not linked to the repository is reported, not moved elsewhere."""
     set_status = _script("set_status")
-    gh = _Gh(items=[{"title": "Other board"}])
+    gh = _Gh(items=[{"project": {"id": "PVT_9", "title": "Other board"}}])
 
     with pytest.raises(SystemExit) as exc:
         set_status.main(["7", "In Progress"], gh=gh)
@@ -177,6 +185,19 @@ def test_issue_in_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
     assert gh.edits() == []
     err = capsys.readouterr().err
     assert "Other board" in err and "Board" in err
+
+
+def test_same_titled_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
+    """Membership is by Project id: a same-titled Project of another owner is not the linked one."""
+    set_status = _script("set_status")
+    gh = _Gh(items=[{"project": {"id": "PVT_9", "title": "Board"}}])
+
+    with pytest.raises(SystemExit) as exc:
+        set_status.main(["7", "In Progress"], gh=gh)
+
+    assert exc.value.code == 2
+    assert gh.edits() == []
+    assert "PVT_9" in capsys.readouterr().err
 
 
 def _rollup(*checks: tuple[str, str, str | None], head: str = "abc123") -> str:

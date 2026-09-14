@@ -9,6 +9,9 @@ context: |
     keeps, plus what archived changes add)
   - openspec/changes/<name>/ — what a change adds; archived inside its PR before merge
   - .agent-process/docs/adr/ — why (decisions, alternatives, deletion conditions)
+  One planning home: a change lives in the repository whose PR archives it (the delivery
+  flow stages `openspec/` and the code in one commit), so no registered store holds a change of
+  this repository and no command of the process takes a store flag.
   Specs hold requirements and scenarios only: no rationale, no non-goals, no open questions
   (those go to the ADR or the change's design.md). One scenario per requirement is enough
   when it names the observable outcome. Requirement titles are the identity tests refer to:
