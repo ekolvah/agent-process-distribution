@@ -26,11 +26,13 @@ not a default.
 
 ### Requirement: Deterministic rules live in scripts
 Deterministic rules SHALL live in scripts with exit codes, prohibitions in deny-lists or
-hooks, never in prose the agent has to remember.
+hooks, never in prose the agent has to remember — except where the carrier has no hook
+mechanism (Codex): there the prohibition is an `AGENTS.md` sentence, and an observed
+violation is what justifies a mechanism.
 
 #### Scenario: New prohibition
 - **WHEN** a prohibition is added to the process
-- **THEN** it is a deny-list or hook entry, not a rule sentence
+- **THEN** it is a deny-list or hook entry for Claude Code and an `AGENTS.md` sentence only for a carrier without hooks
 
 ### Requirement: No internal API compatibility
 Only the skills' user-facing commands and the reusable workflow inputs SHALL be contracts;

@@ -16,11 +16,15 @@ implementer procedures with OpenSpec skills plus thin GitHub glue.
 - **Approval = the person runs `/opsx:apply <change>`.** OpenSpec's planning boundary stops
   `propose` before code; nothing implements until that command. No approval state file.
 - **Delivery steps are tasks, not a wrapper skill.** The `tasks` rule puts the GitHub steps
-  (issue, branch, status … `ci_check`, PR, `wait_for_pr` loop, `archive -y`, push, final
-  `wait_for_pr`) into every `tasks.md`, so the unmodified `openspec-apply-change` — the
+  (issue, branch, status … `ci_check`, PR, `wait_for_pr` loop, `finish_change`) into every
+  `tasks.md`, so the unmodified `openspec-apply-change` — the
   command the generated propose prompt hands off to — runs them. Alternative: an
   `implement-change` wrapper — a second entry point the OpenSpec prompts do not know, so it
   gets bypassed. A re-run on an open PR continues at the first unchecked task.
+- **`finish_change` closes the loop itself.** The apply skill marks a task after running it,
+  and `openspec archive` moves `tasks.md`; so the last task is one script that marks its own
+  box first, then archives, commits, pushes and waits — nothing is left to edit after the
+  archive commit.
 
 ## Risks / Trade-offs
 

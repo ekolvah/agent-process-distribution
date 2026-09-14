@@ -40,7 +40,7 @@ The person SHALL approve the change; nothing implements before the person runs
 
 ### Requirement: A behaviour change carries its spec delta
 A PR that changes target behaviour SHALL carry the change's spec delta, and its last
-commit SHALL be `openspec archive <change>` (pushed by the implementing run once checks are
+commit SHALL be `openspec archive <change>` (pushed by `finish_change` once checks are
 green and no thread is unresolved), so `openspec/specs/` on `main` is what is implemented and
 no second PR is needed.
 

@@ -12,7 +12,8 @@ propose → review → apply → archive loop as maintained skills for both Clau
 - The GitHub steps (tracking issue, linked branch, `In progress`, `check_red`, `ci_check`,
   PR, `wait_for_pr`, archive) are tasks that the `tasks` rule puts into every `tasks.md`, so
   the unmodified `openspec-apply-change` runs them; no wrapper skill.
-- Scripts `wait_for_pr`, `set_status`, `check_red` (stdlib + `gh` only).
+- Scripts `wait_for_pr`, `set_status`, `check_red`, `finish_change` (stdlib + `gh` +
+  `openspec` only).
 - **BREAKING**: `/plan #N`, the `discovery` role, `validate_issue_status` and the issue-form
   plan sections are replaced.
 
@@ -31,6 +32,7 @@ propose → review → apply → archive loop as maintained skills for both Clau
 ## Impact
 
 - Added: `openspec/schemas/agent-process/`, `openspec/config.yaml` rules,
-  `scripts/wait_for_pr.py`, `scripts/set_status.py`, `scripts/check_red.py`, `agents/architect-reviewer.md`.
+  `scripts/wait_for_pr.py`, `scripts/set_status.py`, `scripts/check_red.py`,
+  `scripts/finish_change.py`, `agents/architect-reviewer.md`.
 - Removed: planner/implementer runbooks in `agent-process.md`, `discovery` subagent,
   `validate_issue_status.py`, `.agents/skills/plan-issue`, `.agents/skills/implement-issue`.

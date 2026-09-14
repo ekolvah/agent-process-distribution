@@ -26,12 +26,14 @@ The delivery tasks SHALL create the tracking issue when absent and the linked br
 ### Requirement: Delivery steps are tasks of every change
 The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with the delivery tasks
 (tracking issue with priority, `gh issue develop -c`, `set_status In progress`) and end with
-`ci_check`, the PR, the `wait_for_pr` loop, `openspec archive <change> -y`, the push of the
-archive commit and a final `wait_for_pr`. No delivery task SHALL prompt the person.
+`ci_check`, the PR, the `wait_for_pr` loop and one last task, `finish_change <change>`.
+`finish_change` SHALL mark its own task done, run `openspec archive <change> -y`, commit,
+push and wait for that head with `wait_for_pr`, leaving a clean worktree and nothing for the
+apply loop to edit. After the tracking issue exists no delivery task SHALL prompt the person.
 
 #### Scenario: Archive commit
-- **WHEN** the run pushes the archive commit
-- **THEN** it waits for that commit's checks and reviews before it ends
+- **WHEN** `finish_change` pushes the archive commit
+- **THEN** it waits for that commit's checks and reviews before the run ends, and the worktree is clean
 
 ### Requirement: The implementing run ends only after checks and reviews
 The implementing run SHALL end only after the PR's checks and reviews are in on its head.
