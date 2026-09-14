@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """Confirm that a set of pytest paths are all failing (RED step).
 
-Usage: python .agent-process/scripts/check_red.py <path-or-nodeid> [<path-or-nodeid> ...]
+Usage: python .agent-process/scripts/check_red.py [--report <junit.xml>] <path-or-nodeid> ...
+
+Without `--report` the script spawns pytest on the given paths (v1). With `--report` it
+spawns nothing and reads an existing junit report — the one the project's declared test
+runner writes (`AGENTS.md` names the command and the report path) — keeping only the
+testcases the given node ids select, so a whole-suite report answers for the new tests.
 
 Exits 0 only when the given tests are RED: no test is green AND at least one
 failed. Used by the implementer adapter to gate the RED→GREEN transition: if the
@@ -131,7 +136,35 @@ def evaluate_report(xml_text: str, *, full: bool = False) -> tuple[bool, str]:
     return False, f"not RED: 0 green, but nothing failed either ({skipped} skipped of {total})"
 
 
-def main() -> None:
+def _selects(node_id: str, classname: str, name: str) -> bool:
+    """Does a pytest node id (or a bare path) select the junit testcase `classname::name`?
+
+    junit `classname` is the dotted module path plus any test class; a parametrized
+    `name` carries its `[params]` suffix, which a node id without brackets still selects.
+    """
+    path, _, rest = node_id.replace("\\", "/").partition("::")
+    module = path.removesuffix(".py").strip("/").replace("/", ".")
+    if not rest:
+        return classname == module or classname.startswith(module + ".")
+    *classes, func = rest.split("::")
+    if classname != ".".join([module, *classes]):
+        return False
+    return name == func or name.startswith(func + "[")
+
+
+def _select_cases(xml_text: str, node_ids: list[str]) -> str:
+    """The report reduced to the testcases the node ids select (same junit shape)."""
+    root = ET.fromstring(xml_text)
+    for suite in list(root.iter("testsuite")):
+        for case in list(suite):
+            if case.tag == "testcase" and not any(
+                _selects(n, case.get("classname", ""), case.get("name", "")) for n in node_ids
+            ):
+                suite.remove(case)
+    return ET.tostring(root, encoding="unicode")
+
+
+def main(argv: list[str] | None = None) -> None:
     # argparse rather than hand-parsed `sys.argv`: `--full` must not reach pytest as a
     # path, and a missing path must stay exit 2 ("usage error"), which `parser.error`
     # already produces. The 0/1/2 codes are this gate's carrier—do not widen them.
@@ -144,8 +177,26 @@ def main() -> None:
         action="store_true",
         help="print every test name and the whole pytest output instead of a capped digest",
     )
-    args = parser.parse_args(sys.argv[1:])
+    parser.add_argument(
+        "--report",
+        metavar="junit.xml",
+        help="evaluate this existing junit report for the given node ids instead of running pytest",
+    )
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     paths = args.paths
+    if args.report:
+        try:
+            xml_text = Path(args.report).read_text(encoding="utf-8")
+            ok, msg = evaluate_report(_select_cases(xml_text, paths), full=args.full)
+        except (OSError, ValueError, ET.ParseError) as exc:
+            print(
+                f"check_red: cannot evaluate the junit report {args.report}: {exc}", file=sys.stderr
+            )
+            sys.exit(2)
+        print(msg)
+        if not ok:
+            sys.exit(1)
+        return
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "red.xml"
         # No `-q` here: the verbosity of this run has one home, `addopts` in
