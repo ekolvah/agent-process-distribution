@@ -24,11 +24,12 @@ carriers: a deny-list in Claude Code, a pre-tool hook in Codex. Merging is the p
 - **WHEN** an agent runs `git push origin main` in Codex
 - **THEN** the pre-tool hook denies it with the repository-policy reason
 
-### Requirement: Every PR links its issue
-A PR SHALL carry `Closes #N` for its issue; the `pr-link` check verifies the link.
+### Requirement: An issue-branch PR links its issue
+A PR from an `issue-N-*` branch SHALL carry `Closes #N`; the `pr-link` check verifies the
+link. On any other branch (fork, Dependabot, manual) the check is N/A and passes.
 
 #### Scenario: PR link check
-- **WHEN** a PR is opened
+- **WHEN** a PR from an `issue-N-*` branch is opened
 - **THEN** `pr-link` verifies the closing reference with read access to issues
 
 ### Requirement: Codex reviews on the author's request, Claude is the fallback

@@ -14,8 +14,9 @@ sections and a known status; records are immutable after acceptance.
 - **THEN** CI reports it
 
 ### Requirement: Documents are guarded
-Every document SHALL state the question it answers, its links SHALL resolve, and an issue
-reference SHALL be a pointer in parentheses, not narrative.
+In every tracked file, links SHALL resolve and an issue reference SHALL be a pointer in
+parentheses, not narrative. A document under `.agent-process/docs/architecture/` or
+`.claude/rules/` SHALL also state the question it answers.
 
 #### Scenario: Narrative issue reference
 - **WHEN** a document mentions an issue as part of a sentence

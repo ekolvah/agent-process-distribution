@@ -6,11 +6,13 @@ footprint it leaves there.
 
 ## Requirements
 
-### Requirement: Three native delivery channels
-The process SHALL be delivered through three native channels: a Claude Code plugin
-(`.claude-plugin/`, this repository as its marketplace), Codex skills (`.agents/skills/`),
-and reusable GitHub workflows (`.github/workflows/reusable-*.yml`) that a consumer calls
-from thin caller workflows.
+### Requirement: Layered delivery through Copier
+The provider-neutral core and the Codex skills (`.agents/skills/`) SHALL reach a consumer as
+one Copier render; the Claude adapter files SHALL reach it through the Claude Code plugin
+marketplace (`.claude-plugin/`, this repository as the marketplace). CI logic is the core's
+one referenced component: pinned reusable GitHub workflows
+(`.github/workflows/reusable-*.yml`) that the thin caller workflows in the Copier payload
+call.
 
 #### Scenario: Consumer callers are thin
 - **WHEN** a consumer project is rendered
@@ -24,13 +26,16 @@ branch against the PR worktree, so a PR cannot change what checks it.
 - **WHEN** the quality workflow runs for a PR
 - **THEN** the driver comes from the default branch and the PR's files are only its input
 
-### Requirement: The process footprint lives under one root
-Everything a consumer receives SHALL live under one process-owned root; the consumer's own
-files are never touched, and publisher-only tests never reach a consumer.
+### Requirement: The process footprint is one root plus a closed exception set
+Everything a consumer receives SHALL live under `.agent-process/`, except the paths the
+tools themselves mandate: the thin caller workflows and the PR template under `.github/`,
+`AGENTS.md`, `.gitignore`, the agent-tool configuration under `.agents/`, `.claude/` and
+`.codex/`, and the consumer tests under `tests/agent_process/`. That set is closed; the
+consumer's other files are never touched, and publisher-only tests never reach a consumer.
 
 #### Scenario: Rendered payload
 - **WHEN** the process is rendered into a project
-- **THEN** every rendered file is under the process root and no publisher test is among them
+- **THEN** every rendered file is under the process root or in the closed exception set, and no publisher test is among them
 
 ### Requirement: This repository dogfoods its own process
 This repository SHALL carry the same rendered payload a consumer receives, so every process
