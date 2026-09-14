@@ -40,9 +40,10 @@ rules:
       its scenario → test map is a finding.
   tasks:
     - >-
-      Group 0 — Delivery start: tracking issue exists (ask the person for priority:
-      High/Medium/Low) → `gh issue develop -c <N> --name <change>` from fresh origin/main →
-      `python .agent-process/scripts/set_status.py <N> "In Progress"`.
+      Group 0 — Delivery start: the tracking issue — create it when the change has none
+      (`gh issue create --title "<change>" --body-file <proposal>`; ask the person for
+      priority: High/Medium/Low) → `gh issue develop -c <N> --name <change>` from fresh
+      origin/main → `python .agent-process/scripts/set_status.py <N> "In Progress"`.
     - >-
       Group 1 — RED first: write the tests of the scenario → test map, run the test
       runner AGENTS.md declares (it writes the JUnit report there), verify
@@ -50,12 +51,13 @@ rules:
       commit before any implementation.
     - >-
       Implementation groups: one task per scenario, design decision or review finding,
-      each with its verify command.
+      each with its verify command; every group ends with a commit of its work.
     - >-
       Verify group: `npx -y @fission-ai/openspec@latest validate --strict --all` and
       `python .agent-process/scripts/ci_check.py` green.
     - >-
-      Deliver group, in this order: push (redirect the output to a file, never pipe it) →
+      Deliver group, in this order: `git status --short` empty (commit what is left) →
+      push (redirect the output to a file, never pipe it) →
       `gh pr create --body-file <report>` (change name, `Closes #<N>`, the scenario → test
       map, deferrals) → `python .agent-process/scripts/request_codex_review.py --request <PR>`
       (v1, until v2-4; re-run after every push) →
