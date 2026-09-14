@@ -43,7 +43,10 @@
 
 ## Scenario → test map
 
-- Procedure changes once → `test_roles_and_carriers`
+- Procedure changes once, Tasks of a new change → `test_roles_and_carriers`
+- Tracking issue created, Priority field drift → `test_tracking_issue_created`,
+  `test_priority_field_drift` (part 1)
+- Priority asked once → `n/a: person and planner behaviour; the rule text`
 - Codex plans a change, Reading provenance, Switching agents, New task, Ambiguous scope,
   Review finding, Validator scope, Bug change, Unmapped scenario → `n/a: person or agent
   behaviour, not a script`

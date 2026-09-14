@@ -21,7 +21,10 @@ scenario is either provable by the schema/config test or is a person's action.
 
 ## Scenario coverage
 
-- roles / Procedure changes once → `test_roles_and_carriers`
+- roles / Procedure changes once, implementation / Tasks of a new change →
+  `test_roles_and_carriers` (the rule's presence; its content is read by the reviewer)
+- state / Tracking issue created, Priority field drift → tests of part 1; Priority asked
+  once → `n/a: rule text, person's answer`
 - roles / Codex plans a change, Reading provenance, Switching agents → `n/a: which carrier
   fills a role is a fact of the installed skills, not a script`
 - planning / New task, Ambiguous scope, Review finding, Validator scope, Bug change,

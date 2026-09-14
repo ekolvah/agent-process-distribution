@@ -32,7 +32,9 @@ working beside it.
 - `planning`: how plans are produced, reviewed and approved.
 
 ### Modified Capabilities
-<!-- none -->
+- `implementation`: delivery steps are tasks of every change (the `tasks` rule).
+- `state`: the delivery task that creates the tracking issue asks the person for the
+  priority (moved here from part 1 with the rule).
 
 ## Impact
 
