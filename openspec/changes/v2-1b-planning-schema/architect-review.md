@@ -23,8 +23,10 @@ scenario is either provable by the schema/config test or is a person's action.
   merged into this branch).
 - §IV · a `rework` verdict satisfied `apply.requires` (PR 123 round 2, P1) → applied: the
   `apply` instruction and Group 0 stop on it; `test_review_finding`.
-- §II · the subagent ran an unscoped command on a registered store (PR 123 round 2) →
-  applied: `--store <id>` travels with the change name; `test_reviewer_keeps_the_store`.
+- §II · the subagent ran an unscoped command on a registered store (PR 123 round 2), then
+  the Group 0 check and `finish_change.py` did the same (round 3) → applied at the root: the
+  process has one planning home — the repository of the PR — and takes no `--store`
+  anywhere; `test_one_planning_home`.
 - §II · `agents/architect-reviewer.md` reads its contract from `openspec instructions`
   rather than restating it — one source; kept.
 

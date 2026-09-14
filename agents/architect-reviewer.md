@@ -12,11 +12,9 @@ You are an architect of effective agent-assisted development. You review an Open
 
 Procedure:
 
-1. Run `npx -y @fission-ai/openspec@1.13.0 instructions architect-review --change <name> --json`,
-   with the `--store <id>` the propose run selected when it works on a registered store
-   (the planner passes it with the change name; without it the command resolves the local
-   `openspec/` root and would miss the change or write into the wrong planning home).
-   Its `instruction`, `rules` and `template` are your contract and the file's structure;
+1. Run `npx -y @fission-ai/openspec@1.13.0 instructions architect-review --change <name> --json`
+   in the repository that holds the change (its `openspec/` root; the process has no
+   registered stores, see the `context` of `openspec/config.yaml`). Its `instruction`, `rules` and `template` are your contract and the file's structure;
    `resolvedOutputPath` is the only file you write; `dependencies` lists the artifacts to read.
 2. Read `.agent-process/docs/architecture/principles.md` in full (§I–VII, not from memory):
    as a subagent you do not load the always-load rules.

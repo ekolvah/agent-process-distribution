@@ -40,6 +40,12 @@
   `test_reviewer_keeps_the_store`.
 - [x] 2b.3 Part 1 merged into this branch; `test_pinned_openspec` covers `finish_change.py`.
 
+## 2c. Review round 3 (PR 123)
+
+- [x] 2c.1 One planning home: the `context` of `config.yaml` rules registered stores out and
+  `agents/architect-reviewer.md` drops `--store` (the Group 0 check and `finish_change.py`
+  read the repository of the PR); verify `test_one_planning_home`.
+
 ## 3. Verify
 
 - [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.

@@ -46,9 +46,14 @@ rework (`v2-4`), `init` (`v2-2`), a Codex end-to-end run (observed at the apply 
   with the `grep` for `approve` (what the implementer runs first). Alternative: a
   `check_review` script — a third place for a one-line grep; after an observed apply on a
   `rework` plan.
-- **The subagent takes the store with the change name.** `--store <id>` is sticky in the
-  propose skill; the planner passes it and the agent prompt says so. Alternative: hand the
-  agent the resolved instruction JSON — a second contract between two prompts.
+- **One planning home, no registered store.** The delivery flow archives the change in the
+  PR that ships the code: Group 0 reads `openspec/changes/<change>/architect-review.md`,
+  `finish_change.py` stages `openspec/` of the same repository. A change in a registered
+  store would archive in another repository than its PR, so the `context` of `config.yaml`
+  rules stores out and no command of the process takes `--store` (`test_one_planning_home`).
+  Alternative: carry `--store` through the reviewer prompt, the Group 0 check and
+  `finish_change.py` (PR 123 rounds 2–3) — three store-aware places for a layout the
+  delivery flow cannot ship.
 - **A zero-delta change records why there is no RED.** Docs-only, `skip_specs` and rename
   changes have no scenario a test proves; the RED group is one `no RED: <reason>` task, and
   a RED group that names no test without it is a review finding. Alternative: skip the
