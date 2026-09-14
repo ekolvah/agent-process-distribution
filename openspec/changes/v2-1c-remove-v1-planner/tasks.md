@@ -38,8 +38,8 @@
   (change name, part 3 of 3 of #111, the scenario → test map, deferrals);
   `python .agent-process/scripts/request_codex_review.py --request <PR>`; verify `gh pr view`
   shows the PR.
-- [ ] 4.2 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread,
-  push, re-request, at most three rounds; verify exit 0.
+- [x] 4.2 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread,
+  push, re-request, at most three rounds; verify exit 0 (one round applied, round 2 clean).
 - [ ] 4.3 `git merge v2-1b-planning-schema` once part 2 is archived, then
   `python .agent-process/scripts/finish_change.py v2-1c-remove-v1-planner`; verify
   `openspec/specs/planning/spec.md` carries the requirement and no `.openspec-archive.lock`
