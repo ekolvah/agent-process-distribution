@@ -85,9 +85,13 @@
 
 ## 6. Verify
 
-- [ ] 6.1 `npx -y @fission-ai/openspec@latest validate --strict --all` green.
-- [ ] 6.2 `python .agent-process/scripts/ci_check.py` green; verify
-  `git grep -l "template/" -- $(git diff --name-only origin/main)` is empty.
+- [x] 6.1 `npx -y @fission-ai/openspec@latest validate --strict --all` green.
+- [x] 6.2 `python .agent-process/scripts/ci_check.py` green; verify
+  `git grep -l "template/" -- $(git diff --name-only origin/main)` is empty (the two hits are
+  this line and a pre-existing history line of ADR 0027; the diff adds no reference). Found on
+  the way: `test_catalogue_records_role_and_adapter_separately` resolves every `contract:`
+  anchor of `roles.yaml` — the brief's "no test resolves those anchors" was wrong; the three
+  anchors of the removed sections now point at `#planning` until `v2-5` deletes the catalogue.
 
 ## 7. Deliver
 
