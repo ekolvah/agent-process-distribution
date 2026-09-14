@@ -14,12 +14,22 @@ only its built-in options and adds none.
 - **THEN** the Project's built-in `Status` options are required and preserved
 
 ### Requirement: Priority is set at creation
-Priority SHALL be a Project field set when the issue is created; the planner asks the
-person for it and sets it with `set_issue_priority`.
+Priority SHALL be a Project field set together with the first status of the tracking issue,
+in one call (`set_status <N> "<Status>" --priority <name>`), fields and options resolved by
+name; a Project the script cannot choose SHALL be reported, not guessed. The delivery task
+that creates the issue SHALL ask the person for the priority; no later delivery task asks.
+
+#### Scenario: Tracking issue created
+- **WHEN** the implementing run sets the first status of a new tracking issue with a priority
+- **THEN** both fields are set in one call and the issue is an item of the repository's Project
+
+#### Scenario: Priority asked once
+- **WHEN** the implementing run creates the tracking issue
+- **THEN** it asks the person for the priority before the first status and never again
 
 #### Scenario: Priority field drift
-- **WHEN** the Project's priority field does not match the configured options
-- **THEN** the mismatch is reported before any status is changed
+- **WHEN** the Project has no option for the given priority
+- **THEN** the run reports it before any status is changed
 
 ### Requirement: Branch creation moves the issue to In Progress
 Creating the `issue-N-<slug>` branch SHALL move the issue's Status to `In Progress`; a
