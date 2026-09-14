@@ -102,6 +102,25 @@ def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert exc.value.code == 1
 
 
+def test_class_scoped_node_id(tmp_path: Path) -> None:
+    """A node id ending in a test class selects every test of that class, nested classes included."""
+    check_red = _script("check_red")
+    report = tmp_path / "red.xml"
+    report.write_text(
+        '<testsuites><testsuite><testcase classname="tests.publisher.test_x.TestA" name="test_a">'
+        '<failure message="boom"/></testcase>'
+        '<testcase classname="tests.publisher.test_x.TestA.TestInner" name="test_b">'
+        '<failure message="boom"/></testcase>'
+        '<testcase classname="tests.publisher.test_x" name="test_other"/>'
+        "</testsuite></testsuites>",
+        encoding="utf-8",
+    )
+    check_red.main(["--report", str(report), "tests/publisher/test_x.py::TestA"])
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["--report", str(report), "tests/publisher/test_x.py::TestB"])
+    assert exc.value.code == 1
+
+
 def test_tracking_issue_created() -> None:
     """Scenario: Tracking issue created — names resolve to ids, item-edit carries them."""
     set_status = _script("set_status")
@@ -130,6 +149,20 @@ def test_priority_field_drift(capsys: pytest.CaptureFixture[str]) -> None:
     assert gh.edits() == []
     err = capsys.readouterr().err
     assert "Urgent" in err and "High" in err and "Low" in err
+
+
+def test_issue_in_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
+    """An issue whose Project is not linked to the repository is reported, not moved elsewhere."""
+    set_status = _script("set_status")
+    gh = _Gh(items=[{"title": "Other board"}])
+
+    with pytest.raises(SystemExit) as exc:
+        set_status.main(["7", "In Progress"], gh=gh)
+
+    assert exc.value.code == 2
+    assert gh.edits() == []
+    err = capsys.readouterr().err
+    assert "Other board" in err and "Board" in err
 
 
 def _rollup(*checks: tuple[str, str, str | None]) -> str:
