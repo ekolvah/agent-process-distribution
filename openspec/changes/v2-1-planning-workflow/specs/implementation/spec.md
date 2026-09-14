@@ -16,18 +16,28 @@ requirement on it is an exit code.
 - **THEN** the first commit contains a test that `check_red` reports as failing
 
 ### Requirement: GitHub links branch, PR and issue
-`implement-change` SHALL create the tracking issue when absent and the linked branch with
+The delivery tasks SHALL create the tracking issue when absent and the linked branch with
 `gh issue develop -c N`; the PR links to the issue automatically and the merge closes it.
 
 #### Scenario: Merge
 - **WHEN** the PR from the linked branch merges
 - **THEN** the issue closes without a body-text convention
 
+### Requirement: Delivery steps are tasks of every change
+The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with the delivery tasks
+(tracking issue with priority, `gh issue develop -c`, `set_status In progress`) and end with
+`ci_check`, the PR, the `wait_for_pr` loop, `openspec archive <change> -y`, the push of the
+archive commit and a final `wait_for_pr`. No delivery task SHALL prompt the person.
+
+#### Scenario: Archive commit
+- **WHEN** the run pushes the archive commit
+- **THEN** it waits for that commit's checks and reviews before it ends
+
 ### Requirement: The implementing run ends only after checks and reviews
-`implement-change` SHALL end only after the PR's checks and reviews are in. One blocking
-script, `wait_for_pr`, SHALL wait for checks and review threads and print the unresolved
-ones; the run SHALL apply them and wait again until nothing is unresolved, or reply on a
-thread it leaves to the person and end.
+The implementing run SHALL end only after the PR's checks and reviews are in on its head.
+One blocking script, `wait_for_pr`, SHALL wait for checks and review threads and print the
+unresolved ones; the run SHALL apply them and wait again until nothing is unresolved, or
+reply on a thread it leaves to the person and end.
 
 #### Scenario: Pending review
 - **WHEN** the PR is open and a review is pending

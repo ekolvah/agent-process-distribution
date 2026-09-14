@@ -32,7 +32,7 @@ self-review in Codex, against `principles.md` §I–VII.
 
 ### Requirement: Human approval is the gate
 The person SHALL approve the change; nothing implements before the person runs
-`/implement <change>`. The only automated check on a plan SHALL be `openspec validate --strict`.
+`/opsx:apply <change>` (`$openspec-apply-change`). The only automated check on a plan SHALL be `openspec validate --strict`.
 
 #### Scenario: Validator scope
 - **WHEN** a change validates

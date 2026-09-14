@@ -6,7 +6,7 @@
 
 ## 2. State
 
-- [ ] 2.1 Wire `set_status` into `implement-change`; remove `bootstrap_github_project.py`, `project_settings.py`, `set_issue_priority.py`
+- [ ] 2.1 Wire `set_status` into the delivery-tasks template; remove `bootstrap_github_project.py`, `project_settings.py`, `set_issue_priority.py`
 - [ ] 2.2 Tests named after `Resuming work`, `Merge`, `New project`, `Person checks progress`, `init without a Project`
 
 ## 3. Verify

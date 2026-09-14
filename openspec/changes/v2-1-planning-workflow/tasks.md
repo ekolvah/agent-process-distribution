@@ -7,8 +7,8 @@
 ## 2. Skills and scripts
 
 - [ ] 2.1 `agents/architect-reviewer.md` writes `architect-review.md` from `openspec instructions architect-review --json`
-- [ ] 2.2 `skills/implement-change/SKILL.md`: tracking issue (ask priority) → `gh issue develop -c` → `set_status In progress` → follow `openspec-apply-change` → `ci_check` → PR → `wait_for_pr` → apply unresolved threads, repeat → `openspec archive`; re-run on an open PR starts from the unresolved threads
-- [ ] 2.3 `scripts/check_red.py`, `scripts/set_status.py`, `scripts/wait_for_pr.py`; tests named after the scenarios `Behavioural change`, `Tracking issue created`, `Pending review`
+- [ ] 2.2 `config.yaml` `tasks` rule: delivery-tasks template — tracking issue (ask priority) → `gh issue develop -c` → `set_status In progress` → … → `ci_check` → PR → `wait_for_pr`, apply unresolved threads, repeat → `openspec archive <change> -y` → push → `wait_for_pr`; a re-run of `openspec-apply-change` on an open PR continues at the first unchecked task
+- [ ] 2.3 `scripts/check_red.py`, `scripts/set_status.py`, `scripts/wait_for_pr.py`; tests named after the scenarios `Behavioural change`, `Tracking issue created`, `Archive commit`, `Pending review`
 - [ ] 2.4 Remove `/plan`, `discovery` subagent, `validate_issue_status.py`, `.agents/skills/plan-issue`, `.agents/skills/implement-issue`, planner/implementer runbooks
 
 ## 3. Verify

@@ -8,7 +8,7 @@ how two agents share one procedure without duplication.
 The planner, implementer and archive procedures SHALL be the OpenSpec skills
 (`openspec-propose`, `openspec-apply-change`, `openspec-archive-change`), identical in Claude
 Code and Codex. The process SHALL extend them only through `openspec/config.yaml` rules, the
-forked schema and the `implement-change` skill; no second copy of the steps SHALL exist.
+forked schema; no second copy of the steps and no second entry point SHALL exist.
 
 #### Scenario: Procedure changes once
 - **WHEN** a planning rule changes
@@ -18,8 +18,8 @@ forked schema and the `implement-change` skill; no second copy of the steps SHAL
 Roles SHALL be carried as follows: planner — `/opsx:propose` in Claude, `$openspec-propose`
 in Codex; architect review — the `architect-reviewer` subagent in Claude (independent), a
 self-review in Codex, both writing the `architect-review` artifact; implementer and fixer —
-`implement-change` skill (`/implement`, `$implement-change`) wrapping
-`openspec-apply-change`; PR review — `claude-code-action` workflow and the Codex GitHub app;
+`openspec-apply-change` (`/opsx:apply`, `$openspec-apply-change`) executing `tasks.md`,
+whose delivery tasks the `tasks` rule puts into every change; PR review — `claude-code-action` workflow and the Codex GitHub app;
 merge — the person.
 
 #### Scenario: Codex plans a change

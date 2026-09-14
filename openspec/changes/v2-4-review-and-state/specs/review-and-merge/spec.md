@@ -20,19 +20,22 @@ deferrals as issue links so a reviewer does not re-report them.
 - **THEN** the reviewer does not report that gap again
 
 ### Requirement: A later fix is a new implement run
-A fix after the implementing run has ended SHALL be the person running `/implement <change>`
+A fix after the implementing run has ended SHALL be the person running `/opsx:apply <change>`
 again; that run reads the open threads.
 
 #### Scenario: Thread after completion
 - **WHEN** a thread is opened after the run ended
-- **THEN** the next `/implement <change>` run starts from the open threads
+- **THEN** the next `/opsx:apply <change>` run starts from the open threads
 
 ### Requirement: The person merges
-No agent SHALL have merge authority.
+No agent SHALL merge. In Claude Code the deny-list SHALL reject `gh pr merge`; in Codex,
+which shares the person's `gh` session and has no hooks, the prohibition SHALL be a rule in
+`AGENTS.md` — a ruleset cannot tell the agent from the person, and an observed violation is
+what would justify a Codex-side mechanism.
 
 #### Scenario: Agent attempts merge
 - **WHEN** an agent runs `gh pr merge`
-- **THEN** the deny-list or the ruleset rejects it
+- **THEN** in Claude Code the deny-list rejects it; in Codex the run has broken the `AGENTS.md` rule and the person sees a merge they did not make
 
 ### Requirement: Reviewer instructions name the simplicity triggers
 Reviewer instructions SHALL name reinvented functionality and unnecessary complexity as

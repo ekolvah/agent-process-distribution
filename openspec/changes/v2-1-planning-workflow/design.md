@@ -13,14 +13,19 @@ implementer procedures with OpenSpec skills plus thin GitHub glue.
   artifact are injected into `openspec instructions`; the forked schema inserts
   `architect-review` between `design` and `tasks`. Alternative: bespoke `plan-issue` skill —
   re-implements the propose loop once, worse.
-- **Approval = the person runs `/implement <change>`.** OpenSpec's planning boundary stops
+- **Approval = the person runs `/opsx:apply <change>`.** OpenSpec's planning boundary stops
   `propose` before code; nothing implements until that command. No approval state file.
-- **`implement-change` is a wrapper.** Pre-steps (issue, branch, status) → follow
-  `openspec-apply-change` → post-steps (`ci_check`, PR, `wait_for_pr`). A re-run on an open
-  PR reads unresolved threads instead of `tasks.md`.
+- **Delivery steps are tasks, not a wrapper skill.** The `tasks` rule puts the GitHub steps
+  (issue, branch, status … `ci_check`, PR, `wait_for_pr` loop, `archive -y`, push, final
+  `wait_for_pr`) into every `tasks.md`, so the unmodified `openspec-apply-change` — the
+  command the generated propose prompt hands off to — runs them. Alternative: an
+  `implement-change` wrapper — a second entry point the OpenSpec prompts do not know, so it
+  gets bypassed. A re-run on an open PR continues at the first unchecked task.
 
 ## Risks / Trade-offs
 
 - Forked schema must be re-forked on OpenSpec schema changes; `openspec schema validate` in
   CI catches drift.
-- Codex: `$implement-change` has no Stop hook; `wait_for_pr` is the only end guard.
+- Codex has no Stop hook; `wait_for_pr` is the only end guard.
+- A planner may drop a delivery task; the architect review and the PR reviewer read
+  `tasks.md` against the template.
