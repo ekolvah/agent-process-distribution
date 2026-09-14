@@ -38,6 +38,13 @@
   `@fission-ai/openspec@1.13.0` (the version `test_openspec_valid.py` validates against;
   PR 123 round 1); verify `test_pending_review`, `test_parametrized_node_id`; commit.
 
+## 2c. Review round 3 (PR 122)
+
+- [x] 2c.1 RED: a same-titled Project of another owner is not the linked one; commit.
+- [x] 2c.2 `set_status`: one GraphQL lookup returns the issue's Project items with their
+  Project ids and the linked Projects; membership compares ids (observed live on #111);
+  verify `test_same_titled_unlinked_project`; commit.
+
 ## 3. Verify
 
 - [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.

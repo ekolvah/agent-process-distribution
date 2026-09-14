@@ -25,9 +25,12 @@ from typing import Any
 
 Gh = Callable[[list[str]], str]
 
-_PROJECTS_QUERY = (
-    "query($owner:String!,$name:String!){repository(owner:$owner,name:$name)"
-    "{projectsV2(first:20){nodes{id number title}}}}"
+# One query: the issue's Project items carry the Project id, and membership is compared
+# by id — a title is not an identity across owners (a same-titled Project elsewhere).
+_LOOKUP_QUERY = (
+    "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name)"
+    "{issue(number:$number){url projectItems(first:20){nodes{project{id title}}}}"
+    "projectsV2(first:20){nodes{id number title}}}}"
 )
 
 
@@ -55,7 +58,10 @@ def _repo(gh: Gh) -> tuple[str, str]:
     return str(data["owner"]["login"]), str(data["name"])
 
 
-def _projects(gh: Gh, owner: str, name: str) -> list[dict[str, Any]]:
+def _lookup(
+    gh: Gh, owner: str, name: str, number: int
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """The issue (url, the Projects it is an item of) and the Projects linked to the repository."""
     data = _json(
         gh,
         [
@@ -63,32 +69,35 @@ def _projects(gh: Gh, owner: str, name: str) -> list[dict[str, Any]]:
             "api",
             "graphql",
             "-f",
-            f"query={_PROJECTS_QUERY}",
+            f"query={_LOOKUP_QUERY}",
             "-F",
             f"owner={owner}",
             "-F",
             f"name={name}",
+            "-F",
+            f"number={number}",
         ],
     )
-    return list(data["data"]["repository"]["projectsV2"]["nodes"])
+    repo = data["data"]["repository"]
+    return repo["issue"], list(repo["projectsV2"]["nodes"])
 
 
-def _issue(gh: Gh, number: int) -> dict[str, Any]:
-    return _json(gh, ["gh", "issue", "view", str(number), "--json", "url,projectItems"])
-
-
-def _project_for(gh: Gh, owner: str, name: str, issue: dict[str, Any]) -> dict[str, Any]:
-    projects = _projects(gh, owner, name)
-    titles = {str(item.get("title")) for item in issue.get("projectItems") or []}
-    mine = [p for p in projects if p["title"] in titles]
+def _project_for(
+    owner: str, name: str, issue: dict[str, Any], projects: list[dict[str, Any]]
+) -> dict[str, Any]:
+    members = {
+        str(item["project"]["id"]): str(item["project"].get("title"))
+        for item in (issue.get("projectItems") or {}).get("nodes") or []
+    }
+    mine = [p for p in projects if str(p["id"]) in members]
     if len(mine) == 1:
         return mine[0]
     named = ", ".join(f"#{p['number']} {p['title']}" for p in projects) or "none"
-    if titles:
+    if members:
+        listed = ", ".join(f"{title} ({pid})" for pid, title in sorted(members.items()))
         raise ValueError(
-            f"issue {issue.get('url', '?')} is an item of {', '.join(sorted(titles))}, "
-            f"not of a Project linked to {owner}/{name} ({named}); link that Project or "
-            f"move the item first"
+            f"issue {issue.get('url', '?')} is an item of {listed}, not of a Project linked "
+            f"to {owner}/{name} ({named}); link that Project or move the item first"
         )
     if len(projects) == 1:
         return projects[0]
@@ -172,8 +181,8 @@ def _item_edit(gh: Gh, project_id: str, item_id: str, field_id: str, option_id: 
 def set_status(number: int, status: str, *, priority: str | None = None, gh: Gh = run_gh) -> None:
     """Set Status and optionally Priority of issue `number`; every name resolves before any write."""
     owner, name = _repo(gh)
-    issue = _issue(gh, number)
-    project = _project_for(gh, owner, name, issue)
+    issue, projects = _lookup(gh, owner, name, number)
+    project = _project_for(owner, name, issue, projects)
     fields = _fields(gh, owner, project)
     writes = [(str(fields["Status"]["id"]), _option_id(fields, "Status", status))]
     if priority is not None:
