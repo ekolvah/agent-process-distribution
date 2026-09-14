@@ -12,12 +12,14 @@ working beside it.
 ## What Changes
 
 - The schema is forked to `openspec/schemas/agent-process/` with an `architect-review`
-  artifact between `design` and `tasks`; `openspec/config.yaml` selects it.
+  artifact after `tasks` (`apply` requires both); `openspec/config.yaml` selects it.
 - Project rules live in `config.yaml`: `proposal` (read first, ask, bug reproduction and
   root cause before design), `architect-review` (principles §I–VII, scenario coverage),
   `tasks` (the delivery tasks of every change: tracking issue with priority → linked branch
   → status → provenance line → RED first → … → `ci_check` → PR → `wait_for_pr` loop, three
-  rounds → `finish_change`; a scenario → test map).
+  rounds → `finish_change`; a scenario → test map; `no RED: <reason>` when the map names
+  no test). Commands pin `@fission-ai/openspec@1.13.0`, the version the tests validate
+  against.
 - `agents/architect-reviewer.md` writes the `architect-review` artifact from
   `openspec instructions`; no issue sections.
 - `/opsx:propose` (`$openspec-propose`) becomes the planner and `/opsx:apply`

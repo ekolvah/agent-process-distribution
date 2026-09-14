@@ -22,12 +22,13 @@ person when a decision is theirs. Project context reaches it from `openspec/conf
 - **THEN** the planner asks before writing the proposal
 
 ### Requirement: Architect review is an artifact of the change
-Every change SHALL carry an `architect-review` artifact (schema: proposal → specs → design →
-architect-review → tasks) written by the `architect-reviewer` subagent in Claude and as a
-self-review in Codex, against `principles.md` §I–VII.
+Every change SHALL carry an `architect-review` artifact as its last planning artifact
+(schema: proposal → specs → design → tasks → architect-review; `apply` requires both), written
+by the `architect-reviewer` subagent in Claude and as a self-review in Codex, against
+`principles.md` §I–VII and the scenario → test map of `tasks.md`.
 
 #### Scenario: Review finding
-- **WHEN** the review finds a simpler design
+- **WHEN** the review finds a simpler design or a scenario missing from the map
 - **THEN** the finding is in `architect-review.md` before the person approves
 
 ### Requirement: Human approval is the gate
@@ -60,7 +61,8 @@ evidence is captured.
 
 ### Requirement: Every scenario maps to a test
 Every scenario in the change's spec delta SHALL map to a named test in `tasks.md`, or carry
-`n/a: <reason>`; a scenario without a test SHALL be an architect-review finding.
+`n/a: <reason>`; a scenario without a test SHALL be an architect-review finding. When the map
+names no test, the RED group SHALL be one task recording `no RED: <reason>`.
 
 #### Scenario: Unmapped scenario
 - **WHEN** a scenario has neither a test nor `n/a`

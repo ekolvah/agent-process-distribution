@@ -36,6 +36,18 @@ rework (`v2-4`), `init` (`v2-2`), a Codex end-to-end run (observed at the apply 
   reference in the PR body, not `Closes`: the branch from `gh issue develop -c` closes the
   issue on merge, and a `Closes` line would mask whether that link works (observed on the
   consumer migration, #117).
+- **The architect review is the last planning artifact.** It reads `tasks.md`, so a scenario
+  missing from the scenario → test map is a finding of the same review, and `apply` requires
+  both. Alternative: review between design and tasks (PR 121, PR 123 round 1) — the map was
+  never reviewed and the tasks instruction had to say "apply the findings first".
+- **A zero-delta change records why there is no RED.** Docs-only, `skip_specs` and rename
+  changes have no scenario a test proves; the RED group is one `no RED: <reason>` task, and
+  a RED group that names no test without it is a review finding. Alternative: skip the
+  group silently — invisible.
+- **One OpenSpec version.** `test_openspec_valid.py` pins `@1.13.0`; every command the
+  process runs (`config.yaml`, `agents/architect-reviewer.md`, `finish_change.py` in part 1)
+  uses the same pin and `test_pinned_openspec` reads the test's constant. Alternative:
+  `@latest` at runtime — the process would run on a version the tests never validated.
 - **Review budget: three rounds**, prose; a counter after an observed overrun.
 - **The schema is forked, not patched.** `openspec schema validate agent-process` in
   `test_openspec_valid.py` catches drift from upstream `spec-driven`.

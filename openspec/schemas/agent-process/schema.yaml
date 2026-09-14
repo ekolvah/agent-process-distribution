@@ -1,6 +1,6 @@
 name: agent-process
 version: 1
-description: spec-driven plus an architect review - proposal → specs → design → architect-review → tasks
+description: spec-driven plus an architect review - proposal → specs → design → tasks → architect-review
 artifacts:
   - id: proposal
     generates: proposal.md
@@ -181,33 +181,6 @@ artifacts:
     requires:
       - proposal
 
-  - id: architect-review
-    generates: architect-review.md
-    description: Architect review of the plan against the project principles
-    template: architect-review.md
-    instruction: |
-      Review the proposal, the spec deltas and the design against the project
-      principles (`.agent-process/docs/architecture/principles.md` §I–VII) before
-      the task list is written. In Claude Code the `architect-reviewer` subagent
-      writes this file; in Codex the planner writes it as a self-review.
-
-      Sections:
-      - **Verdict**: `approve` or `rework`, one line of reasoning.
-      - **Findings**: one bullet per finding: principle (§I–VII), the artifact and
-        the line or heading, what is wrong, what to change. A simpler design that
-        meets the same scenarios is a finding. An empty list is written as `none`.
-      - **Scenario coverage**: every `#### Scenario:` of the spec deltas that no
-        test can prove is listed here with the reason the task list must carry as
-        `n/a: <reason>`; when `tasks.md` already exists (re-review), a scenario
-        missing from its scenario → test map is a finding.
-
-      Do not restate the artifacts; point at them. A `rework` verdict blocks the
-      task list until the finding is applied or answered in this file.
-    requires:
-      - proposal
-      - specs
-      - design
-
   - id: tasks
     generates: tasks.md
     description: Implementation checklist with trackable tasks
@@ -247,15 +220,44 @@ artifacts:
       ```
 
       Reference specs for what needs to be built, design for how to build it.
-      Apply every finding of architect-review.md first; each task is the answer
-      to a scenario, a design decision or a review finding.
+      Each task is the answer to a scenario or a design decision. The architect
+      review reads this file next; a finding it raises is applied to the
+      artifact it names before the person approves the change.
     requires:
       - specs
       - design
-      - architect-review
+
+  - id: architect-review
+    generates: architect-review.md
+    description: Architect review of the plan against the project principles
+    template: architect-review.md
+    instruction: |
+      Review the proposal, the spec deltas, the design and the task list against
+      the project principles (`.agent-process/docs/architecture/principles.md`
+      §I–VII) before the person approves the change. In Claude Code the
+      `architect-reviewer` subagent writes this file; in Codex the planner writes
+      it as a self-review.
+
+      Sections:
+      - **Verdict**: `approve` or `rework`, one line of reasoning.
+      - **Findings**: one bullet per finding: principle (§I–VII), the artifact and
+        the line or heading, what is wrong, what to change. A simpler design that
+        meets the same scenarios is a finding. An empty list is written as `none`.
+      - **Scenario coverage**: every `#### Scenario:` of the spec deltas that no
+        test can prove is listed here with the reason `tasks.md` carries as
+        `n/a: <reason>`; a scenario missing from the scenario → test map of
+        `tasks.md` is a finding.
+
+      Do not restate the artifacts; point at them. A `rework` verdict blocks the
+      apply until the finding is applied or answered in this file.
+    requires:
+      - proposal
+      - specs
+      - design
+      - tasks
 
 apply:
-  requires: [ tasks ]
+  requires: [ tasks, architect-review ]
   tracks: tasks.md
   instruction: |
     Read context files, work through pending tasks, mark complete as you go.

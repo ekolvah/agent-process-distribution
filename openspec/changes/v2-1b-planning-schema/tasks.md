@@ -23,9 +23,18 @@
   `openspec instructions architect-review --change <name> --json`; no issue sections; verify
   `git grep -n "issue section\|validate_issue" agents/architect-reviewer.md` is empty; commit.
 
+## 2a. Review round 1 (PR 123)
+
+- [x] 2a.1 `architect-review` after `tasks`, `apply` requires both; the review instruction
+  and `agents/architect-reviewer.md` read the task list; verify `test_review_finding`.
+- [x] 2a.2 Group 1 rule: `no RED: <reason>` when the map names no test; verify
+  `test_review_finding`.
+- [x] 2a.3 `@fission-ai/openspec@1.13.0` in `config.yaml` and `agents/architect-reviewer.md`;
+  verify `test_pinned_openspec`.
+
 ## 3. Verify
 
-- [x] 3.1 `npx -y @fission-ai/openspec@latest validate --strict --all` green.
+- [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.
 - [x] 3.2 `python .agent-process/scripts/ci_check.py` green.
 
 ## 4. Deliver
@@ -44,10 +53,11 @@
 ## Scenario → test map
 
 - Procedure changes once, Tasks of a new change → `test_roles_and_carriers`
+- Review finding → `test_review_finding`
 - Tracking issue created, Priority field drift → `test_tracking_issue_created`,
   `test_priority_field_drift` (part 1)
 - Priority asked once → `n/a: person and planner behaviour; the rule text`
 - Codex plans a change, Reading provenance, Switching agents, New task, Ambiguous scope,
-  Review finding, Validator scope, Bug change, Unmapped scenario → `n/a: person or agent
+  Validator scope, Bug change, Unmapped scenario → `n/a: person or agent
   behaviour, not a script`
 - Behaviour change → `n/a: finish_change (part 1); observed on this PR`
