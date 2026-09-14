@@ -53,10 +53,10 @@
 
 ## 4. Deliver (v1 path; `finish_change` arrives with v2-1)
 
-- [ ] 4.1 Push the branch; `gh pr create` with `Closes #119`, the deleted-file list and the
+- [x] 4.1 Push the branch; `gh pr create` with `Closes #119`, the deleted-file list and the
   kept-file list from `proposal.md`; `python .agent-process/scripts/request_codex_review.py --request`;
   address review threads; verify every check on the head is green.
-- [ ] 4.2 Last commit: `npx -y @fission-ai/openspec@latest archive v2-0b-delete-copier-mirror -y`
+- [x] 4.2 Last commit: `npx -y @fission-ai/openspec@latest archive v2-0b-delete-copier-mirror -y`
   (delete a leftover `openspec/changes/archive/.openspec-archive.lock` before committing), then
   3.1–3.2 again; push; wait for the checks on that head; the person merges. Verify
   `openspec/specs/distribution/spec.md` no longer has `Layered delivery through Copier`.
