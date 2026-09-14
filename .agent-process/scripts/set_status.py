@@ -83,11 +83,17 @@ def _project_for(gh: Gh, owner: str, name: str, issue: dict[str, Any]) -> dict[s
     mine = [p for p in projects if p["title"] in titles]
     if len(mine) == 1:
         return mine[0]
+    named = ", ".join(f"#{p['number']} {p['title']}" for p in projects) or "none"
+    if titles:
+        raise ValueError(
+            f"issue {issue.get('url', '?')} is an item of {', '.join(sorted(titles))}, "
+            f"not of a Project linked to {owner}/{name} ({named}); link that Project or "
+            f"move the item first"
+        )
     if len(projects) == 1:
         return projects[0]
-    named = ", ".join(f"#{p['number']} {p['title']}" for p in projects) or "none"
     raise ValueError(
-        f"cannot choose the Project for issue #{issue.get('url', '?')}: "
+        f"cannot choose the Project for issue {issue.get('url', '?')}: "
         f"linked to {owner}/{name}: {named}; add the issue to one of them first"
     )
 

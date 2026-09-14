@@ -5,16 +5,16 @@
 
 ## 1. Carried over from PR 121
 
-- [ ] 1.1 `set_status.py`, `wait_for_pr.py`, `finish_change.py`, `check_red.py --report`,
+- [x] 1.1 `set_status.py`, `wait_for_pr.py`, `finish_change.py`, `check_red.py --report`,
   `AGENTS.md` runner bullet, `.gitignore`, `tests/publisher/test_delivery_scripts.py` (RED and
   green history in PR 121); remove `openspec/changes/v2-1-planning-workflow/`; verify
   `python -m pytest tests/publisher/test_delivery_scripts.py -q` green; commit.
 
 ## 2. Review findings left open on PR 121
 
-- [ ] 2.1 RED: `test_class_scoped_node_id`, `test_issue_in_unlinked_project`; verify
+- [x] 2.1 RED: `test_class_scoped_node_id`, `test_issue_in_unlinked_project`; verify
   `check_red.py --report .pytest-report.xml <both ids>` exits 0; commit.
-- [ ] 2.2 `check_red._selects`: a node id ending in a class selects the class and its nested
+- [x] 2.2 `check_red._selects`: a node id ending in a class selects the class and its nested
   classes; `set_status._project_for`: an item in an unlinked Project → `ValueError` naming the
   issue's Projects and the linked ones; verify the two tests and
   `tests/agent_process/test_ci_check.py` green; commit.

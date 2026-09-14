@@ -141,15 +141,20 @@ def _selects(node_id: str, classname: str, name: str) -> bool:
 
     junit `classname` is the dotted module path plus any test class; a parametrized
     `name` carries its `[params]` suffix, which a node id without brackets still selects.
+    A node id whose last segment is a test class selects every test of that class and of
+    the classes nested in it.
     """
     path, _, rest = node_id.replace("\\", "/").partition("::")
     module = path.removesuffix(".py").strip("/").replace("/", ".")
     if not rest:
         return classname == module or classname.startswith(module + ".")
-    *classes, func = rest.split("::")
+    *classes, last = rest.split("::")
+    scope = ".".join([module, *classes, last])
+    if classname == scope or classname.startswith(scope + "."):
+        return True
     if classname != ".".join([module, *classes]):
         return False
-    return name == func or name.startswith(func + "[")
+    return name == last or name.startswith(last + "[")
 
 
 def _select_cases(xml_text: str, node_ids: list[str]) -> str:
