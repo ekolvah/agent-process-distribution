@@ -2,7 +2,8 @@
 
 ### Requirement: Every scenario is covered before merge
 A PR SHALL be mergeable only when every scenario of its change's spec delta is covered by a
-test that ran green in the PR's checks, or is marked `n/a: <reason>` in the `tasks.md` the
+test that ran green in the PR's checks (read from the JUnit report the consumer's test-runner
+command writes at the path `AGENTS.md` declares), or is marked `n/a: <reason>` in the `tasks.md` the
 person approved. An uncovered scenario SHALL be a failed check, not a review comment.
 
 #### Scenario: Missing test

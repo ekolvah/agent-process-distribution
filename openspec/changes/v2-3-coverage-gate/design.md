@@ -7,7 +7,11 @@ Umbrella design: `v2-0-decision-record/design.md`.
 - **Scenario title is the coverage key.** `tasks.md` maps `Scenario: <title>` → test node id
   or `n/a: <reason>`; `check_coverage` parses the change's `specs/**/spec.md` and `tasks.md` from
   `openspec/changes/<change>/` or, on the archive commit, `openspec/changes/archive/*-<change>/`,
-  plus the JUnit report of the CI run (`openspec show` does not see archived changes). Alternative: markers in
+  plus the JUnit report the consumer's test-runner command writes at the path declared in
+  `AGENTS.md` (`openspec show` does not see archived changes). JUnit XML is the one format
+  every stack emits (pytest `--junitxml`, gotestsum, cargo-nextest, jest-junit, Surefire).
+- **One stable required check.** `check_coverage` is a step of the reusable workflow's
+  required job, so adding it changes no installed ruleset. Alternative: markers in
   test docstrings — a second place to keep in sync.
 - **Requirement-level coverage is a repository test**, not a consumer check: it iterates
   `openspec/specs/` and greps this repository's tests for each requirement title.

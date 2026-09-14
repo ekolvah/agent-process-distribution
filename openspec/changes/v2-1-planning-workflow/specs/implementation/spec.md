@@ -8,8 +8,9 @@ low, and how an agent turn ends.
 The implementer SHALL write the failing test named in `tasks.md` and prove it red with
 `check_red` before writing code; this is a `config.yaml` rule on `tasks`.
 Documentation-only, rename and one-line non-behavioural changes are exempt (`principles.md`
-§I). The project's test-runner command SHALL be declared in `AGENTS.md`; the only
-requirement on it is an exit code.
+§I). The project's test-runner command SHALL be declared in `AGENTS.md` together with the path
+of the JUnit XML report it writes; `check_red` reads that report and requires nothing else
+of the runner.
 
 #### Scenario: Behavioural change
 - **WHEN** the implementer starts a behavioural task

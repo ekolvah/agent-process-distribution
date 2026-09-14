@@ -6,7 +6,7 @@ review comment.
 
 ## What Changes
 
-- `check_coverage` runs in the reusable workflow as a required check: every scenario of the
+- `check_coverage` runs inside the reusable workflow's required job (stable check name): every scenario of the
   PR's change has a test that ran green, or `n/a: <reason>` in the approved `tasks.md`.
 - A publisher test fails CI when a requirement in `openspec/specs/` has no test naming it.
 
@@ -22,4 +22,4 @@ review comment.
 ## Impact
 
 - Added: `scripts/check_coverage.py`, `tests/test_spec_coverage.py`.
-- Reusable workflow gains one required check.
+- The reusable workflow's required job gains one step; the installed ruleset is unchanged.

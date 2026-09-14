@@ -28,7 +28,7 @@ dependency (`npx @fission-ai/openspec@<version>`), not a channel.
 ### Requirement: Consumer footprint created by init
 `/agent-process:init` SHALL create the whole consumer footprint: `.github/workflows/agent-process.yml`
 (~15 lines), `AGENTS.md` (pointer to the skills, the project's `ci_check` command, its
-test-runner command), the pre-push git hook, the ruleset applied once, a repository variable
+test-runner command and the JUnit report path it writes), the pre-push git hook, the ruleset applied once, a repository variable
 with the Project number, and `openspec init --tools claude,codex` with this process's
 `config.yaml` and schema. Process files SHALL NOT be copied into the consumer.
 

@@ -4,8 +4,8 @@
 
 ## 1. Coverage check
 
-- [ ] 1.1 `scripts/check_coverage.py`: locate the change under `openspec/changes/<change>/` or `openspec/changes/archive/*-<change>/` (the archive commit is the head that must be mergeable); scenarios parsed from its `specs/**/spec.md`, mapping from its `tasks.md`, results from the JUnit report; exit 1 naming uncovered scenarios
-- [ ] 1.2 Add it as a required check in the reusable workflow and `ruleset.json`
+- [ ] 1.1 `scripts/check_coverage.py`: locate the change under `openspec/changes/<change>/` or `openspec/changes/archive/*-<change>/` (the archive commit is the head that must be mergeable); scenarios parsed from its `specs/**/spec.md`, mapping from its `tasks.md`, results from the JUnit report at the path `AGENTS.md` declares; exit 1 naming uncovered scenarios
+- [ ] 1.2 Run it inside the reusable workflow's existing required job, so the check name in the installed ruleset does not change and no consumer reapplies the ruleset
 - [ ] 1.3 Test named after `Missing test`
 
 ## 2. Requirement coverage
