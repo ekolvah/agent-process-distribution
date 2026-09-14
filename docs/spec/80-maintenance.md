@@ -15,9 +15,10 @@ Status: draft
   occurrence earns the script.
 - **MAINT-3** (MUST) Core scripts are stack-agnostic: `gh`, `git` and the standard
   library only. Anything stack-specific is the consumer's `AGENTS.md` or `ci_check`.
-- **MAINT-4** (MUST) Tests in this repository cover the scripts (unit); consumer
-  conformance is the consumer's own `ci_check`. No publisher/consumer test split, no
-  rendered-template tests.
+- **MAINT-4** (MUST) Every `accepted` MUST requirement in `docs/spec/` is covered by at
+  least one test in this repository that names its ID; a MUST without a test fails CI.
+  Consumer conformance is the consumer's own `ci_check`. No publisher/consumer test
+  split, no rendered-template tests.
 - **MAINT-5** (MUST) Versioning: plugin version and git tag `vN`; reusable workflows are
   pinned by tag in consumers; a breaking change is a major tag with a migration note.
 - **MAINT-6** (MUST) Every ADR that adds to the core states what would be deleted if the
