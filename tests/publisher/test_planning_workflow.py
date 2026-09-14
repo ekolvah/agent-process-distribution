@@ -271,6 +271,13 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     code, out = run([_rollup()], _threads(), timeout=120)
     assert code == 3 and "no checks" in out.lower()
 
+    # A concluded rollup counts only once two consecutive polls list the same checks: a
+    # workflow that attaches late must not be missed behind a fast one that already passed.
+    gh = _Sequence([_rollup(green), _rollup(green, running), _rollup(green, done)], _threads())
+    ticks = iter(range(0, 10_000, 60))
+    code = wait_for_pr.wait_for_pr(9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None)
+    assert code == 0 and gh.polls == 4
+
 
 @pytest.mark.parametrize(
     ("script", "attr"),

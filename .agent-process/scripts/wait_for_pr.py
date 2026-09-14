@@ -5,9 +5,9 @@ Usage: python .agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 
 The implementing run ends only after checks and reviews: a running check (the `agent-review`
 check waiting for the requested Codex review included) is a pending review, so the script
-polls `gh pr view --json statusCheckRollup` until at least one check exists on the head and
-every one concluded (an empty rollup is the gap between a push and the workflows attaching),
-and only then reads the unresolved review threads. Exit 0: nothing unresolved; 1: failed checks
+polls `gh pr view --json statusCheckRollup` until the same non-empty set of checks is
+concluded on two consecutive polls (an empty or growing rollup is the gap between a push and
+the workflows attaching), and only then reads the unresolved review threads. Exit 0: nothing unresolved; 1: failed checks
 or unresolved threads, each printed with its location; 3: `--timeout` (default 30 minutes)
 elapsed while something was still running. Stays until `v2-4` reworks review.
 """
@@ -110,16 +110,22 @@ def wait_for_pr(
     timeout: float = DEFAULT_TIMEOUT,
 ) -> int:
     start = clock()
+    settled: list[str] | None = None
     while True:
         view = _json(
             gh, ["gh", "pr", "view", str(pr), "--json", "statusCheckRollup,headRefOid,url"]
         )
         checks: list[dict[str, Any]] = view.get("statusCheckRollup") or []
         pending = [c for c in checks if not _concluded(c)]
-        # An empty rollup is the window between a push and the workflows attaching to the
-        # head: nothing has concluded, so it is pending, not clean.
-        if checks and not pending:
+        names = sorted(_name(c) for c in checks)
+        # Workflows attach to a new head one run at a time (observed: all queued within
+        # seconds of the push, the rollup empty before that). Required contexts are not
+        # readable without admin rights, so the rollup is trusted only once it is concluded
+        # on two consecutive polls with the same set of checks — a late run is never hidden
+        # behind a fast one that already passed.
+        if checks and not pending and names == settled:
             break
+        settled = names if checks and not pending else None
         if clock() - start >= timeout:
             names = ", ".join(_name(c) for c in pending) or "no checks appeared"
             print(

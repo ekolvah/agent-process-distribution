@@ -196,7 +196,11 @@ of its brief in the brief's order:
 * `wait_for_pr` polls checks and review threads only. A pending Codex review is invisible in
   `reviewRequests`: it is requested by comment and the v1 `agent-review` required check waits
   for it before it concludes, so "a check is still running" is "a review is pending" and
-  threads are read only after every check concluded. Stays until `v2-4` reworks review.
+  threads are read only after every check concluded. Observed on the PR of this change:
+  the rollup of a new head is empty for a few seconds, then every workflow run attaches
+  queued at once; required contexts are not readable without admin rights, so the script
+  trusts a concluded rollup only when two consecutive polls list the same checks. Stays
+  until `v2-4` reworks review.
 * Plan approval has no durable GitHub artifact. The person approved by invoking `/opsx:apply`
   in chat after reading the change on its branch; the commit of the artifacts on the branch
   is the only trace, and the first delivery task does not gate on it. A marker (Project status,
