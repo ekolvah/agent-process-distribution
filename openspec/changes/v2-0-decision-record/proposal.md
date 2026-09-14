@@ -30,11 +30,11 @@ core addition follows.
 ## Capabilities
 
 ### New Capabilities
-- `maintenance`: how the process stays small — here only the two ADR rules; the rest
-  arrives with `v2-5-delete-control-plane`.
+<!-- none -->
 
 ### Modified Capabilities
-<!-- none -->
+- `maintenance` (baseline from #109): adds the two ADR rules — native first, deletion
+  condition; the size budget arrives with `v2-5-delete-control-plane`.
 
 ## Impact
 
