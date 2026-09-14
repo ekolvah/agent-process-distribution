@@ -59,7 +59,7 @@
 - [x] 4.2 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread,
   push, re-request, at most three rounds; verify exit 0 (three rounds applied; the round-4
   thread — `gh project field-list` without `--limit` — is left to the person with a reply).
-- [ ] 4.3 `python .agent-process/scripts/finish_change.py v2-1a-delivery-scripts`; verify the
+- [x] 4.3 `python .agent-process/scripts/finish_change.py v2-1a-delivery-scripts`; verify the
   archive commit's checks green and no `.openspec-archive.lock` is tracked. The person merges.
 
 ## Scenario → test map
