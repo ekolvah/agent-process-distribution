@@ -85,7 +85,15 @@ root_only_paths:
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
   - path: openspec/config.yaml
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
-  - path: openspec/specs/.gitkeep
+  - path: openspec/specs/distribution/spec.md
+    reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: openspec/specs/implementation/spec.md
+    reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: openspec/specs/maintenance/spec.md
+    reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: openspec/specs/review-and-merge/spec.md
+    reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
+  - path: openspec/specs/state/spec.md
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
   - path: tests/publisher/test_openspec_valid.py
     reason: Runs the OpenSpec validator over openspec/ in the publisher source (issue #105), not a file a consumer receives.

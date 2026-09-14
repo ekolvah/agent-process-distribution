@@ -5,7 +5,8 @@ context: |
 
   This repository publishes an agent development process for GitHub projects worked by
   Claude Code and Codex. Three artifacts, three questions:
-  - openspec/specs/<capability>/spec.md — what the process does (implemented; grows by archive)
+  - openspec/specs/<capability>/spec.md — what the process does today (the v1 baseline that v2
+    keeps, plus what archived changes add)
   - openspec/changes/<name>/ — what a change adds; archived inside its PR before merge
   - .agent-process/docs/adr/ — why (decisions, alternatives, deletion conditions)
   Specs hold requirements and scenarios only: no rationale, no non-goals, no open questions
