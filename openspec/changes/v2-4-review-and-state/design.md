@@ -7,7 +7,10 @@ Umbrella design: `v2-0-decision-record/design.md`.
 - **Reviews are advisory.** Neither app's verdict is parsed; a blocking finding is a thread
   the person leaves unresolved. Alternative: v1 classification — duplicated what
   `required_conversation_resolution` does.
-- **A fix after the run ended is a new `/opsx:apply <change>` run** that reads open threads.
+- **A fix after the run ended is a new run on the PR, not on the change.** The change is
+  archived by then; `wait_for_pr` lists the threads, the fix edits code, tests and the
+  archived delta + `openspec/specs/` directly. Alternative: keep the change active until
+  merge — then the archive commit is not the PR's last commit and needs a second PR.
   No fixer role, no re-review trigger comment.
 - **Project status is resolved by name at run time** from the Project number in a repository
   variable; nothing is generated per project.

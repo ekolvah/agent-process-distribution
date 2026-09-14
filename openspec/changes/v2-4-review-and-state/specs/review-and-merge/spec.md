@@ -20,12 +20,15 @@ deferrals as issue links so a reviewer does not re-report them.
 - **THEN** the reviewer does not report that gap again
 
 ### Requirement: A later fix is a new implement run
-A fix after the implementing run has ended SHALL be the person running `/opsx:apply <change>`
-again; that run reads the open threads.
+A fix after the implementing run has ended SHALL be a new agent run that the person starts
+on the open PR; it begins with `wait_for_pr`, which prints the open threads. The change is
+archived by then, so the fix commits code, tests and, when a requirement changes, the
+archived delta together with `openspec/specs/` directly; a rework that changes what the PR
+delivers is a new change. No active change SHALL be required for a fix.
 
 #### Scenario: Thread after completion
 - **WHEN** a thread is opened after the run ended
-- **THEN** the next `/opsx:apply <change>` run starts from the open threads
+- **THEN** the next run on the PR starts from the threads `wait_for_pr` prints, without an active change
 
 ### Requirement: The person merges
 No agent SHALL merge. In Claude Code the deny-list SHALL reject `gh pr merge`; in Codex,
