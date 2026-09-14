@@ -56,9 +56,10 @@
   v2-1a-delivery-scripts --body-file <report>` (change name, part 1 of 3 of #111, the
   scenario → test map, deferrals); `python .agent-process/scripts/request_codex_review.py
   --request <PR>`; verify `gh pr view` shows the PR.
-- [ ] 4.2 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread,
-  push, re-request, at most three rounds; verify exit 0.
-- [ ] 4.3 `python .agent-process/scripts/finish_change.py v2-1a-delivery-scripts`; verify the
+- [x] 4.2 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread,
+  push, re-request, at most three rounds; verify exit 0 (three rounds applied; the round-4
+  thread — `gh project field-list` without `--limit` — is left to the person with a reply).
+- [x] 4.3 `python .agent-process/scripts/finish_change.py v2-1a-delivery-scripts`; verify the
   archive commit's checks green and no `.openspec-archive.lock` is tracked. The person merges.
 
 ## Scenario → test map
