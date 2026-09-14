@@ -45,12 +45,7 @@ from scripts.install_branch_protection import (
     install_branch_protection,
 )
 
-_PAYLOAD_ROOT = Path(__file__).resolve().parent.parent.parent
-_REPO_ROOT = (
-    _PAYLOAD_ROOT.parent
-    if (_PAYLOAD_ROOT / ".github" / "workflows" / "ci.yml.jinja").is_file()
-    else _PAYLOAD_ROOT
-)
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
 _HOOK = _REPO_ROOT / ".agent-process" / ".githooks" / "pre-push"
 

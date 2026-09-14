@@ -1,7 +1,0 @@
--r requirements.txt
-detect-secrets
-mypy
-pip-audit
-pytest
-ruff
-types-PyYAML

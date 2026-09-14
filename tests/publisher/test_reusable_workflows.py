@@ -172,10 +172,6 @@ def test_pr_link_grants_issues_read() -> None:
     call is a silent 403, not a missing capability the operator ever sees."""
     assert _workflow("reusable-pr-link.yml")["permissions"]["issues"] == "read"
     assert _workflow("pr-link.yml")["permissions"]["issues"] == "read"
-    template = (ROOT / "template" / ".github" / "workflows" / "pr-link.yml.jinja").read_text(
-        encoding="utf-8"
-    )
-    assert "issues: read" in template
 
 
 def test_pr_link_feature_detects_deferred_scope_support() -> None:
@@ -471,13 +467,12 @@ def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> N
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
     contract = ROOT / ".agent-process" / "REVIEW_CONTRACT.md"
-    template_contract = ROOT / "template" / ".agent-process" / "REVIEW_CONTRACT.md.jinja"
 
-    assert contract.read_text(encoding="utf-8") == template_contract.read_text(encoding="utf-8")
+    assert contract.is_file()
     assert "[REVIEW_CONTRACT.md](.agent-process/REVIEW_CONTRACT.md)" in (
-        ROOT / "template" / "AGENTS.md.jinja"
+        ROOT / "AGENTS.md"
     ).read_text(encoding="utf-8")
-    assert not (ROOT / "template" / "scripts" / "extract_review_prompt.py").exists()
+    assert not (ROOT / ".agent-process" / "scripts" / "extract_review_prompt.py").exists()
 
 
 def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:
@@ -510,24 +505,15 @@ def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_trigge
 
 
 def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
-    source_installation = (
+    document = (
         ROOT / ".agent-process" / "docs" / "architecture" / "agent-process-installation.md"
     ).read_text(encoding="utf-8")
-    installation = (
-        ROOT
-        / "template"
-        / ".agent-process"
-        / "docs"
-        / "architecture"
-        / "agent-process-installation.md.jinja"
-    ).read_text(encoding="utf-8")
 
-    for document in (source_installation, installation):
-        assert "Claude fallback carrier" in document
-        assert "issues: read" in document
-        assert "Classic branch protection matches a" in document
-        assert "platform trust anchor" in document
-        assert "pull_request_target` as a shortcut" in document
+    assert "Claude fallback carrier" in document
+    assert "issues: read" in document
+    assert "Classic branch protection matches a" in document
+    assert "platform trust anchor" in document
+    assert "pull_request_target` as a shortcut" in document
 
 
 def test_no_workflow_step_resolves_a_review_thread() -> None:

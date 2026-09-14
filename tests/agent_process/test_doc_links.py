@@ -78,21 +78,14 @@ _CODE_SPAN_REF = re.compile(r"^[\w./-]+\.md#\S+$", re.UNICODE)
 # Directories that must be included in scope. Each is checked separately rather than for a
 # non-empty union: moving one directory would remain green due to the others — "nothing to
 # check" would become indistinguishable from "everything is fine" (§IV, as in
-# `test_doc_headers.py::test_every_scoped_directory_contributes`). `.claude/rules` is a
-# Copier-delivered Layer 1 (Claude adapter) directory: it only exists, and is only in scope,
-# when that adapter is installed.
+# `test_doc_headers.py::test_every_scoped_directory_contributes`). `.claude/rules` is the
+# Claude adapter directory: it only exists, and is only in scope, when that adapter is
+# installed.
 _EXPECTED_SCOPE_DIRS = (
     ".agent-process/docs/architecture",
     ".agent-process/docs/adr",
     ".claude/rules",
 )
-
-
-# A template source may track documentation that is intentionally not renderable in-place
-# (for example, `template/docs/...` whose targets retain a `.jinja` suffix). Exclusions are
-# declared in Copier answers rather than inferred from a directory name, so ordinary consumers
-# still guard every tracked document by default.
-_EXCLUDED_PREFIXES = tuple(["template/"])
 
 
 def slugify(heading_text: str) -> str:
@@ -203,11 +196,7 @@ def _tracked_paths() -> frozenset[str]:
 
 
 def _tracked_docs() -> list[str]:
-    return [
-        name
-        for name in _tracked_files()
-        if name.endswith(".md") and not name.startswith(_EXCLUDED_PREFIXES)
-    ]
+    return [name for name in _tracked_files() if name.endswith(".md")]
 
 
 @cache

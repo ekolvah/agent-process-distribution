@@ -196,8 +196,7 @@ def check_pytest() -> None:
     # `-c` alone leaves rootdir at .agent-process/ (the ini file's own
     # directory), so its rootdir-relative `testpaths` can't reach
     # tests/agent_process/ at the checkout root; passing the path explicitly
-    # resolves it against the cwd instead and keeps template/'s same-named
-    # test modules out of collection.
+    # resolves it against the cwd instead.
     _run([sys.executable, "-m", "pytest", "-c", _PROCESS_CONFIG, "tests/agent_process"])
     if _has_product_scope():
         _run([sys.executable, "-m", "pytest", *_product_scope_excludes("--ignore")])
