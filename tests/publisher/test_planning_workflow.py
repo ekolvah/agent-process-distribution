@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "openspec" / "schemas" / "agent-process" / "schema.yaml"
 CONFIG = ROOT / "openspec" / "config.yaml"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
+FINISH = ROOT / ".agent-process" / "scripts" / "finish_change.py"
 
 
 def test_roles_and_carriers() -> None:
@@ -41,14 +42,22 @@ def test_review_finding() -> None:
     schema = yaml.safe_load(SCHEMA.read_text(encoding="utf-8"))
     review = next(a for a in schema["artifacts"] if a["id"] == "architect-review")
     assert "tasks" in review["requires"]
-    assert "no RED" in " ".join(
-        yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
-    )
+    rules = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]
+    assert "no RED" in " ".join(rules["tasks"])
+    # A `rework` verdict is not an approved plan: the apply instruction and the first
+    # delivery task both stop on it (artifact status is file existence only).
+    assert "rework" in schema["apply"]["instruction"]
+    assert "rework" in " ".join(rules["tasks"])
 
 
 def test_pinned_openspec() -> None:
     """The commands the process runs use the version the tests validate against."""
-    for path in (CONFIG, REVIEWER):
+    for path in (CONFIG, REVIEWER, FINISH):
         text = path.read_text(encoding="utf-8")
         assert "openspec@latest" not in text, path
         assert OPENSPEC in text, path
+
+
+def test_reviewer_keeps_the_store() -> None:
+    """The subagent runs its commands in the store the propose run selected."""
+    assert "--store" in REVIEWER.read_text(encoding="utf-8")
