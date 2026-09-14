@@ -1,0 +1,175 @@
+---
+status: "accepted"
+date: 2026-09-14
+decision-makers: ekolvah
+---
+
+# v2: standards replace the bespoke control plane
+
+## Context and Problem Statement
+
+v1 of this process is a Python control plane — `agent_orchestrator.py`, `delivery_state.py`,
+`roles.yaml`, a review state machine, branch-protection and Project bootstrap scripts — of
+9 100 lines of scripts and 11 400 lines of tests. It is installed by copying files into
+consumers through a Copier mirror (`template/`) that needs its own drift tests and a
+three-way merge on every update, and the procedure is duplicated once per agent adapter
+(Claude Code, Codex).
+
+Most of that code guards the two points where a person already decides: plan approval and
+merge. `delivery_state` protected nothing the person had not already decided; the review
+state machine turned an advisory comment into a gate the fixer had to satisfy, and a spent
+fixer budget was not surfaced, so one PR ran 16 review rounds (#106). Every new guard added
+a script, a test and a template mirror, and the cost of the next change kept growing.
+
+How does the process keep the two human decisions, work identically from both agents, and
+stop growing?
+
+## Decision Drivers
+
+* In strict order: (1) minimize future bug-fixing and support of the process itself,
+  (2) minimize token spend per change, (3) keep the process predictable and under user control.
+* Targets: GitHub repositories with Actions and a GitHub Project; mixed stacks; no language
+  or test-runner assumption in the core.
+* Two agents, Claude Code and Codex, carry every agent role; a role never depends on a
+  capability only one of them has.
+* The only paid dependencies are the two agent subscriptions; no third service.
+* One scenario: a person discusses a task with an agent → the agent plans → the person
+  approves → the agent implements and opens a PR → the person merges.
+
+## Considered Options
+
+The decision that shapes all others is the carrier of specs, plans and procedure. Three
+options were compared as a Kepner-Tregoe trade study; the other decisions below follow from
+the winner and from the drivers.
+
+* OpenSpec (`@fission-ai/openspec`, pinned)
+* GitHub Spec Kit (`github/spec-kit`)
+* The bespoke `plan-issue` / `implement-issue` runbook of v1, iterated
+
+**MUSTs** (go / no-go)
+
+| MUST | OpenSpec | Spec Kit | bespoke runbook |
+| --- | --- | --- | --- |
+| A living system spec that shows implemented vs pending | go (`specs/` + `changes/`, `archive` moves deltas) | no-go (constitution + per-feature spec/plan/tasks; no merged system spec) | no-go (plan lives in the issue, nothing accumulates) |
+| Identical procedure from Claude Code and Codex | go (`init --tools claude,codex` generates both) | go | go (adapters written by hand) |
+| No third paid service; GitHub + `gh` only | go (Node via `npx`) | go | go |
+
+**WANTs** (weight 1–10 from the drivers; score 1–10)
+
+| WANT | w | OpenSpec | Spec Kit | bespoke runbook |
+| --- | ---: | ---: | ---: | ---: |
+| Maintained by a team other than us (driver 1) | 10 | 9 | 9 | 1 |
+| Tokens per change: generated skills, artifacts read per step (driver 2) | 8 | 6 (~17k-token skills, loaded about once per change) | 6 | 8 |
+| Fits the issue → branch → PR flow without a wrapper (driver 3) | 7 | 8 (`config.yaml` rules, forked schema) | 5 (own slash commands and `specify` layout) | 9 |
+| Archive step keeps the system spec current | 9 | 9 | 2 | 1 |
+| Weighted total | | **275** | 191 | 146 |
+
+Spec Kit fails the first MUST; the bespoke runbook fails the first MUST and loses the
+maintenance WANT decisively — it is the same loop OpenSpec runs, iterated by one team instead
+of many. OpenSpec is chosen.
+
+## Decision Outcome
+
+Chosen option: **OpenSpec as the spec, plan and procedure carrier, and standards instead of
+bespoke code wherever a standard exists.** The v2 target is the set of decisions below,
+delivered by the changes `v2-1` … `v2-6` (#107); until each archives, v1 stays the enforced
+process.
+
+* **Specs and planning = OpenSpec.** Living spec in `openspec/specs/`, changes as deltas
+  with scenarios, `/opsx:propose` as the planner, `/opsx:apply` inside the implementer,
+  `openspec archive` inside the implementing PR before merge; project rules in
+  `openspec/config.yaml`; the architect review is an artifact of a forked schema.
+* **Delivery = Claude Code plugin + Codex skills + reusable workflows; no file copy.**
+  Copier (drift tests, three-way merges), a pip package (Python-only) and a submodule (live
+  dependency) were rejected.
+* **The procedure is written once as Agent Skills**; agent adapters are entry points only.
+* **The person is the only gate.** Plan approval and merge are human; validators check
+  structure only.
+* **Merge protection is a GitHub ruleset** installed once from JSON kept in this repository.
+* **Review is advisory; coverage is a check.** Reviewers (`claude-code-action`, the Codex
+  app) comment; conversation resolution makes a comment blocking by the person's choice.
+  Scenario coverage is deterministic, so it is a required check, not a review comment.
+* **State lives in the GitHub Project.** The built-in `Status` field is the only delivery
+  state (ADR 0024); `set_status` resolves IDs by name at run time.
+* **Telemetry is owner-side.** OTLP from both agents through one collector with
+  project/task/attempt labels; comparisons per merged PR.
+
+Two rules bind every later addition to the core; they enter `openspec/specs/maintenance/`
+with this record: a process script exists only when GitHub, `gh`, OpenSpec, Claude Code or
+Codex are shown not to do the job (its ADR carries *Native alternatives considered*), and
+every ADR that adds to the core states its *Deletion condition*.
+
+### Consequences
+
+* Good, because `v2-1` … `v2-5` delete the control plane, the Copier mirror, the review
+  state machine and their tests; each PR deletes more than it adds.
+* Good, because a consumer update is a plugin or tag bump, never a three-way merge of
+  process files.
+* Good, because the procedure exists once; a Codex/Claude divergence is a bug in one file.
+* Bad, because consumers need Node (`npx`) for OpenSpec; GitHub runners have it.
+* Bad, because the OpenSpec-generated skills are ~17k tokens per invocation.
+* Bad, because Codex has no hooks and no independent subagent: `wait_for_pr` is the only
+  end-of-run guard there, and its architect review is a self-review artifact. The person
+  approves the plan either way.
+
+### Confirmation
+
+v2 is accepted as a whole when: the size budget of `openspec/specs/maintenance/` holds; a new
+project is installed in ≤ 10 minutes; an update never needs a three-way merge of process
+files; the `telemetry` metrics are no worse than v1 on the same task types. Structure is
+guarded by `test_adr_records` and `openspec validate --strict`.
+
+## Native alternatives considered
+
+Scripts v2 keeps or adds, and why the native feature falls short:
+
+| Script | Native feature tried or ruled out | Why it falls short |
+| --- | --- | --- |
+| `check_red` | `pytest` JUnit report; a Claude Code `PreToolUse` hook | The report proves a failure, not that it preceded the code; a hook exists in Claude Code only |
+| `set_status` | `gh project item-edit`; Project built-in workflows | `item-edit` needs field and option IDs, not names; built-in workflows set Todo/Done only, never Planned/In Progress |
+| `wait_for_pr` | `gh pr checks --watch` | Watches checks only; review threads and the review apps are GraphQL-only |
+| `finish_change` | `openspec archive` + `git push` + `gh pr checks --watch` | The sequence must be the last task in both agents identically; OpenSpec has no post-archive hook |
+| `check_coverage` | `openspec validate`; a required check | `validate` knows scenarios, not test results; the check needs the scenario → test mapping |
+| `init` | `openspec init --tools claude,codex`; `/plugin`; `gh api` rulesets; `gh secret set` | Each step is native; the script is the one-command composition a ≤ 10-minute install needs |
+
+## Deletion condition
+
+* OpenSpec abandoned upstream → `openspec/specs/` stays as plain Markdown specs; `/opsx:*`
+  is replaced by the `plan-issue` runbook kept in git history; `finish_change` loses its
+  archive step.
+* Codex ships hooks and subagents as stable → the Codex-specific self-review artifact and
+  the `wait_for_pr`-only guard are removed; hooks are restored from v1 (`codex_hooks`).
+* GitHub Projects gain a native Planned/In Progress trigger → `set_status` is deleted.
+* `gh pr checks --watch` learns review threads → `wait_for_pr` is deleted.
+* `openspec validate` learns test results → `check_coverage` is deleted.
+* Telemetry shows v2 no better than v1 on the same task types after the minimum comparable
+  sample (`v2-6`) → the decision is revisited in a new record, not patched here.
+
+## More Information
+
+Superseded records and what replaces each:
+
+* ADR 0011 (Copier + marketplace distribution) → plugin + skills + reusable workflows (`v2-2`).
+* ADR 0013 (`docs/adr/`, self-applied root gated against a working-tree render) → no mirror,
+  nothing to gate (`v2-2`).
+* ADR 0015 (owner-requested Codex review with Claude fallback) → advisory review by both apps,
+  threads block via the ruleset (`v2-4`).
+* ADR 0019 (every process-owned path under `.agent-process/`) → no rendered payload in
+  consumers (`v2-2`).
+* ADR 0021 (the end of an agent turn is a gated event) → `wait_for_pr` as the skill's last
+  task; the person is the gate (`v2-1`).
+* ADR 0022 (the fixer resolves the thread its correction addresses) → conversation resolution
+  is the person's choice under the ruleset (`v2-4`).
+* ADR 0023 (process contexts are an additive branch-protection minimum) → one ruleset from
+  JSON (`v2-2`, `v2-4`).
+
+The other ADRs stay as history without edits.
+
+Lessons from v1 that the specs do not repeat:
+
+* Code at a point where the person already decides is support cost without protection.
+* A guard that escalates to nobody is not a guard (16 rounds on one PR).
+* A mirror of files needs a mirror of tests; deliver by reference, not by copy.
+* A procedure written per adapter diverges; write it once and let adapters call it.
+* Open questions are settled by observation in the step that touches them, and recorded
+  here — not by reading vendor docs ahead of the step.

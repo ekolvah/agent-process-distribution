@@ -61,13 +61,13 @@ root_only_paths:
     reason: Verifies the adoption CLI's update-path invariants in the publisher source, not a file a consumer receives.
   - path: openspec/changes/archive/.gitkeep
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
-  - path: openspec/changes/v2-0-decision-record/design.md
+  - path: openspec/changes/archive/2026-09-14-v2-0-decision-record/design.md
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
-  - path: openspec/changes/v2-0-decision-record/proposal.md
+  - path: openspec/changes/archive/2026-09-14-v2-0-decision-record/proposal.md
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
-  - path: openspec/changes/v2-0-decision-record/specs/maintenance/spec.md
+  - path: openspec/changes/archive/2026-09-14-v2-0-decision-record/specs/maintenance/spec.md
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
-  - path: openspec/changes/v2-0-decision-record/tasks.md
+  - path: openspec/changes/archive/2026-09-14-v2-0-decision-record/tasks.md
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
   - path: openspec/changes/v2-1-planning-workflow/design.md
     reason: Publisher-only OpenSpec artifact of the target v2 process (issue #105); consumers receive the enforced v1 payload, not the redesign plan.
