@@ -71,12 +71,14 @@
 
 ## 5. ADRs
 
-- [ ] 5.1 Lock root cause: `openspec init` in a scratch directory, one change, `archive -y`,
+- [x] 5.1 Lock root cause: `openspec init` in a scratch directory, one change, `archive -y`,
   inspect `openspec/changes/archive/`; verify the observation (lock after success, or only after
-  an abort; upstream issue link if a bug) is written into task 5.3's text.
-- [ ] 5.2 ADR 0009: `status: superseded by ADR-0027`; its `#discovery-runbook` link retargeted
+  an abort; upstream issue link if a bug) is written into task 5.3's text. Observed: the lock
+  stays after a successful archive (Windows, 1.13.0) — `releaseArchiveClaim` skips the unlink
+  because `fs.lstat` reports `dev = 0`; upstream fix Fission-AI/OpenSpec pull request 1769.
+- [x] 5.2 ADR 0009: `status: superseded by ADR-0027`; its `#discovery-runbook` link retargeted
   to ADR 0027; verify `python -m pytest tests/agent_process/test_adr_records.py tests/agent_process/test_doc_links.py -q` green.
-- [ ] 5.3 ADR 0027 §More Information "Observations from v2-1": answers to the seven open
+- [x] 5.3 ADR 0027 §More Information "Observations from v2-1": answers to the seven open
   questions of the tracking issue (#111; "not observable here" where so; private-repo auto-close → #117), the lock
   root cause (5.1), the instruction-size numbers (2.4), Claude ran with `wait_for_pr` as the
   only end guard (ADR 0021 superseded in practice); verify `test_adr_records.py` green.
