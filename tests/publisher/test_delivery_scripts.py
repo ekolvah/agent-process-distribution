@@ -165,10 +165,10 @@ def test_issue_in_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
     assert "Other board" in err and "Board" in err
 
 
-def _rollup(*checks: tuple[str, str, str | None]) -> str:
+def _rollup(*checks: tuple[str, str, str | None], head: str = "abc123") -> str:
     return json.dumps(
         {
-            "headRefOid": "abc123",
+            "headRefOid": head,
             "url": "https://github.com/owner/repo/pull/9",
             "statusCheckRollup": [
                 {
@@ -279,6 +279,18 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     code = wait_for_pr.wait_for_pr(9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None)
     assert code == 0 and gh.polls == 4
 
+    # A new head between the two polls restarts the settling: its fast check must not be
+    # confirmed by the previous head's poll.
+    gh = _Sequence(
+        [_rollup(green), _rollup(green, head="def456"), _rollup(green, running, head="def456")],
+        _threads(),
+    )
+    ticks = iter(range(0, 10_000, 60))
+    code = wait_for_pr.wait_for_pr(
+        9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None, timeout=240
+    )
+    assert code == 3 and "def456" in capsys.readouterr().out
+
 
 @pytest.mark.parametrize(
     ("script", "attr"),
@@ -320,6 +332,7 @@ def test_archive_commit(tmp_path: Path) -> None:
     (scripts / "request_codex_review.py").write_text("", encoding="utf-8")
     order: list[str] = []
     waited: list[int] = []
+    status = ""
 
     def run(cmd: list[str]) -> str:
         if "archive" in cmd:
@@ -343,6 +356,8 @@ def test_archive_commit(tmp_path: Path) -> None:
             return ""
         if cmd[:2] == ["git", "add"]:
             return ""
+        if cmd[:2] == ["git", "status"]:
+            return status
         raise AssertionError(f"unexpected call: {cmd}")
 
     def wait(pr: int) -> int:
@@ -356,5 +371,12 @@ def test_archive_commit(tmp_path: Path) -> None:
 
     lock.write_text("", encoding="utf-8")
     order.clear()
+    assert finish_change.finish_change(change, root=tmp_path, run=run, wait=wait) == 2
+    assert order == []
+
+    # Scenario: Archive commit — the worktree must be clean before the archive; a stray edit
+    # would be left behind the pushed head, so the script stops instead of committing openspec/.
+    lock.unlink()
+    status = " M .agent-process/scripts/wait_for_pr.py\n"
     assert finish_change.finish_change(change, root=tmp_path, run=run, wait=wait) == 2
     assert order == []
