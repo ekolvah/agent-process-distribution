@@ -13,7 +13,8 @@
 
 - [ ] 2.1 `.github/workflows/agent-process.yml` reusable: checkout this repository at the pinned tag, run the consumer's `ci_check`
 - [ ] 2.2 `ruleset.json`: required checks, conversation resolution, PR required, no direct push
-- [ ] 2.3 Tests named after `CI run`, `Push`, `Direct push`, `Breaking change`
+- [ ] 2.3 Caller template on `pull_request_target` with head-SHA checkout, `contents: read`, no secrets
+- [ ] 2.4 Tests named after `CI run`, `Push`, `Direct push`, `Caller workflow edited in a PR`, `Breaking change`
 
 ## 3. init
 

@@ -14,6 +14,11 @@ with native delivery channels.
 - **Per-consumer values live in repository variables and `AGENTS.md`**, never in a
   templated file — that is what makes update a replacement.
 - **`init` is idempotent on the footprint** and appends to an existing `AGENTS.md`.
+- **Workflow-definition anchor without organisation features.** Ruleset-required workflows
+  need an organisation plan; `pull_request_target` reads the caller definition from the base
+  branch on any plan. The pwn-request risk is bounded: `contents: read`, no secrets, and the
+  PRs are the person's own agents, not forks. Alternative: name-only required check — a PR
+  could swap the caller for a no-op job (v1 had a bespoke trust-anchor check for this).
 
 ## Risks / Trade-offs
 
