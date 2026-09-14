@@ -31,6 +31,11 @@ by the `architect-reviewer` subagent in Claude and as a self-review in Codex, ag
 - **WHEN** the review finds a simpler design or a scenario missing from the map
 - **THEN** the finding is in `architect-review.md` before the person approves
 
+#### Scenario: Rework verdict
+- **WHEN** `architect-review.md` says `rework`
+- **THEN** the propose run applies or answers the findings and reviews again, and no
+  delivery task runs until the verdict is `approve`
+
 ### Requirement: Human approval is the gate
 The person SHALL approve the change; nothing implements before the person runs
 `/opsx:apply <change>` (`$openspec-apply-change`). The only automated check on a plan SHALL be `openspec validate --strict`.

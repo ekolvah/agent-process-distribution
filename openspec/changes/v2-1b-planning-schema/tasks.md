@@ -32,6 +32,14 @@
 - [x] 2a.3 `@fission-ai/openspec@1.13.0` in `config.yaml` and `agents/architect-reviewer.md`;
   verify `test_pinned_openspec`.
 
+## 2b. Review round 2 (PR 123)
+
+- [x] 2b.1 `apply` instruction and Group 0 stop on a `rework` verdict; the `architect-review`
+  rule names the re-review loop; verify `test_review_finding`.
+- [x] 2b.2 `agents/architect-reviewer.md` passes `--store <id>`; verify
+  `test_reviewer_keeps_the_store`.
+- [x] 2b.3 Part 1 merged into this branch; `test_pinned_openspec` covers `finish_change.py`.
+
 ## 3. Verify
 
 - [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.
@@ -53,7 +61,7 @@
 ## Scenario → test map
 
 - Procedure changes once, Tasks of a new change → `test_roles_and_carriers`
-- Review finding → `test_review_finding`
+- Review finding, Rework verdict → `test_review_finding`
 - Tracking issue created, Priority field drift → `test_tracking_issue_created`,
   `test_priority_field_drift` (part 1)
 - Priority asked once → `n/a: person and planner behaviour; the rule text`

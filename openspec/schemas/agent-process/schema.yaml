@@ -248,8 +248,10 @@ artifacts:
         `n/a: <reason>`; a scenario missing from the scenario → test map of
         `tasks.md` is a finding.
 
-      Do not restate the artifacts; point at them. A `rework` verdict blocks the
-      apply until the finding is applied or answered in this file.
+      Do not restate the artifacts; point at them. Artifact status is file
+      existence, so the verdict carries the gate: on `rework` the planner applies
+      or answers every finding in the artifact it names and the review runs
+      again; the propose run ends on `approve`.
     requires:
       - proposal
       - specs
@@ -260,5 +262,8 @@ apply:
   requires: [ tasks, architect-review ]
   tracks: tasks.md
   instruction: |
+    Stop when the verdict of architect-review.md is `rework`: apply or answer its
+    findings in the artifacts they name, run the review again, and continue only
+    on `approve` (artifact status is file existence, not the verdict).
     Read context files, work through pending tasks, mark complete as you go.
     Pause if you hit blockers or need clarification.

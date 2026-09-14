@@ -35,13 +35,20 @@ rules:
       Review against principles §I–VII; a simpler design that meets the same scenarios is
       a finding.
     - >-
+      The **Verdict** line starts with `approve` or `rework`; on `rework` the planner applies
+      or answers every finding in the artifact it names and this review runs again — the
+      propose run ends on `approve`.
+    - >-
       Every scenario of the spec deltas is either provable by a named test or listed under
       **Scenario coverage** with the reason; a scenario missing from the scenario → test
       map of tasks.md is a finding, and so is a Group 1 that names no test without a
       `no RED: <reason>` task.
   tasks:
     - >-
-      Group 0 — Delivery start: the tracking issue — create it when the change has none
+      Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
+      (`grep -q "^approve" openspec/changes/<change>/architect-review.md`; on `rework` no
+      delivery task runs: apply the findings, re-review) → the tracking issue — create it
+      when the change has none
       (`gh issue create --title "<change>" --body-file <proposal>`; ask the person for
       priority: High/Medium/Low) → `gh issue develop -c <N> --name <change>` from fresh
       origin/main → `python .agent-process/scripts/set_status.py <N> "In Progress"

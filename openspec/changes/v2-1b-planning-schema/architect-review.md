@@ -19,7 +19,12 @@ scenario is either provable by the schema/config test or is a person's action.
 - §IV · a docs-only or `skip_specs` change had no honest way through Group 1 (PR 123
   round 1) → applied: `no RED: <reason>` task; its absence is a review finding.
 - §II · `@latest` at runtime, `@1.13.0` in the tests (PR 123 round 1) → applied: one pin,
-  `test_pinned_openspec`; `finish_change.py` follows in part 1.
+  `test_pinned_openspec` over `config.yaml`, the agent prompt and `finish_change.py` (part 1
+  merged into this branch).
+- §IV · a `rework` verdict satisfied `apply.requires` (PR 123 round 2, P1) → applied: the
+  `apply` instruction and Group 0 stop on it; `test_review_finding`.
+- §II · the subagent ran an unscoped command on a registered store (PR 123 round 2) →
+  applied: `--store <id>` travels with the change name; `test_reviewer_keeps_the_store`.
 - §II · `agents/architect-reviewer.md` reads its contract from `openspec instructions`
   rather than restating it — one source; kept.
 
@@ -27,7 +32,7 @@ scenario is either provable by the schema/config test or is a person's action.
 
 - roles / Procedure changes once, implementation / Tasks of a new change →
   `test_roles_and_carriers` (the rule's presence; its content is read by the reviewer)
-- planning / Review finding → `test_review_finding`
+- planning / Review finding, Rework verdict → `test_review_finding`
 - state / Tracking issue created, Priority field drift → tests of part 1; Priority asked
   once → `n/a: rule text, person's answer`
 - roles / Codex plans a change, Reading provenance, Switching agents → `n/a: which carrier

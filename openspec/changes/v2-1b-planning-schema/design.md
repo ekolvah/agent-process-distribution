@@ -40,6 +40,15 @@ rework (`v2-4`), `init` (`v2-2`), a Codex end-to-end run (observed at the apply 
   missing from the scenario → test map is a finding of the same review, and `apply` requires
   both. Alternative: review between design and tasks (PR 121, PR 123 round 1) — the map was
   never reviewed and the tasks instruction had to say "apply the findings first".
+- **The verdict is the gate, in two places.** OpenSpec tracks artifact existence, not
+  content, so a `rework` file satisfies `apply.requires`. The schema's `apply` instruction
+  stops on `rework` (what `/opsx:apply` reads first) and Group 0 of every `tasks.md` starts
+  with the `grep` for `approve` (what the implementer runs first). Alternative: a
+  `check_review` script — a third place for a one-line grep; after an observed apply on a
+  `rework` plan.
+- **The subagent takes the store with the change name.** `--store <id>` is sticky in the
+  propose skill; the planner passes it and the agent prompt says so. Alternative: hand the
+  agent the resolved instruction JSON — a second contract between two prompts.
 - **A zero-delta change records why there is no RED.** Docs-only, `skip_specs` and rename
   changes have no scenario a test proves; the RED group is one `no RED: <reason>` task, and
   a RED group that names no test without it is a review finding. Alternative: skip the
