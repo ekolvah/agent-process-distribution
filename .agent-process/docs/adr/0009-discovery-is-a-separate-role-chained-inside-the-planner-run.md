@@ -1,5 +1,5 @@
 ---
-status: "accepted"
+status: "superseded by ADR-0027"
 date: 2026-08-15
 decision-makers: ekolvah
 ---
@@ -56,7 +56,7 @@ Chosen: **a separate `discovery` role, chained inside the planner run**.
 in the route — with two carriers (`Claude discovery subagent`, `Codex $plan-issue #N self-discovery`),
 `carrier_selection: run_route`, and `max_runs: 2`. Its authority is read-only capture plus the
 fixture write, and explicitly *not* editing the issue body. The runbook is
-[§Discovery runbook](../architecture/agent-process.md#discovery-runbook); the observation bounds moved
+§Discovery runbook (removed with the role, [ADR 0027](0027-v2-standards-replace-the-bespoke-control-plane.md)); the observation bounds moved
 there wholesale out of planner runbook step 2, which now only records the returned block verbatim.
 
 The role does not publish its own artifact: it returns the `## Evidence` block and the planner writes

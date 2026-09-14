@@ -20,9 +20,10 @@ above stays the enforced contract.
 - Follow the canonical [per-issue delivery flow](.agent-process/docs/architecture/agent-process.md#deterministic-delivery-flow).
   That document is the sole source of task gates, commands, and status
   transitions; this file does not restate them.
-- Use `$plan-issue #N` for the Codex planner entry point and
-  `$implement-issue #N` for the Codex implementer entry point. They execute
-  the canonical role contracts; they do not replace any gate in that document.
+- Use `$openspec-propose` for the Codex planner entry point and
+  `$openspec-apply-change` for the Codex implementer entry point. The project rules
+  they follow are in `openspec/config.yaml`; the architect review is a self-review
+  artifact in Codex; they do not replace any gate in that document.
 - The advisory control plane (`.agent-process/scripts/agent_orchestrator.py` plus
   `.agents/orchestration/roles.yaml`) reports evidence-based routing and budget
   escalation. It never authorizes bypassing its required delivery gates.

@@ -14,7 +14,7 @@
 - [x] 2.1 `git rm` the v1 entry points listed under **Impact**; `test_adr_records.py`
   parses MADR sections with `markdown-it`; verify `test_label_change` and
   `tests/agent_process` green; commit.
-- [ ] 2.2 Docs: `agent-process.md` planning section (schema order tasks → architect review,
+- [x] 2.2 Docs: `agent-process.md` planning section (schema order tasks → architect review,
   the `tasks` rule as the delivery flow, roles table without discovery), `principles.md`,
   `workflow.md`, `AGENTS.md`, `roles.yaml` anchors; ADR 0009 superseded by ADR 0027, whose
   observations record the split; verify `test_doc_links`, `test_doc_narrative`,
