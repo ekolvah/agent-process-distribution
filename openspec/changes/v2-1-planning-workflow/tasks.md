@@ -7,7 +7,7 @@
 - [ ] 1.1 `openspec schema fork spec-driven agent-process`; insert `architect-review` between `design` and `tasks`; `openspec schema validate agent-process`
 - [ ] 1.2 `config.yaml` rules: `proposal` (bug: reproduction + root cause first), `tasks` (RED first, scenario → named test or `n/a`), `architect-review` (principles §I–VII, unmapped scenario is a finding)
 - [ ] 1.3 The delivery tasks of `v2-2` … `v2-6` `tasks.md` are the template's output (written by hand in #105); the rule reproduces them
-- [ ] 1.4 Migrate `v2-2` … `v2-6` to the forked schema: write each change's `architect-review.md` (self-review against principles §I–VII, unmapped scenarios as findings) so `openspec status` shows no missing artifact
+- [ ] 1.4 Migrate `v2-1` … `v2-6` (this change included) to the forked schema: write each change's `architect-review.md` (self-review against principles §I–VII, unmapped scenarios as findings) so `openspec status` shows no missing artifact
 - [ ] 1.5 Test: `test_roles_and_carriers` — schema artifact list and rules keys match this change's spec
 
 ## 2. Skills and scripts

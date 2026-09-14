@@ -30,7 +30,7 @@ implementer procedures with OpenSpec skills plus thin GitHub glue.
 
 - Forked schema must be re-forked on OpenSpec schema changes; `openspec schema validate` in
   CI catches drift.
-- Changes created before the fork (`v2-2` … `v2-6`) lack `architect-review.md`; task 1.4
+- Changes created before the fork (`v2-1` … `v2-6`) lack `architect-review.md`; task 1.4
   writes it, otherwise the apply skill reports them blocked.
 - Codex has no Stop hook; `wait_for_pr` is the only end guard.
 - A planner may drop a delivery task; the architect review and the PR reviewer read
