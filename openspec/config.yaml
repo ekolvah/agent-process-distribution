@@ -12,5 +12,6 @@ context: |
   (those go to the ADR or the change's design.md). One scenario per requirement is enough
   when it names the observable outcome. Requirement titles are the identity tests refer to:
   keep them short and stable; a rename is a RENAMED delta plus the test rename in one PR.
-  The v2 target is delivered by the changes v2-0 … v2-6 (tracking issue #107); until they
-  archive, the enforced process is v1 (.agent-process/docs/architecture/).
+  The v2 target is delivered by the changes v2-0 … v2-6, each proposed when its step of
+  the tracking issue #107 starts; until they archive, the enforced process is v1
+  (.agent-process/docs/architecture/).
