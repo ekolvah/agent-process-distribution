@@ -57,5 +57,5 @@
 ## 5. Deliver (v1 path; `finish_change` arrives with v2-1)
 
 - [x] 5.1 Push the branch `v2-0-decision-record`; open the PR (`Closes #110`); address review threads.
-- [ ] 5.2 Last commit: `openspec archive v2-0-decision-record -y`, then 4.1–4.3 again; push; wait
+- [x] 5.2 Last commit: `openspec archive v2-0-decision-record -y`, then 4.1–4.3 again; push; wait
   for the checks on that head; the person merges.
