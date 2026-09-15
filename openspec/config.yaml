@@ -73,7 +73,7 @@ rules:
     - >-
       Deliver group, in this order: `git status --short` empty (commit what is left) →
       `python .agent-process/scripts/archive_change.py <change>` (marks its own task,
-      archives, commits, pushes — the archive is the first commit the PR shows, so the
+      archives, commits, pushes — the archive is the head the PR opens on, so the
       reviewed head is the archived one) →
       `gh pr create --title "<change>" --body-file <report>` (change name, the tracking
       issue as a plain reference — no `Closes`: the linked branch closes it on merge —
@@ -81,10 +81,12 @@ rules:
       (v1, until v2-4; re-run after every push) →
       `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
       push, re-request, repeat at most three rounds; the fourth leaves the rest to the
-      person with a reply. The person merges. After the archive the ticks and the round
-      notes go to `openspec/changes/archive/<date>-<change>/tasks.md` (each a commit on the
-      same PR); a re-run of the apply on an open PR continues from the first unchecked
-      task there.
+      person with a reply. The person merges. The tasks after the archive leave no tick in
+      the repository: the change is closed and a pushed tick would move the reviewed head —
+      the PR (its checks, threads and merge) is their record. A run interrupted after the
+      archive does not re-enter the apply (`openspec status` no longer knows the change):
+      it continues with `gh pr view --head <change>` — open the PR when there is none —
+      then the review loop.
     - >-
       End with a `## Scenario → test map` section: every `#### Scenario:` of the spec
       deltas → a named test, or `n/a: <reason>`.

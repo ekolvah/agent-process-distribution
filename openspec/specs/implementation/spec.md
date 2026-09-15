@@ -96,8 +96,9 @@ The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with the del
 `archive_change <change>`, the PR and the `wait_for_pr` loop. After the tracking issue
 exists no delivery task SHALL prompt the person. The review loop after the PR SHALL be
 bounded: after three rounds of applying unresolved threads the run leaves the rest to the
-person with a reply and ends. A re-run of the apply on an open PR SHALL continue from the
-first unchecked task of the archived `tasks.md`. The PR body SHALL name the tracking issue
+person with a reply and ends. The tasks after the archive SHALL leave no tick in the
+repository — the PR is their record — and a run interrupted after the archive SHALL resume
+from `gh pr view --head <change>`, not from the apply. The PR body SHALL name the tracking issue
 as a plain reference, not with a `Closes` keyword: the branch from `gh issue develop -c`
 closes the issue on merge.
 
@@ -111,7 +112,7 @@ opens: it SHALL refuse to run on a worktree that is not clean or while an archiv
 already exists; otherwise it SHALL mark its own task done, run `openspec archive <change> -y`,
 remove the lock a successful archive leaves behind, commit and push, leaving a clean
 worktree. It SHALL NOT request a review or wait for the PR: those are the delivery tasks that
-follow it, ticked in `openspec/changes/archive/<date>-<change>/tasks.md`.
+follow it, recorded by the PR itself.
 
 #### Scenario: Archive commit
 - **WHEN** `archive_change` runs on a clean worktree

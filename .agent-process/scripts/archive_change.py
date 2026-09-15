@@ -8,8 +8,9 @@ is the archived one and no push follows the last review round. `openspec archive
 `tasks.md` into the archive, so nothing can mark this task after it ran: the script marks
 its own box first (the whole task item, continuation lines included), then archives,
 removes the lock a successful archive leaves behind, commits and pushes. The review
-request and `wait_for_pr` are the PR tasks that follow; the later ticks go to
-`openspec/changes/archive/<date>-<change>/tasks.md`. Exit codes: 0 done; 1 when a command
+request and `wait_for_pr` are the PR tasks that follow; they leave no tick in the
+repository (a pushed tick would move the reviewed head) — the PR is their record. Exit
+codes: 0 done; 1 when a command
 fails; 2 when the worktree is not clean (the archive commit must be the only thing left to
 push) or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
 archive aborted and its state must be inspected before anything is archived on top of it.

@@ -68,8 +68,10 @@ def test_tasks_of_a_new_change() -> None:
     assert rule.index("priority") < rule.index("gh issue create")
     assert rule.index("archive_change.py") < rule.index("gh pr create")
     assert "finish_change" not in rule
-    # The ticks after the archive live in the archived tasks.md; a re-run continues there.
-    assert "openspec/changes/archive/<date>-<change>/tasks.md" in rule
+    # No tick after the archive (a pushed tick would move the reviewed head); a run
+    # interrupted after it resumes from the PR, not from the apply.
+    assert "no tick" in rule
+    assert rule.index("archive_change.py") < rule.index("gh pr view --head <change>")
 
 
 def test_pinned_openspec() -> None:

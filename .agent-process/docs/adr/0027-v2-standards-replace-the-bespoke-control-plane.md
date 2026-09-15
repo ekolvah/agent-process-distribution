@@ -246,5 +246,8 @@ Further observations of the same run:
   `request_codex_review.py --request` waited on a mechanical `openspec archive -y` (on #124
   ~30 min for the workflow to start); the reviewer never saw the archived `tasks.md` with
   its Deliver ticks. `v2-1d` (#125) moves the archive before the PR — `finish_change.py`
-  becomes `archive_change.py`, the review loop is the last Deliver task, the later ticks
-  live in the archived `tasks.md`.
+  becomes `archive_change.py`, the review loop is the last Deliver task. The first review
+  of that PR (#127) caught the remainder: a tick of the last task pushed after the last
+  round is the same extra head, and `/opsx:apply` cannot re-enter an archived change — so
+  the tasks after the archive leave no tick (the PR is their record) and an interrupted
+  run resumes from `gh pr view --head <change>`.
