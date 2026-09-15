@@ -19,7 +19,7 @@
 # `adapter_independence` says whether a carrier reviews a plan it did not write.
 # Only `architect_reviewer` declares it, because it is the one role where that
 # answer changes what the artifact means: a self-review is stated in the Verdict
-# line of `architect-review.md` (the `architect-review` rule of `openspec/config.yaml`),
+# line of `architect-review.md` (the `tasks` rule of `openspec/config.yaml`),
 # so it passes the gate while staying visible. Declaring the kind here rather than
 # letting the author write it makes the contradiction ("independent" claimed for a
 # self-review carrier) impossible to state.
@@ -63,7 +63,7 @@ roles:
     adapter: "Claude /opsx:propose <change>"
     authority: "May write the artifacts of openspec/changes/<change>/; may not create an implementation branch or change production code."
     entry_evidence: "The brief of the tracking issue and repository context."
-    completion_evidence: "Every artifact of the agent-process schema exists and `openspec validate --strict` passes."
+    completion_evidence: "Every artifact of the `spec-driven` schema and `architect-review.md` exist and `openspec validate --strict` passes."
     activation: "The change has no complete artifact set."
     max_runs: 1
   architect_reviewer:

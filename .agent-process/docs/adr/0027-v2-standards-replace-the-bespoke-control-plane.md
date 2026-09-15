@@ -251,3 +251,11 @@ Further observations of the same run:
   round is the same extra head, and `/opsx:apply` cannot re-enter an archived change — so
   the tasks after the archive leave no tick (the PR is their record) and an interrupted
   run resumes from `gh pr view <change>`.
+* The forked schema of `v2-1b` is rejected in `v2-1e` (#126). `openspec schema` is
+  `[experimental]` in 1.13.0 and has no `extends`, so the fork was a full copy (230 of its
+  269 lines identical to `spec-driven`) that `openspec update` no longer follows; its one
+  addition, the `architect-review` artifact, gated nothing — artifact status is file
+  existence. The same gate is now the last entry of the `tasks` rule of
+  `openspec/config.yaml` and the first delivery task, which reads the verdict; planning runs
+  on the unmodified `spec-driven` schema, and the review file still archives with the change
+  because `openspec archive` moves the directory.

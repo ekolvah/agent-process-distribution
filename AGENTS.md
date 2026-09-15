@@ -22,8 +22,9 @@ above stays the enforced contract.
   transitions; this file does not restate them.
 - Use `$openspec-propose` for the Codex planner entry point and
   `$openspec-apply-change` for the Codex implementer entry point. The project rules
-  they follow are in `openspec/config.yaml`; the architect review is a self-review
-  artifact in Codex; they do not replace any gate in that document.
+  they follow are in `openspec/config.yaml`; the architect review is written as
+  `architect-review.md` by the planner as a self-review in Codex; they do not
+  replace any gate in that document.
 - The advisory control plane (`.agent-process/scripts/agent_orchestrator.py` plus
   `.agents/orchestration/roles.yaml`) reports evidence-based routing and budget
   escalation. It never authorizes bypassing its required delivery gates.
