@@ -41,7 +41,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 `git status --short` empty;
+- [x] 4.1 `git status --short` empty;
   `python .agent-process/scripts/archive_change.py v2-1d-archive-before-pr` (marks this
   task, archives, commits, pushes); verify `openspec/specs/implementation/spec.md` carries
   the `archive_change` requirement and no `.openspec-archive.lock` is tracked.
