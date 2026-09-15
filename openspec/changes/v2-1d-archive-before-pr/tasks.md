@@ -36,8 +36,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.
-- [ ] 3.2 `python .agent-process/scripts/ci_check.py` green.
+- [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.
+- [x] 3.2 `python .agent-process/scripts/ci_check.py` green.
 
 ## 4. Deliver
 
