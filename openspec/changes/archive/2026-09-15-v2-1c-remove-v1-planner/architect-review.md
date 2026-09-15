@@ -18,6 +18,11 @@ this repository's session); a removal whose one scenario a test proves.
   P1) → applied: the section names the v2 gates; the v1 status scripts are out of the flow
   until `v2-4`/`v2-5`.
 
+- §IV · `roles.yaml` still routed `next_action` to `/plan`, `$plan-issue`, `/implement` after
+  their files were removed (PR 124 round 3, P2) → applied: the catalogue names the OpenSpec
+  adapters; the `discovery` role stays until `v2-4` and routes to the reproduction step of
+  `propose`.
+
 ## Scenario coverage
 
 - planning / Label change → `test_label_change` (`tasks.md` names it)

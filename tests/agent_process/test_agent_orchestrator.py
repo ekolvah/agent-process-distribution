@@ -181,26 +181,26 @@ class TestRunRoute:
             (
                 "planner",
                 {"plan_completed": False},
-                "Claude /plan #N",
-                "Codex $plan-issue #N",
+                "Claude /opsx:propose <change>",
+                "Codex $openspec-propose <change>",
             ),
             (
                 "architect_reviewer",
                 {},
                 "Claude architect-reviewer subagent",
-                "Codex $plan-issue #N self-review",
+                "Codex $openspec-propose <change> self-review",
             ),
             (
                 "implementer",
                 {"architect_completed": True},
-                "Claude /implement #N",
-                "Codex $implement-issue #N",
+                "Claude /opsx:apply <change>",
+                "Codex $openspec-apply-change <change>",
             ),
             (
                 "fixer",
                 {**_READY_FOR_REVIEW, "review_outcome": "rework"},
-                "Claude /implement #N review/fix loop",
-                "Codex $implement-issue #N review/fix loop",
+                "Claude /opsx:apply <change> review/fix loop",
+                "Codex $openspec-apply-change <change> review/fix loop",
             ),
         ],
     )
@@ -296,7 +296,11 @@ class TestRunRoute:
         ("role", "mutation", "message"),
         [
             ("planner", {"adapter_routes": None}, "adapter_routes"),
-            ("planner", {"adapter_routes": {"claude": "Claude /plan #N"}}, "adapter_routes"),
+            (
+                "planner",
+                {"adapter_routes": {"claude": "Claude /opsx:propose <change>"}},
+                "adapter_routes",
+            ),
             (
                 "pr_reviewer",
                 {"adapter_routes": {"claude": "Claude code-review GitHub Action"}},
@@ -339,7 +343,7 @@ class TestRunRoute:
 
         result = json.loads(capsys.readouterr().out)
         assert result["route"] == "codex"
-        assert result["adapter"] == "Codex $plan-issue #N self-review"
+        assert result["adapter"] == "Codex $openspec-propose <change> self-review"
         assert result["next_action"] == result["adapter"]
 
 

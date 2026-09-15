@@ -26,6 +26,12 @@
   `set_status.py`, no validator, the v1 status scripts out of the flow until `v2-4`/`v2-5`);
   verify `test_doc_links`, `test_doc_narrative` green; commit.
 
+## 2b. Review round 3 (PR 124)
+
+- [x] 2b.1 `roles.yaml` routes to the OpenSpec adapters (`/opsx:propose`, `/opsx:apply`,
+  `$openspec-propose`, `$openspec-apply-change`; the reviewer file under `agents/`) instead of
+  the removed v1 entry points; verify `test_agent_orchestrator` green; commit.
+
 ## 3. Verify
 
 - [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.
