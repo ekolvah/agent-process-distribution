@@ -1,6 +1,6 @@
 ## Why
 
-Observed on the three PRs of #111 (#122, #123, #124): the Deliver group of the `tasks` rule
+Observed on the three PRs of the previous step (#122, #123, #124): the Deliver group of the `tasks` rule
 opens the PR first and archives the change last, so `finish_change.py` ends with a push of
 the archive commit. The required `agent-review` check binds to the head SHA (v1, until
 `v2-4`), so that push forces one more `request_codex_review.py --request` and one more
@@ -8,7 +8,7 @@ review round — spent on a mechanical `openspec archive -y` that changes no cod
 the round waited ~30 min for the workflow to start). The archive commit lands after the
 last review, so the reviewer never sees the archived `tasks.md` with its Deliver ticks
 (#123 thread on `finish_change` rejecting uncommitted ticks is about that gap). Root cause:
-the order of the Deliver group, not the script. Tracking issue #125, step 1b of #107.
+the order of the Deliver group, not the script. Tracking issue (#125), step 1b of the v2 plan (#107).
 
 Same rule, second observation (#123 review): Group 0 creates the tracking issue and only
 then asks for its priority; a person who declines leaves an issue without the mandatory

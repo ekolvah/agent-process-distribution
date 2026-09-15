@@ -1,7 +1,7 @@
 ## 0. Delivery start
 
 - [x] 0.1 `grep -q "^approve" openspec/changes/v2-1d-archive-before-pr/architect-review.md`;
-  tracking issue #125 exists (priority High, asked at creation);
+  the tracking issue exists (#125; priority High, asked at creation);
   `gh issue develop -c 125 --name v2-1d-archive-before-pr` from fresh origin/main;
   `python .agent-process/scripts/set_status.py 125 "In Progress" --priority High`;
   `gh issue comment 125 --body "planner: Claude; implementer: Claude"`.

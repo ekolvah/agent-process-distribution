@@ -1,6 +1,6 @@
 ## Context
 
-Verified on OpenSpec 1.13.0 and on the three PRs of #111:
+Verified on OpenSpec 1.13.0 and on the three PRs of the previous step (#122–#124):
 
 - `openspec archive -y` moves the whole change directory to
   `openspec/changes/archive/<date>-<change>/` (`moveDirectory`), `tasks.md` included; after
@@ -9,7 +9,7 @@ Verified on OpenSpec 1.13.0 and on the three PRs of #111:
   follow every push until `v2-4` replaces the review.
 - `gh issue develop -c` creates the branch on GitHub first, so a plain `git push` from the
   branch reaches it before any PR exists.
-- On #122–#124 the Deliver ticks (4.2 with the round notes) were committed into the
+- On those PRs the Deliver ticks (4.2 with the round notes) were committed into the
   archived `tasks.md` by hand after `finish_change` — the reviewer never saw them.
 
 ## Goals / Non-Goals
@@ -38,7 +38,7 @@ issue created outside an apply run stays — that run has not started).
   removes the lock, commits, pushes; no review request, no `wait_for_pr` (those follow as PR
   tasks the agent runs). Renamed because a "finish" that runs before the PR is a false name
   (§IV). `_mark_own_task` matches the whole task item (its continuation lines included):
-  on #124 the command sat on the second line of task 4.3 and the first-line regex left it
+  the command sat on the second line of task 4.3 (#124) and the first-line regex left it
   unticked (ticked by hand in `c89e485`).
 - **Priority before `gh issue create`** (#123 review): Group 0 asks first, then creates the
   issue, then `set_status "In Progress" --priority`; no later delivery task prompts.
