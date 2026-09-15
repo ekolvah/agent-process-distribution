@@ -85,7 +85,7 @@ rules:
       the repository: the change is closed and a pushed tick would move the reviewed head —
       the PR (its checks, threads and merge) is their record. A run interrupted after the
       archive does not re-enter the apply (`openspec status` no longer knows the change):
-      it continues with `gh pr view --head <change>` — open the PR when there is none —
+      it continues with `gh pr view <change>` — open the PR when there is none —
       then the review loop.
     - >-
       End with a `## Scenario → test map` section: every `#### Scenario:` of the spec

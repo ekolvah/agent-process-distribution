@@ -250,4 +250,4 @@ Further observations of the same run:
   of that PR (#127) caught the remainder: a tick of the last task pushed after the last
   round is the same extra head, and `/opsx:apply` cannot re-enter an archived change — so
   the tasks after the archive leave no tick (the PR is their record) and an interrupted
-  run resumes from `gh pr view --head <change>`.
+  run resumes from `gh pr view <change>`.
