@@ -241,3 +241,13 @@ Further observations of the same run:
   first on a consumer project (#117).
 * `set_status.py` duplicates the `gh` helpers of the v1 scripts on purpose: the v1 scripts
   are deleted in `v2-4`, and a shared module would tie the new script to files that go.
+* A post-archive push cost a review round on every PR of #111 (#122–#124): the archive was
+  the last task, its push moved the head the `agent-review` check binds to, and one more
+  `request_codex_review.py --request` waited on a mechanical `openspec archive -y` (on #124
+  ~30 min for the workflow to start); the reviewer never saw the archived `tasks.md` with
+  its Deliver ticks. `v2-1d` (#125) moves the archive before the PR — `finish_change.py`
+  becomes `archive_change.py`, the review loop is the last Deliver task. The first review
+  of that PR (#127) caught the remainder: a tick of the last task pushed after the last
+  round is the same extra head, and `/opsx:apply` cannot re-enter an archived change — so
+  the tasks after the archive leave no tick (the PR is their record) and an interrupted
+  run resumes from `gh pr view <change>`.

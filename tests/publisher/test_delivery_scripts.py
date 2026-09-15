@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import importlib
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -344,7 +343,7 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
 
 @pytest.mark.parametrize(
     ("script", "attr"),
-    [("set_status", "run_gh"), ("wait_for_pr", "run_gh"), ("finish_change", "_runner")],
+    [("set_status", "run_gh"), ("wait_for_pr", "run_gh"), ("archive_change", "_runner")],
 )
 def test_none_capture_is_an_error(monkeypatch: pytest.MonkeyPatch, script: str, attr: str) -> None:
     """AGENTS.md: a `None` stdout or stderr is a broken capture, never an empty string."""
@@ -364,8 +363,8 @@ def test_none_capture_is_an_error(monkeypatch: pytest.MonkeyPatch, script: str, 
 
 
 def test_archive_commit(tmp_path: Path) -> None:
-    """Scenarios: Archive commit, Stale archive lock, Behaviour change."""
-    finish_change = _script("finish_change")
+    """Scenarios: Archive commit, Stale archive lock."""
+    archive_change = _script("archive_change")
     change = "v2-9-example"
     change_dir = tmp_path / "openspec" / "changes" / change
     change_dir.mkdir(parents=True)
@@ -373,21 +372,22 @@ def test_archive_commit(tmp_path: Path) -> None:
     archive.mkdir()
     lock = archive / ".openspec-archive.lock"
     tasks = change_dir / "tasks.md"
+    # The own task's command sits on a continuation line (as on #124's task 4.3).
     tasks.write_text(
-        f"- [x] 1.1 done\n- [ ] 7.3 `finish_change.py {change}` archives; the person merges\n",
+        "- [x] 1.1 done\n"
+        "- [ ] 4.1 `git status --short` empty;\n"
+        f"  `python .agent-process/scripts/archive_change.py {change}` archives, commits, pushes.\n"
+        "- [ ] 4.2 `gh pr create`; the person merges.\n",
         encoding="utf-8",
     )
-    scripts = tmp_path / ".agent-process" / "scripts"
-    scripts.mkdir(parents=True)
-    (scripts / "request_codex_review.py").write_text("", encoding="utf-8")
     order: list[str] = []
-    waited: list[int] = []
     status = ""
 
     def run(cmd: list[str]) -> str:
         if "archive" in cmd:
             order.append("archive")
-            assert "- [x] 7.3" in tasks.read_text(encoding="utf-8")
+            text = tasks.read_text(encoding="utf-8")
+            assert "- [x] 4.1" in text and "- [ ] 4.2" in text
             (archive / f"2026-01-01-{change}").mkdir()
             tasks.replace(archive / f"2026-01-01-{change}" / "tasks.md")
             lock.write_text("", encoding="utf-8")
@@ -399,34 +399,25 @@ def test_archive_commit(tmp_path: Path) -> None:
         if cmd[:2] == ["git", "push"]:
             order.append("push")
             return ""
-        if cmd[:3] == ["gh", "pr", "view"]:
-            return json.dumps({"number": 9})
-        if cmd[0] == sys.executable and "--request" in cmd:
-            order.append("request-review")
-            return ""
         if cmd[:2] == ["git", "add"]:
             return ""
         if cmd[:2] == ["git", "status"]:
             return status
         raise AssertionError(f"unexpected call: {cmd}")
 
-    def wait(pr: int) -> int:
-        waited.append(pr)
-        order.append("wait")
-        return 0
+    # No review request and no wait: the PR does not exist yet when the archive lands.
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 0
+    assert order == ["archive", "commit", "push"]
 
-    assert finish_change.finish_change(change, root=tmp_path, run=run, wait=wait) == 0
-    assert order == ["archive", "commit", "push", "request-review", "wait"]
-    assert waited == [9]
-
+    # Scenario: Stale archive lock — a lock left by an interrupted run stops the script.
     lock.write_text("", encoding="utf-8")
     order.clear()
-    assert finish_change.finish_change(change, root=tmp_path, run=run, wait=wait) == 2
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
     assert order == []
 
     # Scenario: Archive commit — the worktree must be clean before the archive; a stray edit
     # would be left behind the pushed head, so the script stops instead of committing openspec/.
     lock.unlink()
     status = " M .agent-process/scripts/wait_for_pr.py\n"
-    assert finish_change.finish_change(change, root=tmp_path, run=run, wait=wait) == 2
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
     assert order == []

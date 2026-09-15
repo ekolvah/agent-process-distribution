@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / "openspec" / "schemas" / "agent-process" / "schema.yaml"
 CONFIG = ROOT / "openspec" / "config.yaml"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
-FINISH = ROOT / ".agent-process" / "scripts" / "finish_change.py"
+ARCHIVE = ROOT / ".agent-process" / "scripts" / "archive_change.py"
 _V1_ENTRY_POINTS = (
     "commands/plan.md",
     "commands/implement.md",
@@ -62,9 +62,21 @@ def test_review_finding() -> None:
     assert "rework" in " ".join(rules["tasks"])
 
 
+def test_tasks_of_a_new_change() -> None:
+    """Scenario: Tasks of a new change — priority before the issue, the archive before the PR."""
+    rule = " ".join(yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"])
+    assert rule.index("priority") < rule.index("gh issue create")
+    assert rule.index("archive_change.py") < rule.index("gh pr create")
+    assert "finish_change" not in rule
+    # No tick after the archive (a pushed tick would move the reviewed head); a run
+    # interrupted after it resumes from the PR, not from the apply.
+    assert "no tick" in rule
+    assert rule.index("archive_change.py") < rule.index("gh pr view <change>")
+
+
 def test_pinned_openspec() -> None:
     """The commands the process runs use the version the tests validate against."""
-    for path in (CONFIG, REVIEWER, FINISH):
+    for path in (CONFIG, REVIEWER, ARCHIVE):
         text = path.read_text(encoding="utf-8")
         assert "openspec@latest" not in text, path
         assert OPENSPEC in text, path
