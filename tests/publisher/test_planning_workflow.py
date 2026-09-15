@@ -1,4 +1,4 @@
-"""Planning runs on the OpenSpec skills with project rules (change v2-1b-planning-schema).
+"""Planning runs on the OpenSpec skills with project rules (changes v2-1b, v2-1e).
 
 One test per scenario of the change's spec deltas that a script can prove; the
 scenario name is the test name.
@@ -10,10 +10,9 @@ from pathlib import Path
 
 import yaml
 
-from tests.publisher.test_openspec_valid import OPENSPEC
+from tests.publisher.test_openspec_valid import OPENSPEC, _openspec
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA = ROOT / "openspec" / "schemas" / "agent-process" / "schema.yaml"
 CONFIG = ROOT / "openspec" / "config.yaml"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 ARCHIVE = ROOT / ".agent-process" / "scripts" / "archive_change.py"
@@ -32,34 +31,66 @@ _V1_ENTRY_POINTS = (
 
 
 def test_roles_and_carriers() -> None:
-    """Scenario: Procedure changes once — one schema, one config; both agents read them."""
-    schema = yaml.safe_load(SCHEMA.read_text(encoding="utf-8"))
-    assert [a["id"] for a in schema["artifacts"]] == [
-        "proposal",
-        "specs",
-        "design",
-        "tasks",
-        "architect-review",
-    ]
-    assert set(schema["apply"]["requires"]) == {"tasks", "architect-review"}
+    """Scenario: Procedure changes once — the unmodified spec-driven schema, one config."""
+    assert not (ROOT / "openspec" / "schemas").exists()
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
-    assert config["schema"] == "agent-process"
+    assert config["schema"] == "spec-driven"
     rules = config["rules"]
-    assert {"proposal", "tasks", "architect-review"} <= set(rules)
-    assert set(rules) <= {a["id"] for a in schema["artifacts"]}
+    assert {"proposal", "tasks"} <= set(rules)
+    assert set(rules) <= {"proposal", "specs", "design", "tasks"}
+    tasks = " ".join(rules["tasks"])
+    for carrier in ("architect-review.md", "architect-reviewer", "self-review", "approve"):
+        assert carrier in tasks, carrier
 
 
 def test_review_finding() -> None:
-    """Scenario: Review finding — the review reads the task list; its map gaps are findings."""
-    schema = yaml.safe_load(SCHEMA.read_text(encoding="utf-8"))
-    review = next(a for a in schema["artifacts"] if a["id"] == "architect-review")
-    assert "tasks" in review["requires"]
-    rules = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]
-    assert "no RED" in " ".join(rules["tasks"])
-    # A `rework` verdict is not an approved plan: the apply instruction and the first
-    # delivery task both stop on it (artifact status is file existence only).
-    assert "rework" in schema["apply"]["instruction"]
-    assert "rework" in " ".join(rules["tasks"])
+    """Scenario: Review finding — the contract of the review is the `tasks` rule."""
+    tasks = " ".join(yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"])
+    for part in ("Verdict", "Findings", "Scenario coverage", "§I–VII", "simpler", "no RED"):
+        assert part in tasks, part
+
+
+def test_rework_verdict() -> None:
+    """Scenario: Rework verdict — the propose run reviews again; the apply gate is task 0.1."""
+    config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    tasks = " ".join(config["rules"]["tasks"])
+    assert "run the review again" in tasks
+    assert "the propose run ends on `approve`" in tasks
+    assert 'grep -q "^approve"' in tasks
+    # The gate is stated once: no second copy as apply guidance.
+    assert "apply" not in config.get("operations", {})
+    # The stock propose skill reports the plan ready once tasks.md exists; the
+    # run-level `context` (loaded before the first artifact and returned with every
+    # instruction) is what makes the review the end of the run, not the tasks rule alone.
+    assert "architect-review.md" in config["context"]
+    assert "reported ready" in config["context"]
+
+
+def test_review_archives_with_the_change(tmp_path: Path) -> None:
+    """Scenario: Review archives with the change — an extra file travels with the directory."""
+    root = tmp_path
+    change = root / "openspec" / "changes" / "fixture"
+    (root / "openspec" / "specs").mkdir(parents=True)
+    (change / "specs" / "fixture").mkdir(parents=True)
+    files = {
+        ".openspec.yaml": "schema: spec-driven\n",
+        "proposal.md": "## Why\n\nA fixture.\n",
+        "specs/fixture/spec.md": (
+            "## ADDED Requirements\n\n### Requirement: Fixture\nThe fixture SHALL exist.\n\n"
+            "#### Scenario: Exists\n- **WHEN** archived\n- **THEN** it is in the archive\n"
+        ),
+        "tasks.md": "## 1. Done\n\n- [x] 1.1 Nothing\n",
+        "architect-review.md": "## Verdict\n\napprove\n",
+    }
+    for name, text in files.items():
+        (change / name).write_text(text, encoding="utf-8")
+    completed = _openspec("archive", "fixture", "-y", cwd=root)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    archived = list(
+        (root / "openspec" / "changes" / "archive").glob("*-fixture/architect-review.md")
+    )
+    assert len(archived) == 1, archived
+    assert not change.exists()
 
 
 def test_tasks_of_a_new_change() -> None:
@@ -76,7 +107,7 @@ def test_tasks_of_a_new_change() -> None:
 
 def test_pinned_openspec() -> None:
     """The commands the process runs use the version the tests validate against."""
-    for path in (CONFIG, REVIEWER, ARCHIVE):
+    for path in (CONFIG, ARCHIVE):
         text = path.read_text(encoding="utf-8")
         assert "openspec@latest" not in text, path
         assert OPENSPEC in text, path
