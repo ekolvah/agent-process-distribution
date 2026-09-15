@@ -26,7 +26,7 @@
   drop the review request and the `wait_for_pr` call, keep the clean-worktree and lock
   checks; `_mark_own_task` matches the whole task item; docstring says what it does; verify `test_archive_commit`,
   `test_none_capture_is_an_error` green; commit.
-- [ ] 2.2 `openspec/config.yaml` `tasks` rule: Group 0 asks the priority before
+- [x] 2.2 `openspec/config.yaml` `tasks` rule: Group 0 asks the priority before
   `gh issue create`; Deliver group in the new order with the archived `tasks.md` as the
   place of the later ticks and of a re-run; verify `test_tasks_of_a_new_change`,
   `test_pinned_openspec` green; commit.

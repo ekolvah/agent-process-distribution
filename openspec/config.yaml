@@ -50,11 +50,11 @@ rules:
     - >-
       Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
       (`grep -q "^approve" openspec/changes/<change>/architect-review.md`; on `rework` no
-      delivery task runs: apply the findings, re-review) → the tracking issue — create it
-      when the change has none
-      (`gh issue create --title "<change>" --body-file <proposal>`; ask the person for
-      priority: High/Medium/Low) → `gh issue develop -c <N> --name <change>` from fresh
-      origin/main → `python .agent-process/scripts/set_status.py <N> "In Progress"
+      delivery task runs: apply the findings, re-review) → the tracking issue — when the
+      change has none, ask the person for its priority (High/Medium/Low) first, then
+      `gh issue create --title "<change>" --body-file <proposal>` →
+      `gh issue develop -c <N> --name <change>` from fresh origin/main →
+      `python .agent-process/scripts/set_status.py <N> "In Progress"
       --priority "<the answer>"` → provenance, one line on the issue:
       `gh issue comment <N> --body "planner: <carrier of the propose run>; implementer:
       <this carrier>"` (Claude or Codex; ask when the planner is unknown).
@@ -72,15 +72,19 @@ rules:
       `python .agent-process/scripts/ci_check.py` green.
     - >-
       Deliver group, in this order: `git status --short` empty (commit what is left) →
-      push (redirect the output to a file, never pipe it) →
+      `python .agent-process/scripts/archive_change.py <change>` (marks its own task,
+      archives, commits, pushes — the archive is the first commit the PR shows, so the
+      reviewed head is the archived one) →
       `gh pr create --title "<change>" --body-file <report>` (change name, the tracking
       issue as a plain reference — no `Closes`: the linked branch closes it on merge —
       the scenario → test map, deferrals) → `python .agent-process/scripts/request_codex_review.py --request <PR>`
       (v1, until v2-4; re-run after every push) →
       `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
       push, re-request, repeat at most three rounds; the fourth leaves the rest to the
-      person with a reply → last task: `python .agent-process/scripts/finish_change.py <change>`
-      (marks itself, archives, commits, pushes, waits). The person merges.
+      person with a reply. The person merges. After the archive the ticks and the round
+      notes go to `openspec/changes/archive/<date>-<change>/tasks.md` (each a commit on the
+      same PR); a re-run of the apply on an open PR continues from the first unchecked
+      task there.
     - >-
       End with a `## Scenario → test map` section: every `#### Scenario:` of the spec
       deltas → a named test, or `n/a: <reason>`.
