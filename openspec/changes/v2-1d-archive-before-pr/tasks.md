@@ -8,7 +8,7 @@
 
 ## 1. RED
 
-- [ ] 1.1 `tests/publisher/test_delivery_scripts.py::test_archive_commit` rewritten for
+- [x] 1.1 `tests/publisher/test_delivery_scripts.py::test_archive_commit` rewritten for
   `archive_change`: call order `archive → commit → push`, no review request, no wait, the own task
   ticked when its command is on a continuation line, plus the stale-lock and
   dirty-worktree exits; `test_none_capture_is_an_error` parametrized on
