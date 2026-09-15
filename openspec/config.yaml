@@ -1,4 +1,4 @@
-schema: agent-process
+schema: spec-driven
 
 context: |
   Language: en. Keep OpenSpec structural headings and SHALL/MUST keywords in English.
@@ -33,19 +33,6 @@ rules:
     - >-
       **Impact** lists every file added, edited and removed; a doc-only PR is separate
       from code.
-  architect-review:
-    - >-
-      Review against principles §I–VII; a simpler design that meets the same scenarios is
-      a finding.
-    - >-
-      The **Verdict** line starts with `approve` or `rework`; on `rework` the planner applies
-      or answers every finding in the artifact it names and this review runs again — the
-      propose run ends on `approve`.
-    - >-
-      Every scenario of the spec deltas is either provable by a named test or listed under
-      **Scenario coverage** with the reason; a scenario missing from the scenario → test
-      map of tasks.md is a finding, and so is a Group 1 that names no test without a
-      `no RED: <reason>` task.
   tasks:
     - >-
       Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
@@ -90,3 +77,21 @@ rules:
     - >-
       End with a `## Scenario → test map` section: every `#### Scenario:` of the spec
       deltas → a named test, or `n/a: <reason>`.
+    - >-
+      Architect review — after tasks.md is written and before the artifacts are reported
+      ready, not a group of tasks.md: the planner invokes the architect review (Claude: the
+      `architect-reviewer` subagent; Codex: the planner itself as a self-review, stated in
+      the Verdict line), which reviews the proposal, the spec deltas, the design and the
+      task list against principles §I–VII (`.agent-process/docs/architecture/principles.md`)
+      and writes `openspec/changes/<change>/architect-review.md` with three sections —
+      `## Verdict`: a line starting with `approve` or `rework`, plus one line of reasoning;
+      `## Findings`: one bullet per finding, `§<principle> · <artifact>:<heading or line> —
+      what is wrong → what to change`, or `none`; `## Scenario coverage`: every scenario of
+      the spec deltas no test can prove, as `<capability> / <scenario> → n/a: <reason>` with
+      the reason tasks.md carries. A simpler design that meets the same scenarios is a
+      finding; a scenario missing from the scenario → test map of tasks.md is a finding,
+      and so is a Group 1 that names no test without a `no RED: <reason>` task. The review
+      points at the artifacts and does not restate them. On `rework` the planner applies
+      or answers every finding in the artifact it names and asks to run the review again;
+      the propose run ends on `approve`. Artifact status is file existence only: the
+      verdict is the gate, and task 0.1 reads it.
