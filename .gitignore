@@ -9,3 +9,6 @@ evidence/
 .ci_check_stamp
 .review_gate_stamp
 .agent_stop_blocks
+
+# junit report of the declared test runner (AGENTS.md); read by check_red --report
+.pytest-report.xml

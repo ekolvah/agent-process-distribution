@@ -24,23 +24,30 @@ The delivery tasks SHALL create the tracking issue when absent and the linked br
 - **WHEN** the PR from the linked branch merges
 - **THEN** the issue closes without a body-text convention
 
-### Requirement: Delivery steps are tasks of every change
-The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with the delivery tasks
-(tracking issue with priority, `gh issue develop -c`, `set_status In progress`) and end with
-`ci_check`, the PR, the `wait_for_pr` loop and one last task, `finish_change <change>`.
-`finish_change` SHALL mark its own task done, run `openspec archive <change> -y`, commit,
-push and wait for that head with `wait_for_pr`, leaving a clean worktree and nothing for the
-apply loop to edit. After the tracking issue exists no delivery task SHALL prompt the person.
+### Requirement: `finish_change` archives the change inside its PR
+One script, `finish_change <change>`, SHALL close a change on its PR: it SHALL refuse to run
+on a worktree that is not clean or while an archive lock already exists; otherwise it SHALL
+mark its own task done, run `openspec archive <change> -y`, remove the lock a successful
+archive leaves behind, commit, push, re-request the Codex review and wait for that head with
+`wait_for_pr`, leaving a clean worktree and nothing for the apply loop to edit.
 
 #### Scenario: Archive commit
 - **WHEN** `finish_change` pushes the archive commit
 - **THEN** it waits for that commit's checks and reviews before the run ends, and the worktree is clean
 
+#### Scenario: Stale archive lock
+- **WHEN** an archive lock exists before `finish_change` runs
+- **THEN** it reports the lock and exits without archiving or committing
+
 ### Requirement: The implementing run ends only after checks and reviews
 The implementing run SHALL end only after the PR's checks and reviews are in on its head.
 One blocking script, `wait_for_pr`, SHALL wait for checks and review threads and print the
 unresolved ones; the run SHALL apply them and wait again until nothing is unresolved, or
-reply on a thread it leaves to the person and end.
+reply on a thread it leaves to the person and end. A check that has not concluded — including
+one that itself waits for a requested review — SHALL count as a pending review; a failed
+check SHALL count as unresolved; threads SHALL be read only after every check on the head
+has concluded. The end state SHALL never be ambiguous: nothing unresolved, unresolved items
+printed, or a timeout reported as such.
 
 #### Scenario: Pending review
 - **WHEN** the PR is open and a review is pending

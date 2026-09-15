@@ -32,6 +32,9 @@ above stays the enforced contract.
 - <!-- List this project's own recurring environment pitfalls here (shell,
   OS, subprocess encoding, path quirks) — start from the target repository's
   actual toolchain, not this template's origin project. -->
+- Test runner: `python -m pytest --junitxml=.pytest-report.xml <paths>`; the report path is
+  `.pytest-report.xml` (untracked). The RED gate reads it:
+  `python .agent-process/scripts/check_red.py --report .pytest-report.xml <node ids>`.
 - Capture Python subprocess output with `encoding="utf-8"`; do not turn a
   `None` stdout or stderr into an empty string.
 - Keep a PR to one logical unit. Update planned docs and ADRs, or explicitly
