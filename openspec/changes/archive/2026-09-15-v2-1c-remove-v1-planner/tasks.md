@@ -40,7 +40,7 @@
   shows the PR.
 - [x] 4.2 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread,
   push, re-request, at most three rounds; verify exit 0 (one round applied, round 2 clean).
-- [ ] 4.3 `git merge v2-1b-planning-schema` once part 2 is archived, then
+- [x] 4.3 `git merge v2-1b-planning-schema` once part 2 is archived, then
   `python .agent-process/scripts/finish_change.py v2-1c-remove-v1-planner`; verify
   `openspec/specs/planning/spec.md` carries the requirement and no `.openspec-archive.lock`
   is tracked. The person merges.
