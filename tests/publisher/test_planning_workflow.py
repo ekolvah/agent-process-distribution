@@ -17,6 +17,18 @@ SCHEMA = ROOT / "openspec" / "schemas" / "agent-process" / "schema.yaml"
 CONFIG = ROOT / "openspec" / "config.yaml"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 FINISH = ROOT / ".agent-process" / "scripts" / "finish_change.py"
+_V1_ENTRY_POINTS = (
+    "commands/plan.md",
+    "commands/implement.md",
+    "agents/discovery.md",
+    ".agents/skills/plan-issue",
+    ".agents/skills/implement-issue",
+    ".agents/orchestration/change-classes.yaml",
+    ".agent-process/scripts/validate_issue_sections.py",
+    ".agent-process/scripts/capture_external_fixture.py",
+    ".agent-process/scripts/check_fixture_ratchet.py",
+    "tests/agent_process/test_validate_issue_status.py",
+)
 
 
 def test_roles_and_carriers() -> None:
@@ -64,3 +76,9 @@ def test_one_planning_home() -> None:
     assert "registered store" in context
     for path in (CONFIG, REVIEWER):
         assert "--store" not in path.read_text(encoding="utf-8"), path
+
+
+def test_label_change() -> None:
+    """Scenario: Label change — no per-label artifact sets, no discovery role, no v1 planner."""
+    present = [p for p in _V1_ENTRY_POINTS if (ROOT / p).exists()]
+    assert present == []

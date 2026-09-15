@@ -187,3 +187,57 @@ Observations from v2-0b (`v2-0b-delete-copier-mirror`, #119):
 * One test outside the render suite depended on the mirror as data, not as a subject:
   `test_issue_branch.py` loaded the template's pristine `project_settings.py` as its
   "unconfigured" fixture. A mirror is a hidden fixture for tests that never mention it.
+
+Observations from v2-1 (`v2-1a-delivery-scripts`, `v2-1b-planning-schema`,
+`v2-1c-remove-v1-planner`; #111), answering the seven open questions
+of its brief in the brief's order:
+
+* Auto-close of the issue from a `gh issue develop` branch in a private repository: not
+  observable here — this repository is public. Recorded for the consumer migration (#117).
+* `wait_for_pr` polls checks and review threads only. A pending Codex review is invisible in
+  `reviewRequests`: it is requested by comment and the v1 `agent-review` required check waits
+  for it before it concludes, so "a check is still running" is "a review is pending" and
+  threads are read only after every check concluded. Observed on the PR of this change:
+  the rollup of a new head is empty for a few seconds, then every workflow run attaches
+  queued at once; required contexts are not readable without admin rights, so the script
+  trusts a concluded rollup only when two consecutive polls list the same checks. Stays
+  until `v2-4` reworks review.
+* Plan approval has no durable GitHub artifact. The person approved by invoking `/opsx:apply`
+  in chat after reading the change on its branch; the commit of the artifacts on the branch
+  is the only trace, and the first delivery task does not gate on it. A marker (Project status,
+  label) is added only after a run is observed to apply an unapproved change.
+* Instruction size: `openspec instructions proposal --json` is 6 829 bytes with the current
+  `context` (1 273 bytes); 20 695 bytes with the whole `principles.md` appended (14 859 bytes
+  of `context`, under the 51 200-byte cap). `context` stays minimal with a one-line pointer to
+  the principles: every planning artifact would otherwise carry the full text on every call,
+  while only the architect review reads them in full — and its adapter reads the file itself.
+* The archive lock is an upstream defect, not an abort trace. A fresh `openspec init`, one
+  change and `archive -y` on Windows (OpenSpec 1.13.0, Node v22.14.0) leave
+  `openspec/changes/archive/.openspec-archive.lock` after a successful archive:
+  `releaseArchiveClaim` compares the `dev`/`ino` of the open handle with `fs.lstat` of the
+  lock path, `fs.lstat` reports `dev = 0` on Windows, the identities differ and the unlink is
+  skipped silently. Upstream fix: Fission-AI/OpenSpec pull request 1769 ("fix: release
+  archive lock on Windows", open). `finish_change` removes the lock a successful archive
+  leaves behind and refuses to archive over a pre-existing one; the removal branch is deleted
+  once the pinned OpenSpec release contains that fix.
+* Dropped delivery tasks: not observed. This change's own apply run walked `tasks.md` from
+  the tracking issue to `finish_change` with the `tasks` rule and the self-review as the only
+  guard; `check_tasks` stays unbuilt until a run drops a task.
+* Review budget: the three-round cap lives in the `tasks` rule as prose. The first PR of
+  this change hit the cap (15 threads over four rounds, nine of them on the `tasks` rule
+  text) and was split into three stacked PRs — scripts, schema and rules, removal — each
+  with its own change and archive. A counter in `wait_for_pr` waits for an observed overrun.
+
+Further observations of the same run:
+
+* Claude ran the whole delivery on a `v2-1-planning-workflow` branch, not `issue-*`:
+  `open_pr.py`, the Stop hook and `verify_pr_link` were inert, the PR was opened with
+  `gh pr create --body-file` and `wait_for_pr` was the only end guard — the ADR 0021
+  supersession, observed rather than promised.
+* `agents/architect-reviewer.md` is a plugin agent (`.claude-plugin/plugin.json`), available
+  as a subagent only where the plugin is installed. In this repository's own session it is
+  not, so the architect review of `v2-1` was a self-review by the planning session — the
+  Codex route by construction. The Claude route with a fresh-context reviewer is observed
+  first on a consumer project (#117).
+* `set_status.py` duplicates the `gh` helpers of the v1 scripts on purpose: the v1 scripts
+  are deleted in `v2-4`, and a shared module would tie the new script to files that go.

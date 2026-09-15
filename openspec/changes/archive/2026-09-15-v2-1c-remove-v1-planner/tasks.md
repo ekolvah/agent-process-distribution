@@ -1,0 +1,56 @@
+## 0. Delivery
+
+- [x] 0.1 Tracking issue exists, priority set (#111); branch `v2-1c-remove-v1-planner` on top
+  of `v2-1b-planning-schema`; provenance line already on the issue.
+
+## 1. RED
+
+- [x] 1.1 `tests/publisher/test_planning_workflow.py::test_label_change` (no v1 entry point
+  exists); verify `python .agent-process/scripts/check_red.py --report .pytest-report.xml
+  tests/publisher/test_planning_workflow.py::test_label_change` exits 0; commit.
+
+## 2. Removal
+
+- [x] 2.1 `git rm` the v1 entry points listed under **Impact**; `test_adr_records.py`
+  parses MADR sections with `markdown-it`; verify `test_label_change` and
+  `tests/agent_process` green; commit.
+- [x] 2.2 Docs: `agent-process.md` planning section (schema order tasks → architect review,
+  the `tasks` rule as the delivery flow, roles table without discovery), `principles.md`,
+  `workflow.md`, `AGENTS.md`, `roles.yaml` anchors; ADR 0009 superseded by ADR 0027, whose
+  observations record the split; verify `test_doc_links`, `test_doc_narrative`,
+  `test_adr_records`, `test_agent_orchestrator` green; commit.
+
+## 2a. Review round 1 (PR 124)
+
+- [x] 2a.1 `agent-process.md` Governance conventions name the v2 gates (`gh issue develop`,
+  `set_status.py`, no validator, the v1 status scripts out of the flow until `v2-4`/`v2-5`);
+  verify `test_doc_links`, `test_doc_narrative` green; commit.
+
+## 2b. Review round 3 (PR 124)
+
+- [x] 2b.1 `roles.yaml` routes to the OpenSpec adapters (`/opsx:propose`, `/opsx:apply`,
+  `$openspec-propose`, `$openspec-apply-change`; the reviewer file under `agents/`) instead of
+  the removed v1 entry points; verify `test_agent_orchestrator` green; commit.
+
+## 3. Verify
+
+- [x] 3.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` green.
+- [x] 3.2 `python .agent-process/scripts/ci_check.py` green.
+
+## 4. Deliver
+
+- [x] 4.1 `git status --short` empty; push (output to a file);
+  `gh pr create --base v2-1b-planning-schema --title v2-1c-remove-v1-planner --body-file <report>`
+  (change name, part 3 of 3 of #111, the scenario → test map, deferrals);
+  `python .agent-process/scripts/request_codex_review.py --request <PR>`; verify `gh pr view`
+  shows the PR.
+- [x] 4.2 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread,
+  push, re-request, at most three rounds; verify exit 0 (one round applied, round 2 clean).
+- [x] 4.3 `git merge v2-1b-planning-schema` once part 2 is archived, then
+  `python .agent-process/scripts/finish_change.py v2-1c-remove-v1-planner`; verify
+  `openspec/specs/planning/spec.md` carries the requirement and no `.openspec-archive.lock`
+  is tracked. The person merges.
+
+## Scenario → test map
+
+- Label change → `test_label_change`

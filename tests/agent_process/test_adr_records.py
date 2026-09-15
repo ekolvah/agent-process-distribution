@@ -34,8 +34,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-
-from scripts.validate_issue_sections import find_gaps
+from markdown_it import MarkdownIt
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _ADR_DIR = _REPO_ROOT / ".agent-process" / "docs" / "adr"
@@ -51,6 +50,13 @@ _SUPERSEDED_BY = re.compile(r"^superseded by ADR-(\d{4})$")
 # Minimal MADR 4.0.0 h2 sections. `Consequences` and `Confirmation` are h3
 # subsections of `Decision Outcome`, so the h2 parser must not require them.
 _REQUIRED_SECTIONS = ("Context and Problem Statement", "Considered Options", "Decision Outcome")
+
+# A section shorter than this is a heading with nothing under it.
+_MIN_CONTENT_CHARS = 5
+
+# CommonMark, not a line regex: whether `## X` is a heading depends on context (a fenced
+# block, an indented block), and `Text` + `---` is an h2 the way GitHub renders it.
+_MD = MarkdownIt("commonmark")
 
 
 def _record_files() -> list[Path]:
@@ -130,9 +136,30 @@ def _dangling_superseded(status: str | None, known_numbers: frozenset[str]) -> s
     return target
 
 
+def _h2_sections(text: str) -> dict[str, str]:
+    """Body of every `## ` section keyed by its lower-cased heading."""
+    lines = text.splitlines()
+    tokens = _MD.parse(text)
+    heads = [
+        (tokens[i + 1].content.strip().lower(), token.map[0], token.map[1])
+        for i, token in enumerate(tokens)
+        if token.type == "heading_open" and token.tag == "h2" and token.map
+    ]
+    sections: dict[str, str] = {}
+    for j, (name, _start, content_start) in enumerate(heads):
+        end = heads[j + 1][1] if j + 1 < len(heads) else len(lines)
+        sections[name] = "\n".join(lines[content_start:end])
+    return sections
+
+
 def _missing_sections(text: str) -> list[str]:
     """Return required MADR sections that are absent or empty."""
-    return find_gaps(text, required=_REQUIRED_SECTIONS)
+    sections = _h2_sections(text)
+    return [
+        name
+        for name in _REQUIRED_SECTIONS
+        if len(sections.get(name.lower(), "").strip()) < _MIN_CONTENT_CHARS
+    ]
 
 
 def _duplicate_numbers(names: Sequence[str]) -> list[str]:

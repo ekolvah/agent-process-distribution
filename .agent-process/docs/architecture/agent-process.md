@@ -12,125 +12,39 @@ are Claude for `planner` and `reviewer`, and Codex for `implementer` and
 
 | Role | Required input | Required result | Next role |
 | --- | --- | --- | --- |
-| `discovery` | Bug issue with an unaccepted `## Evidence` block | Captured fixture in the working tree and an `## Evidence` block the `--evidence-only` gate accepts | `planner` |
-| `planner` | Issue, repository context, and user decisions | Complete issue body, architect-review decision, passing issue validator | `implementer` |
-| `implementer` | Passing issue body | Focused branch, RED evidence, implementation, docs, PR | `reviewer` |
+| `planner` | The person's request, repository context, and user decisions | A validated OpenSpec change (`openspec/changes/<name>/`) with its architect review; the tracking issue is created by the first delivery task when absent | human approval, then `implementer` |
+| `implementer` | The approved change | Focused branch, RED evidence, implementation, docs, PR; the change archived on the PR | `reviewer` |
 | `reviewer` | Plan, diff, and checks | Visible, actionable findings or an explicit clean result | `fixer` or human |
 | `fixer` | Review or CI finding | Minimal correction with passing relevant checks | `reviewer` or human |
 
-The artifact, not an agent report, authorizes a hand-off. A planner must run
-`python .agent-process/scripts/validate_issue_sections.py <N>` successfully; an implementer
-must use `python .agent-process/scripts/check_red.py` for RED and `python .agent-process/scripts/ci_check.py`
-before delivery. GitHub branch protection and required checks are the final
-delivery gate.
+The artifact, not an agent report, authorizes a hand-off. A plan is the change
+directory (`openspec validate --strict` is the only automated check on it; the
+person approves by running the apply command); an implementer must use
+`python .agent-process/scripts/check_red.py` for RED and
+`python .agent-process/scripts/ci_check.py` before delivery. GitHub branch
+protection and required checks are the final delivery gate.
+
+## Planning
+
+Planning is the OpenSpec propose workflow (`/opsx:propose` in Claude Code,
+`$openspec-propose` in Codex) with the `agent-process` schema
+(`openspec/schemas/agent-process/`): proposal → spec deltas → design →
+tasks → architect review, the last artifact before the person approves
+(`apply` requires both). What this project adds to every artifact is the
+`rules:` of `openspec/config.yaml` — the `proposal` rule (read before
+writing, ask instead of guessing, a bug records its reproduction and root
+cause before the design), the `architect-review` rule (principles §I–VII;
+a scenario missing from the scenario → test map is a finding) and the
+`tasks` rule, which is the delivery flow below as tasks of the change
+(`no RED: <reason>` when the map names no test). `openspec/specs/` is what the
+process does today; `openspec/changes/` what is pending.
 
 ## Issue contract
 
-Substantive features and fixes start from a GitHub Issue. The nine base
-headings are defined only by `REQUIRED_SECTIONS` in
-`.agent-process/scripts/validate_issue_sections.py`:
-
-1. Context / Why
-2. Acceptance criteria
-3. Test plan
-4. Implementation outline
-5. Docs to update
-6. Out of scope
-7. Architect review
-8. ADR
-9. Agent handoff
-
-Which sections an issue must carry is **per-change-class data**:
-`.agents/orchestration/change-classes.yaml` holds one row per type label,
-declaring what that class `adds`/`omits` — a new class is a data edit, not
-another branch inside `validate_issue_sections.py`. `bug` adds `Evidence`;
-every other label adds `Prior art`. An architect review is required whenever
-`Architect review` is in the resolved set, and RED whenever `Test plan` is —
-both derived, never stored separately.
-
-Exactly one type label is a gate: zero or several is a gap the **maintainer**
-fixes with `gh issue edit <N> --add-label <type>` — a planner may not change
-labels (§Planner runbook).
-
-| Type label | Adds |
-| --- | --- |
-| `bug` | `Evidence` |
-| `chore`, `ci`, `documentation`, `enhancement`, `perf`, `refactor`, `security`, `testing` | `Prior art` |
-
-The validator derives the required set from that single type label. A change
-class is catalogue data rather than a branch an agent has to remember, and a
-passing issue reports whether RED and architect review are required.
-
-**`## Evidence`** (added by `bug`) records a completed observation of the
-external system, used when the plan describes how to read, parse, or classify
-external data:
-
-```md
-discovery: <carrier declared for the `discovery` role in roles.yaml>
-capture: `<source-specific reproducible command that writes the path below>`
-path: `<repository-relative path>`
-observed: <the source fact that explains the reported failure>
-preserve: <the exact valid record from the same captured response that must keep working>
-change: <the exact invalid record from that captured response whose behaviour must change>
-boundaries: <candidate fix boundaries compared, from broad to narrow>
-collateral: <whether each candidate preserves or loses that exact valid record>
-reuse: <current production path traced to the existing input/fetch usable by the narrow boundary>
-paired-test: <the same captured input through one pipeline run keeps the valid record and rejects the invalid record>
-```
-
-The first non-empty line is the provenance marker, resolved against
-`.agents/orchestration/roles.yaml`. The capture command must write the exact
-path named next, under `evidence/issue-<N>/` — working-tree-only,
-Git-ignored, kept locally only until merge; the issue keeps a verified,
-safe, compressed record, never the full payload.
-
-The remaining fields make the capture a reviewable design decision: a
-sibling feed, query, or source does not count as preservation, and a
-candidate that loses the preserved record is BLOCKING unless the issue
-records an explicit product decision authorizing the loss. Use the
-narrowest read-only route below; never run a full pipeline merely to
-collect evidence:
-
-| Source | Capture route |
-| --- | --- |
-| Project-specific source | `<project's own read-only capture command>` |
-| GitHub REST | `python .agent-process/scripts/capture_external_fixture.py github <endpoint> <path> --confirm-repository-safe` |
-| Another source with a read-only CLI | `<read-only command> | python .agent-process/scripts/capture_external_fixture.py stdin <path> --confirm-repository-safe` |
-
-The safety flag is a claim, not a sanitizer — inspect the payload and never
-commit credentials or private data; each route reads without a write, a
-send, or a full pipeline run.
-
-The paired test must send the same captured input through one pipeline run and
-prove that the valid record remains while the invalid record changes. Before
-claiming that a narrow boundary needs a new fetch, trace the current production
-path. The validator checks the command, safe path, record fields, and failed
-capture output; it does not prove the source fact itself.
-
-If no safe read-only route exists, do not improvise with a side-effecting
-production entry point. A failed capture records `status: failed` with a
-non-empty `output:` block; the plan stays blocked and no implementer
-handoff may be recorded.
-
-Captured bytes join `tests/fixtures/` only when a production-behaviour
-regression test reads them in the same commit. For a bug with no
-external-system behaviour, the fields above become `n/a: <reason>` — a
-discovery **verdict**, not a silently skipped step.
-
-**`## Prior art`** (added by every other class) records the search **outside**
-this repository — the maintained library, tool, or upstream feature that may
-already solve the problem — in three lines:
-
-```md
-searched: <where you looked: the queries, and the repository paths you compared them against>
-candidates: <what exists, each one named and linked>
-verdict: reuse|build — <why, in one sentence>
-```
-
-`verdict:` is red unless it starts with `reuse` or `build`; prose after
-that word is free. The gate never judges whether the verdict is *right*.
-`n/a: <reason>` is valid for a change with no ecosystem to search — abusing
-the branch is a nameable architect-review finding.
+The GitHub issue tracks a change: title, the change name and the Project
+fields (Status, Priority — `python .agent-process/scripts/set_status.py <N>
+"<Status>" [--priority <name>]`). The plan lives in the change directory,
+not in the issue body.
 
 **`## Out of scope`** is machine-read on the delivery PR, not prose-only: a
 top-level bullet that begins with the literal marker `deferred:`, carries a
@@ -152,138 +66,26 @@ block is stale against an edited issue), the recovery is one re-run of
 `python .agent-process/scripts/open_pr.py` (or `update_pr_body.py` for a
 fixer's report update) to regenerate the block.
 
-`Test plan` names executable test nodes. `Architect review` opens with a
-provenance line — `reviewer: <carrier>` or `skipped: <reason>` — followed by
-findings; `ADR` contains a record link or `none: <reason>`. `Agent handoff` is
-concise provenance, all four fields:
-
-```md
-planner: <agent name> [<model/version if known>]
-validation: `python .agent-process/scripts/validate_issue_sections.py <N>` — passed
-next role: implementer
-handoff: ready
-```
-
-Do not store prompts, transcripts, secrets, or private reasoning in the
-issue. `validation: passed` is not authorization by itself — every
-implementer re-runs the validator. An implementer that finds `Agent
-handoff`, `Evidence`, or `Prior art` missing stops and returns the issue to
-a planner rather than guessing.
-
-## Discovery runbook
-
-Discovery runs before planning for a bug whose Evidence is unaccepted. It
-returns the Evidence block to the planner, who records it in the issue, so the
-producer of an observation does not also publish it. It may
-use only the read-only routes above and write a working-tree fixture; it may
-not edit the issue, branch, or production code. Observe the live system and
-fill the Evidence fields (or record `n/a: <reason>`); retry one failed capture,
-then escalate. Validate the block with
-`python .agent-process/scripts/validate_issue_sections.py <N> --evidence-only --body-file <path>`.
-The fixture stays untracked unless the RED test reads it. `discovery: <carrier>`
-is attribution, not proof: a declared carrier can be questioned, but the gate
-cannot distinguish a fabricated observation from an honest one.
-
-## Planner runbook
-
-These steps belong to the `planner` role, not to an adapter; an adapter adds
-only its own interface.
-
-1. Run `python .agent-process/scripts/validate_issue_sections.py <N> --mark-planned`. A
-   passing issue is already planned — back-fill the board Status, report, and
-   stop.
-2. Use all four sources of answers: read and search the repository first;
-   ask at most three clarifying questions per session about priority or
-   product intent; on a `bug` issue, obtain and record the `discovery`
-   role's `## Evidence` block verbatim; for every other class, search for a
-   maintained library, tool, or upstream feature that already solves the
-   problem before designing code, and record the search, candidates, and
-   verdict in `## Prior art`.
-3. Obtain the architect review below and record it in `## Architect review`;
-   weave every BLOCKING finding into the other sections before writing the
-   body.
-4. Fill `## Agent handoff`, then write the complete body back. Never discard
-   existing text — restructure and extend it.
-5. Re-run `validate_issue_sections.py <N> --mark-planned` and iterate. Stop
-   after three iterations; an issue still failing goes back to the user, not
-   to an implementer.
-
-`## Test plan` names executable test nodes — the RED contract. `## Docs to
-update` lists documents or states behaviour does not change. `## ADR`
-follows this project's own cost-of-change filter for where a decision's
-rationale should live; `none: <reason>` is a routine answer, and a created
-record also joins `## Docs to update`. A planner does not write implementation
-code, create the branch, or change labels.
-
-## Architect review contract
-
-An architect review reads a plan or issue body **before** execution — a
-finished diff belongs to the PR reviewer. It is read-only: it returns
-findings, and the planner applies them.
-
-Required for every substantive change; a trivial one records
-`skipped: <reason>` instead. One pass, never a loop.
-
-### Who reviewed, recorded
-
-Where a second carrier exists, it reviews a plan it did not write;
-otherwise the planning agent reviews its own plan — **legitimate but
-weaker**, since it never replaces the PR review of the diff and must never
-pass for independent.
-
-The section opens with a provenance line, resolved by
-[`validate_issue_sections.py`](../../scripts/validate_issue_sections.py)
-against `architect_reviewer.adapter_independence` in the role catalogue —
-not written by the author, so a marker cannot claim independence for a
-self-review carrier:
-
-```md
-reviewer: <a carrier declared in .agents/orchestration/roles.yaml>
-```
-
-Only the **first non-empty line** counts. An unknown carrier is a gap; a
-self-review passes with a non-blocking note. A section with no marker sends
-the issue back to a planner rather than guessing.
-
-The reviewer reads the [goal function](principles.md#goal-function), checks
-§I–§VII, and names scope creep, unnecessary/reinvented work, an unnamed root
-cause, an over-broad external-data boundary, avoidable token spend, a
-test-first loophole, or a high-cost decision with no recorded rationale.
-
-### Findings format
-
-Grade findings; do not filter them — an unwritten finding is
-indistinguishable from a review that never ran (§IV), so shorten each
-finding rather than report fewer. Filtering is the planner's job.
-
-Each finding is concrete and actionable, carrying a confidence — high,
-medium, or low — wherever the reviewer is unsure of the finding itself:
-
-- **BLOCKING** — a named §I–§VII violation, a design defect that would have
-  to be redone after execution, a symptom fix over an unnamed cause, or an
-  unverified assumption about an external API the plan rests on.
-- **SHOULD-FIX** — a marked improvement to future support cost or token
-  spend.
-- **NICE-TO-HAVE** — everything below those two bars; it moves down, it does
-  not disappear.
-- **OK** — what the plan already gets right.
-
 ## Deterministic delivery flow
 
-This is the per-issue flow. It applies only after the one-time repository
+This is the per-change flow. It applies only after the one-time repository
 [installation and activation](agent-process-installation.md) are complete.
 
 1. Before creating an issue, fetch `origin/main` and check recent closed
-   issues and merged PRs for semantic duplicates. Ask the user for priority,
-   then set it with `python .agent-process/scripts/set_issue_priority.py <N> <priority>`.
-2. The planner researches the repository, writes the issue contract, obtains
-   the architect review, fills `Agent handoff`, and validates the result.
-3. The implementer validates the issue again, verifies its Project Priority
-   with `set_issue_priority.py <N> --check`, then creates the branch only
-   with `python .agent-process/scripts/issue_branch.py <N>` (also moves the board card to
-   `In Progress`). It writes and proves failing tests, commits RED before
-   production logic, implements the agreed outline, updates docs/ADRs, and
-   runs the local CI gate once in the foreground.
+   issues and merged PRs for semantic duplicates. Ask the user for priority.
+2. The planner writes the change (§Planning); the person approves it by
+   starting the apply workflow (`/opsx:apply <change>`,
+   `$openspec-apply-change`).
+3. The delivery steps are tasks of the change, put there by the `tasks` rule
+   of `openspec/config.yaml`: tracking issue and priority, the linked branch
+   (`gh issue develop -c <N> --name <change>`), Status `In Progress`, RED
+   first (`check_red.py`), implementation, `ci_check.py`, the PR
+   (`gh pr create --body-file <report>`), the review loop
+   (`request_codex_review.py --request <PR>` after every push,
+   `wait_for_pr.py <PR>`, at most three rounds), and last
+   `finish_change.py <change>`, which archives the change on the PR. On an
+   `issue-*` branch of a repository still on the v1 issue contract, the v1
+   steps below apply instead.
 4. Create the PR only with `python .agent-process/scripts/open_pr.py --body-file <report>`;
    a substantive UTF-8 report verifies the issue closing reference. Replace an
    existing PR body only with
@@ -436,23 +238,24 @@ runs).
 
 ## Governance conventions
 
-1. Create issue branches only with `python .agent-process/scripts/issue_branch.py <N>` (starts
-   from fresh `origin/main`); never create a branch directly.
+1. Create issue branches only with `gh issue develop -c <N> --name <change>` from fresh
+   `origin/main` (Group 0 of the `tasks` rule); the linked branch closes the issue on
+   merge, so the PR body names the issue as a plain reference, never `Closes`.
 2. Keep one PR to one logical unit. A temporary CI unblock for an unrelated
    failure may accompany the blocked change only with a tracked follow-up for
    the root cause.
 3. Assign exactly one type label: `bug` for broken behaviour; then
    `perf`/`security`/`enhancement` for user-visible work; otherwise
    `refactor`, `testing`, `ci`, `documentation`, or `chore` by changed area.
-   The validator fails on zero or several type labels.
-4. Ask the user for issue priority, then set it with
-   `python .agent-process/scripts/set_issue_priority.py <N> <High|Medium|Low>`. Propose High
-   for user-facing bugs and process work, Medium for agentic capability work
-   outside the process, Low otherwise; name the rule used.
-5. The process owns exactly two built-in board Status transitions, written from
-   scripts a role already runs: `Planned` from `--mark-planned`, `In
-   Progress` from `issue_branch.py`. `Todo` and `Done` belong to the
-   built-in Project automations; `.agent-process/scripts/set_issue_status.py` rejects them.
+4. Ask the person for issue priority (High for user-facing bugs and process work,
+   Medium for agentic capability work outside the process, Low otherwise; name
+   the rule used) and write it with
+   `python .agent-process/scripts/set_status.py <N> "<status>" --priority <High|Medium|Low>`.
+5. The process writes one board Status itself: `In Progress`, from `set_status.py`
+   in Group 0 of the `tasks` rule. `Todo` and `Done` belong to the built-in Project
+   automations. The v1 scripts `issue_branch.py`, `set_issue_priority.py` and
+   `set_issue_status.py` are not part of the delivery flow; they go with the
+   control plane in `v2-4`/`v2-5`.
 6. If a `requirements*.in` file changes, run `pip-compile` for its matching
    lockfile in the same commit.
 7. Trivial non-behavioural one-line changes may skip the issue workflow only
