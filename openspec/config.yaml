@@ -21,6 +21,9 @@ context: |
   (.agent-process/docs/architecture/).
   Principles §I–VII (.agent-process/docs/architecture/principles.md) bind every artifact:
   test-first, protocol boundaries, root cause before fix, visible degradation, minimal diff.
+  A propose run does not end when the last schema artifact exists: its last step is the
+  architect review of the `tasks` rule, and the artifacts are reported ready only once
+  openspec/changes/<name>/architect-review.md carries a Verdict that starts with `approve`.
 
 rules:
   proposal:

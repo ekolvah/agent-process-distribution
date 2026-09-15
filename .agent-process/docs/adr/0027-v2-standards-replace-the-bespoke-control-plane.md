@@ -256,6 +256,9 @@ Further observations of the same run:
   269 lines identical to `spec-driven`) that `openspec update` no longer follows; its one
   addition, the `architect-review` artifact, gated nothing — artifact status is file
   existence. The same gate is now the last entry of the `tasks` rule of
-  `openspec/config.yaml` and the first delivery task, which reads the verdict; planning runs
+  `openspec/config.yaml` and the first delivery task, which reads the verdict; because the
+  stock propose skill reports the plan ready as soon as the last schema artifact exists, the
+  run-level `context` (loaded before the first artifact) names the review as the end of the
+  propose run — the finding of the first review of this PR (#128); planning runs
   on the unmodified `spec-driven` schema, and the review file still archives with the change
   because `openspec archive` moves the directory.

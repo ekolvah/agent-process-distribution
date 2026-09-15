@@ -59,6 +59,11 @@ def test_rework_verdict() -> None:
     assert 'grep -q "^approve"' in tasks
     # The gate is stated once: no second copy as apply guidance.
     assert "apply" not in config.get("operations", {})
+    # The stock propose skill reports the plan ready once tasks.md exists; the
+    # run-level `context` (loaded before the first artifact and returned with every
+    # instruction) is what makes the review the end of the run, not the tasks rule alone.
+    assert "architect-review.md" in config["context"]
+    assert "reported ready" in config["context"]
 
 
 def test_review_archives_with_the_change(tmp_path: Path) -> None:
