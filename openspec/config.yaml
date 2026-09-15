@@ -1,4 +1,4 @@
-schema: spec-driven
+schema: agent-process
 
 context: |
   Language: en. Keep OpenSpec structural headings and SHALL/MUST keywords in English.
@@ -9,6 +9,9 @@ context: |
     keeps, plus what archived changes add)
   - openspec/changes/<name>/ — what a change adds; archived inside its PR before merge
   - .agent-process/docs/adr/ — why (decisions, alternatives, deletion conditions)
+  One planning home: a change lives in the repository whose PR archives it (the delivery
+  flow stages `openspec/` and the code in one commit), so no registered store holds a change of
+  this repository and no command of the process takes a store flag.
   Specs hold requirements and scenarios only: no rationale, no non-goals, no open questions
   (those go to the ADR or the change's design.md). One scenario per requirement is enough
   when it names the observable outcome. Requirement titles are the identity tests refer to:
@@ -16,3 +19,68 @@ context: |
   The v2 target is delivered by the changes v2-0 … v2-6, each proposed when its step of
   the tracking issue #107 starts; until they archive, the enforced process is v1
   (.agent-process/docs/architecture/).
+  Principles §I–VII (.agent-process/docs/architecture/principles.md) bind every artifact:
+  test-first, protocol boundaries, root cause before fix, visible degradation, minimal diff.
+
+rules:
+  proposal:
+    - >-
+      Read the code and prior art before writing; when a scope decision is the person's,
+      ask before writing the proposal.
+    - >-
+      Bug: record the reproduction (the failing test, or the exact observation when a test
+      needs project-specific capture) and the root cause under **Why**, before any design.
+    - >-
+      **Impact** lists every file added, edited and removed; a doc-only PR is separate
+      from code.
+  architect-review:
+    - >-
+      Review against principles §I–VII; a simpler design that meets the same scenarios is
+      a finding.
+    - >-
+      The **Verdict** line starts with `approve` or `rework`; on `rework` the planner applies
+      or answers every finding in the artifact it names and this review runs again — the
+      propose run ends on `approve`.
+    - >-
+      Every scenario of the spec deltas is either provable by a named test or listed under
+      **Scenario coverage** with the reason; a scenario missing from the scenario → test
+      map of tasks.md is a finding, and so is a Group 1 that names no test without a
+      `no RED: <reason>` task.
+  tasks:
+    - >-
+      Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
+      (`grep -q "^approve" openspec/changes/<change>/architect-review.md`; on `rework` no
+      delivery task runs: apply the findings, re-review) → the tracking issue — create it
+      when the change has none
+      (`gh issue create --title "<change>" --body-file <proposal>`; ask the person for
+      priority: High/Medium/Low) → `gh issue develop -c <N> --name <change>` from fresh
+      origin/main → `python .agent-process/scripts/set_status.py <N> "In Progress"
+      --priority "<the answer>"` → provenance, one line on the issue:
+      `gh issue comment <N> --body "planner: <carrier of the propose run>; implementer:
+      <this carrier>"` (Claude or Codex; ask when the planner is unknown).
+    - >-
+      Group 1 — RED first: write the tests of the scenario → test map, run the test
+      runner AGENTS.md declares (it writes the JUnit report there), verify
+      `python .agent-process/scripts/check_red.py --report <report path> <node ids>` exits 0,
+      commit before any implementation. When the map names no test (docs-only, `skip_specs`,
+      a rename), the group is one task that records `no RED: <reason>`.
+    - >-
+      Implementation groups: one task per scenario, design decision or review finding,
+      each with its verify command; every group ends with a commit of its work.
+    - >-
+      Verify group: `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and
+      `python .agent-process/scripts/ci_check.py` green.
+    - >-
+      Deliver group, in this order: `git status --short` empty (commit what is left) →
+      push (redirect the output to a file, never pipe it) →
+      `gh pr create --title "<change>" --body-file <report>` (change name, the tracking
+      issue as a plain reference — no `Closes`: the linked branch closes it on merge —
+      the scenario → test map, deferrals) → `python .agent-process/scripts/request_codex_review.py --request <PR>`
+      (v1, until v2-4; re-run after every push) →
+      `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
+      push, re-request, repeat at most three rounds; the fourth leaves the rest to the
+      person with a reply → last task: `python .agent-process/scripts/finish_change.py <change>`
+      (marks itself, archives, commits, pushes, waits). The person merges.
+    - >-
+      End with a `## Scenario → test map` section: every `#### Scenario:` of the spec
+      deltas → a named test, or `n/a: <reason>`.
