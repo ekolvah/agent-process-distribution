@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
-"""Close a change inside its PR: archive, commit, push, re-request the review, wait.
+"""Archive a change before its PR opens: mark the own task, archive, commit, push.
 
-Usage: python .agent-process/scripts/finish_change.py <change>
+Usage: python .agent-process/scripts/archive_change.py <change>
 
-The last task of every `tasks.md`. `openspec archive` moves `tasks.md` into the archive, so
-nothing can mark this task after it ran: the script marks its own box first, then archives,
-removes the lock a successful archive leaves behind, commits, pushes, re-requests the Codex
-review when `request_codex_review.py` is present (the `agent-review` check binds to the
-head, so every push needs a new request; says so when the script is absent) and runs
-`wait_for_pr` on the new head. Exit codes: 0 clean; the `wait_for_pr` code otherwise;
-2 when the worktree is not clean (the archive commit must be the only thing left to push)
-or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
+A Deliver task of every `tasks.md`, run before `gh pr create` so the head the review reads
+is the archived one and no push follows the last review round. `openspec archive` moves
+`tasks.md` into the archive, so nothing can mark this task after it ran: the script marks
+its own box first (the whole task item, continuation lines included), then archives,
+removes the lock a successful archive leaves behind, commits and pushes. The review
+request and `wait_for_pr` are the PR tasks that follow; the later ticks go to
+`openspec/changes/archive/<date>-<change>/tasks.md`. Exit codes: 0 done; 1 when a command
+fails; 2 when the worktree is not clean (the archive commit must be the only thing left to
+push) or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
 archive aborted and its state must be inspected before anything is archived on top of it.
-The person merges.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import shutil
 import subprocess
@@ -26,14 +25,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-try:
-    from scripts.wait_for_pr import wait_for_pr
-except ModuleNotFoundError:  # documented direct script entry point
-    from wait_for_pr import wait_for_pr
-
 Run = Callable[[list[str]], str]
 LOCK = Path("openspec", "changes", "archive", ".openspec-archive.lock")
-REVIEW_REQUEST = Path(".agent-process", "scripts", "request_codex_review.py")
 
 
 def _runner(root: Path) -> Run:
@@ -53,28 +46,20 @@ def _runner(root: Path) -> Run:
 
 
 def _mark_own_task(tasks: Path, change: str) -> None:
-    """Tick the `finish_change.py <change>` task; a missing line is reported, not fatal."""
+    """Tick the task item naming `archive_change.py <change>` anywhere in its lines."""
     text = tasks.read_text(encoding="utf-8")
-    pattern = re.compile(rf"^- \[ \] (?=.*finish_change\.py {re.escape(change)}\b)", re.M)
-    text, count = pattern.subn("- [x] ", text, count=1)
-    if count:
-        tasks.write_text(text, encoding="utf-8")
-    else:
-        print(f"note: no unchecked `finish_change.py {change}` task in {tasks}; nothing marked")
+    # A task item runs from its `- [ ] ` line to the next list item or heading.
+    item = re.compile(r"^- \[ \] (?:(?!^- \[|^#).)*", re.M | re.S)
+    command = re.compile(rf"archive_change\.py {re.escape(change)}\b")
+    for match in item.finditer(text):
+        if command.search(match.group()):
+            text = text[: match.start()] + "- [x] " + text[match.start() + len("- [ ] ") :]
+            tasks.write_text(text, encoding="utf-8")
+            return
+    print(f"note: no unchecked `archive_change.py {change}` task in {tasks}; nothing marked")
 
 
-def _pr_number(run: Run) -> int:
-    data = json.loads(run(["gh", "pr", "view", "--json", "number"]))
-    return int(data["number"])
-
-
-def finish_change(
-    change: str,
-    *,
-    root: Path = Path("."),
-    run: Run | None = None,
-    wait: Callable[[int], int] = wait_for_pr,
-) -> int:
+def archive_change(change: str, *, root: Path = Path("."), run: Run | None = None) -> int:
     run = run or _runner(root)
     lock = root / LOCK
     if lock.exists():
@@ -102,12 +87,7 @@ def finish_change(
     run(["git", "add", "-A", "openspec"])
     run(["git", "commit", "-m", f"chore: archive {change}"])
     run(["git", "push"])
-    pr = _pr_number(run)
-    if (root / REVIEW_REQUEST).exists():
-        run([sys.executable, str(REVIEW_REQUEST), "--request", str(pr)])
-    else:
-        print(f"note: {REVIEW_REQUEST} absent; no Codex review re-requested for PR #{pr}")
-    return wait(pr)
+    return 0
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -115,7 +95,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("change", help="change name under openspec/changes/")
     ns = parser.parse_args(argv)
     try:
-        sys.exit(finish_change(ns.change))
+        sys.exit(archive_change(ns.change))
     except RuntimeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(1)

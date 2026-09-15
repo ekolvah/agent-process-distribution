@@ -22,7 +22,7 @@
 
 ## 2. Archive before the PR
 
-- [ ] 2.1 `git mv .agent-process/scripts/finish_change.py .agent-process/scripts/archive_change.py`;
+- [x] 2.1 `git mv .agent-process/scripts/finish_change.py .agent-process/scripts/archive_change.py`;
   drop the review request and the `wait_for_pr` call, keep the clean-worktree and lock
   checks; `_mark_own_task` matches the whole task item; docstring says what it does; verify `test_archive_commit`,
   `test_none_capture_is_an_error` green; commit.
