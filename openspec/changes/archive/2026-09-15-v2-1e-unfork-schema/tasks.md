@@ -27,7 +27,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 `git status --short` empty (commit what is left) → `python .agent-process/scripts/archive_change.py v2-1e-unfork-schema` exits 0: the archive commit (this directory, `architect-review.md` included, under `openspec/changes/archive/`) is pushed and is the head the PR opens on
+- [x] 5.1 `git status --short` empty (commit what is left) → `python .agent-process/scripts/archive_change.py v2-1e-unfork-schema` exits 0: the archive commit (this directory, `architect-review.md` included, under `openspec/changes/archive/`) is pushed and is the head the PR opens on
 - [ ] 5.2 `gh pr create --title "v2-1e-unfork-schema" --body-file <report>` — the report names the tracking issue as a plain reference (#126, no `Closes`), Why / What, the scenario → test map below, the deferred scope of the issue; ends with the Claude Code footer
 - [ ] 5.3 `python .agent-process/scripts/request_codex_review.py --request <PR>` (v1, until v2-4; re-run after every push)
 - [ ] 5.4 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread, push, re-request, at most three rounds; the fourth leaves the rest to the person with a reply. The person merges. No tick after 5.1 (the PR is the record); a run interrupted here resumes with `gh pr view v2-1e-unfork-schema`
