@@ -30,7 +30,7 @@
   `gh issue create`; Deliver group in the new order with the archived `tasks.md` as the
   place of the later ticks and of a re-run; verify `test_tasks_of_a_new_change`,
   `test_pinned_openspec` green; commit.
-- [ ] 2.3 `agent-process.md` step 3 names the new order (one sentence); ADR 0027 gains the
+- [x] 2.3 `agent-process.md` step 3 names the new order (one sentence); ADR 0027 gains the
   observation (a post-archive push cost a review round on every PR of #111); verify
   `test_doc_links`, `test_doc_narrative`, `test_adr_records` green; commit.
 

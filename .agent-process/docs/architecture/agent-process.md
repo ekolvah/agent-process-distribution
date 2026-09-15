@@ -79,11 +79,11 @@ This is the per-change flow. It applies only after the one-time repository
 3. The delivery steps are tasks of the change, put there by the `tasks` rule
    of `openspec/config.yaml`: tracking issue and priority, the linked branch
    (`gh issue develop -c <N> --name <change>`), Status `In Progress`, RED
-   first (`check_red.py`), implementation, `ci_check.py`, the PR
-   (`gh pr create --body-file <report>`), the review loop
-   (`request_codex_review.py --request <PR>` after every push,
-   `wait_for_pr.py <PR>`, at most three rounds), and last
-   `finish_change.py <change>`, which archives the change on the PR. On an
+   first (`check_red.py`), implementation, `ci_check.py`, the archive
+   (`archive_change.py <change>`, before the PR so the reviewed head is the
+   archived one), the PR (`gh pr create --body-file <report>`), and the review
+   loop (`request_codex_review.py --request <PR>` after every push,
+   `wait_for_pr.py <PR>`, at most three rounds). On an
    `issue-*` branch of a repository still on the v1 issue contract, the v1
    steps below apply instead.
 4. Create the PR only with `python .agent-process/scripts/open_pr.py --body-file <report>`;
