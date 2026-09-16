@@ -1,10 +1,4 @@
-# roles Specification
-
-## Purpose
-Which roles the process has, which carrier fills each one in Claude Code and in Codex, and
-how two agents share one procedure without duplication.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: OpenSpec skills are the carriers of the procedure
 The planner, implementer and archive procedures SHALL be the OpenSpec skills
@@ -29,18 +23,3 @@ merge — the person.
 #### Scenario: Codex plans a change
 - **WHEN** the person runs `$openspec-propose` in Codex
 - **THEN** the change carries a self-review `architect-review.md` instead of a subagent review
-
-### Requirement: Provenance is one line in the tracking issue
-"Who planned, who implemented" SHALL be one line in the tracking issue, not a catalogue file.
-
-#### Scenario: Reading provenance
-- **WHEN** a person opens the issue
-- **THEN** the planner and implementer carriers are visible without opening any other file
-
-### Requirement: Route selection is the person's
-Which agent runs a role SHALL be decided by which chat the person opens. No file SHALL record
-a "default adapter".
-
-#### Scenario: Switching agents
-- **WHEN** the person opens the other agent for the next role
-- **THEN** no configuration changes
