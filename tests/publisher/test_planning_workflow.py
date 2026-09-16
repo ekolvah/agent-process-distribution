@@ -108,7 +108,7 @@ def test_tasks_of_a_new_change() -> None:
 def test_plan_approved() -> None:
     """Scenario: Plan approved — the review entry ends with the issue in Planned; Group 0 asks nothing."""
     entries = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
-    review = next(e for e in entries if "architect-review.md" in e)
+    review = next(e for e in entries if e.startswith("Architect review"))
     assert review.index("approve") < review.index('"Planned"')
     assert "gh issue create" in review and "--priority" in review
     group0 = next(e for e in entries if "Group 0" in e)

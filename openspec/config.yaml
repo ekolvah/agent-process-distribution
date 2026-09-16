@@ -23,7 +23,8 @@ context: |
   test-first, protocol boundaries, root cause before fix, visible degradation, minimal diff.
   A propose run does not end when the last schema artifact exists: its last step is the
   architect review of the `tasks` rule, and the artifacts are reported ready only once
-  openspec/changes/<name>/architect-review.md carries a Verdict that starts with `approve`.
+  openspec/changes/<name>/architect-review.md carries a Verdict that starts with `approve`
+  and the change's tracking issue is a Project item in `Planned` with its priority.
 
 rules:
   proposal:
@@ -40,12 +41,11 @@ rules:
     - >-
       Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
       (`grep -q "^approve" openspec/changes/<change>/architect-review.md`; on `rework` no
-      delivery task runs: apply the findings, re-review) → the tracking issue — when the
-      change has none, ask the person for its priority (High/Medium/Low) first, then
-      `gh issue create --title "<change>" --body-file <proposal>` →
-      `gh issue develop -c <N> --name <change>` from fresh origin/main →
-      `python .agent-process/scripts/set_status.py <N> "In Progress"
-      --priority "<the answer>"` → provenance, one line on the issue:
+      delivery task runs: apply the findings, re-review) →
+      `gh issue develop -c <N> --name <change>` from fresh origin/main (the tracking
+      issue is the one the propose run left in Planned; nothing is asked here) →
+      `python .agent-process/scripts/set_status.py <N> "In Progress"` →
+      provenance, one line on the issue:
       `gh issue comment <N> --body "planner: <carrier of the propose run>; implementer:
       <this carrier>"` (Claude or Codex; ask when the planner is unknown).
     - >-
@@ -96,5 +96,9 @@ rules:
       and so is a Group 1 that names no test without a `no RED: <reason>` task. The review
       points at the artifacts and does not restate them. On `rework` the planner applies
       or answers every finding in the artifact it names and asks to run the review again;
-      the propose run ends on `approve`. Artifact status is file existence only: the
-      verdict is the gate, and task 0.1 reads it.
+      the propose run ends on `approve` — then the tracking issue: when the change has
+      none, ask the person for its priority (High/Medium/Low) and
+      `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`;
+      `python .agent-process/scripts/set_status.py <N> "Planned" --priority "<the answer>"`
+      (Todo → Planned on the board), and only then report the artifacts ready. Artifact
+      status is file existence only: the verdict is the gate, and task 0.1 reads it.
