@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Set an issue's Status (and optionally Priority) in the repository's GitHub Project by name.
+"""Set an issue's Status and/or Priority in the repository's GitHub Project by name.
 
-Usage: python .agent-process/scripts/set_status.py <N> "<Status>" [--priority "<Priority>"]
+Usage: python .agent-process/scripts/set_status.py <N> ["<Status>"] [--priority "<Priority>"]
 
-The Project is the one the issue is already an item of, else the single Project linked to
-the repository; field and option ids are resolved from their names on every run, so no
-generated settings file is needed. Exit 2 when a name does not resolve (the options are
-listed; nothing is changed) or when several Projects are linked (they are named); exit 1
-when `gh` fails.
+The process writes two Statuses: "Planned" at the end of the propose run and "In Progress"
+at the start of the apply; "Todo" and "Done" are the Project's own workflows. The Project is
+the single one linked to the repository; field and option ids are resolved from their names
+on every run, so no generated settings file is needed. Exit 2 when neither field is given,
+when a name does not resolve (the options are listed; nothing is changed) or when zero or
+several Projects are linked (they are named); exit 1 when `gh` fails.
 
 The `gh project` helpers are duplicated from `set_issue_status.py` / `set_issue_priority.py`
 on purpose: those scripts and their `project_settings.py` are deleted in `v2-4`, and this
@@ -24,14 +25,6 @@ from collections.abc import Callable
 from typing import Any
 
 Gh = Callable[[list[str]], str]
-
-# One query: the issue's Project items carry the Project id, and membership is compared
-# by id — a title is not an identity across owners (a same-titled Project elsewhere).
-_LOOKUP_QUERY = (
-    "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name)"
-    "{issue(number:$number){url projectItems(first:20){nodes{project{id title}}}}"
-    "projectsV2(first:20){nodes{id number title}}}}"
-)
 
 
 def run_gh(cmd: list[str]) -> str:
@@ -53,58 +46,28 @@ def _json(gh: Gh, cmd: list[str]) -> Any:
         raise RuntimeError(f"`{' '.join(cmd)}` returned no JSON: {out!r}") from exc
 
 
-def _repo(gh: Gh) -> tuple[str, str]:
-    data = _json(gh, ["gh", "repo", "view", "--json", "owner,name"])
-    return str(data["owner"]["login"]), str(data["name"])
+def _repo(gh: Gh) -> tuple[str, str, list[dict[str, Any]]]:
+    """Owner, name and the Projects linked to the repository (gh prints them under `Nodes`)."""
+    data = _json(gh, ["gh", "repo", "view", "--json", "owner,name,projectsV2"])
+    linked = data.get("projectsV2") or {}
+    projects = linked.get("Nodes", linked.get("nodes")) or []
+    return str(data["owner"]["login"]), str(data["name"]), list(projects)
 
 
-def _lookup(
-    gh: Gh, owner: str, name: str, number: int
-) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """The issue (url, the Projects it is an item of) and the Projects linked to the repository."""
-    data = _json(
-        gh,
-        [
-            "gh",
-            "api",
-            "graphql",
-            "-f",
-            f"query={_LOOKUP_QUERY}",
-            "-F",
-            f"owner={owner}",
-            "-F",
-            f"name={name}",
-            "-F",
-            f"number={number}",
-        ],
-    )
-    repo = data["data"]["repository"]
-    return repo["issue"], list(repo["projectsV2"]["nodes"])
-
-
-def _project_for(
-    owner: str, name: str, issue: dict[str, Any], projects: list[dict[str, Any]]
-) -> dict[str, Any]:
-    members = {
-        str(item["project"]["id"]): str(item["project"].get("title"))
-        for item in (issue.get("projectItems") or {}).get("nodes") or []
-    }
-    mine = [p for p in projects if str(p["id"]) in members]
-    if len(mine) == 1:
-        return mine[0]
-    named = ", ".join(f"#{p['number']} {p['title']}" for p in projects) or "none"
-    if members:
-        listed = ", ".join(f"{title} ({pid})" for pid, title in sorted(members.items()))
-        raise ValueError(
-            f"issue {issue.get('url', '?')} is an item of {listed}, not of a Project linked "
-            f"to {owner}/{name} ({named}); link that Project or move the item first"
-        )
+def _linked_project(owner: str, name: str, projects: list[dict[str, Any]]) -> dict[str, Any]:
+    """The board is the one Project linked to the repository; zero or several is an error."""
     if len(projects) == 1:
         return projects[0]
+    named = ", ".join(f"#{p['number']} {p['title']}" for p in projects) or "none linked"
     raise ValueError(
-        f"cannot choose the Project for issue {issue.get('url', '?')}: "
-        f"linked to {owner}/{name}: {named}; add the issue to one of them first"
+        f"expected exactly one Project linked to {owner}/{name}, found: {named}; "
+        "link the board (repository → Projects) and unlink the rest"
     )
+
+
+def _issue_url(gh: Gh, number: int) -> str:
+    data = _json(gh, ["gh", "issue", "view", str(number), "--json", "url"])
+    return str(data["url"])
 
 
 def _fields(gh: Gh, owner: str, project: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -178,16 +141,21 @@ def _item_edit(gh: Gh, project_id: str, item_id: str, field_id: str, option_id: 
     )
 
 
-def set_status(number: int, status: str, *, priority: str | None = None, gh: Gh = run_gh) -> None:
-    """Set Status and optionally Priority of issue `number`; every name resolves before any write."""
-    owner, name = _repo(gh)
-    issue, projects = _lookup(gh, owner, name, number)
-    project = _project_for(owner, name, issue, projects)
+def set_status(
+    number: int, status: str | None = None, *, priority: str | None = None, gh: Gh = run_gh
+) -> None:
+    """Set Status and/or Priority of issue `number`; every name resolves before any write."""
+    if status is None and priority is None:
+        raise ValueError("nothing to set: give a Status, --priority, or both")
+    owner, name, projects = _repo(gh)
+    project = _linked_project(owner, name, projects)
     fields = _fields(gh, owner, project)
-    writes = [(str(fields["Status"]["id"]), _option_id(fields, "Status", status))]
+    writes = []
+    if status is not None:
+        writes.append((str(fields["Status"]["id"]), _option_id(fields, "Status", status)))
     if priority is not None:
         writes.append((str(fields["Priority"]["id"]), _option_id(fields, "Priority", priority)))
-    item_id = _item_add(gh, owner, project, str(issue["url"]))
+    item_id = _item_add(gh, owner, project, _issue_url(gh, number))
     for field_id, option_id in writes:
         _item_edit(gh, str(project["id"]), item_id, field_id, option_id)
 
@@ -195,7 +163,7 @@ def set_status(number: int, status: str, *, priority: str | None = None, gh: Gh 
 def main(argv: list[str] | None = None, *, gh: Gh = run_gh) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("issue", type=int, help="issue number")
-    parser.add_argument("status", help='Status option name, e.g. "In Progress"')
+    parser.add_argument("status", nargs="?", help='Status option name: "Planned" or "In Progress"')
     parser.add_argument("--priority", help='Priority option name, e.g. "High"')
     ns = parser.parse_args(argv)
     try:
@@ -206,8 +174,10 @@ def main(argv: list[str] | None = None, *, gh: Gh = run_gh) -> None:
     except RuntimeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(1)
-    suffix = f", priority {ns.priority}" if ns.priority else ""
-    print(f"ok: issue #{ns.issue} status {ns.status}{suffix}")
+    done = [f"status {ns.status}"] if ns.status else []
+    if ns.priority:
+        done.append(f"priority {ns.priority}")
+    print(f"ok: issue #{ns.issue} {', '.join(done)}")
 
 
 if __name__ == "__main__":
