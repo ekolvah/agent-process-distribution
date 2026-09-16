@@ -68,8 +68,9 @@ of the runner.
 - **THEN** the first commit contains a test that `check_red` reports as failing
 
 ### Requirement: GitHub links branch, PR and issue
-The delivery tasks SHALL create the tracking issue when absent and the linked branch with
-`gh issue develop -c N`; the PR links to the issue automatically and the merge closes it.
+The delivery tasks SHALL create the linked branch with `gh issue develop -c N` on the
+tracking issue the propose run left in `Planned`; the PR links to the issue automatically
+and the merge closes it.
 
 #### Scenario: Merge
 - **WHEN** the PR from the linked branch merges

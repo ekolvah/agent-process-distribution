@@ -16,3 +16,12 @@ closes the issue on merge.
 #### Scenario: Tasks of a new change
 - **WHEN** a change is proposed with the `spec-driven` schema
 - **THEN** its `tasks.md` begins with the verdict and branch tasks on an existing tracking issue, asks nothing, and `archive_change <change>` precedes `gh pr create` in it, per the `tasks` rule
+
+### Requirement: GitHub links branch, PR and issue
+The delivery tasks SHALL create the linked branch with `gh issue develop -c N` on the
+tracking issue the propose run left in `Planned`; the PR links to the issue automatically
+and the merge closes it.
+
+#### Scenario: Merge
+- **WHEN** the PR from the linked branch merges
+- **THEN** the issue closes without a body-text convention

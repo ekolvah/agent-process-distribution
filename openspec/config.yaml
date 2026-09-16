@@ -97,8 +97,10 @@ rules:
       points at the artifacts and does not restate them. On `rework` the planner applies
       or answers every finding in the artifact it names and asks to run the review again;
       the propose run ends on `approve` — then the tracking issue: when the change has
-      none, ask the person for its priority (High/Medium/Low) and
-      `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`;
-      `python .agent-process/scripts/set_status.py <N> "Planned" --priority "<the answer>"`
-      (Todo → Planned on the board), and only then report the artifacts ready. Artifact
+      none, ask the person for its priority (High/Medium/Low),
+      `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`
+      and `python .agent-process/scripts/set_status.py <N> "Planned" --priority "<the answer>"`;
+      when it exists, its priority is already set and the call is
+      `python .agent-process/scripts/set_status.py <N> "Planned"` alone (Todo → Planned on
+      the board); only then report the artifacts ready. Artifact
       status is file existence only: the verdict is the gate, and task 0.1 reads it.
