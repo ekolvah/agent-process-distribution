@@ -76,7 +76,10 @@ This is the per-change flow. It applies only after the one-time repository
 [installation and activation](agent-process-installation.md) are complete.
 
 1. Before creating an issue, fetch `origin/main` and check recent closed
-   issues and merged PRs for semantic duplicates. Ask the user for priority.
+   issues and merged PRs for semantic duplicates. The priority is asked once,
+   by whoever creates the issue: the propose run when the change has none
+   (§Planning), else the person or agent that opens it by hand (governance
+   item 4); an issue that exists is not asked again.
 2. The planner writes the change (§Planning); the person approves it by
    starting the apply workflow (`/opsx:apply <change>`,
    `$openspec-apply-change`).
