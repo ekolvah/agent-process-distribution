@@ -65,6 +65,18 @@ def _linked_project(owner: str, name: str, projects: list[dict[str, Any]]) -> di
     )
 
 
+def _project_owner(project: dict[str, Any]) -> str:
+    """`gh project … --owner` takes the Project's owner, which need not be the repository's.
+
+    The linked Project's `resourcePath` is `/users/<login>/projects/N` or
+    `/orgs/<login>/projects/N`; no other field of `gh repo view --json projectsV2` names it.
+    """
+    parts = str(project.get("resourcePath", "")).strip("/").split("/")
+    if len(parts) != 4 or parts[0] not in ("users", "orgs") or parts[2] != "projects":
+        raise RuntimeError(f"cannot read the Project owner from resourcePath {project!r}")
+    return parts[1]
+
+
 def _issue_url(gh: Gh, number: int) -> str:
     data = _json(gh, ["gh", "issue", "view", str(number), "--json", "url"])
     return str(data["url"])
@@ -149,13 +161,14 @@ def set_status(
         raise ValueError("nothing to set: give a Status, --priority, or both")
     owner, name, projects = _repo(gh)
     project = _linked_project(owner, name, projects)
-    fields = _fields(gh, owner, project)
+    project_owner = _project_owner(project)
+    fields = _fields(gh, project_owner, project)
     writes = []
     if status is not None:
         writes.append((str(fields["Status"]["id"]), _option_id(fields, "Status", status)))
     if priority is not None:
         writes.append((str(fields["Priority"]["id"]), _option_id(fields, "Priority", priority)))
-    item_id = _item_add(gh, owner, project, _issue_url(gh, number))
+    item_id = _item_add(gh, project_owner, project, _issue_url(gh, number))
     for field_id, option_id in writes:
         _item_edit(gh, str(project["id"]), item_id, field_id, option_id)
 
