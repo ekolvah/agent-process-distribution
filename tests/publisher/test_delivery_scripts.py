@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-_PROJECT = {"id": "PVT_1", "number": 4, "title": "Board"}
+_PROJECT = {"id": "PVT_1", "number": 4, "title": "Board", "resourcePath": "/users/owner/projects/4"}
 _FIELDS = {
     "fields": [
         {
@@ -184,6 +184,17 @@ def test_priority_only() -> None:
         set_status.main(["7"], gh=gh)
     assert exc.value.code == 2
     assert gh.edits() == []
+
+
+def test_linked_project_of_another_owner() -> None:
+    """The Project's owner comes from its resourcePath, not from the repository's owner."""
+    set_status = _script("set_status")
+    gh = _Gh(projects=[{**_PROJECT, "resourcePath": "/orgs/acme/projects/4"}])
+
+    set_status.set_status(7, "In Progress", gh=gh)
+
+    owners = [c[c.index("--owner") + 1] for c in gh.calls if "--owner" in c]
+    assert owners and set(owners) == {"acme"}
 
 
 def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
