@@ -12,7 +12,7 @@ are Claude for `planner` and `reviewer`, and Codex for `implementer` and
 
 | Role | Required input | Required result | Next role |
 | --- | --- | --- | --- |
-| `planner` | The person's request, repository context, and user decisions | A validated OpenSpec change (`openspec/changes/<name>/`) with its architect review; the tracking issue is created by the first delivery task when absent | human approval, then `implementer` |
+| `planner` | The person's request, repository context, and user decisions | A validated OpenSpec change (`openspec/changes/<name>/`) with its architect review, and its tracking issue as a Project item in `Planned` with a priority (created by the planner when the change has none) | human approval, then `implementer` |
 | `implementer` | The approved change | Focused branch, RED evidence, implementation, docs, PR; the change archived on the PR | `reviewer` |
 | `reviewer` | Plan, diff, and checks | Visible, actionable findings or an explicit clean result | `fixer` or human |
 | `fixer` | Review or CI finding | Minimal correction with passing relevant checks | `reviewer` or human |
