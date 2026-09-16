@@ -103,7 +103,7 @@ as a plain reference, not with a `Closes` keyword: the branch from `gh issue dev
 closes the issue on merge.
 
 #### Scenario: Tasks of a new change
-- **WHEN** a change is proposed with the `agent-process` schema
+- **WHEN** a change is proposed with the `spec-driven` schema
 - **THEN** its `tasks.md` begins with the priority and tracking-issue tasks, and `archive_change <change>` precedes `gh pr create` in it, per the `tasks` rule
 
 ### Requirement: `archive_change` archives the change before its PR
