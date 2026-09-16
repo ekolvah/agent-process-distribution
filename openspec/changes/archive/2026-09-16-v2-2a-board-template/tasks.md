@@ -34,7 +34,7 @@
 
 ## 7. Deliver
 
-- [ ] 7.1 `git status --short` empty (commit what is left) → `python .agent-process/scripts/archive_change.py v2-2a-board-template` exits 0: the archive commit is pushed and is the head the PR opens on
+- [x] 7.1 `git status --short` empty (commit what is left) → `python .agent-process/scripts/archive_change.py v2-2a-board-template` exits 0: the archive commit is pushed and is the head the PR opens on
 - [ ] 7.2 `gh pr create --title "v2-2a-board-template" --body-file <report>` — the report names the tracking issue as a plain reference (#129, no `Closes`), Why / What, the scenario → test map below, the deferred scope (`init` copy/link and checklist → #112; v1 board scripts and the installation guide → #115); ends with the Claude Code footer
 - [ ] 7.3 `python .agent-process/scripts/request_codex_review.py --request <PR>` (re-run after every push)
 - [ ] 7.4 `python .agent-process/scripts/wait_for_pr.py <PR>`; apply every unresolved thread, push, re-request, at most three rounds; the fourth leaves the rest to the person with a reply. The person merges — the merge is the first observation of *Pull request merged → Done* on the tracking issue (`gh issue view 129 --json projectItems`). No tick after 7.1 (the PR is the record); a run interrupted here resumes with `gh pr view v2-2a-board-template`
