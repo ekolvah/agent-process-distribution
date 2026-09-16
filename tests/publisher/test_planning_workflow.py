@@ -105,6 +105,16 @@ def test_tasks_of_a_new_change() -> None:
     assert rule.index("archive_change.py") < rule.index("gh pr view <change>")
 
 
+def test_plan_approved() -> None:
+    """Scenario: Plan approved — the review entry ends with the issue in Planned; Group 0 asks nothing."""
+    entries = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
+    review = next(e for e in entries if "architect-review.md" in e)
+    assert review.index("approve") < review.index('"Planned"')
+    assert "gh issue create" in review and "--priority" in review
+    group0 = next(e for e in entries if "Group 0" in e)
+    assert "gh issue create" not in group0 and "priority" not in group0
+
+
 def test_pinned_openspec() -> None:
     """The commands the process runs use the version the tests validate against."""
     for path in (CONFIG, ARCHIVE):

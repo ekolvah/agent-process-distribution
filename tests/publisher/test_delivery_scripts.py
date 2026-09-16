@@ -45,32 +45,26 @@ def _script(name: str) -> Any:
 class _Gh:
     """Fake `gh`: answers by command shape, records every call."""
 
-    def __init__(
-        self, *, projects: list[dict] | None = None, items: list[dict] | None = None
-    ) -> None:
+    def __init__(self, *, projects: list[dict] | None = None) -> None:
         self.calls: list[list[str]] = []
         self.projects = [_PROJECT] if projects is None else projects
-        self.items = items or []
 
     def __call__(self, cmd: list[str]) -> str:
         self.calls.append(cmd)
         head = cmd[:3]
         if head == ["gh", "repo", "view"]:
-            return json.dumps({"owner": {"login": "owner"}, "name": "repo"})
-        if head == ["gh", "api", "graphql"]:
+            # `Nodes` with a capital N is what gh 2.87.3 prints for `--json projectsV2`.
             return json.dumps(
                 {
-                    "data": {
-                        "repository": {
-                            "issue": {
-                                "url": "https://github.com/owner/repo/issues/7",
-                                "projectItems": {"nodes": self.items},
-                            },
-                            "projectsV2": {"nodes": self.projects},
-                        }
-                    }
+                    "owner": {"login": "owner"},
+                    "name": "repo",
+                    "projectsV2": {"Nodes": self.projects},
                 }
             )
+        if head == ["gh", "issue", "view"]:
+            return json.dumps({"url": "https://github.com/owner/repo/issues/7"})
+        if head == ["gh", "api", "graphql"]:
+            raise AssertionError("set_status must read the linked Project with gh repo view")
         if head == ["gh", "project", "field-list"]:
             return json.dumps(_FIELDS)
         if head == ["gh", "project", "item-add"]:
@@ -156,6 +150,7 @@ def test_tracking_issue_created() -> None:
         assert cmd[cmd.index("--field-id") + 1] == field_id
         assert cmd[cmd.index("--project-id") + 1] == "PVT_1"
         assert cmd[cmd.index("--single-select-option-id") + 1] == option_id
+    assert not any(c[:2] == ["gh", "api"] for c in gh.calls)
 
 
 def test_priority_field_drift(capsys: pytest.CaptureFixture[str]) -> None:
@@ -172,10 +167,29 @@ def test_priority_field_drift(capsys: pytest.CaptureFixture[str]) -> None:
     assert "Urgent" in err and "High" in err and "Low" in err
 
 
-def test_issue_in_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
-    """An issue whose Project is not linked to the repository is reported, not moved elsewhere."""
+def test_priority_only() -> None:
+    """Scenario: Priority only — Status is optional; nothing given at all is a usage error."""
     set_status = _script("set_status")
-    gh = _Gh(items=[{"project": {"id": "PVT_9", "title": "Other board"}}])
+    gh = _Gh()
+
+    set_status.main(["7", "--priority", "High"], gh=gh)
+
+    edits = gh.edits()
+    assert len(edits) == 1
+    assert edits[0][edits[0].index("--field-id") + 1] == "F_PRIO"
+    assert edits[0][edits[0].index("--single-select-option-id") + 1] == "P_HIGH"
+
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        set_status.main(["7"], gh=gh)
+    assert exc.value.code == 2
+    assert gh.edits() == []
+
+
+def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Several linked Projects — zero or several linked Projects → exit 2 naming them."""
+    set_status = _script("set_status")
+    gh = _Gh(projects=[_PROJECT, {"id": "PVT_2", "number": 5, "title": "Other"}])
 
     with pytest.raises(SystemExit) as exc:
         set_status.main(["7", "In Progress"], gh=gh)
@@ -183,20 +197,13 @@ def test_issue_in_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
     assert exc.value.code == 2
     assert gh.edits() == []
     err = capsys.readouterr().err
-    assert "Other board" in err and "Board" in err
+    assert "#4 Board" in err and "#5 Other" in err
 
-
-def test_same_titled_unlinked_project(capsys: pytest.CaptureFixture[str]) -> None:
-    """Membership is by Project id: a same-titled Project of another owner is not the linked one."""
-    set_status = _script("set_status")
-    gh = _Gh(items=[{"project": {"id": "PVT_9", "title": "Board"}}])
-
+    gh = _Gh(projects=[])
     with pytest.raises(SystemExit) as exc:
         set_status.main(["7", "In Progress"], gh=gh)
-
     assert exc.value.code == 2
     assert gh.edits() == []
-    assert "PVT_9" in capsys.readouterr().err
 
 
 def _rollup(*checks: tuple[str, str, str | None], head: str = "abc123") -> str:
