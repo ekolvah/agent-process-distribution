@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: The board is a copy of the template Project
-Project #4 of this repository SHALL be the template a consumer's board is copied from: it
+Project 4 of this repository SHALL be the template a consumer's board is copied from: it
 is public; its `Status` field has the options `Todo`, `Planned`, `In Progress`, `Done` and
 nothing else; its `Priority` field has `High`, `Medium`, `Low`; and its built-in workflows
 *Auto-add to project* (open issues and pull requests of the repository), *Item added →

@@ -7,5 +7,5 @@ none
 ## Scenario coverage
 - state / Template read → n/a: GitHub state, read by the query of task 4.2 and recorded in ADR 0027 (tests run offline)
 - state / Linking an existing Project → n/a: unchanged behaviour (kept in the MODIFIED block); the options are read in task 4.2
-- state / Issue closed → n/a: GitHub's workflow; observed on #129 at the merge of this PR (task 7.4)
+- state / Issue closed → n/a: GitHub's workflow; observed on the tracking issue at the merge of this PR (task 7.4)
 - state / Priority asked once → n/a: a step of the `tasks` rule's review entry, asserted by `tests/publisher/test_planning_workflow.py::test_plan_approved`

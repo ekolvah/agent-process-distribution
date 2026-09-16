@@ -4,7 +4,7 @@ The board is the most manual part of installing the process in a consumer: a Pro
 by hand with the right `Status` and `Priority` options, a verification of those options,
 and a script that moves every status. GitHub already provides two of the four transitions —
 `gh project copy` reproduces a Project, and the built-in Project workflows set `Todo` on add
-and `Done` on close or merge — so step 2a of #107 (#129) makes Project #4 the template a
+and `Done` on close or merge — so step 2a of the v2 plan makes Project 4 the template a
 consumer copies and leaves the process the two board writes it has no workflow for:
 `Planned` when a plan passes its architect review, `In Progress` when the apply starts.
 `init` (#112) then copies and links instead of verifying.
@@ -15,7 +15,7 @@ taken into implementation must be visible as such. That reverses the v2-1 observ
 ADR 0027 ("a marker is added only after a run is observed to apply an unapproved change") on
 different grounds — visibility of the queue, not a gate.
 
-Observed on Project #4 today (GraphQL `ProjectV2.workflows`, `fields`, `public`): private;
+Observed on Project 4 today (GraphQL `ProjectV2.workflows`, `fields`, `public`): private;
 `Status` = `Todo`, `Planned`, `In Progress`, `Done` (one item in `Planned`: #22); enabled
 workflows are *Item added to project*, *Item closed*, *Pull request merged*, *Auto-close
 issue*, *Pull request linked to issue*, *Auto-add sub-issues to project*; *Auto-add to
@@ -29,7 +29,7 @@ Projects linked to the repository (id, number, title) without GraphQL.
   fields, single-select options, views and built-in workflows arrive; the scratch Project is
   deleted in the same task. Both are remote writes under the person's account and run only
   after their confirmation.
-- **Project #4 becomes the template.** Public (a consumer under another owner must be able
+- **Project 4 becomes the template.** Public (a consumer under another owner must be able
   to copy it); `Status` = `Todo`, `Planned`, `In Progress`, `Done` (as today); `Priority` =
   `High`, `Medium`, `Low`; built-in workflows enabled: *Auto-add to project* (open issues
   and PRs of this repository), *Item added → Todo*, *Item reopened → Todo*, *Item closed →
@@ -70,7 +70,7 @@ None.
 - `state`: `Todo` and `Done` are written by the Project's built-in workflows and the process
   writes `Planned` and `In Progress`; `Planned` is the one option the process adds; the
   Project of the process is the one linked to the repository; `set_status` takes Status or
-  Priority or both; Project #4 is the template with the fields and workflows a consumer
+  Priority or both; Project 4 is the template with the fields and workflows a consumer
   copies.
 - `planning`: the propose run ends with the tracking issue created (priority asked) and in
   `Planned`.
@@ -89,7 +89,7 @@ Group 0 and the architect-review entry), `tests/publisher/test_delivery_scripts.
 (issue contract, governance items 4–5, the planning paragraph), `.agent-process/docs/adr/0027-…md`
 (observations of this step, appended after the apply).
 
-Remote (GitHub, not files): Project #4 visibility and built-in workflows; a scratch Project
+Remote (GitHub, not files): Project 4 visibility and built-in workflows; a scratch Project
 created and deleted for the observation.
 
 Removed: nothing on disk.

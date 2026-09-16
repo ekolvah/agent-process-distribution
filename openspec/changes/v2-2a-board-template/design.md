@@ -7,14 +7,14 @@ See proposal.md — Why. Constraints that shape the approach:
   options are editable only through `updateProjectV2Field` with the whole option list
   (ids, colors, descriptions) or the UI.
 - `gh project copy` copies a Project of another owner only when the caller can read it; a
-  consumer under another owner needs Project #4 public. `markProjectV2AsTemplate` exists
+  consumer under another owner needs Project 4 public. `markProjectV2AsTemplate` exists
   for organization Projects only; a user Project is copied as is.
 - `gh repo view --json projectsV2` returns the linked Projects as `{"projectsV2":
   {"Nodes": [{id, number, title, …}]}}` — capital `Nodes`, observed on gh 2.87.3.
 - `set_status.py` is imported by `tests/publisher/test_delivery_scripts.py` through a
   fake `gh` callable keyed on the command's first three words (§II); the script's public
   seam is `set_status(number, status, *, priority, gh)` and `main(argv, *, gh)`.
-- Project #4 is private and already carries `Planned` (v1 wrote it after plan approval,
+- Project 4 is private and already carries `Planned` (v1 wrote it after plan approval,
   ADR 0024); `openspec/config.yaml` `rules` are the extension point OpenSpec keeps across
   `openspec update`, and the architect review already runs from there as the last step of
   the propose run.
@@ -55,7 +55,7 @@ See proposal.md — Why. Constraints that shape the approach:
 
 3. **The template is verified by a read, not asserted by a test.** The Verify group runs
    one `gh api graphql` query (`public`, `fields { name options { name } }`,
-   `workflows { name enabled }`) against Project #4 and the task compares it with the
+   `workflows { name enabled }`) against Project 4 and the task compares it with the
    spec's list; the output is pasted into ADR 0027. Tests run offline and must not depend
    on GitHub state (§II); a script for a one-time check is a script without a second run.
 
@@ -65,7 +65,7 @@ See proposal.md — Why. Constraints that shape the approach:
    @me`. The person confirms before the copy and before the delete (shared state under
    their account). What the copy lacks is what `init` (#112) must print as a checklist.
 
-5. **Visibility and workflow edits on Project #4 are the person's, in the UI:** set
+5. **Visibility and workflow edits on Project 4 are the person's, in the UI:** set
    visibility public, enable *Auto-add to project* (this repository, open issues and PRs),
    *Item reopened → Todo*, and confirm the three already enabled. The agent's task is the
    read of decision 3 before and after, so the diff is visible in the PR's ADR observation.
@@ -94,7 +94,7 @@ See proposal.md — Why. Constraints that shape the approach:
 
 ## Risks / Trade-offs
 
-- [Making Project #4 public exposes its items' titles and fields] → the repository and its
+- [Making Project 4 public exposes its items' titles and fields] → the repository and its
   issues are public already; draft items are not copied (`--drafts` off).
 - [`gh project copy` needs the `project` scope on the person's token] → `gh auth status`
   is read in the observation task; a missing scope is the printed `gh auth refresh -s

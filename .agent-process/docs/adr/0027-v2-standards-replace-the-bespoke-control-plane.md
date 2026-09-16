@@ -262,3 +262,42 @@ Further observations of the same run:
   propose run — the finding of the first review of this PR (#128); planning runs
   on the unmodified `spec-driven` schema, and the review file still archives with the change
   because `openspec archive` moves the directory.
+
+Observations from v2-2a (`v2-2a-board-template`, tracking issue #129):
+
+* `gh project copy 4 --source-owner ekolvah --target-owner @me` (gh 2.87.3) carries the
+  whole template: the fields (`Status` with `Todo`, `Planned`, `In Progress`, `Done`;
+  `Priority` with `High`, `Medium`, `Low`; the 12 built-in fields), both board views
+  (`high`, `Medium`) and the six workflows enabled on the source, all still enabled on the
+  copy. The copy lacks nothing the template has, but it is private and is not linked to
+  any repository: `init` (#112) links it and prints the visibility as the checklist.
+  Items are not copied (0 of the source's).
+* Project 4 before this change: private; enabled workflows *Auto-add sub-issues*,
+  *Auto-close issue*, *Item added to project*, *Item closed*, *Pull request linked to
+  issue*, *Pull request merged*. After the owner's four UI edits: public; *Auto-add to
+  project* (this repository, `is:issue,pr is:open`) and *Item reopened → Todo* enabled in
+  addition. Workflows are read-only in the API (`ProjectV2.workflows { name enabled }`, no
+  mutation, no `gh` command), so those edits are the person's and the agent's part is
+  the read before and after.
+* `gh repo view --json projectsV2` prints the linked Projects under `Nodes` — capital N,
+  unlike every other list gh prints; `set_status.py` accepts both spellings. With
+  *Auto-add* on, every issue of the repository is an item of the linked Project, so the
+  membership branch of `set_status` (an issue on a foreign board, compared by Project id)
+  guards a case that no longer arises and is deleted with its two tests: the board is the
+  single Project linked to the repository, zero or several is exit 2 naming them.
+* `markProjectV2AsTemplate` is an organization mutation; a user Project cannot be marked
+  as a template and is copied as is by `gh project copy`, which reads it only when public.
+* The built-in *Pull request linked to issue* workflow sets `In Progress` when a PR links
+  the issue, at PR time — after the whole delivery, since the PR opens on the archived
+  head. The process needs `In Progress` at delivery start, so the deletion condition of
+  `set_status` (a native trigger at that point) is not met; `set_status` writes two
+  statuses, `Planned` and `In Progress`, and the Project's workflows write `Todo` (added,
+  reopened) and `Done` (closed, merged).
+* The owner keeps `Planned` (solution review, 2026-09-16), reversing the v2-1 note that
+  it would return only after an incident: the column is visibility of the queue — what
+  has a reviewed plan and waits for a carrier — not a gate (`/opsx:apply` by the person is
+  still the approval and task 0.1 still reads the verdict file). It is written at the end
+  of the propose run by the review entry of the `tasks` rule, the extension point
+  `openspec update` keeps; a Claude hook (Claude-only) or a schema fork (`v2-1e`) would not
+  be. The propose run creates the tracking issue when the change has none, asking the
+  priority once, so no delivery task prompts.

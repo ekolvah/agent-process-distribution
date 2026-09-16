@@ -37,7 +37,9 @@ test) and ends the propose run with the architect review: the
 `architect-reviewer` subagent in Claude, a self-review in Codex, writes
 `architect-review.md` into the change directory against principles §I–VII
 (a scenario missing from the scenario → test map is a finding); on
-`rework` the planner applies the findings and reviews again, and the first
+`rework` the planner applies the findings and reviews again; on `approve`
+the run ends with the tracking issue (created here when the change has none,
+the priority asked once) as a Project item in `Planned`, and the first
 delivery task reads the verdict. `openspec/specs/` is what the process does
 today; `openspec/changes/` what is pending.
 
@@ -45,8 +47,8 @@ today; `openspec/changes/` what is pending.
 
 The GitHub issue tracks a change: title, the change name and the Project
 fields (Status, Priority — `python .agent-process/scripts/set_status.py <N>
-"<Status>" [--priority <name>]`). The plan lives in the change directory,
-not in the issue body.
+["<Status>"] [--priority <name>]`, at least one of the two). The plan lives in
+the change directory, not in the issue body.
 
 **`## Out of scope`** is machine-read on the delivery PR, not prose-only: a
 top-level bullet that begins with the literal marker `deferred:`, carries a
@@ -79,8 +81,9 @@ This is the per-change flow. It applies only after the one-time repository
    starting the apply workflow (`/opsx:apply <change>`,
    `$openspec-apply-change`).
 3. The delivery steps are tasks of the change, put there by the `tasks` rule
-   of `openspec/config.yaml`: tracking issue and priority, the linked branch
-   (`gh issue develop -c <N> --name <change>`), Status `In Progress`, RED
+   of `openspec/config.yaml`: the linked branch on the tracking issue the
+   propose run left in `Planned` (`gh issue develop -c <N> --name <change>`),
+   Status `In Progress`, RED
    first (`check_red.py`), implementation, `ci_check.py`, the archive
    (`archive_change.py <change>`, before the PR so the reviewed head is the
    archived one), the PR (`gh pr create --body-file <report>`), and the review
@@ -252,10 +255,12 @@ runs).
 4. Ask the person for issue priority (High for user-facing bugs and process work,
    Medium for agentic capability work outside the process, Low otherwise; name
    the rule used) and write it with
-   `python .agent-process/scripts/set_status.py <N> "<status>" --priority <High|Medium|Low>`.
-5. The process writes one board Status itself: `In Progress`, from `set_status.py`
-   in Group 0 of the `tasks` rule. `Todo` and `Done` belong to the built-in Project
-   automations. The v1 scripts `issue_branch.py`, `set_issue_priority.py` and
+   `python .agent-process/scripts/set_status.py <N> --priority <High|Medium|Low>`.
+5. The process writes two board Statuses itself, both from `set_status.py`:
+   `Planned` at the end of the propose run (the review entry of the `tasks`
+   rule) and `In Progress` in Group 0 of the same rule. `Todo` and `Done` belong
+   to the Project's workflows (*Auto-add*, *Item added*, *Item reopened*; *Item
+   closed*, *Pull request merged*). The v1 scripts `issue_branch.py`, `set_issue_priority.py` and
    `set_issue_status.py` are not part of the delivery flow; they go with the
    control plane in `v2-4`/`v2-5`.
 6. If a `requirements*.in` file changes, run `pip-compile` for its matching
