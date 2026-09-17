@@ -113,6 +113,12 @@ def test_tasks_of_a_new_change() -> None:
     )
     assert "a BLOCKING thread the push addressed is resolved" in rule
     assert "a thread that is not BLOCKING is answered, never resolved by the process" in rule
+    # A resolve that misses the agent-review window re-runs the job, not another push.
+    assert (
+        rule.index("resolve_review_thread.py")
+        < rule.index("gh run rerun")
+        < rule.index("three rounds")
+    )
 
 
 def test_plan_approved() -> None:

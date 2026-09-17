@@ -77,8 +77,9 @@ rules:
       push, re-request — a BLOCKING thread the push addressed is resolved with
       `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
       --thread <id>` (`--list` prints the open ones) before the `agent-review` run on that
-      head reaches its last step; a thread that is not BLOCKING is answered, never resolved
-      by the process —, repeat at most three rounds; the fourth leaves the rest to the
+      head reaches its last step (a resolve that lands later re-runs that completed job on
+      the unchanged head: `gh run rerun <run-id> --failed`, no push); a thread that is not
+      BLOCKING is answered, never resolved by the process —, repeat at most three rounds; the fourth leaves the rest to the
       person with a reply. The person merges. The tasks after the archive leave no tick in
       the repository: the change is closed and a pushed tick would move the reviewed head —
       the PR (its checks, threads and merge) is their record. A run interrupted after the
