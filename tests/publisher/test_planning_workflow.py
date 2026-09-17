@@ -115,24 +115,25 @@ def test_tasks_of_a_new_change() -> None:
     assert "a `P2`/`P3` thread is answered, never resolved by the process" in rule
     assert "BLOCKING" not in rule
     assert "until v2-4" not in rule
-    # A submitted review re-runs the check (the caller's `pull_request_review`
-    # trigger) and a reply on a thread is one (#137, run 35251460261); a resolve
-    # has no event of its own, so the loop resolves after the Codex review of the
-    # new head is in and replies after the resolve — the reply re-runs the check
-    # on the resolved state. No re-run by hand, no rerun clause.
+    # A resolve has no event of its own, and the required context is the head's
+    # `pull_request` run — a run started by another event is a context of its own
+    # (#137: `BLOCKED` with the review-event runs green, `CLEAN` after the rerun).
+    # So the loop resolves once the Codex review of the new head is in, re-runs that
+    # completed run by hand, and replies after the resolve. No window clause.
     assert "reaches its last step" not in rule
-    assert "gh run rerun" not in rule
+    assert "the reply re-runs the check" not in rule
     assert (
         rule.index("re-request, `wait_for_pr.py <PR>` again")
         < rule.index("resolve_review_thread.py")
-        < rule.index("the reply re-runs the check")
+        < rule.index("gh run rerun <run-id>")
+        < rule.index("answered on the thread after the resolve")
         < rule.index("three rounds")
     )
     # Scenario: Review fix changes a spec — the archive is what carries a spec, on
     # the first PR and on every fix; a direct edit of `openspec/specs/` bypasses the
     # delta and its validation (#137, Codex on 26bc2da).
     assert (
-        rule.index("the reply re-runs the check")
+        rule.index("answered on the thread after the resolve")
         < rule.index("never a direct edit of `openspec/specs/`")
         < rule.index("three rounds")
     )
