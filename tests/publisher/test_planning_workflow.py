@@ -115,33 +115,28 @@ def test_tasks_of_a_new_change() -> None:
     assert "a `P2`/`P3` thread is answered, never resolved by the process" in rule
     assert "BLOCKING" not in rule
     assert "until v2-4" not in rule
-    # A resolve has no event of its own, and the required context is the head's
-    # `pull_request` run — a run started by another event is a context of its own
-    # (#137: `BLOCKED` with the review-event runs green, `CLEAN` after the rerun).
-    # So the loop resolves once the Codex review of the new head is in, re-runs that
-    # completed run by hand, and replies after the resolve. No window clause.
+    # The step after the wait is one command — `resolve_review_thread.py --thread
+    # --reply-file`: it refuses while the head's `agent-review` run is running (the
+    # review of the head is in when it concluded, Codex's or the fallback's), resolves,
+    # re-runs that run (a resolve has no event of its own, and the required context is
+    # the head's `pull_request` run; #137: `BLOCKED` with the review-event runs green,
+    # `CLEAN` after the rerun) and replies. The order lives in the script, so the rule
+    # spells no rerun, no window and no reply step of its own.
     assert "reaches its last step" not in rule
     assert "the reply re-runs the check" not in rule
-    assert (
-        rule.index("re-request, `wait_for_pr.py <PR>` again")
-        < rule.index("resolve_review_thread.py")
-        < rule.index("gh run rerun <run-id>")
-        < rule.index("answered on the thread after the resolve")
-        < rule.index("three rounds")
-    )
-    # The wait is on the check of the head, whichever carrier reviewed it: Codex, or
-    # the fallback the check ran when none came (#137, Codex on 8f272f3) — a wait on
-    # the Codex review alone never ends on a head Codex left silent.
+    assert "gh run rerun" not in rule
     assert (
         rule.index("re-request, `wait_for_pr.py <PR>` again")
         < rule.index("or the fallback's")
         < rule.index("resolve_review_thread.py")
+        < rule.index("--reply-file")
+        < rule.index("three rounds")
     )
     # Scenario: Review fix changes a spec — the archive is what carries a spec, on
     # the first PR and on every fix; a direct edit of `openspec/specs/` bypasses the
     # delta and its validation (#137, Codex on 26bc2da).
     assert (
-        rule.index("answered on the thread after the resolve")
+        rule.index("--reply-file")
         < rule.index("never a direct edit of `openspec/specs/`")
         < rule.index("three rounds")
     )

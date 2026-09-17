@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from scripts.resolve_review_thread import list_blocking, resolve
+from scripts.resolve_review_thread import close_round, list_blocking, resolve
 
 _HEAD = "4165198873b01503d9c2e33436cc5d94f98b017d"  # pragma: allowlist secret
 _BEHIND = "98cd7850000000000000000000000000000000"  # pragma: allowlist secret
@@ -146,3 +146,77 @@ def test_a_mutation_reporting_an_unresolved_thread_fails_loudly() -> None:
 
     with pytest.raises(RuntimeError, match="isResolved"):
         resolve(payload, "thread-1", mutate=mutate)
+
+
+# Scenario: Blocking thread addressed — the step after the wait is one command:
+# the head's `agent-review` run concluded (the review of the head is in, Codex's or
+# the fallback's), resolve, re-run that run (a resolve has no event of its own,
+# and the required context is the head's `pull_request` run), reply. The order
+# lives in code, not in a sentence copied to five places.
+
+
+def _round(*, status: str | None, calls: list[str]) -> dict:
+    def head_run(head: str) -> tuple[int, str] | None:
+        calls.append(f"head-run {head[:7]}")
+        return None if status is None else (35, status)
+
+    def mutate(thread_id: str) -> dict:
+        calls.append(f"resolve {thread_id}")
+        return {"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}}
+
+    def rerun(run_id: int) -> None:
+        calls.append(f"rerun {run_id}")
+
+    def post_reply(comment_id: int, body: str) -> None:
+        calls.append(f"reply {comment_id} {body}")
+
+    return {"head_run": head_run, "mutate": mutate, "rerun": rerun, "post_reply": post_reply}
+
+
+def test_close_round_resolves_reruns_the_head_run_and_replies_in_that_order() -> None:
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    run_id = close_round(
+        payload, "thread-1", "fixed in abc1234", **_round(status="completed", calls=calls)
+    )
+
+    assert run_id == 35
+    assert calls == [
+        f"head-run {_HEAD[:7]}",
+        "resolve thread-1",
+        "rerun 35",
+        "reply 1 fixed in abc1234",
+    ]
+
+
+def test_close_round_refuses_while_the_head_run_is_still_running() -> None:
+    """The wait is on the concluded check, whichever carrier reviewed the head."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError, match="in_progress"):
+        close_round(payload, "thread-1", "fixed", **_round(status="in_progress", calls=calls))
+
+    assert calls == [f"head-run {_HEAD[:7]}"]
+
+
+def test_close_round_refuses_without_a_head_run() -> None:
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError, match="no `agent-review` run"):
+        close_round(payload, "thread-1", "fixed", **_round(status=None, calls=calls))
+
+    assert calls == [f"head-run {_HEAD[:7]}"]
+
+
+def test_close_round_refuses_an_empty_reply() -> None:
+    """A resolve is never the last write on a thread."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError, match="reply"):
+        close_round(payload, "thread-1", "  \n", **_round(status="completed", calls=calls))
+
+    assert calls == []

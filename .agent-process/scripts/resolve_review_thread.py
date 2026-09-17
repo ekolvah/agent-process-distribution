@@ -88,6 +88,20 @@ def resolve(payload: dict, thread_id: str, *, mutate: Callable[[str], object]) -
         )
 
 
+def close_round(
+    payload: dict,
+    thread_id: str,
+    reply: str,
+    *,
+    head_run: Callable[[str], tuple[int, str] | None],
+    mutate: Callable[[str], object],
+    rerun: Callable[[int], None],
+    post_reply: Callable[[int, str], None],
+) -> int:
+    """The step after the wait: resolve, re-run the head's check, reply. Returns the run id."""
+    raise NotImplementedError
+
+
 def _gh_mutate(thread_id: str) -> dict:
     raw = run_gh(["api", "graphql", "-f", f"query={_MUTATION}", "-F", f"threadId={thread_id}"])
     return json.loads(raw)

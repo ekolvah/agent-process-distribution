@@ -93,13 +93,19 @@ class TestVerdict:
 
         assert verdict.name == "fix-blocking"
         action = verdict.next_action
-        push_at, resolve_at, rerun_at = (
+        push_at, wait_at, resolve_at, rerun_at = (
             action.find("push it"),
+            action.find("wait_for_pr.py"),
             action.find("resolve_review_thread.py"),
             action.find("run this gate again"),
         )
-        assert -1 not in (push_at, resolve_at, rerun_at)
-        assert push_at < resolve_at < rerun_at
+        assert -1 not in (push_at, wait_at, resolve_at, rerun_at)
+        assert push_at < wait_at < resolve_at < rerun_at
+        # The script re-runs the head's run and replies; no window to race (v2-2b).
+        assert "--reply-file" in action
+        assert "finishes" not in action
+        assert "missed the window" not in verdict.reason
+        assert "resolve_review_thread.py" in verdict.reason
         assert "no push, no budget" in verdict.reason
 
     def test_red_deterministic_check_is_fix_blocking_and_names_it(self) -> None:
