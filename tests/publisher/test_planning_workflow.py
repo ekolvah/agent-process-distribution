@@ -115,12 +115,11 @@ def test_tasks_of_a_new_change() -> None:
     assert "a `P2`/`P3` thread is answered, never resolved by the process" in rule
     assert "BLOCKING" not in rule
     assert "until v2-4" not in rule
-    # A resolve that misses the agent-review window re-runs the job, not another push.
-    assert (
-        rule.index("resolve_review_thread.py")
-        < rule.index("gh run rerun")
-        < rule.index("three rounds")
-    )
+    # A resolve re-runs the check through the caller's review-event triggers
+    # (Scenario: Event other than a push); the rule names no manual re-run and
+    # no window in which the resolve has to land.
+    assert "gh run rerun" not in rule
+    assert "reaches its last step" not in rule
 
 
 def test_plan_approved() -> None:
