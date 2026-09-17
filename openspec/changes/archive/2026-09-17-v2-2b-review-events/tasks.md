@@ -21,7 +21,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py v2-2b-review-events` (marks its own task, archives — applying the deltas to `openspec/specs/` —, commits, pushes)
+- [x] 4.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py v2-2b-review-events` (marks its own task, archives — applying the deltas to `openspec/specs/` —, commits, pushes)
 - [ ] 4.2 The PR exists (#137): `python .agent-process/scripts/update_pr_body.py 137 --body-file <report>` — the report names this change and the scenario → test map below
 - [ ] 4.3 `python .agent-process/scripts/request_codex_review.py --request 137` → `python .agent-process/scripts/wait_for_pr.py 137` → resolve the two `P1` threads of `26bc2da` this push addresses with `python .agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr 137 --thread <id>`, reply after each resolve. The three fixer rounds of #137 are spent: anything further is left to the person with a reply. The person merges. No tick after the archive; a run interrupted after it continues from `gh pr view 137`
 
