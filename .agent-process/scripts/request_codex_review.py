@@ -1,11 +1,13 @@
-"""Request or read the standard GitHub review that a PR author requested from Codex.
+"""Request the Codex review of a PR, or wait for it to exist on the current head.
 
-Codex's supported GitHub flow is an owner comment, ``@codex review``. The
-integration posts a normal GitHub review: its summary is generic and its actual
-findings are inline comments, marked P0 through P3. The ``--request`` mode uses
-the authenticated local PR-author session to post the exact trigger; the normal
-mode runs in CI, waits for a current-head Codex review, and translates those
-native records into the gate's evidence vocabulary.
+Codex's supported GitHub flow is an author comment, ``@codex review``; the
+integration then posts a normal GitHub review, or a clean comment naming the
+reviewed commit. ``--request`` posts the exact trigger from the authenticated
+local PR-author session. ``--wait`` runs in the review job and reads *whether*
+a Codex review of the head exists — a native review on that head, or the
+app's clean comment naming that head — never what it says (ADR 0027). An
+error or usage-limit message from the app is no review: the wait runs to its
+timeout and exits 3, the job's condition for the Claude fallback.
 """
 
 from __future__ import annotations
@@ -13,31 +15,33 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 try:
-    from scripts.check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
-    from scripts.gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
+    from scripts.gh_io import run_gh
 except ModuleNotFoundError:  # documented direct script entry point
-    from check_agent_review_outcome import VALID_OUTCOMES, validated_evidence
-    from gh_io import flatten_pages, publish_step_output, run_gh, slurp_records
+    from gh_io import run_gh
 
 CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
-STANDARD_REVIEW_PARSER = True
-DEFAULT_TIMEOUT_SECONDS = 900
+DEFAULT_TIMEOUT_SECONDS = 600
 DEFAULT_POLL_SECONDS = 20
-_PRIORITY = re.compile(r"\bP(?P<number>[0-3])\b", re.IGNORECASE)
-_SEVERITIES = {
-    "0": "blocking",
-    "1": "blocking",
-    "2": "should-fix",
-    "3": "nice-to-have",
-}
 REQUEST_BODY = "@codex review"
-_CLEAN_COMMENT_PREFIX = "Codex Review: Didn't find any major issues."
-_REVIEWED_COMMIT = re.compile(r"^\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`$")
-_REVIEWED_HEAD = re.compile(r"^Reviewed head SHA: `(?P<sha>[0-9a-f]{40})`$")
+# The app's clean transport names the reviewed commit by a 10-hex prefix; the
+# match is a fact about the app, read for presence on this head only.
+_REVIEWED_COMMIT = re.compile(r"\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`")
+_REVIEWS_QUERY = """
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      headRefOid
+      reviews(last: 30) { nodes { author { login } commit { oid } } }
+      comments(last: 30) { nodes { author { login } body } }
+    }
+  }
+}
+"""
 
 
 def request_review(pr_number: str) -> None:
@@ -45,410 +49,126 @@ def request_review(pr_number: str) -> None:
     run_gh(["pr", "comment", pr_number, "--body", REQUEST_BODY])
 
 
-def _finding(record: Mapping[str, object]) -> dict[str, str] | None:
-    body = record.get("body")
-    if not isinstance(body, str) or not (summary := body.strip()):
-        return None
-    priority = _PRIORITY.search(summary)
-    if priority is None:
-        return None
-    severity = _SEVERITIES[priority.group("number")]
-    return {"severity": severity, "confidence": "high", "summary": summary}
+def _normalise_login(value: object) -> str:
+    return str(value or "").removesuffix("[bot]").lower()
 
 
-def _findings_for_review(
-    comments: object, review_id: object, reviewer: str
-) -> list[dict[str, str]] | None:
-    findings: list[dict[str, str]] = []
-    for comment in flatten_pages(comments):
-        if comment.get("pull_request_review_id") != review_id:
-            continue
-        author = comment.get("user")
-        if (
-            not isinstance(author, Mapping)
-            or author.get("login") != reviewer
-            or comment.get("in_reply_to_id") is not None
-        ):
-            continue
-        finding = _finding(comment)
-        if finding is None:
-            return None
-        findings.append(finding)
-    return findings
+def _by_codex(node: object) -> bool:
+    author = node.get("author") if isinstance(node, Mapping) else None
+    login = author.get("login") if isinstance(author, Mapping) else None
+    return _normalise_login(login) == _normalise_login(CODEX_REVIEWER)
 
 
-def _evidence_from_review(
-    record: Mapping[str, object], comments: object, reviewer: str
-) -> dict[str, object] | None:
-    state = str(record.get("state"))
-    findings = _findings_for_review(comments, record.get("id"), reviewer)
-    if findings is None:
-        return None
-    if state == "APPROVED":
-        return {"outcome": "clean", "findings": []} if not findings else None
-    if state not in {"COMMENTED", "CHANGES_REQUESTED"} or not findings:
-        return None
-    if state == "CHANGES_REQUESTED" and not any(
-        finding["severity"] == "blocking" for finding in findings
-    ):
-        return None
-    outcome = (
-        "blocking" if any(finding["severity"] == "blocking" for finding in findings) else "rework"
-    )
-    evidence = {"outcome": outcome, "findings": findings}
-    return evidence if validated_evidence(evidence) is not None else None
+def _nodes(pull: Mapping[str, object], field: str) -> list[object]:
+    connection = pull.get(field)
+    nodes = connection.get("nodes") if isinstance(connection, Mapping) else None
+    if not isinstance(nodes, list):
+        raise RuntimeError(f"GraphQL payload has no {field}")
+    return nodes
 
 
-def find_verdict(
-    reviews: object,
-    comments: object,
-    head_sha: str,
-    reviewer: str,
-) -> dict[str, object] | None:
-    """Return native Codex evidence for the current reviewed head, if present."""
-    latest = _latest_native_review(reviews, head_sha, reviewer)
-    if latest is None:
-        return None
-    return _evidence_from_review(latest, comments, reviewer)
-
-
-def _latest_native_review(
-    reviews: object, head_sha: str, reviewer: str
-) -> Mapping[str, object] | None:
-    """Return the latest native review record for ``head_sha`` from ``reviewer``."""
-    matching = [
-        record
-        for record in flatten_pages(reviews)
-        if isinstance(record.get("user"), Mapping)
-        and record["user"].get("login") == reviewer
-        and record.get("commit_id") == head_sha
-    ]
-    if not matching:
-        return None
-    _, latest = max(
-        enumerate(matching), key=lambda item: (str(item[1].get("submitted_at", "")), item[0])
-    )
-    return latest
-
-
-def _latest_evidence(
-    candidates: Sequence[tuple[str, dict[str, object] | None]],
-) -> dict[str, object] | None:
-    if not candidates:
-        return None
-    latest_timestamp = max(candidate[0] for candidate in candidates)
-    latest = [candidate[1] for candidate in candidates if candidate[0] == latest_timestamp]
-    if any(evidence is None for evidence in latest):
-        return None
-    return max(
-        [evidence for evidence in latest if evidence is not None],
-        key=lambda evidence: {"clean": 0, "rework": 1, "blocking": 2}.get(
-            str(evidence.get("outcome")), -1
-        ),
-    )
-
-
-def _read_record(endpoint: str) -> Mapping[str, object]:
-    try:
-        payload = json.loads(run_gh(["api", endpoint]))
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"gh api {endpoint} returned invalid JSON: {exc}") from exc
-    if not isinstance(payload, Mapping):
-        raise RuntimeError(f"unexpected payload shape from {endpoint}: {type(payload).__name__}")
-    return payload
-
-
-def _clean_reaction_context(repository: str, pr_number: str, head_sha: str) -> str:
-    pull = _read_record(f"repos/{repository}/pulls/{pr_number}")
-    author = pull.get("user")
-    author_login = author.get("login") if isinstance(author, Mapping) else None
-    head = pull.get("head")
-    if (
-        not isinstance(author_login, str)
-        or not isinstance(head, Mapping)
-        or head.get("sha") != head_sha
-    ):
-        raise RuntimeError("live PR author or head SHA is unavailable")
-    return author_login
-
-
-def find_clean_reaction(
-    requests: object,
-    reactions_by_request: Mapping[object, object],
-    *,
-    author_login: str,
-    head_observed_at: str,
-    reviewer: str,
-) -> dict[str, object] | None:
-    """Accept only the native clean reaction tied to this author and head."""
-    return _latest_evidence(
-        _clean_reaction_candidates(
-            requests,
-            reactions_by_request,
-            author_login=author_login,
-            head_observed_at=head_observed_at,
-            reviewer=reviewer,
-        )
-    )
-
-
-def _eligible_requests(
-    requests: object,
-    *,
-    author_login: str,
-    head_observed_at: str,
-) -> list[Mapping[str, object]]:
-    return [
-        request
-        for request in flatten_pages(requests)
-        if isinstance(request.get("user"), Mapping)
-        and request["user"].get("login") == author_login
-        and request.get("body") == REQUEST_BODY
-        and isinstance(request.get("created_at"), str)
-        and request["created_at"] >= head_observed_at
-    ]
-
-
-def _clean_reaction_candidates(
-    requests: object,
-    reactions_by_request: Mapping[object, object],
-    *,
-    author_login: str,
-    head_observed_at: str,
-    reviewer: str,
-) -> list[tuple[str, dict[str, object]]]:
-    candidates: list[tuple[str, dict[str, object]]] = []
-    for request in _eligible_requests(
-        requests, author_login=author_login, head_observed_at=head_observed_at
-    ):
-        for reaction in flatten_pages(reactions_by_request.get(request.get("id"), [])):
-            if (
-                reaction.get("content") != "+1"
-                or not isinstance(reaction.get("user"), Mapping)
-                or reaction["user"].get("login") != reviewer
-            ):
-                continue
-            created_at = reaction.get("created_at")
-            timestamp = created_at if isinstance(created_at, str) else request["created_at"]
-            candidates.append((timestamp, {"outcome": "clean", "findings": []}))
-    return candidates
-
-
-def _clean_comment_candidates(
-    records: object,
-    *,
-    author_login: str,
-    head_sha: str,
-    head_observed_at: str,
-    reviewer: str,
-) -> list[tuple[str, dict[str, object]]]:
-    eligible_requests = _eligible_requests(
-        records, author_login=author_login, head_observed_at=head_observed_at
-    )
-    request_times = [request["created_at"] for request in eligible_requests]
-    candidates: list[tuple[str, dict[str, object]]] = []
-    for record in flatten_pages(records):
-        author = record.get("user")
-        body = record.get("body")
-        created_at = record.get("created_at")
-        if (
-            not isinstance(author, Mapping)
-            or author.get("login") != reviewer
-            or not isinstance(body, str)
-            or not isinstance(created_at, str)
-            or created_at <= head_observed_at
-            or not request_times
-            or not any(request_time < created_at for request_time in request_times)
-        ):
-            continue
-        lines = body.splitlines()
-        reviewed_heads = [line for line in lines if "Reviewed head SHA" in line]
-        if body.startswith(_CLEAN_COMMENT_PREFIX):
-            reviewed_commits = [line for line in lines if "Reviewed commit" in line]
-            reviewed = (
-                _REVIEWED_COMMIT.fullmatch(reviewed_commits[0])
-                if len(reviewed_commits) == 1
-                else None
-            )
-            matches_head = reviewed is not None and head_sha.startswith(reviewed["sha"])
-        elif (
-            lines
-            and lines[0] == "No findings."
-            and len(reviewed_heads) == 1
-            and not any("Reviewed commit" in line for line in lines)
-        ):
-            reviewed = _REVIEWED_HEAD.fullmatch(reviewed_heads[0])
-            matches_head = reviewed is not None and head_sha == reviewed["sha"]
-        else:
-            continue
-        if not matches_head:
-            continue
-        candidates.append((created_at, {"outcome": "clean", "findings": []}))
-    return candidates
-
-
-def find_clean_comment(
-    records: object,
-    *,
-    author_login: str,
-    head_sha: str,
-    head_observed_at: str,
-    reviewer: str,
-) -> dict[str, object] | None:
-    """Accept only the observed SHA-bound clean Codex issue-comment transport."""
-    return _latest_evidence(
-        _clean_comment_candidates(
-            records,
-            author_login=author_login,
-            head_sha=head_sha,
-            head_observed_at=head_observed_at,
-            reviewer=reviewer,
-        )
-    )
-
-
-def _fetch_reviews(repository: str, pr_number: str) -> object:
-    return slurp_records(f"repos/{repository}/pulls/{pr_number}/reviews?per_page=100")
-
-
-def _fetch_review_comments(repository: str, pr_number: str) -> object:
-    return slurp_records(f"repos/{repository}/pulls/{pr_number}/comments?per_page=100")
-
-
-def _fetch_request_comments(repository: str, pr_number: str) -> object:
-    return slurp_records(f"repos/{repository}/issues/{pr_number}/comments?per_page=100")
-
-
-def _fetch_reactions(repository: str, comment_id: object) -> object:
-    return slurp_records(f"repos/{repository}/issues/comments/{comment_id}/reactions?per_page=100")
-
-
-def poll_for_verdict(
-    repository: str,
-    pr_number: str,
-    head_sha: str,
-    *,
-    head_observed_at: str,
-    reviewer: str = CODEX_REVIEWER,
-    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-    poll_seconds: int = DEFAULT_POLL_SECONDS,
-    sleep: Callable[[float], None] | None = None,
-    monotonic: Callable[[], float] | None = None,
-) -> dict[str, object] | None:
-    """Wait for the newest supported review evidence for the current PR head."""
-    wait = sleep or time.sleep
-    clock = monotonic or time.monotonic
-    deadline = clock() + timeout_seconds
-    author_login: str | None = None
-    while True:
-        reviews = _fetch_reviews(repository, pr_number)
-        latest_native = _latest_native_review(reviews, head_sha, reviewer)
-        native_candidates = []
-        if latest_native is not None:
-            submitted_at = latest_native.get("submitted_at")
-            native_candidates.append(
-                (
-                    submitted_at if isinstance(submitted_at, str) else "",
-                    _evidence_from_review(
-                        latest_native,
-                        _fetch_review_comments(repository, pr_number),
-                        reviewer,
-                    ),
-                )
-            )
-        if author_login is None:
-            author_login = _clean_reaction_context(repository, pr_number, head_sha)
-        requests = _fetch_request_comments(repository, pr_number)
-        reactions = {
-            request.get("id"): _fetch_reactions(repository, request.get("id"))
-            for request in flatten_pages(requests)
-            if request.get("body") == "@codex review"
-        }
-        candidates = [
-            *native_candidates,
-            *_clean_reaction_candidates(
-                requests,
-                reactions,
-                author_login=author_login,
-                head_observed_at=head_observed_at,
-                reviewer=reviewer,
-            ),
+def fetch_pull_request(repo: str, pr: str) -> Mapping[str, object]:
+    owner, name = repo.split("/", 1)
+    raw = run_gh(
+        [
+            "api",
+            "graphql",
+            "-f",
+            f"query={_REVIEWS_QUERY}",
+            "-F",
+            f"owner={owner}",
+            "-F",
+            f"name={name}",
+            "-F",
+            f"number={pr}",
         ]
-        candidates.extend(
-            _clean_comment_candidates(
-                requests,
-                author_login=author_login,
-                head_sha=head_sha,
-                head_observed_at=head_observed_at,
-                reviewer=reviewer,
-            )
-        )
-        verdict = _latest_evidence(candidates)
-        if verdict is not None:
-            return verdict
-        if clock() >= deadline:
-            return None
-        wait(poll_seconds)
+    )
+    payload = json.loads(raw)
+    data = payload.get("data") if isinstance(payload, Mapping) else None
+    repository = data.get("repository") if isinstance(data, Mapping) else None
+    pull = repository.get("pullRequest") if isinstance(repository, Mapping) else None
+    if not isinstance(pull, Mapping):
+        raise RuntimeError("GraphQL payload has no pull request")
+    return pull
+
+
+def codex_reviewed(pull: Mapping[str, object], head: str) -> bool:
+    """True when Codex left a review on ``head`` or its clean comment naming ``head``."""
+    for review in _nodes(pull, "reviews"):
+        commit = review.get("commit") if isinstance(review, Mapping) else None
+        oid = commit.get("oid") if isinstance(commit, Mapping) else None
+        if _by_codex(review) and oid == head:
+            return True
+    for comment in _nodes(pull, "comments"):
+        body = comment.get("body") if isinstance(comment, Mapping) else None
+        match = _REVIEWED_COMMIT.search(body) if isinstance(body, str) else None
+        if _by_codex(comment) and match is not None and head.startswith(match.group("sha")):
+            return True
+    return False
+
+
+def wait_for_codex_review(
+    repo: str, pr: str, head: str, *, timeout_seconds: int, poll_seconds: int
+) -> bool:
+    """Poll until a Codex review of ``head`` exists or ``timeout_seconds`` pass."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        if codex_reviewed(fetch_pull_request(repo, pr), head):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(poll_seconds)
 
 
 def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--request", metavar="PR", help="post the Codex trigger to this PR")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--request", metavar="PR", help="post the Codex trigger to this PR")
+    mode.add_argument(
+        "--wait", action="store_true", help="wait for a Codex review of --head-sha to exist"
+    )
     parser.add_argument("--repo", dest="repository", metavar="OWNER/REPO")
     parser.add_argument("--pr", dest="pr_number", metavar="NUMBER")
     parser.add_argument("--head-sha")
-    parser.add_argument(
-        "--head-observed-at",
-        help="GitHub event timestamp for the current PR head transition.",
-    )
-    parser.add_argument("--reviewer", default=CODEX_REVIEWER)
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--poll-seconds", type=int, default=DEFAULT_POLL_SECONDS)
     options = parser.parse_args(argv)
-    if options.request is not None:
-        return options
-    missing = [
-        flag
-        for flag, value in (
-            ("--repo", options.repository),
-            ("--pr", options.pr_number),
-            ("--head-sha", options.head_sha),
-            ("--head-observed-at", options.head_observed_at),
-        )
-        if value is None
-    ]
-    if missing:
-        parser.error("the read mode requires " + ", ".join(missing))
+    if options.wait:
+        missing = [
+            flag
+            for flag, value in (
+                ("--repo", options.repository),
+                ("--pr", options.pr_number),
+                ("--head-sha", options.head_sha),
+            )
+            if value is None
+        ]
+        if missing:
+            parser.error("--wait requires " + ", ".join(missing))
     return options
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Publish the requested review payload; enforcement owns the final result."""
     options = _parse_options(argv)
     if options.request is not None:
         request_review(options.request)
         return
-    verdict = poll_for_verdict(
-        options.repository,
-        options.pr_number,
-        options.head_sha,
-        head_observed_at=options.head_observed_at,
-        reviewer=options.reviewer,
-        timeout_seconds=options.timeout_seconds,
-        poll_seconds=options.poll_seconds,
-    )
-    if verdict is None:
-        print(
-            f"::warning::{options.reviewer} left no usable review of {options.head_sha} within "
-            f"{options.timeout_seconds}s. The PR author must request `@codex review` "
-            "and wait for its GitHub review before this gate can pass."
+    try:
+        present = wait_for_codex_review(
+            options.repository,
+            options.pr_number,
+            options.head_sha,
+            timeout_seconds=options.timeout_seconds,
+            poll_seconds=options.poll_seconds,
         )
-        publish_step_output("payload=")
+    except (RuntimeError, ValueError, json.JSONDecodeError) as exc:
+        print(f"error: cannot read the reviews of the PR: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    if present:
+        print(f"codex review of {options.head_sha}: present")
         return
-    outcome = verdict.get("outcome")
-    if outcome not in VALID_OUTCOMES:  # pragma: no cover - validated above
-        raise RuntimeError(f"Codex produced an outcome the gate does not know: {outcome!r}")
-    publish_step_output(f"payload={json.dumps(verdict, separators=(',', ':'))}")
+    print(f"codex review of {options.head_sha}: absent after {options.timeout_seconds}s")
+    raise SystemExit(3)
 
 
 if __name__ == "__main__":
