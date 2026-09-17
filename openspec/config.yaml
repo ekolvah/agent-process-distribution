@@ -77,9 +77,11 @@ rules:
       `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
       push, re-request — a `P0`/`P1` thread the push addressed is resolved with
       `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
-      --thread <id>` (`--list` prints the open ones; the resolve re-runs the `agent-review`
-      check on the unchanged head, no push); a `P2`/`P3` thread is answered, never resolved
-      by the process —, repeat at most three rounds; the fourth leaves the rest to the
+      --thread <id>` (`--list` prints the open ones) right after the push — the Codex
+      review of the new head re-runs the `agent-review` check; a resolve that lands after
+      that review re-runs the completed job itself: `gh run rerun <run-id> --failed`, no
+      push —; a `P2`/`P3` thread is answered, never resolved by the process —, repeat at
+      most three rounds; the fourth leaves the rest to the
       person with a reply. The person merges. The tasks after the archive leave no tick in
       the repository: the change is closed and a pushed tick would move the reviewed head —
       the PR (its checks, threads and merge) is their record. A run interrupted after the

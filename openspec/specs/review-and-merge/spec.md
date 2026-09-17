@@ -105,5 +105,5 @@ branch: a `P3` does not keep a PR from merging.
 - **THEN** the next run of the check on that head passes
 
 #### Scenario: Review event re-runs the check
-- **WHEN** a review is submitted or a thread is resolved or unresolved on the PR
-- **THEN** the caller runs the check again on the unchanged head, and no task or person re-runs it by hand
+- **WHEN** a review is submitted on the PR
+- **THEN** the caller runs the check again on the unchanged head; a resolve has no event of its own, so one that lands after the head's last review re-runs the completed job

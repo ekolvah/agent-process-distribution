@@ -290,14 +290,15 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
 
 
 def test_agent_review_caller_follows_review_events() -> None:
-    """Scenario: Event other than a push — a resolve or a new review re-runs the
-    required check on the unchanged head; the fixer never re-runs a job by hand.
-    The callee runs only its enforcement on those events (the `if` guards above)."""
+    """Scenario: Review event re-runs the check — a submitted review re-runs the
+    required check on the unchanged head; the callee runs only its enforcement on
+    that event (the `if` guards above). GitHub rejects `pull_request_review_thread`
+    (`Unexpected value`, observed on PR #137), so a resolve has no event of its own."""
     trigger = _trigger(_workflow("agent-review.yml"))
 
     assert trigger["pull_request"]["types"] == ["opened", "synchronize"]
     assert trigger["pull_request_review"]["types"] == ["submitted"]
-    assert trigger["pull_request_review_thread"]["types"] == ["resolved", "unresolved"]
+    assert "pull_request_review_thread" not in trigger
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:

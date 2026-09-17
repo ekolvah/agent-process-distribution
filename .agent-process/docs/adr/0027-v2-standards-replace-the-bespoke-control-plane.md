@@ -345,5 +345,12 @@ questions of #114 in its order:
   comment carries a human login. Binding the evidence to the run is the parser coming back
   under another name; a dedicated app identity is a repository setting and a secret, and
   stays the person's call if a case shows the need.
-* Whether a check run started by a `pull_request_review` / `pull_request_review_thread`
-  event is listed for the head (second PR): <observed on the second PR>.
+* `pull_request_review_thread` does not exist as a trigger any more: the first push of the
+  second PR (#137, `397c54f`) produced no `agent-review` run at all — GitHub reported
+  `Invalid workflow file (Line: 10, Col: 3): Unexpected value 'pull_request_review_thread'`
+  and the event is gone from the "Events that trigger workflows" reference. The caller
+  keeps `pull_request_review: [submitted]` only: the Codex review of a new head re-runs the
+  enforcement, which covers the resolve issued right after the push; a resolve that lands
+  after the head's last review still needs `gh run rerun` on the completed job (the rule
+  keeps that one clause). Whether a check run started by a `pull_request_review` event is
+  listed for the head: <observed on the second PR>.
