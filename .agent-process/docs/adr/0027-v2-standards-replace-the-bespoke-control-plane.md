@@ -372,20 +372,32 @@ questions of #114 in its order:
   observed live. Two consequences. The rule orders the loop around it: resolve once the
   Codex review of the new head is in, reply after the resolve — the reply re-runs the
   check and it reads the resolve; the `gh run rerun` clause is gone, a resolve is never
-  the last write on a thread. And the fourth Codex review of #137 pointed at the fork
-  case: a review event on a fork PR reaches the base repository, and the docs state only
-  that secrets are withheld from a workflow "triggered from a forked repository" — not
-  whether a review on a fork PR counts; the Claude action holds the repository's secret
-  and runs the hooks of the checked-out worktree's `.claude/settings.json`. The Claude
-  step now runs only for a head in the repository itself
-  (`github.event.pull_request.head.repo.full_name == github.repository`); the
-  verification is not guarded, so a fork head without a Codex review is red — the
-  conclusion a fork push gets today from the missing secret — and the design does not
-  depend on the undocumented fact either way. The caller pins the callee `@main`, so
-  #137 exercises none of its own callee changes; the same-path run and the fork guard are
-  first observed on the PR after its merge: <observed on the next PR>. The proof of the
-  guard is a PR opened from a fork with `Claude review` skipped and the check red — an
-  observation, not the YAML test.
+  the last write on a thread. The caller pins the callee `@main`, so #137 exercises none
+  of its own callee changes; the same-path run is first observed on the PR after its
+  merge: <observed on the next PR>.
+* Fork PRs and the secret (2026-09-17, on the fourth and fifth Codex reviews of #137).
+  Codex asked whether a review event on a fork PR reaches the Claude step with the
+  repository's secret, and then noted that the caller YAML of a `pull_request_review` run
+  is read from the PR merge ref, so a fork can rewrite it and no condition in callee or
+  caller can protect the secret. Round 4 had answered the first with a guard on the
+  Claude step (`head.repo.full_name == github.repository`); the second showed the guard
+  protects nothing, and the platform documentation, read then instead of before round 4,
+  settles both: the events reference lists `pull_request_review` and
+  `pull_request_review_comment` under the same fork restriction as `pull_request` — every
+  secret but `GITHUB_TOKEN` is withheld from a run of a fork PR, the token is read-only
+  (observed in the wild: aws-actions/configure-aws-credentials#416, credentials absent on
+  `pull_request_review` from a fork). The guard was code for what the platform does and
+  is removed (`v2-2b-fork-policy`); the control that adds something is the repository
+  setting "Require approval for all external contributors"
+  (`PUT /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval`,
+  `approval_policy: all_external_contributors`, set on 2026-09-17 from
+  `first_time_contributors`): a run of a fork PR by a non-member does not start until the
+  person approves it, on every event but `pull_request_target`, which the process does not
+  use. A `pull_request_review_target` does not exist, so the reply-driven re-run of a fork
+  PR runs without the secret and is red on the missing Claude review unless Codex or a
+  person reviewed it — the same conclusion a fork push gets. Deletion condition: none; the
+  setting is the platform's, and a change of the event set of the caller re-reads the same
+  reference page.
 * Resolve-then-reply observed on #137, head `26bc2da`, before the rule relied on it (Codex's
   P1 on that head asked for exactly this): thread `PRRT_kwDOUAa7yM6jdmmL` resolved at
   18:04:21Z, replied to at 18:04:22Z; the reply started run `35256579419`
