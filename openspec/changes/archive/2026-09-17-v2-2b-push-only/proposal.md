@@ -34,7 +34,7 @@ resolve needs.
 - `implementation`, "Delivery steps are tasks of every change": the loop sentence — the
   check runs on pushes alone, the required context is the head's `pull_request` run,
   resolve → rerun → reply.
-- ADR 0027: the observation with its run ids, the withdrawn design, what #137 keeps.
+- ADR 0027: the observation with its run ids, the withdrawn design, what the PR keeps (#137).
 - `reusable-agent-review.yml` is untouched: the callee runs the same path for any event a
   caller may send (scenario *Event other than a push*), which is what closes the
   enforcement-only hole whatever the trigger set.
