@@ -157,6 +157,29 @@ def test_wait_ignores_a_limit_message_and_a_stranger_naming_the_head(
     assert exit_info.value.code == 3
 
 
+def test_wait_for_another_reviewer_reads_its_clean_comment_naming_the_head(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The Claude review job publishes under `github-actions`; the same presence read
+    with `--reviewer` sees its inline review on the head or its clean comment naming
+    the full head, and a Codex publication does not stand in for it."""
+    codex_review = _native_review(_HEAD)
+    claude_comment = {
+        "author": {"login": "github-actions[bot]"},
+        "body": f"No findings. Reviewed head SHA: {_HEAD}",
+    }
+    reviewer = ["--reviewer", "github-actions"]
+
+    _serve(monkeypatch, _payload(reviews=[codex_review], comments=[claude_comment]))
+    request_codex_review.main(_wait_argv() + reviewer)
+    assert "present" in capsys.readouterr().out
+
+    _serve(monkeypatch, _payload(reviews=[codex_review]))
+    with pytest.raises(SystemExit) as exit_info:
+        request_codex_review.main(_wait_argv(timeout="0") + reviewer)
+    assert exit_info.value.code == 3
+
+
 def test_wait_reads_nothing_but_presence() -> None:
     """ADR 0027: the read is *whether* a Codex review exists, never what it says."""
     source = inspect.getsource(request_codex_review)

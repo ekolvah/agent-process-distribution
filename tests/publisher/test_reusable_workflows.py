@@ -217,6 +217,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
         "Checkout trusted review source",
         "Wait for the Codex review of the head",
         "Claude review",
+        "Verify the Claude review of the head",
         "Enforce unresolved P0/P1 threads",
     ]
     assert len(job["steps"]) == len(steps)
@@ -257,6 +258,16 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
         "Never approve",
     ):
         assert anchor in prompt
+
+    # A fallback that completes without publishing is no review of the head (ADR 0004
+    # records the action finishing green without a comment): the same presence read as
+    # for Codex, on the job's own login, fails the check instead of leaving it green.
+    verify = steps["Verify the Claude review of the head"]
+    assert verify["if"] == claude["if"]
+    assert "continue-on-error" not in verify
+    assert verify["working-directory"] == "trusted"
+    assert "request_codex_review.py --wait" in verify["run"]
+    assert "--reviewer github-actions" in verify["run"]
 
     enforce = steps["Enforce unresolved P0/P1 threads"]
     assert enforce["if"] == "always()"
