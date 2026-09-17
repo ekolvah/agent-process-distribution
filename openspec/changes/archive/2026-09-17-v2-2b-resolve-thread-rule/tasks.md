@@ -19,7 +19,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py v2-2b-resolve-thread-rule` (marks its own task, archives, commits, pushes)
+- [x] 4.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py v2-2b-resolve-thread-rule` (marks its own task, archives, commits, pushes)
 - [ ] 4.2 `gh pr create --title "v2-2b-resolve-thread-rule" --body-file <report>` — the report names the tracking issue as a plain reference (#134, no `Closes`), Why / What, the scenario → test map below; ends with the Claude Code footer
 - [ ] 4.3 `python .agent-process/scripts/request_codex_review.py --request <PR>` after the PR and after every push → `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread, push, re-request; a BLOCKING thread the push addressed: `python .agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id>`; at most three rounds, the fourth leaves the rest to the person with a reply. The person merges. No tick after the archive; a run interrupted after it continues from `gh pr view v2-2b-resolve-thread-rule`
 
