@@ -117,6 +117,11 @@ def test_plan_approved() -> None:
     # visible stop of the apply, not a prompt and not a silent branch on a missing issue.
     assert group0.index('"Planned"') < group0.index("gh issue develop")
     assert "propose run not finished" in group0
+    # The number reaches the implementer of another session through tasks.md: the
+    # tail writes it after `gh issue create`, and a tasks.md still reading `<N>` is the
+    # "no issue" branch of the gate.
+    assert review.index("gh issue create") < review.index("tasks.md")
+    assert "still read" in group0 and "`<N>`" in group0
 
 
 def test_pinned_openspec() -> None:
