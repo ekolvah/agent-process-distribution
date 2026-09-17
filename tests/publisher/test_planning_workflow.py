@@ -105,7 +105,12 @@ def test_tasks_of_a_new_change() -> None:
     assert rule.index("archive_change.py") < rule.index("gh pr view <change>")
     # Scenario: Blocking thread addressed — the loop names the resolve of a BLOCKING
     # thread after the re-request; CI never infers a thread's disposition (ADR 0022).
-    assert rule.index("request_codex_review.py") < rule.index("resolve_review_thread.py")
+    assert (
+        rule.index("wait_for_pr.py")
+        < rule.index("re-request")
+        < rule.index("resolve_review_thread.py")
+        < rule.index("three rounds")
+    )
     assert "BLOCKING" in rule
 
 
