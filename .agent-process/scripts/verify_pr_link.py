@@ -59,9 +59,7 @@ except ModuleNotFoundError:  # Direct execution from the relocated payload.
 # default-branch checkout is what actually runs (bootstrap fallback shape),
 # so on the PR that introduces this check, and for any consumer whose default
 # branch predates issue #64, this constant is absent and the workflow emits a
-# visible notice instead of assuming support (§IV — mirrors
-# `PUBLISH_PR_COMMENT_SUPPORTED` / `DIAGNOSE_EXECUTION_FILE_SUPPORTED` in
-# check_agent_review_outcome.py).
+# visible notice instead of assuming support (§IV).
 DEFERRED_SCOPE_CHECK_SUPPORTED = True
 
 # Anchored at the end of a top-level bullet: the exact suffix

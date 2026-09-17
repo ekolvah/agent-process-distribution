@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Resolve one BLOCKING review thread the fixer's own correction addressed.
+"""Resolve one P0/P1 review thread the fixer's own correction addressed.
 
 CI never infers whether a finding was addressed (ADR 0022): the required
 check (`check_blocking_review_threads.py`) answers "may this PR merge?" from
-the workflow token, and this script answers "I, the fixer, addressed this
-finding" from the maintainer's authenticated local session. Different actor,
-credential, and trigger — never wired into a workflow.
+the workflow token over the P0/P1 threads of either reviewer — the Codex app
+or the Claude review job — and this script answers "I, the fixer, addressed
+this finding" from the maintainer's authenticated local session. Different
+actor, credential, and trigger — never wired into a workflow.
 """
 
 from __future__ import annotations

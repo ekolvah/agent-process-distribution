@@ -39,8 +39,7 @@ except ModuleNotFoundError:  # Direct execution from the relocated payload.
 ISSUE_BRANCH_RE = re.compile(r"^issue-(\d+)-")
 # Sentinel-comment delimiters, not a `## Deferred scope` heading search: an
 # author's own prose after a heading of that name must never be mistaken for
-# the generated block (issue #64 finding S6). Mirrors the `_FALLBACK_MARKER`
-# pattern in check_agent_review_outcome.py.
+# the generated block (issue #64 finding S6).
 DEFERRED_SCOPE_BEGIN = "<!-- agent-process:deferred-scope -->"
 DEFERRED_SCOPE_END = "<!-- /agent-process:deferred-scope -->"
 # Bounds how many Acceptance-criteria bullets a rendered entry quotes from its

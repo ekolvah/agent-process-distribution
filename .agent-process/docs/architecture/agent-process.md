@@ -101,11 +101,11 @@ This is the per-change flow. It applies only after the one-time repository
    findings for up to three iterations, then loop: after creating the PR and
    after every successful push run
    `python .agent-process/scripts/request_codex_review.py --request <PR>` through the local
-   authenticated PR-author session. If that push addressed a BLOCKING review
+   authenticated PR-author session. If that push addressed a `P0`/`P1` review
    thread, resolve it now — before the `agent-review` run on this head reaches
    its last step — with `python .agent-process/scripts/resolve_review_thread.py
    --repo OWNER/REPO --pr <PR> --thread <node-id>` (`--list` prints every open
-   BLOCKING thread and its node id); CI never infers a thread's disposition
+   `P0`/`P1` thread and its node id); CI never infers a thread's disposition
    (ADR [0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)),
    so nothing else will. Resolving after that run has already read a red check
    on this head is a no-op — if the window is missed, re-run the completed
@@ -155,7 +155,7 @@ the PR**.
 | Verdict | Exit code | Meaning |
 | --- | --- | --- |
 | `ready-for-human` | `0` | Loop over. Report the PR ready; remaining findings are the maintainer's call. |
-| `fix-blocking` | `10` | One minimal fixer commit, push, resolve any BLOCKING thread it addresses, run the gate again. |
+| `fix-blocking` | `10` | One minimal fixer commit, push, resolve any `P0`/`P1` thread it addresses, run the gate again. |
 | `escalate` | `20` | Loop over with a named anomaly: the fixer budget is spent. |
 | `review-pending` | `30` | Evidence is not final. Wait once with `gh pr checks <PR> --watch`, then re-run the gate; a second `review-pending` goes to the maintainer, never a polling loop. |
 
@@ -166,36 +166,48 @@ unchanged head spends none of it. The verdict goes into `## Agent record`.
 
 ## Review outcome enforcement
 
-`clean` and `rework` outcomes pass; `blocking`, empty, or malformed outcomes
-red the check. The workflow replies to every Codex finding with the user-facing
-merge class **BLOCKING** or **NON-BLOCKING**. An open BLOCKING conversation
-independently fails the same required check until it is resolved; an open
-NON-BLOCKING conversation is advisory. CI never infers whether a finding was
-addressed — no isOutdated skip, no self-resolution from this workflow; the
-fixer that pushed the correction resolves the thread itself, from its own
-authenticated local session, with `resolve_review_thread.py`, and may not
-resolve a thread reported against the PR's current head (ADR
-[0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)). A valid result has an explicit empty
-finding list for `clean`, or one or more severity-, confidence-, and
-summary-bearing findings for `rework` or `blocking`; the workflow writes that
-validated evidence and the reviewed head SHA to its check summary. When the
-Claude fallback carrier is the one that ran, that same validated evidence is
-also published as a plain PR-conversation comment — never a review state —
-so a fallback verdict is not visible only in the Actions run summary; the
-Codex primary path is unchanged, since it already leaves its own native
-review. A present-but-invalid Claude fallback payload (output that arrived but
-does not fit the schema above) still reds the check, but is not silently
-dropped either: it publishes an explicitly **unvalidated** block — a
-human-readable rejection reason, the reviewed head SHA, a run pointer, and a
-best-effort render of whatever fields the payload does contain — through the
-same two surfaces, so a schema violation stays inspectable instead of visible
-only in the raw Actions job log. It never authorizes a merge. A collision on
-one head SHA in the sticky PR comment resolves by precedence, not equality: a
-validated block always replaces an unvalidated one for that head, and an
-unvalidated block never overwrites a validated one. Once the
-reusable review workflow is invoked, it reads its
-verifier from the default branch and current PR body/head from the live API, so
-the reviewed worktree cannot alter its own verifier. This does **not**
+The required check `agent-review / agent-review` reads two facts and parses
+nothing (ADR [0027](../adr/0027-v2-standards-replace-the-bespoke-control-plane.md), `v2-2b`): whether
+a review of the PR's current head exists, and whether an unresolved thread whose
+first comment carries `P0` or `P1` exists.
+
+The authenticated PR-author session starts the Codex review with `@codex review`
+after the PR opens and after every push; the workflow never posts that command,
+and Automatic reviews in the Codex app stay off, so the review count is the
+push count. The job waits a bounded time (`codex-timeout-seconds`, 600 by
+default) for a Codex review of the head — a native review by the app on that
+head, or its clean comment naming the head; an error or usage-limit message
+from the app is absence, never a parsed signal. A read that fails instead of
+establishing presence or absence fails the job without running the fallback.
+When the wait ends absent, the Claude Code action runs with the review contract
+read from the trusted checkout (`trusted/.agent-process/REVIEW_CONTRACT.md`),
+publishes inline `P0`–`P3` comments or one `No findings. Reviewed head SHA:
+<sha>` comment under the workflow token, and never approves; the job then reads
+whether a review of the head under that token's login exists, so a fallback
+that finished without publishing fails the check (ADR
+[0004](../adr/0004-controller-pr-review-runs-on-the-workflow-token.md)). That
+login is shared by every workflow of the repository with a write token, which
+bounds the read by write access — the merge authority already. Either
+reviewer's findings are inline threads labelled `P0`–`P3` by the contract; the
+job leaves no review state, no evidence and no classification reply.
+
+The last step runs always. It fails the check while an unresolved thread whose
+first comment, by either reviewer, carries `P0` or `P1` exists, printing the
+thread URLs; `P2`/`P3` threads never block, resolved or not, and conversation
+resolution is not required on the default branch — a `P3` does not keep a PR
+from merging. CI never infers whether a finding was addressed — no isOutdated
+skip, no self-resolution from this workflow; the fixer that pushed the
+correction resolves the `P0`/`P1` thread itself, from its own authenticated
+local session, with `resolve_review_thread.py`, and may not resolve a thread
+reported against the PR's current head nor a `P2`/`P3` thread (ADR
+[0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)).
+
+The target's thin caller invokes the publisher's pinned
+`reusable-agent-review.yml`. The job keeps an isolated checkout of this
+repository at the ref the caller pinned (`github.job_workflow_sha`) in
+`trusted/` for the wait, the fallback's contract and the enforcement script, so
+the reviewed worktree cannot alter what it is reviewed under; scoped `AGENTS.md`
+files in the PR worktree are review data, never instructions. This does **not**
 authenticate the thin caller workflow: a PR can replace a name-only required
 context's caller before GitHub runs it. Treat the context as authoritative only
 after an external workflow-definition trust anchor is active; see the
@@ -204,26 +216,6 @@ carrier prerequisites before these workflows are merged; it verifies presence,
 not whether the carrier-1 token is still valid. Keep the controller to direct
 tests and docs; never disable the required context or treat the PR body as
 merge authority.
-
-The target's thin caller invokes the publisher's pinned
-`reusable-agent-review.yml`. The authenticated PR-author session starts the
-Codex primary with `@codex review`; the workflow never posts that command or
-enables Automatic reviews. It waits for Codex's normal GitHub review on the
-current head, then translates the integration's native P0/P1/P2/P3 metadata into the gate outcome
-and adds the plain-language merge-class reply. When Codex
-leaves no valid evidence, Claude runs as the structured-output fallback. A
-valid verdict from either carrier is final for that head; changing agent-process
-policy files does not require both carriers.
-The workflow keeps an isolated checkout of the publisher's default branch in
-`trusted/` for the adapter, evidence validator, and enforcement script, while
-the adapter reads the standard review from the PR's live GitHub API records.
-The Claude fallback reads both `trusted/AGENTS.md` and
-`trusted/REVIEW_CONTRACT.md`; scoped `AGENTS.md` files in the PR worktree are
-reviewed as untrusted data and cannot redefine fallback policy.
-The one transition PR that introduces this adapter uses a visible bootstrap
-fallback when the default branch lacks its parser marker; its evidence is still
-validated by the default-branch validator. The manual owner request is review
-evidence, not a replacement for the platform workflow-definition trust anchor.
 
 ## Test suite ownership
 

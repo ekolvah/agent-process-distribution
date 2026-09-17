@@ -92,25 +92,18 @@ workflows run on every pull request.
    | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
 
    On every PR head that needs review, the PR author comments `@codex review`.
-   The workflow never posts that command or enables Automatic reviews. If Codex
-   leaves no valid evidence, the workflow falls back to Claude. The required
-   review check is red only when neither carrier produces valid evidence, or
-   when a carrier reports blocking findings; it is never silently skipped.
-
-   When neither carrier leaves valid evidence, the same check reports a
-   sanitized provider status read from the Claude fallback's execution
-   record — one of a closed set (`auth_or_account`, `rate_limited`,
-   `overloaded`, `schema_violation`, `unknown_provider_error`) — never the raw
-   failure text, and it never turns the check green. Do not enable
-   `show_full_output` to investigate further: this is a public repository, and
-   the full execution record can carry prompts, repository contents, or model
-   output. The Claude Code Action is pinned through the mutable `@v1` tag, so a
-   later run may resolve to a different revision; read an unrecognized
-   diagnostic as possible upstream shape drift, not only a provider fault. The
-   preflight above proves only that `CLAUDE_CODE_OAUTH_TOKEN` and the Codex App
-   grant are *present* — an expired or revoked credential still passes it. A
-   load-time credential-*validity* preflight is a deliberate follow-up, not
-   part of this installation.
+   The workflow never posts that command or enables Automatic reviews. The
+   `agent-review` check waits for the Codex review of the head — read as
+   present or absent, never parsed — and runs the Claude fallback carrier with
+   `CLAUDE_CODE_OAUTH_TOKEN` only when the requested Codex review does not
+   arrive within the wait (an error or usage-limit message from Codex is no
+   review). The check's last step fails while an unresolved thread whose first
+   comment carries `P0/P1` exists, by either reviewer, and replies to no
+   thread; `P2`/`P3` threads never block. The Claude Code Action is pinned
+   through the mutable `@v1` tag, so a later run may resolve to a different
+   revision. The preflight above proves only that `CLAUDE_CODE_OAUTH_TOKEN`
+   and the Codex App grant are *present* — an expired or revoked credential
+   still passes it; the fallback run is the validity test.
 
    Also inspect the organisation Actions policy. If it uses "Allow specified
    actions and reusable workflows", permit the pinned

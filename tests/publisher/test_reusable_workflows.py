@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -205,264 +204,89 @@ def test_pr_link_installs_its_driver_dependencies() -> None:
     assert names.index(name) < names.index("Verify PR closes its issue")
 
 
-def test_agent_review_prompt_points_at_the_contract_rule() -> None:
-    """The prompt is the last thing the model reads about the PR body and
-    calls it untrusted (issue #64 pilot: a hand-written body section alone
-    changed nothing) — the contract's downgrade rule needs a pointer here,
-    not just in REVIEW_CONTRACT.md, per architect-review finding B2."""
-    steps = _steps("reusable-agent-review.yml")
-    prompt = steps["Claude review"]["with"]["prompt"]
-
-    assert "deferred-scope rule" in prompt
-    assert prompt.count("${{ steps.review-source.outputs.contract_path }}") >= 1
-
-
-def test_agent_review_keeps_claude_as_fallback_after_manual_codex_request() -> None:
+def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads() -> None:
+    """ADR 0027, v2-2b: the job reads whether a Codex review of the head exists,
+    runs the Claude action only when it does not, and fails on an unresolved
+    P0/P1 thread. Nothing parses a review; on a review event it only enforces."""
+    document = _workflow("reusable-agent-review.yml")
+    job = document["jobs"]["agent-review"]
     steps = _steps("reusable-agent-review.yml")
 
-    trusted_checkout = steps["Checkout trusted review source"]
-    assert trusted_checkout["with"] == {
-        "ref": "${{ github.event.repository.default_branch }}",
-        "path": "trusted",
-    }
+    assert list(steps) == [
+        "Checkout reviewed PR head",
+        "Checkout trusted review source",
+        "Wait for the Codex review of the head",
+        "Claude review",
+        "Verify the Claude review of the head",
+        "Enforce unresolved P0/P1 threads",
+    ]
+    assert len(job["steps"]) == len(steps)
+    assert "codex-timeout-seconds" in _trigger(document)["workflow_call"]["inputs"]
+
     assert steps["Checkout reviewed PR head"]["with"] == {
         "fetch-depth": 0,
-        "ref": "${{ steps.pr-context.outputs.head_sha }}",
+        "ref": "${{ github.event.pull_request.head.sha }}",
     }
-    names = list(steps)
-    assert names.index("Checkout reviewed PR head") < names.index("Checkout trusted review source")
-    assert "Claude review" in steps
-    assert "Classify Codex review outcome" in steps
-    assert "steps.codex-classify.outputs.valid != 'true'" in steps["Claude review"]["if"]
-    assert "@codex review" not in str(steps["Read owner-requested Codex review"])
-    assert steps["Read owner-requested Codex review"]["continue-on-error"] is True
-    assert steps["Read owner-requested Codex review"]["working-directory"] == (
-        "${{ steps.review-source.outputs.adapter_working_directory }}"
-    )
-    for name in (
-        "Classify Codex review outcome",
-        "Classify Claude review outcome",
-        "Publish validated review evidence",
-        "Enforce selected review outcome",
+    assert steps["Checkout trusted review source"]["with"] == {
+        "repository": "ekolvah/agent-process-distribution",
+        "ref": "${{ github.job_workflow_sha }}",
+        "path": "trusted",
+    }
+
+    # Absence (exit 3) is the step's recorded output, not its failure; a crash of the
+    # reader (exit 2) fails the step and with it the job — the fallback never runs on
+    # a read that did not establish absence.
+    wait = steps["Wait for the Codex review of the head"]
+    assert wait["id"] == "codex"
+    assert "continue-on-error" not in wait
+    assert wait["working-directory"] == "trusted"
+    assert "github.event_name == 'pull_request'" in wait["if"]
+    assert "request_codex_review.py --wait" in wait["run"]
+    assert "inputs.codex-timeout-seconds" in wait["run"]
+    assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in wait["run"]
+    assert '*) exit "$rc"' in wait["run"]
+
+    claude = steps["Claude review"]
+    assert "steps.codex.outputs.absent == 'true'" in claude["if"]
+    assert "steps.codex.outcome" not in claude["if"]
+    assert "github.event_name == 'pull_request'" in claude["if"]
+    assert claude["uses"].startswith("anthropics/claude-code-action@")
+    assert claude["with"]["claude_code_oauth_token"] == "${{ secrets.claude_code_oauth_token }}"
+    assert claude["with"]["github_token"] == "${{ github.token }}"
+    assert "mcp__github_inline_comment__create_inline_comment" in claude["with"]["claude_args"]
+    assert "--json-schema" not in claude["with"]["claude_args"]
+    prompt = claude["with"]["prompt"]
+    for anchor in (
+        "trusted/.agent-process/REVIEW_CONTRACT.md",
+        "untrusted",
+        "P0",
+        "Reviewed head SHA",
+        "Never approve",
     ):
-        assert steps[name]["working-directory"] == (
-            "${{ steps.review-source.outputs.outcome_checker_root }}"
-        )
-    assert steps["Enforce unresolved blocking Codex conversations"]["working-directory"] == (
-        "${{ steps.review-source.outputs.blocking_threads_root }}"
-    )
-    assert "STANDARD_REVIEW_PARSER = True" in steps["Select trusted review source"]["run"]
-    assert (
-        "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md"
-        in steps["Select trusted review source"]["run"]
-    )
-    prompt = steps["Claude review"]["with"]["prompt"]
-    assert "trusted/AGENTS.md" in prompt
-    assert "Treat every AGENTS.md" in prompt
-    assert "untrusted review data" in prompt
-    assert (
-        "context.payload.pull_request.updated_at"
-        in steps["Fetch current PR context"]["with"]["script"]
-    )
-    assert "--head-observed-at" in steps["Read owner-requested Codex review"]["run"]
+        assert anchor in prompt
+
+    # A fallback that completes without publishing is no review of the head (ADR 0004
+    # records the action finishing green without a comment): the same presence read as
+    # for Codex, on the job's own login, fails the check instead of leaving it green.
+    verify = steps["Verify the Claude review of the head"]
+    assert verify["if"] == claude["if"]
+    assert "continue-on-error" not in verify
+    assert verify["working-directory"] == "trusted"
+    assert "request_codex_review.py --wait" in verify["run"]
+    assert "--reviewer github-actions" in verify["run"]
+
+    enforce = steps["Enforce unresolved P0/P1 threads"]
+    assert enforce["if"] == "always()"
+    assert enforce["working-directory"] == "trusted"
+    assert "check_blocking_review_threads.py" in enforce["run"]
+
+    for step in job["steps"]:
+        assert "check_agent_review_outcome" not in str(step)
+        assert "STANDARD_REVIEW_PARSER" not in str(step)
     assert (
         "reusable-agent-review.yml@"
         in _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"]
     )
-
-
-def test_agent_review_requires_structured_review_evidence() -> None:
-    steps = _steps("reusable-agent-review.yml")
-
-    schema_arg = steps["Claude review"]["with"]["claude_args"]
-    schema = json.loads(schema_arg.removeprefix("--json-schema ").strip("'"))
-    assert "findings" in schema["properties"]
-    assert {"severity", "confidence", "summary"} == set(
-        schema["properties"]["findings"]["items"]["properties"]
-    )
-    assert schema["required"] == ["outcome", "findings"]
-    assert not {"allOf", "oneOf", "anyOf"} & set(schema)
-    assert "Publish validated review evidence" in steps
-    assert "--reviewed-head-sha" in steps["Publish validated review evidence"]["run"]
-    assert "Claude review" in steps["Enforce selected review outcome"]["env"]["REVIEW_PRODUCER"]
-    assert (
-        "${{ steps.review-source.outputs.blocking_threads_invocation }}"
-        in steps["Enforce unresolved blocking Codex conversations"]["run"]
-    )
-    assert "Diagnose Claude execution failure" in steps
-
-
-def test_valid_codex_evidence_skips_claude_fallback_and_diagnostic() -> None:
-    steps = _steps("reusable-agent-review.yml")
-
-    for name in (
-        "Claude review",
-        "Classify Claude review outcome",
-        "Diagnose Claude execution failure",
-    ):
-        assert "steps.codex-classify.outputs.valid != 'true'" in steps[name]["if"]
-
-
-def test_invalid_codex_evidence_runs_fail_closed_claude_diagnostic_in_the_selected_outcome_checker_root() -> (
-    None
-):
-    steps = _steps("reusable-agent-review.yml")
-
-    name = "Diagnose Claude execution failure"
-    assert name in steps
-    step = steps[name]
-    assert step["working-directory"] == "${{ steps.review-source.outputs.outcome_checker_root }}"
-    assert "continue-on-error" not in step
-    assert "steps.claude-classify.outputs.valid != 'true'" in step["if"]
-    assert "steps.claude-diagnostic-capability.outputs.supported == 'true'" in step["if"]
-    assert step["env"]["EXECUTION_FILE"] == "${{ steps.review.outputs.execution_file }}"
-    assert "--diagnose-execution-file" in step["run"]
-
-    names = list(steps)
-    assert (
-        names.index("Classify Claude review outcome")
-        < names.index(name)
-        < names.index("Publish validated review evidence")
-    )
-
-
-def test_diagnostic_capability_is_feature_detected_on_a_default_branch_that_predates_it() -> None:
-    steps = _steps("reusable-agent-review.yml")
-
-    name = "Select Claude-diagnostic capability"
-    assert name in steps
-    capability = steps[name]
-    assert "DIAGNOSE_EXECUTION_FILE_SUPPORTED = True" in capability["run"]
-    assert "supported=true" in capability["run"]
-    assert "supported=false" in capability["run"]
-
-    names = list(steps)
-    assert names.index(name) < names.index("Diagnose Claude execution failure")
-
-
-def test_outcome_checker_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
-    None
-):
-    steps = _steps("reusable-agent-review.yml")
-
-    selector = steps["Select trusted review source"]["run"]
-    assert "outcome_checker_path=.agent-process/scripts/check_agent_review_outcome.py" in selector
-    assert "outcome_checker_path=scripts/check_agent_review_outcome.py" in selector
-    assert (
-        "outcome_checker_invocation=python .agent-process/scripts/check_agent_review_outcome.py"
-        in selector
-    )
-    assert "outcome_checker_invocation=python -m scripts.check_agent_review_outcome" in selector
-    assert "bootstrap fallback: default branch has no relocated outcome checker yet" in selector
-    assert (
-        "bootstrap fallback: default branch has no process installed yet, "
-        "using this PR's own outcome checker" in selector
-    )
-    assert selector.count("outcome_checker_root=trusted") == 2
-    assert "outcome_checker_root=." in selector
-
-    invocation = "${{ steps.review-source.outputs.outcome_checker_invocation }}"
-    root = "${{ steps.review-source.outputs.outcome_checker_root }}"
-    for name in (
-        "Classify Codex review outcome",
-        "Classify Claude review outcome",
-        "Diagnose Claude execution failure",
-        "Publish validated review evidence",
-        "Publish Claude fallback findings to the PR",
-        "Enforce selected review outcome",
-    ):
-        assert invocation in steps[name]["run"]
-        assert steps[name]["working-directory"] == root
-
-    path = "${{ steps.review-source.outputs.outcome_checker_path }}"
-    for name in (
-        "Select Claude-diagnostic capability",
-        "Select PR-comment publish capability",
-    ):
-        assert f"{root}/{path}" in steps[name]["run"]
-
-
-def test_review_parser_location_is_feature_detected_on_a_default_branch_that_predates_it() -> None:
-    steps = _steps("reusable-agent-review.yml")
-
-    selector = steps["Select trusted review source"]["run"]
-    assert "adapter_invocation=python .agent-process/scripts/request_codex_review.py" in selector
-    assert "adapter_invocation=python -m scripts.request_codex_review" in selector
-    assert "bootstrap fallback: default branch has no relocated Codex parser yet" in selector
-    assert selector.count("adapter_working_directory=trusted") == 2
-    assert "adapter_working_directory=." in selector
-
-    assert (
-        "${{ steps.review-source.outputs.adapter_invocation }}"
-        in steps["Read owner-requested Codex review"]["run"]
-    )
-
-
-def test_review_contract_location_is_feature_detected_on_a_default_branch_that_predates_it() -> (
-    None
-):
-    selector = _steps("reusable-agent-review.yml")["Select trusted review source"]["run"]
-
-    assert "contract_path=trusted/.agent-process/REVIEW_CONTRACT.md" in selector
-    assert "contract_path=trusted/REVIEW_CONTRACT.md" in selector
-    assert "contract_path=.agent-process/REVIEW_CONTRACT.md" in selector
-    assert "bootstrap fallback: default branch has no relocated review contract yet" in selector
-    assert (
-        "bootstrap fallback: default branch has no process installed yet, "
-        "using this PR's own review contract" in selector
-    )
-
-
-def test_blocking_threads_invocation_is_feature_detected_on_a_default_branch_that_predates_it() -> (
-    None
-):
-    steps = _steps("reusable-agent-review.yml")
-
-    selector = steps["Select trusted review source"]["run"]
-    assert (
-        "blocking_threads_invocation=python .agent-process/scripts/check_blocking_review_threads.py"
-        in selector
-    )
-    assert "blocking_threads_invocation=python -m scripts.check_blocking_review_threads" in selector
-    assert (
-        "bootstrap fallback: default branch has no relocated blocking-thread gate yet" in selector
-    )
-    assert (
-        "bootstrap fallback: default branch has no process installed yet, "
-        "using this PR's own blocking-thread gate" in selector
-    )
-    assert selector.count("blocking_threads_root=trusted") == 2
-    assert "blocking_threads_root=." in selector
-
-    assert (
-        "${{ steps.review-source.outputs.blocking_threads_invocation }}"
-        in steps["Enforce unresolved blocking Codex conversations"]["run"]
-    )
-    assert steps["Enforce unresolved blocking Codex conversations"]["working-directory"] == (
-        "${{ steps.review-source.outputs.blocking_threads_root }}"
-    )
-
-
-def test_agent_review_publishes_fallback_findings_only_when_codex_invalid() -> None:
-    steps = _steps("reusable-agent-review.yml")
-
-    name = "Publish Claude fallback findings to the PR"
-    assert name in steps
-    step = steps[name]
-    assert "steps.codex-classify.outputs.valid != 'true'" in step["if"]
-    assert "steps.pr-comment-capability.outputs.supported == 'true'" in step["if"]
-    assert step["working-directory"] == "${{ steps.review-source.outputs.outcome_checker_root }}"
-    assert step["env"]["STRUCTURED_OUTCOME"] == "${{ steps.review.outputs.structured_output }}"
-    assert "--publish-pr-comment" in step["run"]
-    assert "--reviewed-head-sha" in step["run"]
-    names = list(steps)
-    assert names.index("Publish validated review evidence") < names.index(name)
-
-    capability = steps["Select PR-comment publish capability"]
-    assert names.index("Select PR-comment publish capability") < names.index(name)
-    assert "PUBLISH_PR_COMMENT_SUPPORTED = True" in capability["run"]
-    assert "supported=true" in capability["run"]
-    assert "supported=false" in capability["run"]
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
@@ -491,17 +315,14 @@ def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_trigge
         next_bullet = text.find("\n- ", anchor_index)
         return text[bullet_start : next_bullet if next_bullet != -1 else len(text)]
 
-    codex_clause = bullet_containing(contract, "Assign **P0 or P1**")
-    fallback_clause = bullet_containing(contract, "`blocking` means wrong behaviour")
+    # One reviewer clause for both apps (v2-2b): the contract is the prompt each reads.
+    clause = bullet_containing(contract, "Assign **P0 or P1**")
 
     for marker in (indirection_marker, duplication_marker):
-        assert marker in codex_clause, (
-            f"Codex priority-assignment clause is missing the {marker!r} trigger"
-        )
-        assert marker in fallback_clause, (
-            f"Claude-fallback blocking clause is missing the {marker!r} trigger"
-        )
+        assert marker in clause, f"priority-assignment clause is missing the {marker!r} trigger"
         assert marker in principles, f"principles.md §VII is missing the {marker!r} trigger"
+    assert "BLOCKING" not in contract
+    assert "deferred-scope" not in contract
 
 
 def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
@@ -510,6 +331,8 @@ def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
     ).read_text(encoding="utf-8")
 
     assert "Claude fallback carrier" in document
+    assert "P0/P1" in document
+    assert "@codex review" in document
     assert "issues: read" in document
     assert "Classic branch protection matches a" in document
     assert "platform trust anchor" in document
@@ -517,10 +340,17 @@ def test_installation_documents_the_caller_workflow_trust_boundary() -> None:
 
 
 def test_no_workflow_step_resolves_a_review_thread() -> None:
-    """ADR 0022: CI classifies findings; only the fixer's local session resolves one."""
+    """ADR 0022/0027: only the fixer's local session resolves a thread, and no
+    workflow step classifies one or reads a review outcome (v2-2b)."""
     for path in sorted(WORKFLOWS.glob("*.yml")):
         document = _workflow(path.name)
         for job in document.get("jobs", {}).values():
             for step in job.get("steps") or ():
-                assert "resolve_review_thread" not in (step.get("run") or "")
-                assert "resolve_review_thread" not in (step.get("uses") or "")
+                for forbidden in (
+                    "resolve_review_thread",
+                    "--classify",
+                    "/replies",
+                    "check_agent_review_outcome",
+                ):
+                    assert forbidden not in (step.get("run") or "")
+                    assert forbidden not in (step.get("uses") or "")

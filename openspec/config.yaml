@@ -72,14 +72,15 @@ rules:
       `gh pr create --title "<change>" --body-file <report>` (change name, the tracking
       issue as a plain reference — no `Closes`: the linked branch closes it on merge —
       the scenario → test map, deferrals) → `python .agent-process/scripts/request_codex_review.py --request <PR>`
-      (v1, until v2-4; re-run after every push) →
+      (after the PR and after every push: the `agent-review` check waits for the Codex
+      review of the head and runs the Claude review only when none arrives) →
       `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
-      push, re-request — a BLOCKING thread the push addressed is resolved with
+      push, re-request — a `P0`/`P1` thread the push addressed is resolved with
       `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
       --thread <id>` (`--list` prints the open ones) before the `agent-review` run on that
       head reaches its last step (a resolve that lands later re-runs that completed job on
-      the unchanged head: `gh run rerun <run-id> --failed`, no push); a thread that is not
-      BLOCKING is answered, never resolved by the process —, repeat at most three rounds; the fourth leaves the rest to the
+      the unchanged head: `gh run rerun <run-id> --failed`, no push); a `P2`/`P3` thread is
+      answered, never resolved by the process —, repeat at most three rounds; the fourth leaves the rest to the
       person with a reply. The person merges. The tasks after the archive leave no tick in
       the repository: the change is closed and a pushed tick would move the reviewed head —
       the PR (its checks, threads and merge) is their record. A run interrupted after the

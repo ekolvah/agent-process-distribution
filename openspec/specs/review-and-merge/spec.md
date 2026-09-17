@@ -33,9 +33,15 @@ link. On any other branch (fork, Dependabot, manual) the check is N/A and passes
 - **THEN** `pr-link` verifies the closing reference with read access to issues
 
 ### Requirement: Codex reviews on the author's request, Claude is the fallback
-The PR author SHALL request the Codex review; the review workflow waits for a Codex review
-of the current head and runs the Claude review only when that evidence is absent or
-invalid.
+The PR author SHALL request the Codex review (`@codex review`, after the PR opens and after
+every push; automatic reviews in the Codex app stay off). The review job SHALL wait a
+bounded time for a Codex review of the current head — read as present or absent, never
+parsed: a native review by the app on that head, or its clean comment naming that head;
+an error or usage-limit message from the app is absence — and SHALL run the Claude Code
+action with the review contract read from the trusted checkout of the process at the ref the
+caller pinned only when the wait ended absent. Each reviewer publishes findings as inline
+comments labelled `P0`–`P3` and names the reviewed head when it finds nothing; the job leaves
+no review state, no evidence and no classification.
 
 #### Scenario: Valid Codex review
 - **WHEN** Codex has reviewed the current head
@@ -45,18 +51,55 @@ invalid.
 - **WHEN** the only Codex review is for an older head
 - **THEN** it is not accepted as evidence
 
+#### Scenario: Codex review absent
+- **WHEN** the wait ends without a Codex review of the head — none, or an error or limit message instead of one
+- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments or a comment naming the reviewed head; the job then reads whether a review of the head under the workflow token exists — a silent fallback fails the check
+
+#### Scenario: Reader failure
+- **WHEN** the read of the PR's reviews fails instead of establishing presence or absence
+- **THEN** the check fails without running the Claude action
+
+#### Scenario: Event other than a push
+- **WHEN** a caller runs the job for an event that is not `pull_request`
+- **THEN** it neither waits for Codex nor runs the Claude action; it runs its enforcement only
+
 ### Requirement: No automation resolves a review thread
-No workflow step or required check SHALL resolve a review thread; only a person or the
-fixing agent does, thread by thread.
+No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
+thread the fixer's push addressed is resolved by the fixer from its own session, thread by
+thread, whichever app raised it; every other thread is answered and left to the person.
 
 #### Scenario: Required check and threads
 - **WHEN** the required check runs
-- **THEN** every review thread keeps its resolved state
+- **THEN** every review thread keeps its resolved state and receives no classification reply
+
+#### Scenario: Addressed finding of either reviewer
+- **WHEN** the fixer resolves a thread it addressed
+- **THEN** the resolve accepts a `P0`/`P1` thread raised by the Codex app or by the Claude review job, refuses one raised against the current head, and refuses a `P2`/`P3` thread
 
 ### Requirement: Reviewer instructions name the simplicity triggers
-The review contract SHALL name reinvented functionality and unnecessary complexity as
-findings, coupled to the principles file.
+The review contract SHALL be one file both reviewers read — Codex through the repository's
+instructions file, Claude through the trusted checkout — and SHALL name reinvented
+functionality and unnecessary complexity as findings, coupled to the principles file.
 
 #### Scenario: Contract and principles
 - **WHEN** the review contract or the principles change
 - **THEN** the simplicity triggers stay the same narrow set in both
+
+### Requirement: Unresolved P0/P1 threads fail the review check
+The last step of the review job SHALL fail the check while an unresolved review thread whose
+first comment, by either reviewer, carries `P0` or `P1` exists, printing the thread URLs; it
+SHALL read only the label and the resolved state, reply to no thread, and SHALL pass on
+`P2`/`P3` threads, resolved or not. Conversation resolution is not required on the default
+branch: a `P3` does not keep a PR from merging.
+
+#### Scenario: Unresolved blocking thread
+- **WHEN** a `P1` thread by Codex or by the Claude review job is unresolved on the head
+- **THEN** the check fails and names the thread's URL, and no reply is posted to it
+
+#### Scenario: Advisory thread
+- **WHEN** only `P2`/`P3` threads are unresolved
+- **THEN** the check passes
+
+#### Scenario: Blocking thread resolved
+- **WHEN** the fixer resolves the `P0`/`P1` thread its push addressed
+- **THEN** the next run of the check on that head passes

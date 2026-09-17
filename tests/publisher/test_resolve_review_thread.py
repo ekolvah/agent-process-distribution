@@ -72,6 +72,29 @@ def test_list_omits_resolved_and_non_blocking_threads() -> None:
     assert list_blocking(payload) == []
 
 
+def test_list_blocking_includes_a_p1_by_the_claude_review_job() -> None:
+    """Scenario: Addressed finding of either reviewer — the fixer resolves a P0/P1
+    raised by the Claude review job (github-actions login) as it does a Codex one."""
+    payload = _payload(
+        threads=[
+            _thread(
+                "claude-p1",
+                priority="P1",
+                original_commit_oid=_BEHIND,
+                author="github-actions[bot]",
+            ),
+            _thread(
+                "claude-p2",
+                priority="P2",
+                original_commit_oid=_BEHIND,
+                author="github-actions[bot]",
+            ),
+        ]
+    )
+
+    assert list_blocking(payload) == [("claude-p1", "P1", "https://example.test/claude-p1")]
+
+
 def test_resolve_issues_the_mutation_and_verifies_the_reported_state() -> None:
     payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
     calls: list[str] = []

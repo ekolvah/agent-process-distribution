@@ -1,18 +1,15 @@
-"""The manual Codex carrier translates GitHub-native review records."""
+"""The Codex transport: post the request, read whether a review of the head exists."""
 
 from __future__ import annotations
 
+import inspect
+import json
 import subprocess
 import sys
 
 import pytest
 
 from scripts import request_codex_review
-from scripts.request_codex_review import (
-    find_clean_reaction,
-    find_verdict,
-    poll_for_verdict,
-)
 
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
@@ -39,555 +36,155 @@ def test_request_command_surfaces_a_github_failure(monkeypatch: pytest.MonkeyPat
         request_codex_review.request_review("37")
 
 
-def _review(state: str) -> dict[str, object]:
-    return {
-        "id": 42,
-        "user": {"login": _REVIEWER},
-        "commit_id": _HEAD,
-        "state": state,
-        "body": "### Codex Review",
-    }
-
-
-def _comment(body: str) -> dict[str, object]:
-    return {
-        "pull_request_review_id": 42,
-        "body": body,
-        "user": {"login": _REVIEWER},
-    }
-
-
-def _request(*, created_at: str = "2026-08-24T08:32:00Z") -> dict[str, object]:
-    return {
-        "id": 99,
-        "user": {"login": "author"},
-        "body": "@codex review",
-        "created_at": created_at,
-    }
-
-
-def _clean_comment(
-    *,
-    author: str = _REVIEWER,
-    body: str | None = None,
-    created_at: str = "2026-08-24T08:33:00Z",
+def _payload(
+    *, reviews: list[dict[str, object]] = (), comments: list[dict[str, object]] = ()
 ) -> dict[str, object]:
     return {
-        "user": {"login": author},
-        "created_at": created_at,
-        "body": body
-        or "Codex Review: Didn't find any major issues. :tada:\n\n"
+        "data": {
+            "repository": {
+                "pullRequest": {
+                    "headRefOid": _HEAD,
+                    "reviews": {"nodes": list(reviews)},
+                    "comments": {"nodes": list(comments)},
+                }
+            }
+        }
+    }
+
+
+def _native_review(oid: str, login: str = _REVIEWER) -> dict[str, object]:
+    return {"author": {"login": login}, "commit": {"oid": oid}}
+
+
+class _FakeTime:
+    """A clock the wait reads and a sleep that advances it — no real waiting."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+        self.sleeps: list[float] = []
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def _wait_argv(timeout: str = "60", poll: str = "20") -> list[str]:
+    return [
+        "--wait",
+        "--repo",
+        "owner/repo",
+        "--pr",
+        "37",
+        "--head-sha",
+        _HEAD,
+        "--timeout-seconds",
+        timeout,
+        "--poll-seconds",
+        poll,
+    ]
+
+
+def _serve(monkeypatch: pytest.MonkeyPatch, payload: dict[str, object]) -> _FakeTime:
+    fake = _FakeTime()
+    monkeypatch.setattr(request_codex_review, "run_gh", lambda args: json.dumps(payload))
+    monkeypatch.setattr(request_codex_review.time, "monotonic", fake.monotonic)
+    monkeypatch.setattr(request_codex_review.time, "sleep", fake.sleep)
+    return fake
+
+
+def test_wait_is_present_for_a_native_review_on_the_head(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fake = _serve(monkeypatch, _payload(reviews=[_native_review(_HEAD)]))
+
+    request_codex_review.main(_wait_argv())
+
+    assert "present" in capsys.readouterr().out
+    assert fake.sleeps == []
+
+
+def test_wait_polls_to_the_timeout_for_a_review_of_an_older_head(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A review of an older head is not a review of this one: the wait keeps
+    polling until the timeout and reports absence with exit 3, not 1 (a crash
+    of the script stays distinguishable as exit 2)."""
+    fake = _serve(monkeypatch, _payload(reviews=[_native_review("b" * 40)]))
+
+    with pytest.raises(SystemExit) as exit_info:
+        request_codex_review.main(_wait_argv(timeout="60", poll="20"))
+
+    assert exit_info.value.code == 3
+    assert "absent after" in capsys.readouterr().out
+    assert fake.sleeps == [20.0, 20.0, 20.0]
+
+
+def test_wait_is_present_for_the_clean_comment_naming_the_head(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    comment = {
+        "author": {"login": _REVIEWER},
+        "body": "Codex Review: Didn't find any major issues. :tada:\n\n"
         f"**Reviewed commit:** `{_HEAD[:10]}`",
     }
+    _serve(monkeypatch, _payload(comments=[comment]))
+
+    request_codex_review.main(_wait_argv())
+
+    assert "present" in capsys.readouterr().out
 
 
-def test_standard_codex_p1_comment_is_blocking_evidence() -> None:
-    verdict = find_verdict(
-        [_review("COMMENTED")],
-        [_comment("**![P1 Badge](https://example.test/p1) Preserve trusted policy")],
-        _HEAD,
-        _REVIEWER,
-    )
+def test_wait_ignores_a_limit_message_and_a_stranger_naming_the_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An error or usage-limit message from the app is no review; a human
+    quoting the head is no review either."""
+    comments = [
+        {
+            "author": {"login": _REVIEWER},
+            "body": "You have reached your Codex usage limits for code reviews.",
+        },
+        {"author": {"login": "author"}, "body": f"**Reviewed commit:** `{_HEAD[:10]}`"},
+    ]
+    _serve(monkeypatch, _payload(comments=comments))
 
-    assert verdict == {
-        "outcome": "blocking",
-        "findings": [
-            {
-                "severity": "blocking",
-                "confidence": "high",
-                "summary": "**![P1 Badge](https://example.test/p1) Preserve trusted policy",
-            }
-        ],
+    with pytest.raises(SystemExit) as exit_info:
+        request_codex_review.main(_wait_argv(timeout="20", poll="20"))
+
+    assert exit_info.value.code == 3
+
+
+def test_wait_for_another_reviewer_reads_its_clean_comment_naming_the_head(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The Claude review job publishes under `github-actions`; the same presence read
+    with `--reviewer` sees its inline review on the head or its clean comment naming
+    the full head, and a Codex publication does not stand in for it."""
+    codex_review = _native_review(_HEAD)
+    claude_comment = {
+        "author": {"login": "github-actions[bot]"},
+        "body": f"No findings. Reviewed head SHA: {_HEAD}",
     }
-
-
-def test_standard_codex_p2_comment_is_rework_evidence() -> None:
-    verdict = find_verdict(
-        [_review("COMMENTED")],
-        [_comment("**![P2 Badge](https://example.test/p2) Update guidance")],
-        _HEAD,
-        _REVIEWER,
-    )
-
-    assert verdict is not None
-    assert verdict["outcome"] == "rework"
-    assert verdict["findings"][0]["severity"] == "should-fix"
-
-
-def test_codex_comment_without_a_priority_is_invalid_evidence() -> None:
-    assert find_verdict([_review("COMMENTED")], [_comment("Fix this")], _HEAD, _REVIEWER) is None
-
-
-def test_human_reply_does_not_become_a_codex_finding() -> None:
-    reply = {
-        **_comment("P1 is not applicable here"),
-        "user": {"login": "author"},
-        "in_reply_to_id": 100,
-    }
-    verdict = find_verdict(
-        [_review("COMMENTED")],
-        [_comment("**![P2 Badge](https://example.test/p2) Update guidance"), reply],
-        _HEAD,
-        _REVIEWER,
-    )
-
-    assert verdict is not None
-    assert verdict["outcome"] == "rework"
-    assert len(verdict["findings"]) == 1
-
-
-def test_changes_requested_requires_a_blocking_codex_finding() -> None:
-    assert (
-        find_verdict(
-            [_review("CHANGES_REQUESTED")],
-            [_comment("**![P2 Badge](https://example.test/p2) Update guidance")],
-            _HEAD,
-            _REVIEWER,
-        )
-        is None
-    )
-
-
-def test_only_current_head_codex_review_is_accepted() -> None:
-    stale = {**_review("APPROVED"), "commit_id": "b" * 40}
-
-    assert find_verdict([stale], [], _HEAD, _REVIEWER) is None
-
-
-def test_latest_current_head_review_overrides_an_older_clean_verdict() -> None:
-    assert (
-        find_verdict(
-            [_review("APPROVED"), _review("COMMENTED")],
-            [],
-            _HEAD,
-            _REVIEWER,
-        )
-        is None
-    )
-
-
-def test_clean_reaction_must_follow_the_github_observed_head_transition() -> None:
-    request = _request()
-    reactions = {99: [{"content": "+1", "user": {"login": _REVIEWER}}]}
-
-    assert find_clean_reaction(
-        [request],
-        reactions,
-        author_login="author",
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-    assert (
-        find_clean_reaction(
-            [request],
-            reactions,
-            author_login="author",
-            head_observed_at="2026-08-24T08:33:00Z",
-            reviewer=_REVIEWER,
-        )
-        is None
-    )
-
-
-@pytest.mark.parametrize(
-    "marker",
-    [
-        "Codex Review: Didn't find any major issues. :tada:",
-        "Codex Review: Didn't find any major issues. What shall we delve into next?",
-    ],
-)
-def test_clean_prefix_is_clean_evidence(marker: str) -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(body=f"{marker}\n\n**Reviewed commit:** `{_HEAD[:10]}`"),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_clean_prefix_with_breezy_is_clean_evidence() -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(
-                body=(
-                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
-                    f"**Reviewed commit:** `{_HEAD[:10]}`"
-                )
-            ),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_clean_prefix_ignores_everything_after_the_prefix() -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(
-                body=(
-                    "Codex Review: Didn't find any major issues. "
-                    "Another round soon, please!\n\n"
-                    "The remainder of this comment is not review evidence.\n\n"
-                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
-                    "More connector metadata that is not review evidence."
-                )
-            ),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_clean_prefix_rejects_a_reviewed_commit_for_a_different_head() -> None:
-    assert (
-        request_codex_review.find_clean_comment(
-            [
-                _request(),
-                _clean_comment(
-                    body=(
-                        "Codex Review: Didn't find any major issues. "
-                        "Another round soon, please!\n\n"
-                        "**Reviewed commit:** `bbbbbbbbbb`"
-                    )
-                ),
-            ],
-            author_login="author",
-            head_sha=_HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            reviewer=_REVIEWER,
-        )
-        is None
-    )
-
-
-def test_clean_prefix_requires_one_reviewed_commit() -> None:
-    assert (
-        request_codex_review.find_clean_comment(
-            [
-                _request(),
-                _clean_comment(body="Codex Review: Didn't find any major issues. Breezy!"),
-            ],
-            author_login="author",
-            head_sha=_HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            reviewer=_REVIEWER,
-        )
-        is None
-    )
-
-
-def test_clean_prefix_ignores_content_after_a_reviewed_commit() -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(
-                body=(
-                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
-                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
-                    "P1 production data is corrupted"
-                )
-            ),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_clean_prefix_ignores_a_priority_in_its_continuation() -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(
-                body=(
-                    "Codex Review: Didn't find any major issues. P1 data loss detected!\n\n"
-                    f"**Reviewed commit:** `{_HEAD[:10]}`"
-                )
-            ),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_clean_prefix_ignores_substantive_prose_in_its_continuation() -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(
-                body=(
-                    "Codex Review: Didn't find any major issues. "
-                    "Warning: production data is corrupted!\n\n"
-                    f"**Reviewed commit:** `{_HEAD[:10]}`"
-                )
-            ),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_clean_prefix_ignores_connector_details_footer() -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(
-                body=(
-                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
-                    f"**Reviewed commit:** `{_HEAD[:10]}`\n\n"
-                    "Connector details may change without affecting clean evidence."
-                )
-            ),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_full_sha_clean_comment_is_clean_evidence() -> None:
-    assert request_codex_review.find_clean_comment(
-        [
-            _request(),
-            _clean_comment(body=f"No findings.\n\nReviewed head SHA: `{_HEAD}`"),
-        ],
-        author_login="author",
-        head_sha=_HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        reviewer=_REVIEWER,
-    ) == {"outcome": "clean", "findings": []}
-
-
-@pytest.mark.parametrize(
-    "comment",
-    [
-        _clean_comment(author="another-bot[bot]"),
-        _clean_comment(body="Codex Review: clean\n\n**Reviewed commit:** `aaaaaaaaaa`"),
-        _clean_comment(
-            body=f"Codex Review: Didn't find any serious issues.\n\n**Reviewed commit:** `{_HEAD[:10]}`"
-        ),
-        _clean_comment(body=f"No findings.\n\nReviewed head SHA: `{'b' * 40}`"),
-        _clean_comment(
-            body=(
-                f"No findings.\n\nReviewed head SHA: `{_HEAD}`\n**Reviewed commit:** `{_HEAD[:10]}`"
-            )
-        ),
-        _clean_comment(created_at="2026-08-24T08:30:00Z"),
-    ],
-)
-def test_clean_comment_rejects_wrong_author_marker_time_and_head(
-    comment: dict[str, object],
-) -> None:
-    assert (
-        request_codex_review.find_clean_comment(
-            [_request(), comment],
-            author_login="author",
-            head_sha=_HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            reviewer=_REVIEWER,
-        )
-        is None
-    )
-
-
-def test_latest_current_head_evidence_wins_across_comment_and_native_review(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    earlier_p1 = {
-        **_review("COMMENTED"),
-        "submitted_at": "2026-08-24T08:33:00Z",
-    }
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [earlier_p1])
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_review_comments",
-        lambda *_args: [_comment("P1 later native finding")],
-    )
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_request_comments",
-        lambda *_args: [_request(), _clean_comment(created_at="2026-08-24T08:34:00Z")],
-    )
-    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
-    monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
-
-    verdict = poll_for_verdict(
-        "owner/repo",
-        "14",
-        _HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        timeout_seconds=0,
-    )
-
-    assert verdict == {"outcome": "clean", "findings": []}
-
-    later_p1 = {**earlier_p1, "submitted_at": "2026-08-24T08:35:00Z"}
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [later_p1])
-
-    verdict = poll_for_verdict(
-        "owner/repo",
-        "14",
-        _HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        timeout_seconds=0,
-    )
-
-    assert verdict is not None
-    assert verdict["outcome"] == "blocking"
-
-
-def test_poll_checks_supported_clean_comment_before_declaring_current_head_evidence_unavailable(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
-    )
-    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_request_comments",
-        lambda *_args: [
-            _request(),
-            _clean_comment(
-                body=(
-                    "Codex Review: Didn't find any major issues. Breezy!\n\n"
-                    f"**Reviewed commit:** `{_HEAD[:10]}`"
-                )
-            ),
-        ],
-    )
-    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
-    monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
-
-    assert poll_for_verdict(
-        "owner/repo",
-        "14",
-        _HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        timeout_seconds=0,
-    ) == {"outcome": "clean", "findings": []}
-
-
-def test_poll_stops_when_a_current_head_review_is_malformed(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_reviews",
-        lambda *_args: [_review("APPROVED"), _review("COMMENTED")],
-    )
-    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
-    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
-    monkeypatch.setattr(request_codex_review, "_fetch_request_comments", lambda *_args: [])
-
-    assert (
-        poll_for_verdict(
-            "owner/repo",
-            "14",
-            _HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            timeout_seconds=0,
-        )
-        is None
-    )
-
-
-def test_later_malformed_native_review_invalidates_older_clean_comment(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    malformed = {**_review("COMMENTED"), "submitted_at": "2026-08-24T08:34:00Z"}
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [malformed])
-    monkeypatch.setattr(request_codex_review, "_fetch_review_comments", lambda *_args: [])
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_request_comments",
-        lambda *_args: [_request(), _clean_comment(created_at="2026-08-24T08:33:00Z")],
-    )
-    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
-    monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
-
-    assert (
-        poll_for_verdict(
-            "owner/repo",
-            "14",
-            _HEAD,
-            head_observed_at="2026-08-24T08:31:00Z",
-            timeout_seconds=0,
-        )
-        is None
-    )
-
-
-def test_poll_accepts_valid_codex_evidence_without_a_policy_path_exception(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        request_codex_review, "_fetch_reviews", lambda *_args: [_review("COMMENTED")]
-    )
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_review_comments",
-        lambda *_args: [_comment("P1 review policy defect")],
-    )
-    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
-    monkeypatch.setattr(request_codex_review, "_fetch_request_comments", lambda *_args: [])
-
-    verdict = poll_for_verdict(
-        "owner/repo",
-        "14",
-        _HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        timeout_seconds=0,
-    )
-
-    assert verdict is not None
-    assert verdict["outcome"] == "blocking"
-
-
-def test_timestamp_tie_prefers_blocking_native_evidence(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    p1 = {**_review("COMMENTED"), "submitted_at": "2026-08-24T08:34:00Z"}
-    monkeypatch.setattr(request_codex_review, "_fetch_reviews", lambda *_args: [p1])
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_review_comments",
-        lambda *_args: [_comment("P1 tie-breaker")],
-    )
-    monkeypatch.setattr(
-        request_codex_review,
-        "_fetch_request_comments",
-        lambda *_args: [_request(), _clean_comment(created_at="2026-08-24T08:34:00Z")],
-    )
-    monkeypatch.setattr(request_codex_review, "_clean_reaction_context", lambda *_args: "author")
-    monkeypatch.setattr(request_codex_review, "_fetch_reactions", lambda *_args: [])
-
-    verdict = poll_for_verdict(
-        "owner/repo",
-        "14",
-        _HEAD,
-        head_observed_at="2026-08-24T08:31:00Z",
-        timeout_seconds=0,
-    )
-
-    assert verdict is not None
-    assert verdict["outcome"] == "blocking"
+    reviewer = ["--reviewer", "github-actions"]
+
+    _serve(monkeypatch, _payload(reviews=[codex_review], comments=[claude_comment]))
+    request_codex_review.main(_wait_argv() + reviewer)
+    assert "present" in capsys.readouterr().out
+
+    _serve(monkeypatch, _payload(reviews=[codex_review]))
+    with pytest.raises(SystemExit) as exit_info:
+        request_codex_review.main(_wait_argv(timeout="0") + reviewer)
+    assert exit_info.value.code == 3
+
+
+def test_wait_reads_nothing_but_presence() -> None:
+    """ADR 0027: the read is *whether* a Codex review exists, never what it says."""
+    source = inspect.getsource(request_codex_review)
+    for parser_word in ("severity", "finding", "evidence", "verdict", "outcome"):
+        assert parser_word not in source
 
 
 def test_module_entry_point_runs_the_cli() -> None:
@@ -600,4 +197,5 @@ def test_module_entry_point_runs_the_cli() -> None:
     )
 
     assert result.returncode == 0
-    assert "Request or read the standard GitHub review" in result.stdout
+    assert "--request" in result.stdout
+    assert "--wait" in result.stdout
