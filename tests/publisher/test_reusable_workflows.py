@@ -233,16 +233,22 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
         "path": "trusted",
     }
 
+    # Absence (exit 3) is the step's recorded output, not its failure; a crash of the
+    # reader (exit 2) fails the step and with it the job — the fallback never runs on
+    # a read that did not establish absence.
     wait = steps["Wait for the Codex review of the head"]
     assert wait["id"] == "codex"
-    assert wait["continue-on-error"] is True
+    assert "continue-on-error" not in wait
     assert wait["working-directory"] == "trusted"
     assert "github.event_name == 'pull_request'" in wait["if"]
     assert "request_codex_review.py --wait" in wait["run"]
     assert "inputs.codex-timeout-seconds" in wait["run"]
+    assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in wait["run"]
+    assert '*) exit "$rc"' in wait["run"]
 
     claude = steps["Claude review"]
-    assert "steps.codex.outcome != 'success'" in claude["if"]
+    assert "steps.codex.outputs.absent == 'true'" in claude["if"]
+    assert "steps.codex.outcome" not in claude["if"]
     assert "github.event_name == 'pull_request'" in claude["if"]
     assert claude["uses"].startswith("anthropics/claude-code-action@")
     assert claude["with"]["claude_code_oauth_token"] == "${{ secrets.claude_code_oauth_token }}"
