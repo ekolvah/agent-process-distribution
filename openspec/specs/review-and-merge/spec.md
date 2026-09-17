@@ -109,5 +109,5 @@ branch: a `P3` does not keep a PR from merging.
 - **THEN** the next run of the check on that head passes
 
 #### Scenario: Review event re-runs the check
-- **WHEN** a review is submitted on the PR — a reply on a thread is one
-- **THEN** the caller runs the check again on the unchanged head; a resolve has no event of its own, so the fixer's reply after the resolve is what re-runs the check on the resolved state
+- **WHEN** a review thread of the head is resolved after the check concluded on that head — a resolve has no event of its own, and a run another event starts is a required context of its own that leaves the `pull_request` run as it was
+- **THEN** the check is re-run by the fixer's `gh run rerun` of that `pull_request` run, which reads the resolved state; the caller follows pushes alone and the reply on the thread comes after the resolve

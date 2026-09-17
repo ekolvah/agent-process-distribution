@@ -103,11 +103,11 @@ The review loop after the PR SHALL be bounded: after three rounds of applying un
 threads the run leaves the rest to the person with a reply and ends. The loop SHALL name
 how a `P0`/`P1` thread the push addressed is resolved — `resolve_review_thread` on that
 thread from the implementer's own session — and SHALL resolve no other thread: a `P2`/`P3`
-finding is answered, and its disposition is the person's. The review check follows
-submitted reviews, a reply on a thread included, and a resolve has no event of its own:
-the loop SHALL resolve an addressed thread once the Codex review of the new head is in
-and reply on it after the resolve, so the reply re-runs the check on the resolved state;
-no task names a re-run by hand. A review fix that changes a spec SHALL go through a change
+finding is answered, and its disposition is the person's. The review check runs on
+pushes alone, a resolve has no event of its own, and the required context is the head's
+`pull_request` run: the loop SHALL resolve an addressed thread once the Codex review of
+the new head is in, re-run that completed run (`gh run rerun`) so it reads the resolve,
+and reply on the thread after the resolve. A review fix that changes a spec SHALL go through a change
 of its own on the PR branch — a delta under `openspec/changes/<change>/specs/`, validated
 and archived by `archive_change` before the push — never through a direct edit of
 `openspec/specs/`: the archive is what carries a spec, on the first PR and on every

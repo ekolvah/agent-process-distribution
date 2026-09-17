@@ -22,7 +22,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py v2-2b-push-only` (marks its own task, archives — applying the deltas to `openspec/specs/` —, commits, pushes)
+- [x] 4.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py v2-2b-push-only` (marks its own task, archives — applying the deltas to `openspec/specs/` —, commits, pushes)
 - [ ] 4.2 The PR exists: `python .agent-process/scripts/update_pr_body.py 137 --body-file <report>` — the report names this change, the observation and the scenario → test map below
 - [ ] 4.3 `python .agent-process/scripts/request_codex_review.py --request 137` → `python .agent-process/scripts/wait_for_pr.py 137` → a `P0`/`P1` thread this push addresses: `resolve_review_thread.py`, `gh run rerun <run-id>`, reply. The three fixer rounds of the PR are spent; this round is the owner's decision (2026-09-17: pushes alone, rerun by hand); anything further is left to the person with a reply. The person merges. No tick after the archive; a run interrupted after it continues from `gh pr view 137`
 
