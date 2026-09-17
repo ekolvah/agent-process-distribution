@@ -152,14 +152,16 @@ Superseded records and what replaces each:
 * ADR 0011 (Copier + marketplace distribution) → plugin + skills + reusable workflows (`v2-2`).
 * ADR 0013 (`docs/adr/`, self-applied root gated against a working-tree render) → no mirror,
   nothing to gate (`v2-0b`, pulled forward from `v2-2`).
-* ADR 0015 (owner-requested Codex review with Claude fallback) → advisory review by both apps,
-  threads block via the ruleset (`v2-4`).
+* ADR 0015 (owner-requested Codex review with Claude fallback) → Codex on its own, Claude as
+  fallback; `P0`/`P1` threads block through the label-reading check, no classification
+  reply (`v2-2b`).
 * ADR 0019 (every process-owned path under `.agent-process/`) → no rendered payload in
   consumers (`v2-2`).
 * ADR 0021 (the end of an agent turn is a gated event) → `wait_for_pr` as the skill's last
   task; the person is the gate (`v2-1`).
-* ADR 0022 (the fixer resolves the thread its correction addresses) → conversation resolution
-  is the person's choice under the ruleset (`v2-4`).
+* ADR 0022 (the fixer resolves the thread its correction addresses) → the fixer still
+  resolves the `P0`/`P1` thread its push addressed; the check reads the label and the
+  resolved state of either reviewer's thread, no classification reply (`v2-2b`).
 * ADR 0023 (process contexts are an additive branch-protection minimum) → one ruleset from
   JSON (`v2-2`, `v2-4`).
 
@@ -301,3 +303,30 @@ Observations from v2-2a (`v2-2a-board-template`, tracking issue #129):
   `openspec update` keeps; a Claude hook (Claude-only) or a schema fork (`v2-1e`) would not
   be. The propose run creates the tracking issue when the change has none, asking the
   priority once, so no delivery task prompts.
+
+Observations from v2-2b (`v2-2b-review-by-apps`, tracking issue #130), answering the
+questions of #114 in its order:
+
+* Codex's automatic reviews: closed by the owner's decision (solution review, 2026-09-17),
+  not by observation. The Codex app settings offer *On PR open* and *On every push*;
+  the first would hand every later push of a PR to the Claude fallback, the second reviews
+  exactly as often as the Deliver step already requests (`@codex review` after the PR and
+  after every push) while moving the count out of the agent's hands. Not enabled; the
+  request stays the rule's, the review count stays the push count.
+* The same review decided one reviewer per head: Codex primary, Claude only when no Codex
+  review of the head exists after the bounded wait (`codex-timeout-seconds`, 600 s). An
+  error or usage-limit message from the app is the absence of a review, not a parsed
+  signal — the parser (`check_agent_review_outcome.py`, the JSON schema, the evidence
+  publication, ADR 0020's downgrade rule) is deleted with this change; nothing of ours
+  reads what a review says.
+* A `P0`/`P1` thread blocks through the required `agent-review / agent-review` check,
+  whose last step reads the label of a thread's first comment and its resolved state for
+  either reviewer login (`chatgpt-codex-connector`, `github-actions`), replies to nothing.
+  `required_review_thread_resolution` was rejected: it treats a `P3` nit like a `P0`.
+  Branch protection unchanged.
+* Whether the Claude fallback ran on any head of the two PRs, why (Codex silent, out of
+  quota, erroring) and what it cost: <observed on the PR of this change>.
+* The login on Claude's inline comments: <observed on the PR of this change> (if the
+  fallback did not run: not observed, `github-actions[bot]` assumed by the check).
+* Whether a check run started by a `pull_request_review` / `pull_request_review_thread`
+  event is listed for the head (second PR): <observed on the PR of this change>.

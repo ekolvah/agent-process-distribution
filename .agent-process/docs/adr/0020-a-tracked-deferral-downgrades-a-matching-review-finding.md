@@ -1,10 +1,13 @@
 ---
-status: "accepted"
+status: "deprecated"
 date: 2026-09-02
 decision-makers: ekolvah
 ---
 
 # A tracked, gate-verified deferral downgrades a matching review finding
+
+Status: downgrade rule deleted with the contract's parser (`v2-2b`, ADR 0027); the
+generate/verify halves stay until `v2-2c`.
 
 ## Context and Problem Statement
 
