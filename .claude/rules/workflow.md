@@ -24,4 +24,6 @@ task list carries the delivery steps
 so one agent carries a change from approved plan to archived PR.
 
 When creating an issue, ask the user for priority and set the GitHub Project
-field with `python .agent-process/scripts/set_status.py <N> "Todo" --priority <High|Medium|Low>`.
+field with `python .agent-process/scripts/set_status.py <N> --priority <High|Medium|Low>`
+(`Todo` comes from the Project's own workflow). The propose run creates the
+tracking issue of a change and leaves it in `Planned`.

@@ -1,9 +1,18 @@
-# state Specification
+## ADDED Requirements
 
-## Purpose
-Where the process records which task is in which stage, and what moves it.
+### Requirement: The board is a copy of the template Project
+Project 4 of this repository SHALL be the template a consumer's board is copied from: it
+is public; its `Status` field has the options `Todo`, `Planned`, `In Progress`, `Done` and
+nothing else; its `Priority` field has `High`, `Medium`, `Low`; and its built-in workflows
+*Auto-add to project* (open issues and pull requests of the repository), *Item added →
+Todo*, *Item reopened → Todo*, *Item closed → Done* and *Pull request merged → Done* are
+enabled.
 
-## Requirements
+#### Scenario: Template read
+- **WHEN** the template Project is read through the GitHub API
+- **THEN** it is public, its `Status` options are exactly `Todo`, `Planned`, `In Progress`, `Done`, its `Priority` options are `High`, `Medium`, `Low`, and the five workflows are enabled
+
+## MODIFIED Requirements
 
 ### Requirement: Project Status is the lifecycle field
 The GitHub Project's built-in `Status` field SHALL be the lifecycle field with the built-in
@@ -48,23 +57,3 @@ ask the person for the priority before it creates the tracking issue; no deliver
 #### Scenario: Several linked Projects
 - **WHEN** more than one Project is linked to the repository
 - **THEN** the run names them and changes nothing
-
-### Requirement: Branch creation moves the issue to In Progress
-Creating the `issue-N-<slug>` branch SHALL move the issue's Status to `In Progress`; a
-board failure stops delivery visibly instead of leaving the branch without a status.
-
-#### Scenario: Board failure
-- **WHEN** the status move fails after the branch is created
-- **THEN** the delivery stops with the error, not with a silent branch
-
-### Requirement: The board is a copy of the template Project
-Project 4 of this repository SHALL be the template a consumer's board is copied from: it
-is public; its `Status` field has the options `Todo`, `Planned`, `In Progress`, `Done` and
-nothing else; its `Priority` field has `High`, `Medium`, `Low`; and its built-in workflows
-*Auto-add to project* (open issues and pull requests of the repository), *Item added →
-Todo*, *Item reopened → Todo*, *Item closed → Done* and *Pull request merged → Done* are
-enabled.
-
-#### Scenario: Template read
-- **WHEN** the template Project is read through the GitHub API
-- **THEN** it is public, its `Status` options are exactly `Todo`, `Planned`, `In Progress`, `Done`, its `Priority` options are `High`, `Medium`, `Low`, and the five workflows are enabled

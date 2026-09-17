@@ -105,6 +105,25 @@ def test_tasks_of_a_new_change() -> None:
     assert rule.index("archive_change.py") < rule.index("gh pr view <change>")
 
 
+def test_plan_approved() -> None:
+    """Scenario: Plan approved — the review entry ends with the issue in Planned; Group 0 asks nothing."""
+    entries = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
+    review = next(e for e in entries if e.startswith("Architect review"))
+    assert review.index("approve") < review.index('"Planned"')
+    assert "gh issue create" in review and "--priority" in review
+    group0 = next(e for e in entries if "Group 0" in e)
+    assert "gh issue create" not in group0 and "priority" not in group0
+    # The gate also reads the issue: a propose run that stopped before its tail is a
+    # visible stop of the apply, not a prompt and not a silent branch on a missing issue.
+    assert group0.index('"Planned"') < group0.index("gh issue develop")
+    assert "propose run not finished" in group0
+    # The number reaches the implementer of another session through tasks.md: the
+    # tail writes it after `gh issue create`, and a tasks.md still reading `<N>` is the
+    # "no issue" branch of the gate.
+    assert review.index("gh issue create") < review.index("openspec/changes/<change>/tasks.md")
+    assert "still read" in group0 and "`<N>`" in group0
+
+
 def test_pinned_openspec() -> None:
     """The commands the process runs use the version the tests validate against."""
     for path in (CONFIG, ARCHIVE):
