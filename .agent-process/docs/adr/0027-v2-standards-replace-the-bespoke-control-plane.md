@@ -352,5 +352,10 @@ questions of #114 in its order:
   keeps `pull_request_review: [submitted]` only: the Codex review of a new head re-runs the
   enforcement, which covers the resolve issued right after the push; a resolve that lands
   after the head's last review still needs `gh run rerun` on the completed job (the rule
-  keeps that one clause). Whether a check run started by a `pull_request_review` event is
-  listed for the head: <observed on the second PR>.
+  keeps that one clause). A check run started by a `pull_request_review` event is listed
+  for the head: on #137, head `cb6ffe9`, Codex's review at 17:01:07Z started run
+  `35250133503` (`event: pull_request_review`, 11 s, enforcement only) four minutes after
+  the `pull_request` run `35249657967` of the same head; `gh pr checks 137` lists both
+  under `agent-review / agent-review`, so the required context follows the later run —
+  a late blocking review turns the head red, and a resolve issued before Codex's review of
+  the new head is read by that run.
