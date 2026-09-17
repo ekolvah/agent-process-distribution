@@ -102,15 +102,13 @@ This is the per-change flow. It applies only after the one-time repository
    after every successful push run
    `python .agent-process/scripts/request_codex_review.py --request <PR>` through the local
    authenticated PR-author session. If that push addressed a `P0`/`P1` review
-   thread, resolve it now — before the `agent-review` run on this head reaches
-   its last step — with `python .agent-process/scripts/resolve_review_thread.py
+   thread, resolve it with `python .agent-process/scripts/resolve_review_thread.py
    --repo OWNER/REPO --pr <PR> --thread <node-id>` (`--list` prints every open
    `P0`/`P1` thread and its node id); CI never infers a thread's disposition
    (ADR [0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)),
-   so nothing else will. Resolving after that run has already read a red check
-   on this head is a no-op — if the window is missed, re-run the completed
-   `agent-review` run on the unchanged head instead of pushing again, spending
-   no fixer budget. Then run `gh pr checks <PR> --watch`,
+   so nothing else will. The resolve re-runs the `agent-review` check on the
+   unchanged head — the caller follows review events — so there is no window to
+   hit and nothing to re-run by hand. Then run `gh pr checks <PR> --watch`,
    inspect a failed run with
    `gh run view <run-id> --log-failed`, and ask
    `python .agent-process/scripts/review_gate.py <PR>` whether to continue — its verdict

@@ -3,6 +3,12 @@ name: Agent review
 on:
   pull_request:
     types: [opened, synchronize]
+  # A new review or a resolve re-runs the check on the unchanged head; the callee
+  # runs only its enforcement on these events (ADR 0027, v2-2b).
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_thread:
+    types: [resolved, unresolved]
 
 permissions:
   contents: read

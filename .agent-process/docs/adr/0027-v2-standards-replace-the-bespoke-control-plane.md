@@ -336,5 +336,14 @@ questions of #114 in its order:
   --reviewer github-actions`), which fails the check when the fallback published
   nothing on the head. The login on Claude's inline comments, if the fallback runs:
   <observed on the second PR>.
+* Its third review asked to bind that presence read to the invocation (a run id in the
+  publication, or the action's own log) or to a dedicated app identity, since
+  `github-actions[bot]` is shared by every workflow of the repository with a write token.
+  Accepted as is by the owner (2026-09-17, recorded on #130): what can publish under that
+  login is a workflow of this repository with a write `GITHUB_TOKEN`, i.e. a collaborator
+  with write access — the merge authority already; a fork PR runs read-only and a human
+  comment carries a human login. Binding the evidence to the run is the parser coming back
+  under another name; a dedicated app identity is a repository setting and a secret, and
+  stays the person's call if a case shows the need.
 * Whether a check run started by a `pull_request_review` / `pull_request_review_thread`
   event is listed for the head (second PR): <observed on the second PR>.

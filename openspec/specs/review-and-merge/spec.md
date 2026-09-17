@@ -103,3 +103,7 @@ branch: a `P3` does not keep a PR from merging.
 #### Scenario: Blocking thread resolved
 - **WHEN** the fixer resolves the `P0`/`P1` thread its push addressed
 - **THEN** the next run of the check on that head passes
+
+#### Scenario: Review event re-runs the check
+- **WHEN** a review is submitted or a thread is resolved or unresolved on the PR
+- **THEN** the caller runs the check again on the unchanged head, and no task or person re-runs it by hand
