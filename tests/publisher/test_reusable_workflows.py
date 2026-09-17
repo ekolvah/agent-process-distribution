@@ -248,14 +248,12 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in wait["run"]
     assert '*) exit "$rc"' in wait["run"]
 
-    # The action, and with it the repository's secret, meets only a checkout the
-    # repository owns: a review event on a fork PR reaches the base repository, and
-    # whether GitHub withholds secrets on that event is not documented (#137, round 4).
+    # Absence is the only condition: no event filter (a skipped job passes a required
+    # check) and no fork guard — the platform withholds every secret but GITHUB_TOKEN
+    # from a run of a fork PR on `pull_request` and `pull_request_review` alike, and the
+    # repository requires approval for every run from an external contributor (ADR 0027).
     claude = steps["Claude review"]
-    assert "steps.codex.outputs.absent == 'true'" in claude["if"]
-    assert "github.event.pull_request.head.repo.full_name == github.repository" in claude["if"]
-    assert "steps.codex.outcome" not in claude["if"]
-    assert "github.event_name" not in claude["if"]
+    assert claude["if"] == "steps.codex.outputs.absent == 'true'"
     assert claude["uses"].startswith("anthropics/claude-code-action@")
     assert claude["with"]["claude_code_oauth_token"] == "${{ secrets.claude_code_oauth_token }}"
     assert claude["with"]["github_token"] == "${{ github.token }}"
@@ -274,8 +272,6 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     # A fallback that completes without publishing is no review of the head (ADR 0004
     # records the action finishing green without a comment): the same presence read as
     # for Codex, on the job's own login, fails the check instead of leaving it green.
-    # It is not guarded by the fork condition: a fork head without a Codex review is
-    # red, the same conclusion as a push from a fork gets today.
     verify = steps["Verify the Claude review of the head"]
     assert verify["if"] == "steps.codex.outputs.absent == 'true'"
     assert "continue-on-error" not in verify
