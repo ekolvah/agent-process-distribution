@@ -53,7 +53,7 @@ no review state, no evidence and no classification.
 
 #### Scenario: Codex review absent
 - **WHEN** the wait ends without a Codex review of the head — none, or an error or limit message instead of one
-- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments or a comment naming the reviewed head
+- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments or a comment naming the reviewed head; the job then reads whether a review of the head under the workflow token exists — a silent fallback fails the check
 
 #### Scenario: Review event
 - **WHEN** the job runs for a submitted review or a resolved or unresolved thread instead of a `pull_request` event

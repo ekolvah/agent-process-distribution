@@ -324,9 +324,17 @@ questions of #114 in its order:
   either reviewer login (`chatgpt-codex-connector`, `github-actions`), replies to nothing.
   `required_review_thread_resolution` was rejected: it treats a `P3` nit like a `P0`.
   Branch protection unchanged.
-* Whether the Claude fallback ran on any head of the two PRs, why (Codex silent, out of
-  quota, erroring) and what it cost: <observed on the PR of this change>.
-* The login on Claude's inline comments: <observed on the PR of this change> (if the
-  fallback did not run: not observed, `github-actions[bot]` assumed by the check).
+* The first PR (#136) is reviewed by the v1 workflow on `main` (the caller pins `@main`):
+  Codex reviewed its first head within the run's four minutes, the Claude step was
+  skipped, and the v1 evidence publication left a `github-actions[bot]` review on the
+  head — the login the check reads for the Claude job. The new job's fallback is first
+  observable on the second PR: whether it ran on any head, why (Codex silent, out of
+  quota, erroring) and what it cost: <observed on the second PR>.
+* The first Codex review of #136 found the gap of a fallback that finishes green without
+  publishing (ADR 0004 records the action doing so): the job gained a sixth step, the
+  same presence read on the workflow token's login (`request_codex_review.py --wait
+  --reviewer github-actions`), which fails the check when the fallback published
+  nothing on the head. The login on Claude's inline comments, if the fallback runs:
+  <observed on the second PR>.
 * Whether a check run started by a `pull_request_review` / `pull_request_review_thread`
-  event is listed for the head (second PR): <observed on the PR of this change>.
+  event is listed for the head (second PR): <observed on the second PR>.

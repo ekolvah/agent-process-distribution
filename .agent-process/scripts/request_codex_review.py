@@ -1,13 +1,16 @@
-"""Request the Codex review of a PR, or wait for it to exist on the current head.
+"""Request the Codex review of a PR, or wait for a review to exist on the current head.
 
 Codex's supported GitHub flow is an author comment, ``@codex review``; the
 integration then posts a normal GitHub review, or a clean comment naming the
 reviewed commit. ``--request`` posts the exact trigger from the authenticated
 local PR-author session. ``--wait`` runs in the review job and reads *whether*
-a Codex review of the head exists — a native review on that head, or the
-app's clean comment naming that head — never what it says (ADR 0027). An
-error or usage-limit message from the app is no review: the wait runs to its
-timeout and exits 3, the job's condition for the Claude fallback.
+a review of the head by ``--reviewer`` (Codex by default) exists — a native
+review on that head, or the reviewer's clean comment naming that head — never
+what it says (ADR 0027). An error or usage-limit message from the app is no
+review: the wait runs to its timeout and exits 3, the job's condition for the
+Claude fallback. The same read with ``--reviewer github-actions`` verifies that
+the fallback published under the workflow token: the action can finish green
+without a comment (ADR 0004), and a silent fallback is no review of the head.
 """
 
 from __future__ import annotations
@@ -28,9 +31,12 @@ CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
 DEFAULT_TIMEOUT_SECONDS = 600
 DEFAULT_POLL_SECONDS = 20
 REQUEST_BODY = "@codex review"
-# The app's clean transport names the reviewed commit by a 10-hex prefix; the
-# match is a fact about the app, read for presence on this head only.
-_REVIEWED_COMMIT = re.compile(r"\*\*Reviewed commit:\*\* `(?P<sha>[0-9a-f]{10})`")
+# The clean publication names the reviewed head: Codex by a 10-hex prefix
+# (`**Reviewed commit:** \`abcdef0123\``), the Claude review job by the contract's
+# `Reviewed head SHA: <sha>`. Both are read for presence on this head only.
+_REVIEWED_COMMIT = re.compile(
+    r"(?:\*\*Reviewed commit:\*\* `|Reviewed head SHA: )(?P<sha>[0-9a-f]{10,40})"
+)
 _REVIEWS_QUERY = """
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
@@ -53,10 +59,10 @@ def _normalise_login(value: object) -> str:
     return str(value or "").removesuffix("[bot]").lower()
 
 
-def _by_codex(node: object) -> bool:
+def _by(reviewer: str, node: object) -> bool:
     author = node.get("author") if isinstance(node, Mapping) else None
     login = author.get("login") if isinstance(author, Mapping) else None
-    return _normalise_login(login) == _normalise_login(CODEX_REVIEWER)
+    return _normalise_login(login) == _normalise_login(reviewer)
 
 
 def _nodes(pull: Mapping[str, object], field: str) -> list[object]:
@@ -92,28 +98,34 @@ def fetch_pull_request(repo: str, pr: str) -> Mapping[str, object]:
     return pull
 
 
-def codex_reviewed(pull: Mapping[str, object], head: str) -> bool:
-    """True when Codex left a review on ``head`` or its clean comment naming ``head``."""
+def reviewed(pull: Mapping[str, object], head: str, reviewer: str = CODEX_REVIEWER) -> bool:
+    """True when ``reviewer`` left a review on ``head`` or its clean comment naming ``head``."""
     for review in _nodes(pull, "reviews"):
         commit = review.get("commit") if isinstance(review, Mapping) else None
         oid = commit.get("oid") if isinstance(commit, Mapping) else None
-        if _by_codex(review) and oid == head:
+        if _by(reviewer, review) and oid == head:
             return True
     for comment in _nodes(pull, "comments"):
         body = comment.get("body") if isinstance(comment, Mapping) else None
         match = _REVIEWED_COMMIT.search(body) if isinstance(body, str) else None
-        if _by_codex(comment) and match is not None and head.startswith(match.group("sha")):
+        if _by(reviewer, comment) and match is not None and head.startswith(match.group("sha")):
             return True
     return False
 
 
-def wait_for_codex_review(
-    repo: str, pr: str, head: str, *, timeout_seconds: int, poll_seconds: int
+def wait_for_review(
+    repo: str,
+    pr: str,
+    head: str,
+    *,
+    reviewer: str,
+    timeout_seconds: int,
+    poll_seconds: int,
 ) -> bool:
-    """Poll until a Codex review of ``head`` exists or ``timeout_seconds`` pass."""
+    """Poll until a review of ``head`` by ``reviewer`` exists or ``timeout_seconds`` pass."""
     deadline = time.monotonic() + timeout_seconds
     while True:
-        if codex_reviewed(fetch_pull_request(repo, pr), head):
+        if reviewed(fetch_pull_request(repo, pr), head, reviewer):
             return True
         if time.monotonic() >= deadline:
             return False
@@ -130,6 +142,12 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--repo", dest="repository", metavar="OWNER/REPO")
     parser.add_argument("--pr", dest="pr_number", metavar="NUMBER")
     parser.add_argument("--head-sha")
+    parser.add_argument(
+        "--reviewer",
+        default=CODEX_REVIEWER,
+        metavar="LOGIN",
+        help="whose review of --head-sha to wait for (default: the Codex app)",
+    )
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--poll-seconds", type=int, default=DEFAULT_POLL_SECONDS)
     options = parser.parse_args(argv)
@@ -154,20 +172,22 @@ def main(argv: Sequence[str] | None = None) -> None:
         request_review(options.request)
         return
     try:
-        present = wait_for_codex_review(
+        present = wait_for_review(
             options.repository,
             options.pr_number,
             options.head_sha,
+            reviewer=options.reviewer,
             timeout_seconds=options.timeout_seconds,
             poll_seconds=options.poll_seconds,
         )
     except (RuntimeError, ValueError, json.JSONDecodeError) as exc:
         print(f"error: cannot read the reviews of the PR: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
+    who = f"review of {options.head_sha} by {options.reviewer}"
     if present:
-        print(f"codex review of {options.head_sha}: present")
+        print(f"{who}: present")
         return
-    print(f"codex review of {options.head_sha}: absent after {options.timeout_seconds}s")
+    print(f"{who}: absent after {options.timeout_seconds}s")
     raise SystemExit(3)
 
 

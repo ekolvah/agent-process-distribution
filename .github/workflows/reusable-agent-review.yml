@@ -77,6 +77,22 @@ jobs:
             `No findings. Reviewed head SHA: <sha>`. Never approve, request changes
             or merge.
 
+      # The action can finish green without publishing (ADR 0004); a silent fallback
+      # is no review of the head. The same presence read as for Codex, on the
+      # workflow token's login, fails the check instead of leaving it green.
+      - name: Verify the Claude review of the head
+        if: github.event_name == 'pull_request' && steps.codex.outcome != 'success'
+        working-directory: trusted
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python .agent-process/scripts/request_codex_review.py --wait
+          --reviewer github-actions
+          --repo "${{ github.repository }}"
+          --pr "${{ github.event.pull_request.number }}"
+          --head-sha "${{ github.event.pull_request.head.sha }}"
+          --timeout-seconds 60
+
       - name: Enforce unresolved P0/P1 threads
         if: always()
         working-directory: trusted
