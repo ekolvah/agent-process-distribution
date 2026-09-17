@@ -111,7 +111,8 @@ def test_tasks_of_a_new_change() -> None:
         < rule.index("resolve_review_thread.py")
         < rule.index("three rounds")
     )
-    assert "BLOCKING" in rule
+    assert "a BLOCKING thread the push addressed is resolved" in rule
+    assert "a thread that is not BLOCKING is answered, never resolved by the process" in rule
 
 
 def test_plan_approved() -> None:
