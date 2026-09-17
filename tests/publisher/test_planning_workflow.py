@@ -103,6 +103,10 @@ def test_tasks_of_a_new_change() -> None:
     # interrupted after it resumes from the PR, not from the apply.
     assert "no tick" in rule
     assert rule.index("archive_change.py") < rule.index("gh pr view <change>")
+    # Scenario: Blocking thread addressed — the loop names the resolve of a BLOCKING
+    # thread after the re-request; CI never infers a thread's disposition (ADR 0022).
+    assert rule.index("request_codex_review.py") < rule.index("resolve_review_thread.py")
+    assert "BLOCKING" in rule
 
 
 def test_plan_approved() -> None:
