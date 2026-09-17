@@ -4,12 +4,13 @@
 Usage: python .agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 
 The implementing run ends only after checks and reviews: a running check (the `agent-review`
-check waiting for the requested Codex review included) is a pending review, so the script
-polls `gh pr view --json statusCheckRollup` until the same non-empty set of checks is
-concluded on two consecutive polls (an empty or growing rollup is the gap between a push and
-the workflows attaching), and only then reads the unresolved review threads. Exit 0: nothing unresolved; 1: failed checks
-or unresolved threads, each printed with its location; 3: `--timeout` (default 30 minutes)
-elapsed while something was still running. Stays until `v2-4` reworks review.
+check waiting for the requested Codex review, or running the Claude fallback, included) is a
+pending review, so the script polls `gh pr view --json statusCheckRollup` until the same
+non-empty set of checks is concluded on two consecutive polls (an empty or growing rollup is
+the gap between a push and the workflows attaching), and only then reads the unresolved review
+threads of either reviewer. Exit 0: nothing unresolved; 1: failed checks or unresolved
+threads, each printed with its location; 3: `--timeout` (default 30 minutes) elapsed while
+something was still running.
 """
 
 from __future__ import annotations

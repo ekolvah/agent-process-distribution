@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Label Codex findings clearly and fail on unresolved blocking conversations.
+"""Fail the review check while an unresolved P0/P1 thread of either reviewer exists.
 
 GitHub's native ``required_conversation_resolution`` setting is intentionally
 not used here: it treats advisory and blocking threads identically. This check
-implements the narrower merge contract promised by REVIEW_CONTRACT.md.
+reads only the label of a thread's first comment — by the Codex app or by the
+Claude review job, which comments under the workflow token — and whether the
+thread is resolved; it replies to nothing and resolves nothing (ADR 0027).
 """
 
 from __future__ import annotations
@@ -20,9 +22,8 @@ try:
 except ModuleNotFoundError:  # Direct execution from the relocated payload.
     from gh_io import run_gh
 
-_CODEX_REVIEWER = "chatgpt-codex-connector"
+_REVIEWERS = frozenset({"chatgpt-codex-connector", "github-actions"})
 _PRIORITY = re.compile(r"\bP(?P<number>[0-3])\b", re.IGNORECASE)
-_CLASSIFICATION_MARKER = "<!-- agent-review-merge-classification -->"
 _QUERY = """
 query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
@@ -51,7 +52,6 @@ class ReviewThread(NamedTuple):
     priority: str
     url: str
     blocking: bool
-    classified: bool
     original_commit_oid: str | None = None
 
 
@@ -95,7 +95,7 @@ def head_ref_oid(payload: object) -> str:
 
 
 def review_threads(payload: object) -> list[ReviewThread]:
-    """Return open Codex findings with their user-facing merge classification."""
+    """Return the open threads whose first comment is a labelled reviewer finding."""
     if not isinstance(payload, Mapping):
         raise RuntimeError("GraphQL payload is not an object")
     data = payload.get("data")
@@ -125,12 +125,6 @@ def review_threads(payload: object) -> list[ReviewThread]:
         records = comments.get("nodes")
         if not isinstance(records, list):
             raise RuntimeError("GraphQL comments are not a list")
-        classified = any(
-            isinstance(comment, Mapping)
-            and isinstance(comment.get("body"), str)
-            and _CLASSIFICATION_MARKER in comment["body"]
-            for comment in records
-        )
         for comment in records:
             if not isinstance(comment, Mapping) or comment.get("replyTo") is not None:
                 continue
@@ -138,11 +132,11 @@ def review_threads(payload: object) -> list[ReviewThread]:
             login = author.get("login") if isinstance(author, Mapping) else None
             body = comment.get("body")
             priority = _PRIORITY.search(body) if isinstance(body, str) else None
-            if _normalise_login(login) != _CODEX_REVIEWER or priority is None:
+            if _normalise_login(login) not in _REVIEWERS or priority is None:
                 continue
             comment_id = comment.get("databaseId")
             if not isinstance(comment_id, int):
-                raise RuntimeError("a Codex review comment has no database ID")
+                raise RuntimeError("a review comment has no database ID")
             original_commit = comment.get("originalCommit")
             original_commit_oid = (
                 original_commit.get("oid") if isinstance(original_commit, Mapping) else None
@@ -154,7 +148,6 @@ def review_threads(payload: object) -> list[ReviewThread]:
                     priority=priority.group(0).upper(),
                     url=str(comment.get("url", "")),
                     blocking=priority.group("number") in {"0", "1"},
-                    classified=classified,
                     original_commit_oid=(
                         str(original_commit_oid) if isinstance(original_commit_oid, str) else None
                     ),
@@ -173,27 +166,6 @@ def blocking_threads(payload: object) -> list[tuple[str, str, str]]:
     ]
 
 
-def _publish_classifications(repository: str, pr_number: int, threads: list[ReviewThread]) -> None:
-    for thread in threads:
-        if thread.classified:
-            continue
-        message = (
-            "**BLOCKING** — this finding must be fixed and this conversation resolved before merge."
-            if thread.blocking
-            else "**NON-BLOCKING** — this finding is advisory and does not prevent merge."
-        )
-        run_gh(
-            [
-                "api",
-                "--method",
-                "POST",
-                f"repos/{repository}/pulls/{pr_number}/comments/{thread.comment_id}/replies",
-                "-f",
-                f"body={_CLASSIFICATION_MARKER}\n{message}",
-            ]
-        )
-
-
 def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True, metavar="OWNER/REPO")
@@ -204,19 +176,16 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> None:
     options = _parse_options(argv)
     try:
-        payload = fetch_review_threads(options.repo, options.pr)
-        threads = review_threads(payload)
-        _publish_classifications(options.repo, options.pr, threads)
-        findings = [thread for thread in threads if thread.blocking]
+        unresolved = blocking_threads(fetch_review_threads(options.repo, options.pr))
     except (RuntimeError, ValueError, json.JSONDecodeError) as exc:
-        print(f"error: cannot determine unresolved blocking review threads: {exc}", file=sys.stderr)
+        print(f"error: cannot determine unresolved P0/P1 review threads: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
-    if findings:
-        print("error: unresolved BLOCKING Codex review conversations:", file=sys.stderr)
-        for thread in findings:
-            print(f"- BLOCKING: {thread.url or thread.thread_id}", file=sys.stderr)
+    if unresolved:
+        print("error: unresolved P0/P1 review threads:", file=sys.stderr)
+        for thread_id, priority, url in unresolved:
+            print(f"- {priority}: {url or thread_id}", file=sys.stderr)
         raise SystemExit(1)
-    print("ok: no unresolved BLOCKING Codex review conversations")
+    print("ok: no unresolved P0/P1 review threads")
 
 
 if __name__ == "__main__":
