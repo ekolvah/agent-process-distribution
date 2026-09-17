@@ -113,6 +113,10 @@ def test_plan_approved() -> None:
     assert "gh issue create" in review and "--priority" in review
     group0 = next(e for e in entries if "Group 0" in e)
     assert "gh issue create" not in group0 and "priority" not in group0
+    # The gate also reads the issue: a propose run that stopped before its tail is a
+    # visible stop of the apply, not a prompt and not a silent branch on a missing issue.
+    assert group0.index('"Planned"') < group0.index("gh issue develop")
+    assert "propose run not finished" in group0
 
 
 def test_pinned_openspec() -> None:
