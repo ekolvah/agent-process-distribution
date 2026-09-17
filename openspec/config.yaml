@@ -75,13 +75,13 @@ rules:
       (after the PR and after every push: the `agent-review` check waits for the Codex
       review of the head and runs the Claude review only when none arrives) →
       `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
-      push, re-request, `wait_for_pr.py <PR>` again — the `agent-review` check re-runs on
-      the Codex review of the new head and on every later review event of the PR, a reply
-      on a thread included; a reply before that review starts a run that waits for it —
-      then a `P0`/`P1` thread the push addressed is resolved with
+      push, re-request, `wait_for_pr.py <PR>` again — then a `P0`/`P1` thread the push
+      addressed is resolved with
       `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
-      --thread <id>` (`--list` prints the open ones) and answered on the thread after the
-      resolve: the reply re-runs the check on the unchanged head and it reads the resolve;
+      --thread <id>` (`--list` prints the open ones), the completed `agent-review` run of
+      that head is re-run — `gh run rerun <run-id>`, the id from `gh pr checks <PR>`; a
+      resolve has no event, and the required context is that `pull_request` run — and the
+      thread is answered on the thread after the resolve;
       a `P2`/`P3` thread is answered, never resolved by the process; a fix that changes a
       spec goes through a change of its own on the PR branch — `npx -y
       @fission-ai/openspec@1.13.0 new change <name>`, the delta under its `specs/`,

@@ -353,9 +353,8 @@ questions of #114 in its order:
   for the head: on #137, head `cb6ffe9`, Codex's review at 17:01:07Z started run
   `35250133503` (`event: pull_request_review`, 11 s) four minutes after the
   `pull_request` run `35249657967` of the same head; `gh pr checks 137` lists both under
-  `agent-review / agent-review`, so the required context follows the later run — a late
-  blocking review turns the head red, and a resolve issued before Codex's review of the
-  new head is read by that run. That run had skipped the wait and the fallback
+  `agent-review / agent-review`. The inference drawn then — that the required context
+  follows the later run — was wrong; see the last bullet of this section. That run had skipped the wait and the fallback
   (enforcement only, as designed) — which Codex's third review of #137 showed to be a
   hole: any submitted review, a human's or one of an older commit, starts such a run
   while the `pull_request` run is still waiting, and with no thread yet it passes and
@@ -369,12 +368,11 @@ questions of #114 in its order:
   (17:14:00Z, `event: pull_request_review`) — which, running the `@main` callee of that
   hour, skipped the wait and the fallback and passed on enforcement alone, four minutes
   before Codex's review of the head arrived with a `P1`: the hole of the previous bullet,
-  observed live. Two consequences. The rule orders the loop around it: resolve once the
-  Codex review of the new head is in, reply after the resolve — the reply re-runs the
-  check and it reads the resolve; the `gh run rerun` clause is gone, a resolve is never
-  the last write on a thread. The caller pins the callee `@main`, so #137 exercises none
-  of its own callee changes; the same-path run is first observed on the PR after its
-  merge: <observed on the next PR>.
+  observed live. The rule orders the loop around it: resolve once the Codex review of
+  the new head is in, reply after the resolve — a resolve is never the last write on a
+  thread. The caller pins the callee `@main`, so #137 exercises none of its own callee
+  changes; the same-path run is first observed on the PR after its merge:
+  <observed on the next PR>.
 * Fork PRs and the secret (2026-09-17, on the fourth and fifth Codex reviews of #137).
   Codex asked whether a review event on a fork PR reaches the Claude step with the
   repository's secret, and then noted that the caller YAML of a `pull_request_review` run
@@ -393,9 +391,8 @@ questions of #114 in its order:
   `approval_policy: all_external_contributors`, set on 2026-09-17 from
   `first_time_contributors`): a run of a fork PR by a non-member does not start until the
   person approves it, on every event but `pull_request_target`, which the process does not
-  use. A `pull_request_review_target` does not exist, so the reply-driven re-run of a fork
-  PR runs without the secret and is red on the missing Claude review unless Codex or a
-  person reviewed it — the same conclusion a fork push gets. Deletion condition: none; the
+  use. A run of a fork PR holds no secret and is red on the missing Claude review unless
+  Codex, requested by a member, reviewed the head. Deletion condition: none; the
   setting is the platform's, and a change of the event set of the caller re-reads the same
   reference page.
 * Resolve-then-reply observed on #137, head `26bc2da`, before the rule relied on it (Codex's
@@ -404,7 +401,27 @@ questions of #114 in its order:
   (`pull_request_review`, 18:04:23Z) on the unchanged head, whose enforcement listed the two
   open threads of the newer review only — the resolve held and the run read it. The event
   and the thread state are the platform's, independent of which callee the run executes,
-  so the observation stands for the merged one. The rule keeps no `gh run rerun` clause.
+  so the observation stands for the merged one.
+* The review-event trigger is withdrawn (owner's decision, 2026-09-17): every event is a
+  required context of its own. On head `a1d0bad` of #137 the `pull_request` run
+  `35262221116` concluded red at 19:04Z while the `P1` thread was open; the resolve and
+  three replies started three `pull_request_review` runs that concluded green at 19:06Z,
+  and the PR stayed `mergeStateStatus: BLOCKED` — the branch protection's `statusCheckRollup`
+  listed the `pull_request` run as a required context of its own with `FAILURE` beside the
+  green review-event runs (the UI: two lines under `agent-review`, `(pull_request)` and
+  `(pull_request_review)`, both "Required"). `gh run rerun 35262221116` re-executed that
+  run on the same payload, its enforcement read the resolve, and the PR went `CLEAN`.
+  So a review-event run re-runs a check but never the required one: the design D6 of
+  `v2-2b` (a resolve needs no rerun by hand because the reply re-runs the check) is
+  false, and what the trigger adds is a second required line, a run — a wait and, on a head
+  Codex left silent, a Claude review — per reply, and the fork and `last: 30` questions of
+  the fourth and fifth Codex reviews. The caller runs on `pull_request` alone again; the
+  rule and step 4 read resolve → `gh run rerun <run-id>` → reply, the rerun being the
+  deterministic step a resolve needs (`v2-2b-push-only`). What #137 keeps: the callee on
+  one path for any event a caller may send, the resolve-after-wait and reply-after-resolve
+  order, the spec-fix rule, the fork setting. Lesson for the planner, as an issue of its
+  own: a platform behaviour a design rests on is verified on the platform before the
+  proposal, not inferred from a listing.
 * Review fixes of #137 (rounds 3–4) had edited `openspec/specs/` directly: the PR's change
   was archived before the PR opened, as the process orders, and nothing described the new
   behaviour as a delta. Owner's decision (2026-09-17, on Codex's P1 of `26bc2da`): a review

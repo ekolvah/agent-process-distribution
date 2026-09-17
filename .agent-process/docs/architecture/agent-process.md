@@ -107,12 +107,12 @@ This is the per-change flow. It applies only after the one-time repository
    `P0`/`P1` thread and its node id); CI never infers a thread's disposition
    (ADR [0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)),
    so nothing else will. Resolve once the Codex review of the new head is in,
-   and reply on the thread after the resolve: the caller runs on
-   `pull_request_review`, a reply is a submitted review, so the reply re-runs
-   the `agent-review` check on the unchanged head and it reads the resolve —
-   no push, no fixer budget, no re-run by hand. GitHub has no event for a
-   resolve (`pull_request_review_thread` is rejected), and a reply posted
-   before Codex's review starts a run that waits for it. A fix that changes
+   re-run the completed `agent-review` run of that head (`gh run rerun
+   <run-id>`, the id from `gh pr checks <PR>`) so it reads the resolve, and
+   reply on the thread after the resolve — no push, no fixer budget. GitHub
+   has no event for a resolve (`pull_request_review_thread` is rejected), and
+   the required context is the head's `pull_request` run: a run another event
+   starts is a context of its own and leaves that one as it was. A fix that changes
    a spec goes through a change of its own on the PR branch (delta,
    `validate --strict`, `archive_change`), never a direct edit of
    `openspec/specs/`. Then run `gh pr checks <PR> --watch`,
