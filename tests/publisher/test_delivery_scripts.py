@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -378,6 +379,16 @@ def test_none_capture_is_an_error(monkeypatch: pytest.MonkeyPatch, script: str, 
         runner = runner(Path("."))
     with pytest.raises(RuntimeError, match="capture"):
         runner(["gh", "repo", "view"])
+
+
+def test_archive_runner_reports_a_failed_command_whose_output_is_not_utf8() -> None:
+    """A pre-push hook that writes a code-page byte still reaches the operator: the
+    failure names the command and its output, not a broken capture (§IV)."""
+    runner = _script("archive_change")._runner(Path("."))
+    child = "import sys; sys.stderr.buffer.write(b'tests failed \\x97 see above\\n'); sys.exit(1)"
+
+    with pytest.raises(RuntimeError, match=r"failed \(rc=1\).*tests failed"):
+        runner([sys.executable, "-c", child])
 
 
 def test_archive_commit(tmp_path: Path) -> None:
