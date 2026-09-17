@@ -129,6 +129,14 @@ def test_tasks_of_a_new_change() -> None:
         < rule.index("answered on the thread after the resolve")
         < rule.index("three rounds")
     )
+    # The wait is on the check of the head, whichever carrier reviewed it: Codex, or
+    # the fallback the check ran when none came (#137, Codex on 8f272f3) — a wait on
+    # the Codex review alone never ends on a head Codex left silent.
+    assert (
+        rule.index("re-request, `wait_for_pr.py <PR>` again")
+        < rule.index("or the fallback's")
+        < rule.index("resolve_review_thread.py")
+    )
     # Scenario: Review fix changes a spec — the archive is what carries a spec, on
     # the first PR and on every fix; a direct edit of `openspec/specs/` bypasses the
     # delta and its validation (#137, Codex on 26bc2da).
