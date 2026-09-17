@@ -39,7 +39,9 @@ bounded time for a Codex review of the current head — read as present or absen
 parsed: a native review by the app on that head, or its clean comment naming that head;
 an error or usage-limit message from the app is absence — and SHALL run the Claude Code
 action with the review contract read from the trusted checkout of the process at the ref the
-caller pinned only when the wait ended absent. Each reviewer publishes findings as inline
+caller pinned only when the wait ended absent and the head is in the repository itself: the
+action holds the repository's secret and runs what the PR worktree's `.claude/settings.json`
+names, so it never meets a checkout the repository does not own. Each reviewer publishes findings as inline
 comments labelled `P0`–`P3` and names the reviewed head when it finds nothing; the job leaves
 no review state, no evidence and no classification.
 
@@ -58,6 +60,10 @@ no review state, no evidence and no classification.
 #### Scenario: Reader failure
 - **WHEN** the read of the PR's reviews fails instead of establishing presence or absence
 - **THEN** the check fails without running the Claude action
+
+#### Scenario: Head from a fork
+- **WHEN** the PR head is in another repository and the wait ended absent, on any event
+- **THEN** the Claude action does not run and the verification fails the check: the secret never meets the fork's checkout, and a fork PR is reviewed by Codex or by a person
 
 #### Scenario: Event other than a push
 - **WHEN** a caller runs the job for an event that is not `pull_request`
@@ -105,5 +111,5 @@ branch: a `P3` does not keep a PR from merging.
 - **THEN** the next run of the check on that head passes
 
 #### Scenario: Review event re-runs the check
-- **WHEN** a review is submitted on the PR
-- **THEN** the caller runs the check again on the unchanged head; a resolve has no event of its own, so one that lands after the head's last review re-runs the completed job
+- **WHEN** a review is submitted on the PR — a reply on a thread is one
+- **THEN** the caller runs the check again on the unchanged head; a resolve has no event of its own, so the fixer's reply after the resolve is what re-runs the check on the resolved state

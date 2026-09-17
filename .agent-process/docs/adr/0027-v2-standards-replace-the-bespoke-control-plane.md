@@ -349,10 +349,7 @@ questions of #114 in its order:
   second PR (#137, `397c54f`) produced no `agent-review` run at all — GitHub reported
   `Invalid workflow file (Line: 10, Col: 3): Unexpected value 'pull_request_review_thread'`
   and the event is gone from the "Events that trigger workflows" reference. The caller
-  keeps `pull_request_review: [submitted]` only: the Codex review of a new head re-runs the
-  enforcement, which covers the resolve issued right after the push; a resolve that lands
-  after the head's last review still needs `gh run rerun` on the completed job (the rule
-  keeps that one clause). A check run started by a `pull_request_review` event is listed
+  keeps `pull_request_review: [submitted]` only. A check run started by a `pull_request_review` event is listed
   for the head: on #137, head `cb6ffe9`, Codex's review at 17:01:07Z started run
   `35250133503` (`event: pull_request_review`, 11 s) four minutes after the
   `pull_request` run `35249657967` of the same head; `gh pr checks 137` lists both under
@@ -366,5 +363,26 @@ questions of #114 in its order:
   required check as well, so no `if` can filter the event; the callee now runs the same
   path on every event, and a review-event run's conclusion derives from a review of the
   head. Cost accepted: a human review on a PR Codex left silent starts a second wait and
-  a second Claude review; a review event on a fork PR runs with the repository's secrets,
-  which `pull_request` from a fork does not.
+  a second Claude review.
+* A reply on a review thread is a submitted review: the fixer's REST reply on #137 became
+  a `COMMENTED` review by the author and started run `35251460261` on head `b6858f8`
+  (17:14:00Z, `event: pull_request_review`) — which, running the `@main` callee of that
+  hour, skipped the wait and the fallback and passed on enforcement alone, four minutes
+  before Codex's review of the head arrived with a `P1`: the hole of the previous bullet,
+  observed live. Two consequences. The rule orders the loop around it: resolve once the
+  Codex review of the new head is in, reply after the resolve — the reply re-runs the
+  check and it reads the resolve; the `gh run rerun` clause is gone, a resolve is never
+  the last write on a thread. And the fourth Codex review of #137 pointed at the fork
+  case: a review event on a fork PR reaches the base repository, and the docs state only
+  that secrets are withheld from a workflow "triggered from a forked repository" — not
+  whether a review on a fork PR counts; the Claude action holds the repository's secret
+  and runs the hooks of the checked-out worktree's `.claude/settings.json`. The Claude
+  step now runs only for a head in the repository itself
+  (`github.event.pull_request.head.repo.full_name == github.repository`); the
+  verification is not guarded, so a fork head without a Codex review is red — the
+  conclusion a fork push gets today from the missing secret — and the design does not
+  depend on the undocumented fact either way. The caller pins the callee `@main`, so
+  #137 exercises none of its own callee changes; the same-path run, the fork guard and
+  the reply-driven re-run are first observed on the PR after its merge: <observed on the
+  next PR>. The proof of the guard is a PR opened from a fork with `Claude review`
+  skipped and the check red — an observation, not the YAML test.

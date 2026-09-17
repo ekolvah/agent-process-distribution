@@ -106,12 +106,13 @@ This is the per-change flow. It applies only after the one-time repository
    --repo OWNER/REPO --pr <PR> --thread <node-id>` (`--list` prints every open
    `P0`/`P1` thread and its node id); CI never infers a thread's disposition
    (ADR [0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)),
-   so nothing else will. Resolve right after the push: the Codex review of the
-   new head re-runs the `agent-review` check (the caller runs on
-   `pull_request_review`), and a resolve that lands after that review re-runs
-   the completed job on the unchanged head — `gh run rerun <run-id> --failed`,
-   no push, no fixer budget; GitHub has no event for a resolve
-   (`pull_request_review_thread` is rejected). Then run `gh pr checks <PR> --watch`,
+   so nothing else will. Resolve once the Codex review of the new head is in,
+   and reply on the thread after the resolve: the caller runs on
+   `pull_request_review`, a reply is a submitted review, so the reply re-runs
+   the `agent-review` check on the unchanged head and it reads the resolve —
+   no push, no fixer budget, no re-run by hand. GitHub has no event for a
+   resolve (`pull_request_review_thread` is rejected), and a reply posted
+   before Codex's review starts a run that waits for it. Then run `gh pr checks <PR> --watch`,
    inspect a failed run with
    `gh run view <run-id> --log-failed`, and ask
    `python .agent-process/scripts/review_gate.py <PR>` whether to continue — its verdict

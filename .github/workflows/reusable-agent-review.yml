@@ -66,8 +66,16 @@ jobs:
             *) exit "$rc" ;;
           esac
 
+      # The action, and the secret it holds, meets only a checkout the repository
+      # owns: the PR worktree's `.claude/settings.json` is code the action runs.
+      # A review event on a fork PR reaches the base repository, and whether it
+      # withholds secrets there is undocumented — the guard makes that moot. The
+      # verification below is not guarded: a fork head without a Codex review is
+      # red, as a push from a fork is today.
       - name: Claude review
-        if: steps.codex.outputs.absent == 'true'
+        if: >-
+          steps.codex.outputs.absent == 'true'
+          && github.event.pull_request.head.repo.full_name == github.repository
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.claude_code_oauth_token }}

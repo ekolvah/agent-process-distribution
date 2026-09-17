@@ -116,12 +116,16 @@ def test_tasks_of_a_new_change() -> None:
     assert "BLOCKING" not in rule
     assert "until v2-4" not in rule
     # A submitted review re-runs the check (the caller's `pull_request_review`
-    # trigger); a resolve has no event of its own on GitHub, so a resolve that
-    # lands after the last review of the head re-runs the job, not another push.
+    # trigger) and a reply on a thread is one (#137, run 35251460261); a resolve
+    # has no event of its own, so the loop resolves after the Codex review of the
+    # new head is in and replies after the resolve — the reply re-runs the check
+    # on the resolved state. No re-run by hand, no rerun clause.
     assert "reaches its last step" not in rule
+    assert "gh run rerun" not in rule
     assert (
-        rule.index("resolve_review_thread.py")
-        < rule.index("gh run rerun")
+        rule.index("re-request, `wait_for_pr.py <PR>` again")
+        < rule.index("resolve_review_thread.py")
+        < rule.index("the reply re-runs the check")
         < rule.index("three rounds")
     )
 
