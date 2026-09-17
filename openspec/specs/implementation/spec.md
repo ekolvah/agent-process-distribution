@@ -105,9 +105,11 @@ how a `P0`/`P1` thread the push addressed is resolved — `resolve_review_thread
 thread from the implementer's own session — and SHALL resolve no other thread: a `P2`/`P3`
 finding is answered, and its disposition is the person's. The review check runs on
 pushes alone, a resolve has no event of its own, and the required context is the head's
-`pull_request` run: the loop SHALL resolve an addressed thread once the Codex review of
-the new head is in, re-run that completed run (`gh run rerun`) so it reads the resolve,
-and reply on the thread after the resolve. A review fix that changes a spec SHALL go through a change
+`pull_request` run: the loop SHALL resolve an addressed thread once the review of the new
+head is in — Codex's, or the fallback's the check ran when none came, so the wait is on
+the concluded check of the head, whichever carrier reviewed it —, re-run that completed
+run (`gh run rerun`) so it reads the resolve, and reply on the thread after the resolve.
+A review fix that changes a spec SHALL go through a change
 of its own on the PR branch — a delta under `openspec/changes/<change>/specs/`, validated
 and archived by `archive_change` before the push — never through a direct edit of
 `openspec/specs/`: the archive is what carries a spec, on the first PR and on every
