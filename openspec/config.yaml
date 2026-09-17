@@ -41,9 +41,12 @@ rules:
     - >-
       Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
       (`grep -q "^approve" openspec/changes/<change>/architect-review.md`; on `rework` no
-      delivery task runs: apply the findings, re-review) →
-      `gh issue develop -c <N> --name <change>` from fresh origin/main (the tracking
-      issue is the one the propose run left in Planned; nothing is asked here) →
+      delivery task runs: apply the findings, re-review) and the tracking issue is a
+      Project item in "Planned" (`gh issue view <N> --json projectItems`); when the change
+      has no issue or its Status is not "Planned", print `propose run not finished: run
+      its tail (the Architect review entry of this rule) first` and stop — nothing is asked
+      and nothing is created here →
+      `gh issue develop -c <N> --name <change>` from fresh origin/main →
       `python .agent-process/scripts/set_status.py <N> "In Progress"` →
       provenance, one line on the issue:
       `gh issue comment <N> --body "planner: <carrier of the propose run>; implementer:
