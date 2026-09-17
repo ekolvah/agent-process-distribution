@@ -103,11 +103,8 @@ The review loop after the PR SHALL be bounded: after three rounds of applying un
 threads the run leaves the rest to the person with a reply and ends. The loop SHALL name
 how a `P0`/`P1` thread the push addressed is resolved — `resolve_review_thread` on that
 thread from the implementer's own session — and SHALL resolve no other thread: a `P2`/`P3`
-finding is answered, and its disposition is the person's. The review check follows
-submitted reviews, a reply on a thread included, and a resolve has no event of its own:
-the loop SHALL resolve an addressed thread once the Codex review of the new head is in
-and reply on it after the resolve, so the reply re-runs the check on the resolved state;
-no task names a re-run by hand. The tasks after the
+finding is answered, and its disposition is the person's. Once the review check follows
+review events, no task SHALL name a re-run of that check by hand. The tasks after the
 archive SHALL leave no tick in the repository — the PR is their record — and a run
 interrupted after the archive SHALL resume from `gh pr view <change>`, not from the apply.
 The PR body SHALL name the tracking issue as a plain reference, not with a `Closes` keyword:

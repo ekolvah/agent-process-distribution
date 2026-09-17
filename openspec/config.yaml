@@ -82,7 +82,11 @@ rules:
       `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
       --thread <id>` (`--list` prints the open ones) and answered on the thread after the
       resolve: the reply re-runs the check on the unchanged head and it reads the resolve;
-      a `P2`/`P3` thread is answered, never resolved by the process —, repeat at
+      a `P2`/`P3` thread is answered, never resolved by the process; a fix that changes a
+      spec goes through a change of its own on the PR branch — `npx -y
+      @fission-ai/openspec@1.13.0 new change <name>`, the delta under its `specs/`,
+      `validate --strict`, `python .agent-process/scripts/archive_change.py <name>` — never
+      a direct edit of `openspec/specs/`: the archive is what carries a spec —, repeat at
       most three rounds; the fourth leaves the rest to the
       person with a reply. The person merges. The tasks after the archive leave no tick in
       the repository: the change is closed and a pushed tick would move the reviewed head —

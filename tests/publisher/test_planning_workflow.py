@@ -128,6 +128,14 @@ def test_tasks_of_a_new_change() -> None:
         < rule.index("the reply re-runs the check")
         < rule.index("three rounds")
     )
+    # Scenario: Review fix changes a spec — the archive is what carries a spec, on
+    # the first PR and on every fix; a direct edit of `openspec/specs/` bypasses the
+    # delta and its validation (#137, Codex on 26bc2da).
+    assert (
+        rule.index("the reply re-runs the check")
+        < rule.index("never a direct edit of `openspec/specs/`")
+        < rule.index("three rounds")
+    )
 
 
 def test_plan_approved() -> None:

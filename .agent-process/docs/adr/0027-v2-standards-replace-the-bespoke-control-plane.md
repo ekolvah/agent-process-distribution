@@ -382,7 +382,22 @@ questions of #114 in its order:
   verification is not guarded, so a fork head without a Codex review is red — the
   conclusion a fork push gets today from the missing secret — and the design does not
   depend on the undocumented fact either way. The caller pins the callee `@main`, so
-  #137 exercises none of its own callee changes; the same-path run, the fork guard and
-  the reply-driven re-run are first observed on the PR after its merge: <observed on the
-  next PR>. The proof of the guard is a PR opened from a fork with `Claude review`
-  skipped and the check red — an observation, not the YAML test.
+  #137 exercises none of its own callee changes; the same-path run and the fork guard are
+  first observed on the PR after its merge: <observed on the next PR>. The proof of the
+  guard is a PR opened from a fork with `Claude review` skipped and the check red — an
+  observation, not the YAML test.
+* Resolve-then-reply observed on #137, head `26bc2da`, before the rule relied on it (Codex's
+  P1 on that head asked for exactly this): thread `PRRT_kwDOUAa7yM6jdmmL` resolved at
+  18:04:21Z, replied to at 18:04:22Z; the reply started run `35256579419`
+  (`pull_request_review`, 18:04:23Z) on the unchanged head, whose enforcement listed the two
+  open threads of the newer review only — the resolve held and the run read it. The event
+  and the thread state are the platform's, independent of which callee the run executes,
+  so the observation stands for the merged one. The rule keeps no `gh run rerun` clause.
+* Review fixes of #137 (rounds 3–4) had edited `openspec/specs/` directly: the PR's change
+  was archived before the PR opened, as the process orders, and nothing described the new
+  behaviour as a delta. Owner's decision (2026-09-17, on Codex's P1 of `26bc2da`): a review
+  fix that changes a spec goes through a change of its own on the PR branch — delta,
+  `validate --strict`, `archive_change` — never a direct edit; the archive is the one path a
+  spec takes. `v2-2b-review-events` is that change for #137: the direct edits reverted, the
+  same text carried as a delta, the rule sentence with its assertion; no new issue or
+  branch, since it is the delta of the PR's own fixes.
