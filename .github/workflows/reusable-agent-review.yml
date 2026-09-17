@@ -42,24 +42,30 @@ jobs:
           ref: ${{ github.job_workflow_sha }}
           path: trusted
 
-      # Exit 3 (absent) is the condition for the fallback, not a failure of the
-      # check; a crash of the script (exit 2) stays visible as the step's outcome.
+      # Exit 3 (absent) is the recorded condition for the fallback, not a failure
+      # of the step; a crash of the reader (exit 2) fails the step and the job —
+      # the fallback never runs on a read that did not establish absence.
       - name: Wait for the Codex review of the head
         id: codex
         if: github.event_name == 'pull_request'
-        continue-on-error: true
         working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          python .agent-process/scripts/request_codex_review.py --wait
-          --repo "${{ github.repository }}"
-          --pr "${{ github.event.pull_request.number }}"
-          --head-sha "${{ github.event.pull_request.head.sha }}"
-          --timeout-seconds "${{ inputs.codex-timeout-seconds }}"
+        run: |
+          rc=0
+          python .agent-process/scripts/request_codex_review.py --wait \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --timeout-seconds "${{ inputs.codex-timeout-seconds }}" || rc=$?
+          case "$rc" in
+            0) echo "absent=false" >> "$GITHUB_OUTPUT" ;;
+            3) echo "absent=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$rc" ;;
+          esac
 
       - name: Claude review
-        if: github.event_name == 'pull_request' && steps.codex.outcome != 'success'
+        if: github.event_name == 'pull_request' && steps.codex.outputs.absent == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.claude_code_oauth_token }}
@@ -81,7 +87,7 @@ jobs:
       # is no review of the head. The same presence read as for Codex, on the
       # workflow token's login, fails the check instead of leaving it green.
       - name: Verify the Claude review of the head
-        if: github.event_name == 'pull_request' && steps.codex.outcome != 'success'
+        if: github.event_name == 'pull_request' && steps.codex.outputs.absent == 'true'
         working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}

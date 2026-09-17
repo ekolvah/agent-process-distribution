@@ -55,8 +55,12 @@ no review state, no evidence and no classification.
 - **WHEN** the wait ends without a Codex review of the head — none, or an error or limit message instead of one
 - **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments or a comment naming the reviewed head; the job then reads whether a review of the head under the workflow token exists — a silent fallback fails the check
 
-#### Scenario: Review event
-- **WHEN** the job runs for a submitted review or a resolved or unresolved thread instead of a `pull_request` event
+#### Scenario: Reader failure
+- **WHEN** the read of the PR's reviews fails instead of establishing presence or absence
+- **THEN** the check fails without running the Claude action
+
+#### Scenario: Event other than a push
+- **WHEN** a caller runs the job for an event that is not `pull_request`
 - **THEN** it neither waits for Codex nor runs the Claude action; it runs its enforcement only
 
 ### Requirement: No automation resolves a review thread
