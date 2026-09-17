@@ -4,7 +4,10 @@ name: Reusable agent review
 # requests the Codex review (`@codex review`); this job waits for that review
 # of the head — read as present or absent, never parsed — and runs the Claude
 # Code action only when it is absent. Its last step fails the check while an
-# unresolved P0/P1 thread of either reviewer exists (ADR 0027, v2-2b).
+# unresolved P0/P1 thread of either reviewer exists (ADR 0027, v2-2b). Every
+# event the caller subscribes to runs this same path: a review-event run that
+# skipped the wait and the fallback would pass on a head without any review
+# and become the required context (a skipped job passes a required check too).
 on:
   workflow_call:
     inputs:
@@ -47,7 +50,6 @@ jobs:
       # the fallback never runs on a read that did not establish absence.
       - name: Wait for the Codex review of the head
         id: codex
-        if: github.event_name == 'pull_request'
         working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}
@@ -65,7 +67,7 @@ jobs:
           esac
 
       - name: Claude review
-        if: github.event_name == 'pull_request' && steps.codex.outputs.absent == 'true'
+        if: steps.codex.outputs.absent == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.claude_code_oauth_token }}
@@ -87,7 +89,7 @@ jobs:
       # is no review of the head. The same presence read as for Codex, on the
       # workflow token's login, fails the check instead of leaving it green.
       - name: Verify the Claude review of the head
-        if: github.event_name == 'pull_request' && steps.codex.outputs.absent == 'true'
+        if: steps.codex.outputs.absent == 'true'
         working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}

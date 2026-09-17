@@ -207,7 +207,9 @@ def test_pr_link_installs_its_driver_dependencies() -> None:
 def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads() -> None:
     """ADR 0027, v2-2b: the job reads whether a Codex review of the head exists,
     runs the Claude action only when it does not, and fails on an unresolved
-    P0/P1 thread. Nothing parses a review; on a review event it only enforces."""
+    P0/P1 thread. Nothing parses a review. Every event runs the same path: a
+    review-event run that skipped the wait and the fallback would pass on a head
+    without any review and become the required context (#137, round 3)."""
     document = _workflow("reusable-agent-review.yml")
     job = document["jobs"]["agent-review"]
     steps = _steps("reusable-agent-review.yml")
@@ -240,7 +242,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert wait["id"] == "codex"
     assert "continue-on-error" not in wait
     assert wait["working-directory"] == "trusted"
-    assert "github.event_name == 'pull_request'" in wait["if"]
+    assert "if" not in wait
     assert "request_codex_review.py --wait" in wait["run"]
     assert "inputs.codex-timeout-seconds" in wait["run"]
     assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in wait["run"]
@@ -249,7 +251,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     claude = steps["Claude review"]
     assert "steps.codex.outputs.absent == 'true'" in claude["if"]
     assert "steps.codex.outcome" not in claude["if"]
-    assert "github.event_name == 'pull_request'" in claude["if"]
+    assert "github.event_name" not in claude["if"]
     assert claude["uses"].startswith("anthropics/claude-code-action@")
     assert claude["with"]["claude_code_oauth_token"] == "${{ secrets.claude_code_oauth_token }}"
     assert claude["with"]["github_token"] == "${{ github.token }}"
@@ -291,9 +293,9 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
 
 def test_agent_review_caller_follows_review_events() -> None:
     """Scenario: Review event re-runs the check — a submitted review re-runs the
-    required check on the unchanged head; the callee runs only its enforcement on
-    that event (the `if` guards above). GitHub rejects `pull_request_review_thread`
-    (`Unexpected value`, observed on PR #137), so a resolve has no event of its own."""
+    required check on the unchanged head, on the same path as a push. GitHub rejects
+    `pull_request_review_thread` (`Unexpected value`, observed on PR #137), so a
+    resolve has no event of its own."""
     trigger = _trigger(_workflow("agent-review.yml"))
 
     assert trigger["pull_request"]["types"] == ["opened", "synchronize"]

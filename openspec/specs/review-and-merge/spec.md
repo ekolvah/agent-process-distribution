@@ -61,7 +61,7 @@ no review state, no evidence and no classification.
 
 #### Scenario: Event other than a push
 - **WHEN** a caller runs the job for an event that is not `pull_request`
-- **THEN** it neither waits for Codex nor runs the Claude action; it runs its enforcement only
+- **THEN** it runs the same path — the wait, the fallback on absence, the verification, the enforcement — so its conclusion derives from a review of the head; a run that only enforced would pass a head without any review
 
 ### Requirement: No automation resolves a review thread
 No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`

@@ -354,8 +354,17 @@ questions of #114 in its order:
   after the head's last review still needs `gh run rerun` on the completed job (the rule
   keeps that one clause). A check run started by a `pull_request_review` event is listed
   for the head: on #137, head `cb6ffe9`, Codex's review at 17:01:07Z started run
-  `35250133503` (`event: pull_request_review`, 11 s, enforcement only) four minutes after
-  the `pull_request` run `35249657967` of the same head; `gh pr checks 137` lists both
-  under `agent-review / agent-review`, so the required context follows the later run —
-  a late blocking review turns the head red, and a resolve issued before Codex's review of
-  the new head is read by that run.
+  `35250133503` (`event: pull_request_review`, 11 s) four minutes after the
+  `pull_request` run `35249657967` of the same head; `gh pr checks 137` lists both under
+  `agent-review / agent-review`, so the required context follows the later run — a late
+  blocking review turns the head red, and a resolve issued before Codex's review of the
+  new head is read by that run. That run had skipped the wait and the fallback
+  (enforcement only, as designed) — which Codex's third review of #137 showed to be a
+  hole: any submitted review, a human's or one of an older commit, starts such a run
+  while the `pull_request` run is still waiting, and with no thread yet it passes and
+  becomes the required context for a head nobody reviewed. A skipped job passes a
+  required check as well, so no `if` can filter the event; the callee now runs the same
+  path on every event, and a review-event run's conclusion derives from a review of the
+  head. Cost accepted: a human review on a PR Codex left silent starts a second wait and
+  a second Claude review; a review event on a fork PR runs with the repository's secrets,
+  which `pull_request` from a fork does not.
