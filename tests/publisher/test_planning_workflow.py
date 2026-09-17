@@ -103,6 +103,22 @@ def test_tasks_of_a_new_change() -> None:
     # interrupted after it resumes from the PR, not from the apply.
     assert "no tick" in rule
     assert rule.index("archive_change.py") < rule.index("gh pr view <change>")
+    # Scenario: Blocking thread addressed — the loop names the resolve of a BLOCKING
+    # thread after the re-request; CI never infers a thread's disposition (ADR 0022).
+    assert (
+        rule.index("wait_for_pr.py")
+        < rule.index("re-request")
+        < rule.index("resolve_review_thread.py")
+        < rule.index("three rounds")
+    )
+    assert "a BLOCKING thread the push addressed is resolved" in rule
+    assert "a thread that is not BLOCKING is answered, never resolved by the process" in rule
+    # A resolve that misses the agent-review window re-runs the job, not another push.
+    assert (
+        rule.index("resolve_review_thread.py")
+        < rule.index("gh run rerun")
+        < rule.index("three rounds")
+    )
 
 
 def test_plan_approved() -> None:
