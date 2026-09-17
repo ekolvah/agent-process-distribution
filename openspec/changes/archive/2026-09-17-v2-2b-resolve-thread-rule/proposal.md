@@ -1,7 +1,7 @@
 ## Why
 
-Bug in the delivery flow, observed on PR #133 (2026-09-17): the implementer, after a context
-compaction, resolved the two BLOCKING Codex threads with a raw `gh api graphql` mutation
+Bug in the delivery flow, observed on the review of `v2-2a-board-template` (2026-09-17,
+PR #133): the implementer, after a context compaction, resolved the two BLOCKING Codex threads with a raw `gh api graphql` mutation
 instead of `.agent-process/scripts/resolve_review_thread.py`, and the auto-mode classifier
 blocked it — the person had to ask why. Reproduction: `python -m pytest
 tests/publisher/test_planning_workflow.py -q -k tasks_of_a_new_change` with the assertion
