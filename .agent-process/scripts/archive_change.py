@@ -33,8 +33,16 @@ LOCK = Path("openspec", "changes", "archive", ".openspec-archive.lock")
 def _runner(root: Path) -> Run:
     def run(cmd: list[str]) -> str:
         exe = shutil.which(cmd[0]) or cmd[0]
+        # `errors="replace"`: the pre-push hook's pytest output can carry a code-page
+        # byte on Windows; a mangled character keeps the hook's finding visible, a dead
+        # reader thread hides it behind "broken capture" (§IV, as hooks.py).
         result = subprocess.run(
-            [exe, *cmd[1:]], cwd=root, text=True, capture_output=True, encoding="utf-8"
+            [exe, *cmd[1:]],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
         )
         if result.stdout is None or result.stderr is None:
             raise RuntimeError(f"`{' '.join(cmd)}`: broken capture (stdout or stderr is None)")

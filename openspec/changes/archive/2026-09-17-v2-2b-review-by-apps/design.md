@@ -246,7 +246,7 @@ event (scripts > instructions).
 
 ### D7. Observations go to ADR 0027
 
-*Observations from v2-2b*, in the order of #114: Codex's automatic reviews — closed by
+*Observations from v2-2b*, in the order of the open questions (#114): Codex's automatic reviews — closed by
 decision, not observation: not enabled, the request stays the rule's (the settings offer
 "On PR open" and "On every push"; the first would hand every later push to the fallback,
 the second reviews as often as the rule already requests); whether the Claude fallback ran

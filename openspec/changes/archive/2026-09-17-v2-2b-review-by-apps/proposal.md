@@ -8,7 +8,7 @@ one of those steps reads the *meaning* of a review; every one has broken on a fo
 of one of the apps. ADR 0027 decided the review is the apps' own and nothing of ours parses it.
 
 Three decisions of the person on this proposal (solution review, 2026-09-17), which amend the
-text of #130:
+text of the tracking issue (#130):
 
 - **One reviewer per head, as today.** Codex is the primary reviewer; Claude runs only as
   the fallback when no Codex review of the head arrives within the bounded wait — the
@@ -72,7 +72,7 @@ text of #130:
   last step / `gh run rerun`" clause from the Deliver rule. Separate because on the first PR
   the caller still points at the v1 workflow on `main`, which would run its whole chain —
   Claude included — on every thread event.
-- **ADR 0027** gains *Observations from v2-2b* — the #114 questions on Codex's automatic
+- **ADR 0027** gains *Observations from v2-2b* — the open questions (#114) on Codex's automatic
   reviews are closed by decision (not enabled; the request is the rule's), the rest by
   observation: did the Claude fallback run and what it cost; the login its comments carry;
   whether a check run started by a review event is listed for the head. The installation
@@ -132,11 +132,11 @@ Untouched: `check_branch_protection.py` and its tests, `test_review_gate.py`,
 `test_delivery_scripts.py`, the classic protection of `main`, the `CLAUDE_CODE_OAUTH_TOKEN`
 secret.
 
-No setting changes: *Automatic reviews* in the Codex app stays off. Text the person amends:
-#130's "enable automatic code reviews", "the review job stops being a required check … add
+No setting changes: *Automatic reviews* in the Codex app stays off. Text the person amends in the tracking issue (#130):
+"enable automatic code reviews", "the review job stops being a required check … add
 `required_review_thread_resolution`" and "both apps review every PR" are superseded by the
 decisions above.
 
 Out of scope (per the issue): `init` printing the Codex enablement (#112); deleting
 `request_codex_review.py` and `review_gate.py` while v1 paths reference them (#115);
-`agent-process.md`, the v1 procedure, keeps its stale review steps until #115.
+`agent-process.md`, the v1 procedure, keeps its stale review steps until the v1 removal (#115).
