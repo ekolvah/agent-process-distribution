@@ -42,9 +42,10 @@ rules:
       Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
       (`grep -q "^approve" openspec/changes/<change>/architect-review.md`; on `rework` no
       delivery task runs: apply the findings, re-review) and the tracking issue is a
-      Project item in "Planned" (`gh issue view <N> --json projectItems`); when the change
-      has no issue or its Status is not "Planned", print `propose run not finished: run
-      its tail (the Architect review entry of this rule) first` and stop — nothing is asked
+      Project item in "Planned" (`gh issue view <N> --json projectItems`, `<N>` being the
+      number these tasks carry); when the tasks still read `<N>` (the propose run created
+      no issue) or the Status is not "Planned", print `propose run not finished: run its
+      tail (the Architect review entry of this rule) first` and stop — nothing is asked
       and nothing is created here →
       `gh issue develop -c <N> --name <change>` from fresh origin/main →
       `python .agent-process/scripts/set_status.py <N> "In Progress"` →
@@ -102,8 +103,11 @@ rules:
       the propose run ends on `approve` — then the tracking issue: when the change has
       none, ask the person for its priority (High/Medium/Low),
       `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`
-      and `python .agent-process/scripts/set_status.py <N> "Planned" --priority "<the answer>"`;
-      when it exists, its priority is already set and the call is
-      `python .agent-process/scripts/set_status.py <N> "Planned"` alone (Todo → Planned on
-      the board); only then report the artifacts ready. Artifact
+      and `python .agent-process/scripts/set_status.py <N> "Planned" --priority "<the answer>"`,
+      then write the number into the change (`sed -i "s/<N>/<number>/g"
+      openspec/changes/<change>/tasks.md`: Group 0 is how the implementer of another
+      session finds it); when it exists, its number is already in tasks.md, its priority
+      is already set, and the call is `python .agent-process/scripts/set_status.py <N>
+      "Planned"` alone (Todo → Planned on the board); only then report the artifacts
+      ready. Artifact
       status is file existence only: the verdict is the gate, and task 0.1 reads it.

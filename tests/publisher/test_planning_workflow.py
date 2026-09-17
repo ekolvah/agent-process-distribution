@@ -120,7 +120,7 @@ def test_plan_approved() -> None:
     # The number reaches the implementer of another session through tasks.md: the
     # tail writes it after `gh issue create`, and a tasks.md still reading `<N>` is the
     # "no issue" branch of the gate.
-    assert review.index("gh issue create") < review.index("tasks.md")
+    assert review.index("gh issue create") < review.index("openspec/changes/<change>/tasks.md")
     assert "still read" in group0 and "`<N>`" in group0
 
 
