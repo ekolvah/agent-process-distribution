@@ -375,7 +375,20 @@ questions of #114 in its order:
   check ran the fallback and the head is reviewed all the same — an addressed thread could
   not be resolved on that path and the check stayed red. The wait is keyed to the concluded
   check of the head, whichever carrier reviewed it (`wait_for_pr.py` returns on it either
-  way; `v2-2b-any-carrier`). The caller pins the callee `@main`, so #137 exercises none of its own callee
+  way; `v2-2b-any-carrier`).
+* Retrospective of the second PR of `v2-2b` (owner and Claude, 2026-09-17, after seven
+  reworks, twenty commits and ten Codex reviews on one PR). The order of the step after a
+  push — wait, resolve, re-run, reply — was a sentence copied to the Deliver rule, step 4,
+  the `implementation` spec, this ADR and `review_gate.py`'s `fix-blocking` action; three
+  reworks were a copy that lagged or a clause written for one path, and the seventh (the
+  gate still printing the v1 window) was the same defect once more. The order is now the
+  script's: `resolve_review_thread.py --thread --reply-file` refuses while the head's
+  `agent-review` run is running, resolves, re-runs that run, replies last (`close_round`,
+  transports injected); the rule, step 4 and the gate name the call (`v2-2b-loop-script`).
+  What else the retrospective named, for the process rather than this PR: a design that
+  rests on a platform behaviour observes it first (issue 138); a review finding on code
+  the PR did not set out to change is an issue, not a round — the reviewer does not set
+  the PR's scope; three rounds are three; one change is one PR. The caller pins the callee `@main`, so #137 exercises none of its own callee
   changes; the same-path run is first observed on the PR after its merge:
   <observed on the next PR>.
 * Fork PRs and the secret (2026-09-17, on the fourth and fifth Codex reviews of #137).

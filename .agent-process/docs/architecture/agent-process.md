@@ -102,19 +102,18 @@ This is the per-change flow. It applies only after the one-time repository
    after every successful push run
    `python .agent-process/scripts/request_codex_review.py --request <PR>` through the local
    authenticated PR-author session. If that push addressed a `P0`/`P1` review
-   thread, resolve it with `python .agent-process/scripts/resolve_review_thread.py
-   --repo OWNER/REPO --pr <PR> --thread <node-id>` (`--list` prints every open
-   `P0`/`P1` thread and its node id); CI never infers a thread's disposition
+   thread, after `wait_for_pr.py <PR>` run
+   `python .agent-process/scripts/resolve_review_thread.py --repo OWNER/REPO
+   --pr <PR> --thread <node-id> --reply-file <path>` (`--list` prints every open
+   `P0`/`P1` thread and its node id): the script refuses while the head's
+   `agent-review` run is running, resolves the thread, re-runs that run and
+   posts the reply last — no push, no fixer budget. CI never infers a thread's
+   disposition
    (ADR [0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)),
-   so nothing else will. Resolve once the review of the new head is in — Codex's,
-   or the fallback's the check ran when none came; `wait_for_pr.py` returns on
-   the concluded check either way —,
-   re-run the completed `agent-review` run of that head (`gh run rerun
-   <run-id>`, the id from `gh pr checks <PR>`) so it reads the resolve, and
-   reply on the thread after the resolve — no push, no fixer budget. GitHub
-   has no event for a resolve (`pull_request_review_thread` is rejected), and
-   the required context is the head's `pull_request` run: a run another event
-   starts is a context of its own and leaves that one as it was. A fix that changes
+   so nothing else will; why the order is what it is — the review of the head
+   by either carrier, no event for a resolve, the `pull_request` run as the
+   required context — is the script's docstring and ADR
+   [0027](../adr/0027-v2-standards-replace-the-bespoke-control-plane.md). A fix that changes
    a spec goes through a change of its own on the PR branch (delta,
    `validate --strict`, `archive_change`), never a direct edit of
    `openspec/specs/`. Then run `gh pr checks <PR> --watch`,

@@ -79,10 +79,9 @@ rules:
       of the head, whose review is Codex's or the fallback's when none came — then a
       `P0`/`P1` thread the push addressed is resolved with
       `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
-      --thread <id>` (`--list` prints the open ones), the completed `agent-review` run of
-      that head is re-run — `gh run rerun <run-id>`, the id from `gh pr checks <PR>`; a
-      resolve has no event, and the required context is that `pull_request` run — and the
-      thread is answered on the thread after the resolve;
+      --thread <id> --reply-file <path>` (`--list` prints the open ones; the script
+      refuses while the head's run is running, resolves, re-runs that run and replies —
+      the order is its, not this rule's);
       a `P2`/`P3` thread is answered, never resolved by the process; a fix that changes a
       spec goes through a change of its own on the PR branch — `npx -y
       @fission-ai/openspec@1.13.0 new change <name>`, the delta under its `specs/`,
