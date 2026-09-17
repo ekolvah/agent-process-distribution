@@ -368,9 +368,14 @@ questions of #114 in its order:
   (17:14:00Z, `event: pull_request_review`) — which, running the `@main` callee of that
   hour, skipped the wait and the fallback and passed on enforcement alone, four minutes
   before Codex's review of the head arrived with a `P1`: the hole of the previous bullet,
-  observed live. The rule orders the loop around it: resolve once the Codex review of
-  the new head is in, reply after the resolve — a resolve is never the last write on a
-  thread. The caller pins the callee `@main`, so #137 exercises none of its own callee
+  observed live. The rule orders the loop around it: resolve once the review of the new
+  head is in, reply after the resolve — a resolve is never the last write on a thread.
+  Codex's P1 on `8f272f3` (the sixth review of #137): the rule's wait had read "the Codex
+  review of the new head", a condition never true on a head Codex left silent, where the
+  check ran the fallback and the head is reviewed all the same — an addressed thread could
+  not be resolved on that path and the check stayed red. The wait is keyed to the concluded
+  check of the head, whichever carrier reviewed it (`wait_for_pr.py` returns on it either
+  way; `v2-2b-any-carrier`). The caller pins the callee `@main`, so #137 exercises none of its own callee
   changes; the same-path run is first observed on the PR after its merge:
   <observed on the next PR>.
 * Fork PRs and the secret (2026-09-17, on the fourth and fifth Codex reviews of #137).

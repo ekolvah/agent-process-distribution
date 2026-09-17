@@ -75,8 +75,9 @@ rules:
       (after the PR and after every push: the `agent-review` check waits for the Codex
       review of the head and runs the Claude review only when none arrives) →
       `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
-      push, re-request, `wait_for_pr.py <PR>` again — then a `P0`/`P1` thread the push
-      addressed is resolved with
+      push, re-request, `wait_for_pr.py <PR>` again — it returns on the concluded check
+      of the head, whose review is Codex's or the fallback's when none came — then a
+      `P0`/`P1` thread the push addressed is resolved with
       `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
       --thread <id>` (`--list` prints the open ones), the completed `agent-review` run of
       that head is re-run — `gh run rerun <run-id>`, the id from `gh pr checks <PR>`; a

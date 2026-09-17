@@ -106,7 +106,9 @@ This is the per-change flow. It applies only after the one-time repository
    --repo OWNER/REPO --pr <PR> --thread <node-id>` (`--list` prints every open
    `P0`/`P1` thread and its node id); CI never infers a thread's disposition
    (ADR [0022](../adr/0022-the-fixer-resolves-the-thread-its-correction-addresses.md)),
-   so nothing else will. Resolve once the Codex review of the new head is in,
+   so nothing else will. Resolve once the review of the new head is in — Codex's,
+   or the fallback's the check ran when none came; `wait_for_pr.py` returns on
+   the concluded check either way —,
    re-run the completed `agent-review` run of that head (`gh run rerun
    <run-id>`, the id from `gh pr checks <PR>`) so it reads the resolve, and
    reply on the thread after the resolve — no push, no fixer budget. GitHub
