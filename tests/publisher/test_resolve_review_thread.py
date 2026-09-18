@@ -170,7 +170,18 @@ def _round(*, status: str | None, calls: list[str]) -> dict:
     def post_reply(comment_id: int, body: str) -> None:
         calls.append(f"reply {comment_id} {body}")
 
-    return {"head_run": head_run, "mutate": mutate, "rerun": rerun, "post_reply": post_reply}
+    return {
+        "repo": "ekolvah/agent-process-distribution",
+        "pr": 140,
+        "head_run": head_run,
+        "mutate": mutate,
+        "rerun": rerun,
+        "post_reply": post_reply,
+    }
+
+
+# The recovery command is pasted, not reconstructed (D3, Codex's P2 on PR 140).
+_REPLY_CALL = "repos/ekolvah/agent-process-distribution/pulls/140/comments/1/replies"
 
 
 def test_close_round_resolves_reruns_the_head_run_and_replies_in_that_order() -> None:
@@ -236,7 +247,8 @@ def test_close_round_names_the_rerun_and_the_reply_when_the_rerun_fails() -> Non
 
     message = str(failure.value)
     assert "gh run rerun 35" in message
-    assert "comments/1/replies" in message
+    assert _REPLY_CALL in message
+    assert "<owner" not in message and "<pr>" not in message
     # `gh api -f` sends a static string; only `-F` reads a leading `@` as a file
     # (Codex's P1 on PR 140).
     assert "-F body=@" in message
@@ -260,7 +272,8 @@ def test_close_round_names_the_reply_alone_when_the_reply_fails() -> None:
         )
 
     message = str(failure.value)
-    assert "comments/1/replies" in message
+    assert _REPLY_CALL in message
+    assert "<owner" not in message and "<pr>" not in message
     assert "-F body=@" in message
     assert "gh run rerun" not in message
     assert "502" in message

@@ -101,6 +101,8 @@ def close_round(
     thread_id: str,
     reply: str,
     *,
+    repo: str,
+    pr: int,
     head_run: Callable[[str], tuple[int, str] | None],
     mutate: Callable[[str], object],
     rerun: Callable[[int], None],
@@ -121,6 +123,8 @@ def close_round(
     retried, so the message is where the operator learns how to finish the step
     by hand (§IV). A failed rerun names the rerun and the reply; a failed reply
     names the reply alone — a second rerun of a run in progress is refused.
+    `repo` and `pr` are here for that command alone: it is pasted, not
+    reconstructed.
     """
     if not reply.strip():
         raise RuntimeError("an empty reply — the thread is answered after the resolve, always")
@@ -142,7 +146,7 @@ def close_round(
     comment_id = threads[thread_id].comment_id
     # `-F` reads a leading `@` as a file; `-f` would post the literal text.
     reply_call = (
-        f"`gh api -X POST repos/<owner/repo>/pulls/<pr>/comments/{comment_id}/replies "
+        f"`gh api -X POST repos/{repo}/pulls/{pr}/comments/{comment_id}/replies "
         "-F body=@<reply-file>`"
     )
     try:
@@ -250,6 +254,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             payload,
             options.thread,
             reply,
+            repo=options.repo,
+            pr=options.pr,
             head_run=_gh_head_run,
             mutate=_gh_mutate,
             rerun=_gh_rerun,
