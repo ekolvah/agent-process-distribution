@@ -27,7 +27,7 @@
 
 ## 6. Deliver
 
-- [ ] 6.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py observe-platform-facts` (marks its own task, archives, commits, pushes)
+- [x] 6.1 `git status --short` empty for this change's files → `python .agent-process/scripts/archive_change.py observe-platform-facts` (marks its own task, archives, commits, pushes)
 - [ ] 6.2 `gh pr create --title "observe-platform-facts" --body-file <report>` — the change name, issue 138 as a plain reference (no `Closes`), Why / What, the scenario → test map below, the deferral: `actionlint` is a separate issue; ends with the Claude Code footer
 - [ ] 6.3 `python .agent-process/scripts/request_codex_review.py --request <PR>` after the PR and after every push → `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread, push, re-request, `wait_for_pr.py <PR>` again; a `P0`/`P1` thread the push addressed: `python .agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>` (one thread per rerun cycle, `wait_for_pr.py` between); a `P2`/`P3` thread is answered; a fix that changes a spec goes through a change of its own on the branch; at most three rounds, the fourth leaves the rest to the person with a reply. The person merges. No tick after the archive; a run interrupted after it continues from `gh pr view observe-platform-facts`
 
