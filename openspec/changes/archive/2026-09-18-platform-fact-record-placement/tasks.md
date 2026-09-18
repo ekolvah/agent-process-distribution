@@ -19,7 +19,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 `git status --short` empty → `python .agent-process/scripts/archive_change.py platform-fact-record-placement` (marks its own task, archives — applying the delta to `openspec/specs/` —, commits, pushes)
+- [x] 4.1 `git status --short` empty → `python .agent-process/scripts/archive_change.py platform-fact-record-placement` (marks its own task, archives — applying the delta to `openspec/specs/` —, commits, pushes)
 - [ ] 4.2 The PR exists (PR 141): answer the `P2` thread with the archived change's name — a `P2` is answered, never resolved by the process
 - [ ] 4.3 `python .agent-process/scripts/request_codex_review.py --request 141` → `python .agent-process/scripts/wait_for_pr.py 141`. Round one of three. The person merges. No tick after the archive
 
