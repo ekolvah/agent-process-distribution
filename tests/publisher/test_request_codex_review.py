@@ -180,6 +180,37 @@ def test_wait_for_another_reviewer_reads_its_clean_comment_naming_the_head(
     assert exit_info.value.code == 3
 
 
+def test_wait_is_present_for_either_trusted_reviewer_on_the_head(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Re-run on a fallback head — the wait reads presence for any of
+    the logins the check trusts, the Codex app or the job's own. On a head the
+    fallback reviewed, the second attempt returns on that review instead of
+    waiting for Codex again; a fallback review of an older head is no review of
+    this one (issue 139)."""
+    trusted = [_REVIEWER, "github-actions"]
+    fallback_review = _native_review(_HEAD, login="github-actions[bot]")
+    stale_fallback = _native_review("b" * 40, login="github-actions[bot]")
+
+    pull = _payload(reviews=[fallback_review])["data"]["repository"]["pullRequest"]
+    assert request_codex_review.reviewed(pull, _HEAD, trusted) is True
+    pull = _payload(reviews=[stale_fallback])["data"]["repository"]["pullRequest"]
+    assert request_codex_review.reviewed(pull, _HEAD, trusted) is False
+
+    both = ["--reviewer", "chatgpt-codex-connector", "--reviewer", "github-actions"]
+    fake = _serve(monkeypatch, _payload(reviews=[_native_review(_HEAD)]))
+    request_codex_review.main(_wait_argv() + both)
+    out = capsys.readouterr().out
+    assert "present" in out
+    assert "chatgpt-codex-connector" in out
+    assert "github-actions" in out
+    assert fake.sleeps == []
+
+    _serve(monkeypatch, _payload(reviews=[fallback_review]))
+    request_codex_review.main(_wait_argv() + both)
+    assert "present" in capsys.readouterr().out
+
+
 def test_wait_reads_nothing_but_presence() -> None:
     """ADR 0027: the read is *whether* a Codex review exists, never what it says."""
     source = inspect.getsource(request_codex_review)

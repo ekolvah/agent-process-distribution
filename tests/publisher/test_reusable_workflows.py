@@ -245,6 +245,11 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert "if" not in wait
     assert "request_codex_review.py --wait" in wait["run"]
     assert "inputs.codex-timeout-seconds" in wait["run"]
+    # Scenario: Re-run on a fallback head — presence is a review of the head by any
+    # login the check trusts; a re-run on a head the fallback reviewed returns on that
+    # review instead of waiting for Codex and reviewing the head again (issue 139).
+    assert "--reviewer chatgpt-codex-connector" in wait["run"]
+    assert "--reviewer github-actions" in wait["run"]
     assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in wait["run"]
     assert '*) exit "$rc"' in wait["run"]
 
@@ -278,6 +283,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert verify["working-directory"] == "trusted"
     assert "request_codex_review.py --wait" in verify["run"]
     assert "--reviewer github-actions" in verify["run"]
+    assert "chatgpt-codex-connector" not in verify["run"]
 
     enforce = steps["Enforce unresolved P0/P1 threads"]
     assert enforce["if"] == "always()"

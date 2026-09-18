@@ -211,6 +211,57 @@ def test_close_round_refuses_without_a_head_run() -> None:
     assert calls == [f"head-run {_HEAD[:7]}"]
 
 
+def _failing(transports: dict, name: str) -> dict:
+    def fail(*_args: object) -> None:
+        raise RuntimeError(f"gh {name} failed: 502")
+
+    return {**transports, name: fail}
+
+
+def test_close_round_names_the_rerun_and_the_reply_when_the_rerun_fails() -> None:
+    """D3 (issue 139): after a successful resolve the thread is gone from `--list`
+    and `--thread` cannot be retried; the error names what is still undone with
+    the ids filled in — here the rerun and the reply — and nothing after the
+    failure runs."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError) as failure:
+        close_round(
+            payload,
+            "thread-1",
+            "fixed",
+            **_failing(_round(status="completed", calls=calls), "rerun"),
+        )
+
+    message = str(failure.value)
+    assert "gh run rerun 35" in message
+    assert "comments/1/replies" in message
+    assert "502" in message
+    assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1"]
+
+
+def test_close_round_names_the_reply_alone_when_the_reply_fails() -> None:
+    """The rerun went through: a second `gh run rerun` of a run in progress is
+    refused, so the error names the reply alone."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError) as failure:
+        close_round(
+            payload,
+            "thread-1",
+            "fixed",
+            **_failing(_round(status="completed", calls=calls), "post_reply"),
+        )
+
+    message = str(failure.value)
+    assert "comments/1/replies" in message
+    assert "gh run rerun" not in message
+    assert "502" in message
+    assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1", "rerun 35"]
+
+
 def test_close_round_refuses_an_empty_reply() -> None:
     """A resolve is never the last write on a thread."""
     payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
