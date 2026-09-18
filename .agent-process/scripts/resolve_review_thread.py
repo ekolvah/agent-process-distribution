@@ -115,6 +115,12 @@ def close_round(
     `rerun(run_id)` re-executes it on the resolved state; `post_reply(comment_id,
     body)` answers on the thread last — a resolve is never the last write on a
     thread. Returns the run id. The transports are injected (§II).
+
+    A failure after the resolve is re-raised naming what is still undone, ids
+    filled in: the thread has left `--list` by then and `--thread` cannot be
+    retried, so the message is where the operator learns how to finish the step
+    by hand (§IV). A failed rerun names the rerun and the reply; a failed reply
+    names the reply alone — a second rerun of a run in progress is refused.
     """
     if not reply.strip():
         raise RuntimeError("an empty reply — the thread is answered after the resolve, always")
@@ -132,9 +138,26 @@ def close_round(
             "is in when it concluded"
         )
     threads = {thread.thread_id: thread for thread in review_threads(payload)}
+    comment_id = threads[thread_id].comment_id
+    reply_call = (
+        f"`gh api -X POST repos/<owner/repo>/pulls/<pr>/comments/{comment_id}/replies "
+        "-f body=@<reply-file>`"
+    )
     resolve(payload, thread_id, mutate=mutate)
-    rerun(run_id)
-    post_reply(threads[thread_id].comment_id, reply)
+    try:
+        rerun(run_id)
+    except Exception as exc:
+        raise RuntimeError(
+            f"{thread_id} is resolved and gone from --list; the rerun failed ({exc}). "
+            f"Still undone, by hand: `gh run rerun {run_id}`, then the reply {reply_call}"
+        ) from exc
+    try:
+        post_reply(comment_id, reply)
+    except Exception as exc:
+        raise RuntimeError(
+            f"{thread_id} is resolved and gone from --list, run {run_id} re-run; the reply "
+            f"failed ({exc}). Still undone, by hand: the reply {reply_call}"
+        ) from exc
     return run_id
 
 
