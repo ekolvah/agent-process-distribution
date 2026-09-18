@@ -4,13 +4,16 @@ Codex's supported GitHub flow is an author comment, ``@codex review``; the
 integration then posts a normal GitHub review, or a clean comment naming the
 reviewed commit. ``--request`` posts the exact trigger from the authenticated
 local PR-author session. ``--wait`` runs in the review job and reads *whether*
-a review of the head by ``--reviewer`` (Codex by default) exists — a native
-review on that head, or the reviewer's clean comment naming that head — never
-what it says (ADR 0027). An error or usage-limit message from the app is no
-review: the wait runs to its timeout and exits 3, the job's condition for the
-Claude fallback. The same read with ``--reviewer github-actions`` verifies that
-the fallback published under the workflow token: the action can finish green
-without a comment (ADR 0004), and a silent fallback is no review of the head.
+a review of the head by any ``--reviewer`` (Codex alone by default) exists — a
+native review on that head, or the reviewer's clean comment naming that head —
+never what it says (ADR 0027). An error or usage-limit message from the app is
+no review: the wait runs to its timeout and exits 3, the job's condition for
+the Claude fallback. The job's wait names the Codex app and ``github-actions``,
+so a re-run of a head the fallback reviewed returns on that review instead of
+reviewing the head again (issue 139). The same read with ``--reviewer
+github-actions`` alone verifies that the fallback published under the workflow
+token: the action can finish green without a comment (ADR 0004), and a silent
+fallback is no review of the head.
 """
 
 from __future__ import annotations
@@ -59,10 +62,10 @@ def _normalise_login(value: object) -> str:
     return str(value or "").removesuffix("[bot]").lower()
 
 
-def _by(reviewer: str, node: object) -> bool:
+def _by(reviewers: Sequence[str], node: object) -> bool:
     author = node.get("author") if isinstance(node, Mapping) else None
     login = author.get("login") if isinstance(author, Mapping) else None
-    return _normalise_login(login) == _normalise_login(reviewer)
+    return _normalise_login(login) in {_normalise_login(reviewer) for reviewer in reviewers}
 
 
 def _nodes(pull: Mapping[str, object], field: str) -> list[object]:
@@ -98,17 +101,19 @@ def fetch_pull_request(repo: str, pr: str) -> Mapping[str, object]:
     return pull
 
 
-def reviewed(pull: Mapping[str, object], head: str, reviewer: str = CODEX_REVIEWER) -> bool:
-    """True when ``reviewer`` left a review on ``head`` or its clean comment naming ``head``."""
+def reviewed(
+    pull: Mapping[str, object], head: str, reviewers: Sequence[str] = (CODEX_REVIEWER,)
+) -> bool:
+    """True when any of ``reviewers`` left a review on ``head`` or a clean comment naming it."""
     for review in _nodes(pull, "reviews"):
         commit = review.get("commit") if isinstance(review, Mapping) else None
         oid = commit.get("oid") if isinstance(commit, Mapping) else None
-        if _by(reviewer, review) and oid == head:
+        if _by(reviewers, review) and oid == head:
             return True
     for comment in _nodes(pull, "comments"):
         body = comment.get("body") if isinstance(comment, Mapping) else None
         match = _REVIEWED_COMMIT.search(body) if isinstance(body, str) else None
-        if _by(reviewer, comment) and match is not None and head.startswith(match.group("sha")):
+        if _by(reviewers, comment) and match is not None and head.startswith(match.group("sha")):
             return True
     return False
 
@@ -118,14 +123,14 @@ def wait_for_review(
     pr: str,
     head: str,
     *,
-    reviewer: str,
+    reviewers: Sequence[str],
     timeout_seconds: int,
     poll_seconds: int,
 ) -> bool:
-    """Poll until a review of ``head`` by ``reviewer`` exists or ``timeout_seconds`` pass."""
+    """Poll until a review of ``head`` by any of ``reviewers`` exists or ``timeout_seconds`` pass."""
     deadline = time.monotonic() + timeout_seconds
     while True:
-        if reviewed(fetch_pull_request(repo, pr), head, reviewer):
+        if reviewed(fetch_pull_request(repo, pr), head, reviewers):
             return True
         if time.monotonic() >= deadline:
             return False
@@ -142,15 +147,21 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--repo", dest="repository", metavar="OWNER/REPO")
     parser.add_argument("--pr", dest="pr_number", metavar="NUMBER")
     parser.add_argument("--head-sha")
+    # Repeatable; the default is applied after parsing — an `append` onto a non-empty
+    # default would make `--reviewer github-actions` alone read the Codex app too.
     parser.add_argument(
         "--reviewer",
-        default=CODEX_REVIEWER,
+        dest="reviewers",
+        action="append",
         metavar="LOGIN",
-        help="whose review of --head-sha to wait for (default: the Codex app)",
+        help="whose review of --head-sha to wait for; repeatable, any of them counts "
+        "(default: the Codex app)",
     )
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--poll-seconds", type=int, default=DEFAULT_POLL_SECONDS)
     options = parser.parse_args(argv)
+    if options.reviewers is None:
+        options.reviewers = [CODEX_REVIEWER]
     if options.wait:
         missing = [
             flag
@@ -176,14 +187,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             options.repository,
             options.pr_number,
             options.head_sha,
-            reviewer=options.reviewer,
+            reviewers=options.reviewers,
             timeout_seconds=options.timeout_seconds,
             poll_seconds=options.poll_seconds,
         )
     except (RuntimeError, ValueError, json.JSONDecodeError) as exc:
         print(f"error: cannot read the reviews of the PR: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
-    who = f"review of {options.head_sha} by {options.reviewer}"
+    who = f"review of {options.head_sha} by {' or '.join(options.reviewers)}"
     if present:
         print(f"{who}: present")
         return

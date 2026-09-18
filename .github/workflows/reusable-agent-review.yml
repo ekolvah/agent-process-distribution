@@ -48,6 +48,10 @@ jobs:
       # Exit 3 (absent) is the recorded condition for the fallback, not a failure
       # of the step; a crash of the reader (exit 2) fails the step and the job —
       # the fallback never runs on a read that did not establish absence.
+      # Presence is a review of the head by either login the check trusts: `gh run
+      # rerun` re-executes every step, so a re-run of a head the fallback reviewed
+      # returns on that review instead of waiting for Codex and paying for a second
+      # review of an unchanged head (issue 139).
       - name: Wait for the Codex review of the head
         id: codex
         working-directory: trusted
@@ -56,6 +60,7 @@ jobs:
         run: |
           rc=0
           python .agent-process/scripts/request_codex_review.py --wait \
+            --reviewer chatgpt-codex-connector --reviewer github-actions \
             --repo "${{ github.repository }}" \
             --pr "${{ github.event.pull_request.number }}" \
             --head-sha "${{ github.event.pull_request.head.sha }}" \
