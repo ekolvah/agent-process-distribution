@@ -472,3 +472,22 @@ questions of #114 in its order:
   second review yes/no>. For the record: the fallback and the verify step have not run
   live under the merged callee — every `pull_request` run of PR 137 had Codex requested
   and skipped both; a fact about the fallback's publication, not about this change.
+* Platform facts are observed before a design rests on them (issue 138,
+  `observe-platform-facts`). The `proposal` rule of `openspec/config.yaml` now says: a
+  design that rests on a platform behaviour verifies it on the platform before the proposal
+  is written and records the observation — the reference page, or the run id / command and
+  its output — not the inference; the Architect review entry lists a fact asserted without
+  one as a finding. The worked examples are two entries above: the
+  `pull_request_review_thread` trigger (`397c54f`) — the "Events that trigger workflows"
+  reference page would have shown its absence in a minute; and the withdrawn review-event
+  trigger (head `a1d0bad`, run `35262221116`) — one throwaway run and `gh pr view --json
+  mergeStateStatus,statusCheckRollup` would have shown the required context per event
+  before design D6 rested on the opposite. A fact already on record is pointed at, not
+  observed again: the entry above (`fix-rerun-fallback-head`) needed an owner's decision to
+  say so for a fact this ADR had recorded the day before; the rule says it once. No new
+  script: whether a design rests on a platform behaviour is judgement, not a deterministic
+  step; of the two checks issue 138 named as examples, the caller's event set against the
+  required contexts has nothing left to compare since the caller runs on `pull_request`
+  alone, and the workflow-file check is the standard `actionlint`, CI code tracked as an
+  issue of its own (owner's decision, 2026-09-18). Deletion condition: none; the rule is a
+  sentence of `config.yaml` and goes with it.

@@ -161,6 +161,28 @@ def test_plan_approved() -> None:
     assert "still read" in group0 and "`<N>`" in group0
 
 
+def test_design_on_a_platform_behaviour() -> None:
+    """Scenario: Design on a platform behaviour — the `proposal` rule names the trigger, the step and what counts."""
+    rule = " ".join(yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["proposal"])
+    for part in (
+        "platform behaviour",
+        "before the proposal",
+        "the observation, not the inference",
+        "reference page",
+        "run id",
+        "pointed at, not repeated",
+    ):
+        assert part in rule, part
+
+
+def test_asserted_platform_fact() -> None:
+    """Scenario: Asserted platform fact — the Architect review entry names the finding."""
+    entries = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
+    review = next(e for e in entries if e.startswith("Architect review"))
+    assert "asserted, not observed" in review
+    assert review.index("is a finding") < review.index("asserted, not observed")
+
+
 def test_pinned_openspec() -> None:
     """The commands the process runs use the version the tests validate against."""
     for path in (CONFIG, ARCHIVE):

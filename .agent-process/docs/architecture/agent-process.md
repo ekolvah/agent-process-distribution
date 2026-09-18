@@ -31,7 +31,8 @@ Planning is the OpenSpec propose workflow (`/opsx:propose` in Claude Code,
 proposal → spec deltas → design → tasks. What this project adds is the
 `rules:` of `openspec/config.yaml` — the `proposal` rule (read before
 writing, ask instead of guessing, a bug records its reproduction and root
-cause before the design) and the `tasks` rule, which is the delivery flow
+cause before the design, a design on a platform behaviour records its
+observation) and the `tasks` rule, which is the delivery flow
 below as tasks of the change (`no RED: <reason>` when the map names no
 test) and ends the propose run with the architect review: the
 `architect-reviewer` subagent in Claude, a self-review in Codex, writes
