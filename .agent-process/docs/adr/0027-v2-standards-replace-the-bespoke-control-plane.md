@@ -448,3 +448,20 @@ questions of #114 in its order:
   spec takes. `v2-2b-review-events` is that change for #137: the direct edits reverted, the
   same text carried as a delta, the rule sentence with its assertion; no new issue or
   branch, since it is the delta of the PR's own fixes.
+* Re-run on a fallback head (issue 139, `fix-rerun-fallback-head`). `gh run rerun`
+  re-executes every step (attempts 2 and 3 of `35267976560` on `38debbd` ran the wait
+  again, returning in a second on the Codex review), and the callee's wait read presence
+  for the Codex login alone: on a head whose first attempt fell back, the second attempt
+  would wait the Codex timeout again and run the Claude action again on an unchanged head.
+  The wait now reads presence for either login the check trusts — the Codex app or
+  `github-actions`, the read the verify step already makes — so a re-run of a fallback
+  head is enforcement alone. Owner's decision (2026-09-18) on the observe-first rule of
+  issue 138: no observation before this fix — the platform fact is the one above, already
+  observed; the second review is what the callee's own two lines do next and a test proves
+  those; observing them on the platform would cost two Codex timeouts and two Claude
+  reviews to confirm an `if`. The confirmation is the first fallback head re-run after the
+  merge (the caller pins the callee `@main`, so this PR exercises today's callee):
+  <confirmed on the first fallback head re-run after the merge: run id, wait duration,
+  second review yes/no>. For the record: the fallback and the verify step have not run
+  live under the merged callee — every `pull_request` run of PR 137 had Codex requested
+  and skipped both; a fact about the fallback's publication, not about this change.
