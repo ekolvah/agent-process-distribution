@@ -279,7 +279,6 @@ class TestDriftDetection:
     def test_controller_gate_is_not_a_required_context(self) -> None:
         assert REQUIRED_CONTEXTS == (
             "quality / quality",
-            "pr-link / pr-link",
             "agent-review / agent-review",
         )
 
