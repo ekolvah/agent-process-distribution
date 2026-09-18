@@ -37,6 +37,14 @@ rules:
     - >-
       **Impact** lists every file added, edited and removed; a doc-only PR is separate
       from code.
+    - >-
+      A design that rests on a platform behaviour (an event, a permission, a merge rule, a
+      token scope, a CLI flag) verifies it on the platform before the proposal is written
+      and records the observation, not the inference, under **Why** or in design.md beside
+      the decision: the reference page (URL and the sentence) or the run id / command and
+      its output — a run of a standard checker counts; a listing, a name or an inference
+      from another behaviour does not; an observation already on record (an ADR entry, an
+      archived change) is pointed at, not repeated.
   tasks:
     - >-
       Group 0 — Delivery start: the verdict of `architect-review.md` is `approve`
