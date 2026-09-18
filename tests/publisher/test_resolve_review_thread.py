@@ -170,7 +170,18 @@ def _round(*, status: str | None, calls: list[str]) -> dict:
     def post_reply(comment_id: int, body: str) -> None:
         calls.append(f"reply {comment_id} {body}")
 
-    return {"head_run": head_run, "mutate": mutate, "rerun": rerun, "post_reply": post_reply}
+    return {
+        "repo": "ekolvah/agent-process-distribution",
+        "pr": 140,
+        "head_run": head_run,
+        "mutate": mutate,
+        "rerun": rerun,
+        "post_reply": post_reply,
+    }
+
+
+# The recovery command is pasted, not reconstructed (D3, Codex's P2 on PR 140).
+_REPLY_CALL = "repos/ekolvah/agent-process-distribution/pulls/140/comments/1/replies"
 
 
 def test_close_round_resolves_reruns_the_head_run_and_replies_in_that_order() -> None:
@@ -207,6 +218,76 @@ def test_close_round_refuses_without_a_head_run() -> None:
 
     with pytest.raises(RuntimeError, match="no `agent-review` run"):
         close_round(payload, "thread-1", "fixed", **_round(status=None, calls=calls))
+
+    assert calls == [f"head-run {_HEAD[:7]}"]
+
+
+def _failing(transports: dict, name: str) -> dict:
+    def fail(*_args: object) -> None:
+        raise RuntimeError(f"gh {name} failed: 502")
+
+    return {**transports, name: fail}
+
+
+def test_close_round_names_the_rerun_and_the_reply_when_the_rerun_fails() -> None:
+    """D3 (issue 139): after a successful resolve the thread is gone from `--list`
+    and `--thread` cannot be retried; the error names what is still undone with
+    the ids filled in — here the rerun and the reply — and nothing after the
+    failure runs."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError) as failure:
+        close_round(
+            payload,
+            "thread-1",
+            "fixed",
+            **_failing(_round(status="completed", calls=calls), "rerun"),
+        )
+
+    message = str(failure.value)
+    assert "gh run rerun 35" in message
+    assert _REPLY_CALL in message
+    assert "<owner" not in message and "<pr>" not in message
+    # `gh api -f` sends a static string; only `-F` reads a leading `@` as a file
+    # (Codex's P1 on PR 140).
+    assert "-F body=@" in message
+    assert "-f body=" not in message
+    assert "502" in message
+    assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1"]
+
+
+def test_close_round_names_the_reply_alone_when_the_reply_fails() -> None:
+    """The rerun went through: a second `gh run rerun` of a run in progress is
+    refused, so the error names the reply alone."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError) as failure:
+        close_round(
+            payload,
+            "thread-1",
+            "fixed",
+            **_failing(_round(status="completed", calls=calls), "post_reply"),
+        )
+
+    message = str(failure.value)
+    assert _REPLY_CALL in message
+    assert "<owner" not in message and "<pr>" not in message
+    assert "-F body=@" in message
+    assert "gh run rerun" not in message
+    assert "502" in message
+    assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1", "rerun 35"]
+
+
+def test_close_round_refuses_an_unknown_thread_before_any_write() -> None:
+    """A mistyped or already-resolved thread id is the `error:` line of the resolve
+    guard, not a KeyError of the reply lookup (Codex's P2 on PR 140)."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError, match="no open review thread"):
+        close_round(payload, "thread-9", "fixed", **_round(status="completed", calls=calls))
 
     assert calls == [f"head-run {_HEAD[:7]}"]
 

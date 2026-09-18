@@ -390,7 +390,9 @@ questions of #114 in its order:
   the PR did not set out to change is an issue, not a round — the reviewer does not set
   the PR's scope; three rounds are three; one change is one PR. The caller pins the callee `@main`, so #137 exercises none of its own callee
   changes; the same-path run is first observed on the PR after its merge:
-  <observed on the next PR>.
+  run `35312165253` (`pull_request`, head `450e623` of PR 140, attempt 1) — the wait
+  returned on the Codex review after 2 min 23 s, the Claude step and the verify step
+  skipped, the enforcement red on the open `P1`; one path, no parser.
 * Fork PRs and the secret (2026-09-17, on the fourth and fifth Codex reviews of #137).
   Codex asked whether a review event on a fork PR reaches the Claude step with the
   repository's secret, and then noted that the caller YAML of a `pull_request_review` run
@@ -448,3 +450,25 @@ questions of #114 in its order:
   spec takes. `v2-2b-review-events` is that change for #137: the direct edits reverted, the
   same text carried as a delta, the rule sentence with its assertion; no new issue or
   branch, since it is the delta of the PR's own fixes.
+* Re-run on a fallback head (issue 139, `fix-rerun-fallback-head`). `gh run rerun`
+  re-executes every step (attempts 2 and 3 of `35267976560` on `38debbd` ran the wait
+  again, returning in a second on the Codex review), and the callee's wait read presence
+  for the Codex login alone: on a head whose first attempt fell back, the second attempt
+  would wait the Codex timeout again and run the Claude action again on an unchanged head.
+  The wait now reads presence for either login the check trusts — the Codex app or
+  `github-actions`, the read the verify step already makes — so a re-run of a fallback
+  head is enforcement alone. For `github-actions` presence is the closing comment naming
+  the head alone, never a review node: the action publishes one inline comment at a
+  time, so an action interrupted after its first comment has left review nodes on the
+  head, and trusting them would turn a re-run green on an incomplete review (Codex's P1
+  on PR 140); the contract makes the closing comment the last write of every review.
+  Owner's decision (2026-09-18) on the observe-first rule of
+  issue 138: no observation before this fix — the platform fact is the one above, already
+  observed; the second review is what the callee's own two lines do next and a test proves
+  those; observing them on the platform would cost two Codex timeouts and two Claude
+  reviews to confirm an `if`. The confirmation is the first fallback head re-run after the
+  merge (the caller pins the callee `@main`, so this PR exercises today's callee):
+  <confirmed on the first fallback head re-run after the merge: run id, wait duration,
+  second review yes/no>. For the record: the fallback and the verify step have not run
+  live under the merged callee — every `pull_request` run of PR 137 had Codex requested
+  and skipped both; a fact about the fallback's publication, not about this change.

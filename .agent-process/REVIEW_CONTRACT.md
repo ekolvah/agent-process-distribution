@@ -36,8 +36,10 @@ of ours parses a review (ADR 0027); do not copy these rules into workflow YAML.
 - Do not re-raise a finding already answered by a correct recorded rationale.
   On a re-run review only the increment, not accepted trade-offs again.
 - Publish one inline comment per finding whose first `P<n>` is its label;
-  when there is no finding, one comment naming the reviewed head:
-  `No findings. Reviewed head SHA: <sha>`. Every publication names the head it
+  then, last, on every review, one comment naming the reviewed head:
+  `Reviewed head SHA: <sha>`, prefixed `No findings.` when there is none. The
+  job reads the Claude review by that closing comment: without it the review
+  counts as interrupted and runs again. Every publication names the head it
   reviewed.
 - Never approve, request changes, or merge; the review leaves no GitHub review
   state. The merge is the person's, after the required check is green.

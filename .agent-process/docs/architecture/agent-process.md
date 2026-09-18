@@ -181,16 +181,21 @@ The authenticated PR-author session starts the Codex review with `@codex review`
 after the PR opens and after every push; the workflow never posts that command,
 and Automatic reviews in the Codex app stay off, so the review count is the
 push count. The job waits a bounded time (`codex-timeout-seconds`, 600 by
-default) for a Codex review of the head — a native review by the app on that
-head, or its clean comment naming the head; an error or usage-limit message
-from the app is absence, never a parsed signal. A read that fails instead of
-establishing presence or absence fails the job without running the fallback.
-When the wait ends absent, the Claude Code action runs with the review contract
-read from the trusted checkout (`trusted/.agent-process/REVIEW_CONTRACT.md`),
-publishes inline `P0`–`P3` comments or one `No findings. Reviewed head SHA:
-<sha>` comment under the workflow token, and never approves; the job then reads
-whether a review of the head under that token's login exists, so a fallback
-that finished without publishing fails the check (ADR
+default) for a review of the head by a login the check trusts — a native review
+by the Codex app on that head, or a clean comment naming the head by the app or
+by the job's own login (`github-actions`), so a re-run of a head the fallback
+already reviewed returns on that review instead of reviewing again (issue 139);
+an error or usage-limit message from the app is absence, never a parsed signal.
+A read that fails instead of establishing presence or absence fails the job
+without running the fallback. When the wait ends absent, the Claude Code action
+runs with the review contract read from the trusted checkout
+(`trusted/.agent-process/REVIEW_CONTRACT.md`), publishes inline `P0`–`P3`
+comments and, last, on every review, one `Reviewed head SHA: <sha>` comment
+(prefixed `No findings.` when there is none) under the workflow token, and
+never approves. That closing comment alone is the fallback's review — its
+inline comments are review nodes an interrupted action leaves behind; the job
+then reads whether it exists, so a fallback that finished without it fails the
+check (ADR
 [0004](../adr/0004-controller-pr-review-runs-on-the-workflow-token.md)). That
 login is shared by every workflow of the repository with a write token, which
 bounds the read by write access — the merge authority already. Either

@@ -161,8 +161,8 @@ def test_wait_for_another_reviewer_reads_its_clean_comment_naming_the_head(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The Claude review job publishes under `github-actions`; the same presence read
-    with `--reviewer` sees its inline review on the head or its clean comment naming
-    the full head, and a Codex publication does not stand in for it."""
+    with `--reviewer` sees its closing comment naming the full head, and a Codex
+    publication does not stand in for it."""
     codex_review = _native_review(_HEAD)
     claude_comment = {
         "author": {"login": "github-actions[bot]"},
@@ -177,6 +177,53 @@ def test_wait_for_another_reviewer_reads_its_clean_comment_naming_the_head(
     _serve(monkeypatch, _payload(reviews=[codex_review]))
     with pytest.raises(SystemExit) as exit_info:
         request_codex_review.main(_wait_argv(timeout="0") + reviewer)
+    assert exit_info.value.code == 3
+
+
+def test_wait_is_present_for_either_trusted_reviewer_on_the_head(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenarios: Re-run on a fallback head, Re-run on an interrupted fallback —
+    the wait reads presence for any of the logins the check trusts, the Codex app
+    or the job's own. The fallback publishes finding by finding, each a review
+    node under `github-actions`, and closes with one comment naming the head: that
+    closing comment is its review, so the second attempt on a head it reviewed
+    returns on it instead of waiting for Codex again. An action interrupted after
+    its first finding left review nodes on the head and no closing comment — the
+    second attempt reviews the head again (issue 139; Codex's P1 on PR 140). A
+    closing comment naming an older head is no review of this one."""
+    trusted = [_REVIEWER, "github-actions"]
+    interrupted = _native_review(_HEAD, login="github-actions[bot]")
+    closing = {"author": {"login": "github-actions[bot]"}, "body": f"Reviewed head SHA: {_HEAD}"}
+    stale_closing = {**closing, "body": f"Reviewed head SHA: {'b' * 40}"}
+
+    def pull(**nodes: list[dict[str, object]]) -> dict[str, object]:
+        return _payload(**nodes)["data"]["repository"]["pullRequest"]
+
+    assert request_codex_review.reviewed(
+        pull(reviews=[interrupted], comments=[closing]), _HEAD, trusted
+    )
+    assert request_codex_review.reviewed(pull(reviews=[interrupted]), _HEAD, trusted) is False
+    assert request_codex_review.reviewed(pull(comments=[stale_closing]), _HEAD, trusted) is False
+    # The Codex app submits its review in one piece: its native review stays presence.
+    assert request_codex_review.reviewed(pull(reviews=[_native_review(_HEAD)]), _HEAD, trusted)
+
+    both = ["--reviewer", "chatgpt-codex-connector", "--reviewer", "github-actions"]
+    fake = _serve(monkeypatch, _payload(reviews=[_native_review(_HEAD)]))
+    request_codex_review.main(_wait_argv() + both)
+    out = capsys.readouterr().out
+    assert "present" in out
+    assert "chatgpt-codex-connector" in out
+    assert "github-actions" in out
+    assert fake.sleeps == []
+
+    _serve(monkeypatch, _payload(reviews=[interrupted], comments=[closing]))
+    request_codex_review.main(_wait_argv() + both)
+    assert "present" in capsys.readouterr().out
+
+    _serve(monkeypatch, _payload(reviews=[interrupted]))
+    with pytest.raises(SystemExit) as exit_info:
+        request_codex_review.main(_wait_argv(timeout="0") + both)
     assert exit_info.value.code == 3
 
 
