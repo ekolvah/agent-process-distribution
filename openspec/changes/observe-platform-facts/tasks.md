@@ -15,7 +15,7 @@
 
 ## 3. The architect review has the finding (D2)
 
-- [ ] 3.1 `openspec/config.yaml`, `rules.tasks`, Architect review entry: after `and so is a Group 1 that names no test without a `no RED: <reason>` task` add `, and a platform behaviour a design rests on that is asserted, not observed (no reference page, run id or command output beside it)`. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` green (the new test and `test_review_finding`, `test_roles_and_carriers` with it); commit `feat(planning): the architect review finds an asserted platform fact`
+- [x] 3.1 `openspec/config.yaml`, `rules.tasks`, Architect review entry: after `and so is a Group 1 that names no test without a `no RED: <reason>` task` add `, and a platform behaviour a design rests on that is asserted, not observed (no reference page, run id or command output beside it)`. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` green (the new test and `test_review_finding`, `test_roles_and_carriers` with it); commit `feat(planning): the architect review finds an asserted platform fact`
 
 ## 4. The record (D3, D4)
 
