@@ -51,25 +51,22 @@ fields (Status, Priority — `python .agent-process/scripts/set_status.py <N>
 ["<Status>"] [--priority <name>]`, at least one of the two). The plan lives in
 the change directory, not in the issue body.
 
-**`## Out of scope`** is machine-read on the delivery PR, not prose-only: a
-top-level bullet that begins with the literal marker `deferred:`, carries a
-`#N` reference, and is not a `wontfix`/`won't fix`/YAGNI rejection is exported
-by `open_pr.py`/`update_pr_body.py` into the PR body's generated
-`## Deferred scope` section, which the required `pr-link` check verifies
-against this issue and which `REVIEW_CONTRACT.md` lets a reviewer use to
-downgrade a matching finding by one severity step (ADR 0020). The `#N` must
-sit on the **top-level** bullet — `check_orphan_scope.top_level_bullets`
-cannot see one nested under it. An issue number mentioned without the
-`deferred:` prefix is never exported; opting in is a deliberate marker, not
-something a bullet triggers by accident.
+Every PR links its issue by GitHub's own field, `closingIssuesReferences`:
+the branch `gh issue develop` created, or `Closes #N` in the body. A step of
+the required `quality` check reads the field once; a missing link fails the
+check, and the fixer links the issue and re-runs the check (`gh run rerun`).
 
-Because both `REVIEW_CONTRACT.md` and the `pr-link` driver are read from the
-default branch, every already-open PR picks up the new downgrade rule on its
-next review and the new soundness check on its next `pull_request` event with
-no PR-side action. If that check reds on an already-open PR (its generated
-block is stale against an edited issue), the recovery is one re-run of
-`python .agent-process/scripts/open_pr.py` (or `update_pr_body.py` for a
-fixer's report update) to regenerate the block.
+**`## Out of scope`** carries a v1 export that is inert: a top-level bullet
+that begins with the literal marker `deferred:`, carries a `#N` reference, and
+is not a `wontfix`/`won't fix`/YAGNI rejection is still exported by
+`open_pr.py`/`update_pr_body.py` into the PR body's generated `## Deferred
+scope` section, but nothing verifies that block since `v2-2c` and no reviewer
+reads it — the downgrade rule left `REVIEW_CONTRACT.md` in `v2-2b`. The block
+goes with `open_pr.py` (issue 114).
+
+Because `REVIEW_CONTRACT.md` is read from the default branch, every
+already-open PR picks up a changed contract on its next review with no PR-side
+action.
 
 ## Deterministic delivery flow
 
