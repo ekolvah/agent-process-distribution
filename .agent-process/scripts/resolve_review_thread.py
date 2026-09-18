@@ -138,12 +138,13 @@ def close_round(
             "is in when it concluded"
         )
     threads = {thread.thread_id: thread for thread in review_threads(payload)}
+    resolve(payload, thread_id, mutate=mutate)  # validates the thread; the lookup follows it
     comment_id = threads[thread_id].comment_id
+    # `-F` reads a leading `@` as a file; `-f` would post the literal text.
     reply_call = (
         f"`gh api -X POST repos/<owner/repo>/pulls/<pr>/comments/{comment_id}/replies "
-        "-f body=@<reply-file>`"
+        "-F body=@<reply-file>`"
     )
-    resolve(payload, thread_id, mutate=mutate)
     try:
         rerun(run_id)
     except Exception as exc:

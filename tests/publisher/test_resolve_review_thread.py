@@ -237,6 +237,10 @@ def test_close_round_names_the_rerun_and_the_reply_when_the_rerun_fails() -> Non
     message = str(failure.value)
     assert "gh run rerun 35" in message
     assert "comments/1/replies" in message
+    # `gh api -f` sends a static string; only `-F` reads a leading `@` as a file
+    # (Codex's P1 on PR 140).
+    assert "-F body=@" in message
+    assert "-f body=" not in message
     assert "502" in message
     assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1"]
 
@@ -257,9 +261,22 @@ def test_close_round_names_the_reply_alone_when_the_reply_fails() -> None:
 
     message = str(failure.value)
     assert "comments/1/replies" in message
+    assert "-F body=@" in message
     assert "gh run rerun" not in message
     assert "502" in message
     assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1", "rerun 35"]
+
+
+def test_close_round_refuses_an_unknown_thread_before_any_write() -> None:
+    """A mistyped or already-resolved thread id is the `error:` line of the resolve
+    guard, not a KeyError of the reply lookup (Codex's P2 on PR 140)."""
+    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError, match="no open review thread"):
+        close_round(payload, "thread-9", "fixed", **_round(status="completed", calls=calls))
+
+    assert calls == [f"head-run {_HEAD[:7]}"]
 
 
 def test_close_round_refuses_an_empty_reply() -> None:

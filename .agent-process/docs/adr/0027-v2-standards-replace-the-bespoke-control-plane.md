@@ -390,7 +390,9 @@ questions of #114 in its order:
   the PR did not set out to change is an issue, not a round — the reviewer does not set
   the PR's scope; three rounds are three; one change is one PR. The caller pins the callee `@main`, so #137 exercises none of its own callee
   changes; the same-path run is first observed on the PR after its merge:
-  <observed on the next PR>.
+  run `35312165253` (`pull_request`, head `450e623` of PR 140, attempt 1) — the wait
+  returned on the Codex review after 2 min 23 s, the Claude step and the verify step
+  skipped, the enforcement red on the open `P1`; one path, no parser.
 * Fork PRs and the secret (2026-09-17, on the fourth and fifth Codex reviews of #137).
   Codex asked whether a review event on a fork PR reaches the Claude step with the
   repository's secret, and then noted that the caller YAML of a `pull_request_review` run
