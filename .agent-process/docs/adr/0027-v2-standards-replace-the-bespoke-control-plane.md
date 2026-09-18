@@ -162,6 +162,9 @@ Superseded records and what replaces each:
 * ADR 0022 (the fixer resolves the thread its correction addresses) → the fixer still
   resolves the `P0`/`P1` thread its push addressed; the check reads the label and the
   resolved state of either reviewer's thread, no classification reply (`v2-2b`).
+* ADR 0020 (a tracked deferral downgrades a matching review finding) → nothing: the
+  downgrade left the contract in `v2-2b`, the verification leaves with `verify_pr_link`
+  (`v2-2c`).
 * ADR 0023 (process contexts are an additive branch-protection minimum) → one ruleset from
   JSON (`v2-2`, `v2-4`).
 
@@ -491,3 +494,30 @@ questions of #114 in its order:
   alone, and the workflow-file check is the standard `actionlint`, CI code tracked as an
   issue of its own (owner's decision, 2026-09-18). Deletion condition: none; the rule is a
   sentence of `config.yaml` and goes with it.
+* The PR → issue link is GitHub's field (issue 131, `v2-2c-pr-link-native`). Observed
+  2026-09-18: the field needs no keyword — `gh pr view --json closingIssuesReferences` on
+  the PRs opened from `gh issue develop` branches lists the issue for PR 141 (`[138]`),
+  140 (`[139]`), 136 (`[130]`), 135 (`[134]`) and 133 (`[129]`) with no `Closes #N` in
+  any body; the field precedes the check — PR 141 created `15:31:31Z`, the `connected`
+  event on issue 138 at `15:31:34Z`, the first `pr-link` run `35362952165` created
+  `15:31:36Z` with its verify step at `15:31:45Z`, PR 140 the same shape (`05:47:00Z`,
+  `05:47:01Z`, run `35312165283`, step `05:47:15Z`); the gate was inert on v2 branches —
+  run `35364647176` printed `ok: PR link check passed for branch
+  'observe-platform-facts'` without one `gh` call, since `issue_number_from_branch`
+  matched `issue-N-` alone; the protection is classic (`strict: true`, three contexts,
+  `rulesets` empty). Deleted: `pr-link.yml`, `reusable-pr-link.yml`, `verify_pr_link.py`
+  (336 lines, two checkouts, an install and a 12 × 4 s poll for a field computed within
+  seconds of the PR) and the `## Deferred scope` verification with it (its consumer left
+  the review contract in `v2-2b`). The check moved into `quality`: one `gh pr view --jq`
+  line as the callee's first step, before any checkout, on every PR — in v2 every change
+  has a tracking issue, so the v1 "issue branch" exemption exempted every PR; an empty
+  list is `::error::` naming the two ways to link and `gh run rerun`, and a failed read
+  is red under `bash -e`, never `ok`. A bot PR would red `quality`; none opens PRs here,
+  and an `if:` on the author is added the day one is observed. Bootstrap: the PR deletes
+  the caller, so `pr-link / pr-link` never reports on it; after its `quality` and
+  `agent-review` are green the context leaves the protection by the reference `DELETE
+  …/protection/required_status_checks/contexts` call, by the person or on their
+  confirmation, and `check_branch_protection.py` prints two. The caller pins the callee
+  `@main`, so the PR ran today's callee; the first PR after the merge is the observation:
+  <confirmed on the first PR after the merge: run id, the step's output>. Deletion
+  condition: the step goes when GitHub requires a linked issue natively.

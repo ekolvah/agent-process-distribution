@@ -22,7 +22,6 @@ def _trigger(document: dict[Any, Any]) -> Any:
 def test_callees_declare_workflow_call_without_pull_request_trigger() -> None:
     for name in (
         "reusable-quality.yml",
-        "reusable-pr-link.yml",
         "reusable-agent-review.yml",
     ):
         trigger = _trigger(_workflow(name))
@@ -33,7 +32,6 @@ def test_callees_declare_workflow_call_without_pull_request_trigger() -> None:
 def test_callee_schema_matches_local_callers_in_both_directions() -> None:
     pairs = (
         ("ci.yml", "quality", "reusable-quality.yml", "quality"),
-        ("pr-link.yml", "pr-link", "reusable-pr-link.yml", "pr-link"),
         (
             "agent-review.yml",
             "agent-review",
@@ -69,7 +67,6 @@ def test_source_review_caller_passes_only_the_claude_fallback_secret() -> None:
 def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
     for caller_file, caller_job, callee_file in (
         ("ci.yml", "quality", "reusable-quality.yml"),
-        ("pr-link.yml", "pr-link", "reusable-pr-link.yml"),
         ("agent-review.yml", "agent-review", "reusable-agent-review.yml"),
     ):
         caller_permissions = _workflow(caller_file)["permissions"]
@@ -138,70 +135,51 @@ def test_quality_installs_product_dependencies_when_present() -> None:
     )
 
 
-def test_pr_link_uses_a_bootstrap_fallback_only_when_main_has_no_driver() -> None:
-    steps = _steps("reusable-pr-link.yml")
-
-    assert steps["Checkout trusted PR-link driver"]["with"] == {
-        "ref": "${{ github.event.repository.default_branch }}",
-        "path": "trusted",
-    }
-    assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
-    assert steps["Verify PR closes its issue"]["working-directory"] == (
-        "${{ steps.pr-link-driver.outputs.path }}"
-    )
-    driver_run = steps["Select PR-link driver"]["run"]
-    assert "trusted/.agent-process/scripts/verify_pr_link.py" in driver_run
-    # The default branch may still carry only the pre-migration root path
-    # (relocation not yet merged there); that must resolve to the trusted
-    # driver too, via its module invocation, not fall through to the PR's
-    # own untrusted copy (#57 fresh finding).
-    assert "trusted/scripts/verify_pr_link.py" in driver_run
-    assert "python -m scripts.verify_pr_link" in driver_run
-    assert steps["Verify PR closes its issue"]["run"] == (
-        '${{ steps.pr-link-driver.outputs.invocation }} --branch "$HEAD_REF" --pr "$PR_NUMBER"'
-    )
-    checkouts = [step for step in steps.values() if step.get("uses") == "actions/checkout@v4"]
-    assert len(checkouts) == 2
-    assert "reusable-pr-link.yml@" in _workflow("pr-link.yml")["jobs"]["pr-link"]["uses"]
-
-
-def test_pr_link_grants_issues_read() -> None:
-    """The deferred-scope soundness check reads the linked issue's body
-    (issue #64 finding B5): without `issues: read` the gate's `gh issue view`
-    call is a silent 403, not a missing capability the operator ever sees."""
-    assert _workflow("reusable-pr-link.yml")["permissions"]["issues"] == "read"
-    assert _workflow("pr-link.yml")["permissions"]["issues"] == "read"
-
-
-def test_pr_link_feature_detects_deferred_scope_support() -> None:
-    steps = _steps("reusable-pr-link.yml")
-
-    name = "Select deferred-scope check capability"
-    assert name in steps
-    capability = steps[name]
-    assert "DEFERRED_SCOPE_CHECK_SUPPORTED = True" in capability["run"]
-    assert "supported=true" in capability["run"]
-    assert "supported=false" in capability["run"]
-
+def test_quality_verifies_the_pr_links_its_issue_before_the_driver() -> None:
+    """ADR 0027, v2-2c: the PR → issue link is GitHub's `closingIssuesReferences`,
+    read once by the first step of the quality callee, before any checkout (`gh`
+    reads the API; `GH_REPO` names the repository no worktree provides). An empty
+    list is `::error::` naming how to link and how to re-run, then `exit 1`. No
+    `shell:` key: `run` is `bash -e {0}`, so a failed read is red, never `ok`."""
+    document = _workflow("reusable-quality.yml")
+    steps = _steps("reusable-quality.yml")
     names = list(steps)
-    assert names.index(name) < names.index("Verify PR closes its issue")
 
-
-def test_pr_link_installs_its_driver_dependencies() -> None:
-    """Codex finding on PR #66: verify_pr_link.py now imports
-    check_orphan_scope.py, which hard-imports the third-party markdown_it
-    package at module level, but this driver never installed anything before
-    invoking it — every issue-branch PR would red with ModuleNotFoundError
-    once this reaches the default branch."""
-    steps = _steps("reusable-pr-link.yml")
-
-    name = "Install PR-link driver dependencies"
+    name = "Verify the PR links its issue"
     assert name in steps
+    assert names.index(name) < names.index("Checkout trusted quality driver")
     step = steps[name]
-    assert "requirements.txt" in step["run"]
+    assert step["env"] == {
+        "GH_TOKEN": "${{ github.token }}",
+        "GH_REPO": "${{ github.repository }}",
+        "PR": "${{ github.event.pull_request.number }}",
+    }
+    assert "shell" not in step
+    run = step["run"]
+    assert "--json closingIssuesReferences" in run
+    assert ".closingIssuesReferences | length" in run
+    assert "::error::" in run
+    assert "Closes #N" in run
+    assert "gh issue develop -c" in run
+    assert "gh run rerun $GITHUB_RUN_ID" in run
+    assert "exit 1" in run
+    assert run.count("gh pr view") == 1
+    assert "sleep" not in run
+    assert "verify_pr_link" not in run
 
-    names = list(steps)
-    assert names.index(name) < names.index("Verify PR closes its issue")
+    expected = {"contents": "read", "pull-requests": "read", "issues": "read"}
+    assert document["permissions"] == expected
+    assert _workflow("ci.yml")["permissions"] == expected
+    # No `edited` type: a body edit raises no run, the fixer's `gh run rerun` does.
+    assert _trigger(_workflow("ci.yml"))["pull_request"] is None
+
+
+def test_the_pr_link_gate_is_gone() -> None:
+    """The third caller/callee pair and its driver are deleted (v2-2c): the
+    required context `pr-link / pr-link` has no caller to report it."""
+    assert not (WORKFLOWS / "pr-link.yml").exists()
+    assert not (WORKFLOWS / "reusable-pr-link.yml").exists()
+    assert not (ROOT / ".agent-process" / "scripts" / "verify_pr_link.py").exists()
 
 
 def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads() -> None:

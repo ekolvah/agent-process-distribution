@@ -114,7 +114,7 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     # nothing”—and letting the script proceed on phantom data. A nonzero return code is
     # NOT an exception: the caller decides, and its error-reporting path must execute.
     if result.stdout is None or result.stderr is None:
-        # Code 2, as in sibling `verify_pr_link.py`: infrastructure failure must differ
+        # Code 2: infrastructure failure must differ
         # from a verdict. Code 1 is used for legitimate outcomes (“PR NOT linked”,
         # “gh pr create failed”); capture failure must remain a distinct outcome.
         print(

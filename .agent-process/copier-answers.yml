@@ -31,10 +31,8 @@ not_required_contexts: {}
 repo_name: agent-process-distribution
 required_status_contexts:
 - quality / quality
-- pr-link / pr-link
 - agent-review / agent-review
 workflow_references:
     agent-review: ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@main
-    pr-link: ekolvah/agent-process-distribution/.github/workflows/reusable-pr-link.yml@main
     quality: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@main
 

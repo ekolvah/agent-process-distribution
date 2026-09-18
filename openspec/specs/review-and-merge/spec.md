@@ -7,9 +7,9 @@ mistakes.
 ## Requirements
 
 ### Requirement: Required checks protect the default branch
-The default branch SHALL require the checks `quality / quality`, `pr-link / pr-link` and
-`agent-review / agent-review` from the reusable workflows. The required list is declared in
-the repository; drift between the declared and the installed protection SHALL block a push
+The default branch SHALL require the checks `quality / quality` and `agent-review /
+agent-review` from the reusable workflows. The required list is declared in the
+repository; drift between the declared and the installed protection SHALL block a push
 before `ci_check` runs.
 
 #### Scenario: Missing required context
@@ -23,14 +23,6 @@ carriers: a deny-list in Claude Code, a pre-tool hook in Codex. Merging is the p
 #### Scenario: Push to main from Codex
 - **WHEN** an agent runs `git push origin main` in Codex
 - **THEN** the pre-tool hook denies it with the repository-policy reason
-
-### Requirement: An issue-branch PR links its issue
-A PR from an `issue-N-*` branch SHALL carry `Closes #N`; the `pr-link` check verifies the
-link. On any other branch (fork, Dependabot, manual) the check is N/A and passes.
-
-#### Scenario: PR link check
-- **WHEN** a PR from an `issue-N-*` branch is opened
-- **THEN** `pr-link` verifies the closing reference with read access to issues
 
 ### Requirement: Codex reviews on the author's request, Claude is the fallback
 The PR author SHALL request the Codex review (`@codex review`, after the PR opens and after
@@ -122,3 +114,19 @@ branch: a `P3` does not keep a PR from merging.
 #### Scenario: Review event re-runs the check
 - **WHEN** a review thread of the head is resolved after the check concluded on that head — a resolve has no event of its own, and a run another event starts is a required context of its own that leaves the `pull_request` run as it was
 - **THEN** the check is re-run by the fixer's `resolve_review_thread --thread --reply-file`, whose `gh run rerun` of that `pull_request` run reads the resolved state; the caller follows pushes alone and the script posts the reply after the resolve
+
+### Requirement: A PR links its issue
+Every PR SHALL link at least one issue by GitHub's own link — a closing keyword in the
+body, a manual link, or the branch `gh issue develop` created. A step of the `quality`
+check SHALL read the PR's `closingIssuesReferences` once, with read access to pull
+requests and issues, and SHALL fail the check when the list is empty, printing how to
+link the issue and the command that re-runs the check; no check parses the branch name
+or the PR body for the link, and no other check carries it.
+
+#### Scenario: PR from a linked branch
+- **WHEN** a PR is opened from a branch `gh issue develop` created for its issue, with no closing keyword in the body
+- **THEN** the step reads the issue in `closingIssuesReferences` and the check goes on to the quality driver
+
+#### Scenario: PR without an issue
+- **WHEN** a PR links no issue
+- **THEN** `quality` fails naming the two ways to link and `gh run rerun` of the run, and the driver's checks do not run

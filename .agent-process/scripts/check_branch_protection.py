@@ -50,7 +50,6 @@ import yaml
 REVIEW_CONTEXT = "agent-review / agent-review"
 REQUIRED_CONTEXTS: tuple[str, ...] = (
     "quality / quality",
-    "pr-link / pr-link",
     "agent-review / agent-review",
 )
 

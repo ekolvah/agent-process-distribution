@@ -146,8 +146,9 @@ Enable the copied local pre-push probe after reviewing it:
 git config core.hooksPath .agent-process/.githooks
 ```
 
-The caller permission grants (`contents: read`, `issues: read`, and
-`pull-requests: write` for review) are part of the published contract. A
+The caller permission grants (`contents: read`, `issues: read`,
+`pull-requests: read` for quality and `pull-requests: write` for review) are
+part of the published contract. A
 release that requires a wider callee permission is breaking until callers are
 re-rendered.
 
@@ -260,13 +261,14 @@ for the full publisher/consumer split.
 Every process file renders under `.agent-process/`, except the closed root set
 [ADR 0019](../adr/0019-single-root-agent-process-layout.md) defines and
 individually justifies: the real-named `.github/workflows/ci.yml`,
-`agent-review.yml`, `pr-link.yml` and `.github/pull_request_template.md`;
-the tool-mandated `.agents/**`, `.claude/**`, `.codex/**`; the
-managed-fragment `AGENTS.md` and `.gitignore`; and the reserved
-`tests/agent_process/` subtree. Product configuration stays consumer-owned.
-The three callers retain the composed contexts `quality / quality`,
-`pr-link / pr-link`, and `agent-review / agent-review` without replacing a
-consumer's own workflow files.
+`agent-review.yml` and `.github/pull_request_template.md`; the tool-mandated
+`.agents/**`, `.claude/**`, `.codex/**`; the managed-fragment `AGENTS.md` and
+`.gitignore`; and the reserved `tests/agent_process/` subtree. Product
+configuration stays consumer-owned. The two callers retain the composed
+contexts `quality / quality` and `agent-review / agent-review` without
+replacing a consumer's own workflow files; `ci.yml` carries `pull-requests:
+read` and `issues: read` for the step of `quality` that reads the PR's
+`closingIssuesReferences`.
 
 An unavoidable shared text file uses one explicit `<!-- agent-process:begin -->`
 through `<!-- agent-process:end -->` fragment. Duplicate or malformed markers
