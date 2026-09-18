@@ -457,7 +457,12 @@ questions of #114 in its order:
   would wait the Codex timeout again and run the Claude action again on an unchanged head.
   The wait now reads presence for either login the check trusts — the Codex app or
   `github-actions`, the read the verify step already makes — so a re-run of a fallback
-  head is enforcement alone. Owner's decision (2026-09-18) on the observe-first rule of
+  head is enforcement alone. For `github-actions` presence is the closing comment naming
+  the head alone, never a review node: the action publishes one inline comment at a
+  time, so an action interrupted after its first comment has left review nodes on the
+  head, and trusting them would turn a re-run green on an incomplete review (Codex's P1
+  on PR 140); the contract makes the closing comment the last write of every review.
+  Owner's decision (2026-09-18) on the observe-first rule of
   issue 138: no observation before this fix — the platform fact is the one above, already
   observed; the second review is what the callee's own two lines do next and a test proves
   those; observing them on the platform would cost two Codex timeouts and two Claude

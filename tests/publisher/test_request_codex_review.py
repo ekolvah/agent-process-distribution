@@ -161,8 +161,8 @@ def test_wait_for_another_reviewer_reads_its_clean_comment_naming_the_head(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The Claude review job publishes under `github-actions`; the same presence read
-    with `--reviewer` sees its inline review on the head or its clean comment naming
-    the full head, and a Codex publication does not stand in for it."""
+    with `--reviewer` sees its closing comment naming the full head, and a Codex
+    publication does not stand in for it."""
     codex_review = _native_review(_HEAD)
     claude_comment = {
         "author": {"login": "github-actions[bot]"},
@@ -183,19 +183,30 @@ def test_wait_for_another_reviewer_reads_its_clean_comment_naming_the_head(
 def test_wait_is_present_for_either_trusted_reviewer_on_the_head(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Scenario: Re-run on a fallback head — the wait reads presence for any of
-    the logins the check trusts, the Codex app or the job's own. On a head the
-    fallback reviewed, the second attempt returns on that review instead of
-    waiting for Codex again; a fallback review of an older head is no review of
-    this one (issue 139)."""
+    """Scenarios: Re-run on a fallback head, Re-run on an interrupted fallback —
+    the wait reads presence for any of the logins the check trusts, the Codex app
+    or the job's own. The fallback publishes finding by finding, each a review
+    node under `github-actions`, and closes with one comment naming the head: that
+    closing comment is its review, so the second attempt on a head it reviewed
+    returns on it instead of waiting for Codex again. An action interrupted after
+    its first finding left review nodes on the head and no closing comment — the
+    second attempt reviews the head again (issue 139; Codex's P1 on PR 140). A
+    closing comment naming an older head is no review of this one."""
     trusted = [_REVIEWER, "github-actions"]
-    fallback_review = _native_review(_HEAD, login="github-actions[bot]")
-    stale_fallback = _native_review("b" * 40, login="github-actions[bot]")
+    interrupted = _native_review(_HEAD, login="github-actions[bot]")
+    closing = {"author": {"login": "github-actions[bot]"}, "body": f"Reviewed head SHA: {_HEAD}"}
+    stale_closing = {**closing, "body": f"Reviewed head SHA: {'b' * 40}"}
 
-    pull = _payload(reviews=[fallback_review])["data"]["repository"]["pullRequest"]
-    assert request_codex_review.reviewed(pull, _HEAD, trusted) is True
-    pull = _payload(reviews=[stale_fallback])["data"]["repository"]["pullRequest"]
-    assert request_codex_review.reviewed(pull, _HEAD, trusted) is False
+    def pull(**nodes: list[dict[str, object]]) -> dict[str, object]:
+        return _payload(**nodes)["data"]["repository"]["pullRequest"]
+
+    assert request_codex_review.reviewed(
+        pull(reviews=[interrupted], comments=[closing]), _HEAD, trusted
+    )
+    assert request_codex_review.reviewed(pull(reviews=[interrupted]), _HEAD, trusted) is False
+    assert request_codex_review.reviewed(pull(comments=[stale_closing]), _HEAD, trusted) is False
+    # The Codex app submits its review in one piece: its native review stays presence.
+    assert request_codex_review.reviewed(pull(reviews=[_native_review(_HEAD)]), _HEAD, trusted)
 
     both = ["--reviewer", "chatgpt-codex-connector", "--reviewer", "github-actions"]
     fake = _serve(monkeypatch, _payload(reviews=[_native_review(_HEAD)]))
@@ -206,9 +217,14 @@ def test_wait_is_present_for_either_trusted_reviewer_on_the_head(
     assert "github-actions" in out
     assert fake.sleeps == []
 
-    _serve(monkeypatch, _payload(reviews=[fallback_review]))
+    _serve(monkeypatch, _payload(reviews=[interrupted], comments=[closing]))
     request_codex_review.main(_wait_argv() + both)
     assert "present" in capsys.readouterr().out
+
+    _serve(monkeypatch, _payload(reviews=[interrupted]))
+    with pytest.raises(SystemExit) as exit_info:
+        request_codex_review.main(_wait_argv(timeout="0") + both)
+    assert exit_info.value.code == 3
 
 
 def test_wait_reads_nothing_but_presence() -> None:

@@ -13,7 +13,8 @@ so a re-run of a head the fallback reviewed returns on that review instead of
 reviewing the head again (issue 139). The same read with ``--reviewer
 github-actions`` alone verifies that the fallback published under the workflow
 token: the action can finish green without a comment (ADR 0004), and a silent
-fallback is no review of the head.
+fallback is no review of the head. For that login only the closing comment
+naming the head is presence — ``FALLBACK_REVIEWER`` says why.
 """
 
 from __future__ import annotations
@@ -31,6 +32,12 @@ except ModuleNotFoundError:  # documented direct script entry point
     from gh_io import run_gh
 
 CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
+# The Claude review job publishes under the workflow token, inline comment by inline
+# comment — each a review node on the head. An action interrupted after its first
+# comment has left such a node, so for this login a native review is never presence:
+# its review is the closing comment naming the head, posted last (issue 139). The
+# Codex app submits its review in one piece.
+FALLBACK_REVIEWER = "github-actions[bot]"
 DEFAULT_TIMEOUT_SECONDS = 600
 DEFAULT_POLL_SECONDS = 20
 REQUEST_BODY = "@codex review"
@@ -104,11 +111,16 @@ def fetch_pull_request(repo: str, pr: str) -> Mapping[str, object]:
 def reviewed(
     pull: Mapping[str, object], head: str, reviewers: Sequence[str] = (CODEX_REVIEWER,)
 ) -> bool:
-    """True when any of ``reviewers`` left a review on ``head`` or a clean comment naming it."""
+    """True when any of ``reviewers`` left a review on ``head`` or a clean comment naming it.
+
+    For ``FALLBACK_REVIEWER`` the comment alone counts (see the constant).
+    """
+    fallback = _normalise_login(FALLBACK_REVIEWER)
+    atomic = [reviewer for reviewer in reviewers if _normalise_login(reviewer) != fallback]
     for review in _nodes(pull, "reviews"):
         commit = review.get("commit") if isinstance(review, Mapping) else None
         oid = commit.get("oid") if isinstance(commit, Mapping) else None
-        if _by(reviewers, review) and oid == head:
+        if _by(atomic, review) and oid == head:
             return True
     for comment in _nodes(pull, "comments"):
         body = comment.get("body") if isinstance(comment, Mapping) else None

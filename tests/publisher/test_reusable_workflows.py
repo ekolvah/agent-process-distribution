@@ -265,11 +265,15 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert "mcp__github_inline_comment__create_inline_comment" in claude["with"]["claude_args"]
     assert "--json-schema" not in claude["with"]["claude_args"]
     prompt = claude["with"]["prompt"]
+    # The closing comment is the fallback's review: the action publishes finding by
+    # finding, so an interrupted action has left inline comments and no closing
+    # comment, and the second attempt reviews again (Codex's P1 on PR 140).
     for anchor in (
         "trusted/.agent-process/REVIEW_CONTRACT.md",
         "untrusted",
         "P0",
-        "Reviewed head SHA",
+        "last, on every review",
+        "Reviewed head SHA: <sha>",
         "Never approve",
     ):
         assert anchor in prompt
