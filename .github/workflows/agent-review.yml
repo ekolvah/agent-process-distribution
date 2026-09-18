@@ -1,6 +1,9 @@
 name: Agent review
 
 on:
+  # Pushes alone. Every event is a required context of its own, so a run
+  # started by a review event leaves the `pull_request` context as it was;
+  # the fixer re-runs that run after a resolve (ADR 0027, v2-2b).
   pull_request:
     types: [opened, synchronize]
 

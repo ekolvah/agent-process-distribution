@@ -207,7 +207,9 @@ def test_pr_link_installs_its_driver_dependencies() -> None:
 def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads() -> None:
     """ADR 0027, v2-2b: the job reads whether a Codex review of the head exists,
     runs the Claude action only when it does not, and fails on an unresolved
-    P0/P1 thread. Nothing parses a review; on a review event it only enforces."""
+    P0/P1 thread. Nothing parses a review. Every event runs the same path: a
+    review-event run that skipped the wait and the fallback would pass on a head
+    without any review and become the required context (#137, round 3)."""
     document = _workflow("reusable-agent-review.yml")
     job = document["jobs"]["agent-review"]
     steps = _steps("reusable-agent-review.yml")
@@ -240,16 +242,18 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert wait["id"] == "codex"
     assert "continue-on-error" not in wait
     assert wait["working-directory"] == "trusted"
-    assert "github.event_name == 'pull_request'" in wait["if"]
+    assert "if" not in wait
     assert "request_codex_review.py --wait" in wait["run"]
     assert "inputs.codex-timeout-seconds" in wait["run"]
     assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in wait["run"]
     assert '*) exit "$rc"' in wait["run"]
 
+    # Absence is the only condition: no event filter (a skipped job passes a required
+    # check) and no fork guard — the platform withholds every secret but GITHUB_TOKEN
+    # from a run of a fork PR on `pull_request` and `pull_request_review` alike, and the
+    # repository requires approval for every run from an external contributor (ADR 0027).
     claude = steps["Claude review"]
-    assert "steps.codex.outputs.absent == 'true'" in claude["if"]
-    assert "steps.codex.outcome" not in claude["if"]
-    assert "github.event_name == 'pull_request'" in claude["if"]
+    assert claude["if"] == "steps.codex.outputs.absent == 'true'"
     assert claude["uses"].startswith("anthropics/claude-code-action@")
     assert claude["with"]["claude_code_oauth_token"] == "${{ secrets.claude_code_oauth_token }}"
     assert claude["with"]["github_token"] == "${{ github.token }}"
@@ -269,7 +273,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     # records the action finishing green without a comment): the same presence read as
     # for Codex, on the job's own login, fails the check instead of leaving it green.
     verify = steps["Verify the Claude review of the head"]
-    assert verify["if"] == claude["if"]
+    assert verify["if"] == "steps.codex.outputs.absent == 'true'"
     assert "continue-on-error" not in verify
     assert verify["working-directory"] == "trusted"
     assert "request_codex_review.py --wait" in verify["run"]
@@ -287,6 +291,18 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
         "reusable-agent-review.yml@"
         in _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"]
     )
+
+
+def test_agent_review_caller_runs_on_pushes_alone() -> None:
+    """Scenario: Review event re-runs the check — by the fixer's `gh run rerun` of
+    the head's `pull_request` run, not by an event: every event is a required
+    context of its own, so a `pull_request_review` run leaves the `pull_request`
+    context as it was (PR #137: `BLOCKED` with the review-event runs green, `CLEAN`
+    after the rerun). GitHub rejects `pull_request_review_thread`."""
+    trigger = _trigger(_workflow("agent-review.yml"))
+
+    assert set(trigger) == {"pull_request"}
+    assert trigger["pull_request"]["types"] == ["opened", "synchronize"]
 
 
 def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:

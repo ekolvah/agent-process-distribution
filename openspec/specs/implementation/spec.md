@@ -101,10 +101,19 @@ propose run, which SHALL write the issue number into Group 0 of `tasks.md` (the 
 `Planned` SHALL stop the apply at the gate with a printed `propose run not finished` line.
 The review loop after the PR SHALL be bounded: after three rounds of applying unresolved
 threads the run leaves the rest to the person with a reply and ends. The loop SHALL name
-how a `P0`/`P1` thread the push addressed is resolved — `resolve_review_thread` on that
-thread from the implementer's own session — and SHALL resolve no other thread: a `P2`/`P3`
-finding is answered, and its disposition is the person's. Once the review check follows
-review events, no task SHALL name a re-run of that check by hand. The tasks after the
+how a `P0`/`P1` thread the push addressed is resolved — `resolve_review_thread --thread
+--reply-file` on that thread from the implementer's own session — and SHALL resolve no
+other thread: a `P2`/`P3` finding is answered, and its disposition is the person's. The
+step after `wait_for_pr` is that one command, and its order is the script's, not the
+rule's: it SHALL refuse while the head's `agent-review` run is running (the review of the
+head is in when the run concluded, Codex's or the fallback's the run started when none
+came), resolve the thread, re-run that run (a resolve has no event of its own, and the
+required context is the head's `pull_request` run) and post the reply last. A review fix
+that changes a spec SHALL go through a change
+of its own on the PR branch — a delta under `openspec/changes/<change>/specs/`, validated
+and archived by `archive_change` before the push — never through a direct edit of
+`openspec/specs/`: the archive is what carries a spec, on the first PR and on every
+fix. The tasks after the
 archive SHALL leave no tick in the repository — the PR is their record — and a run
 interrupted after the archive SHALL resume from `gh pr view <change>`, not from the apply.
 The PR body SHALL name the tracking issue as a plain reference, not with a `Closes` keyword:
@@ -120,7 +129,11 @@ the branch from `gh issue develop -c` closes the issue on merge.
 
 #### Scenario: Blocking thread addressed
 - **WHEN** a push of the review loop addresses a `P0`/`P1` thread
-- **THEN** the Deliver group of `tasks.md` names `resolve_review_thread` for that thread and names no resolve for a `P2`/`P3` thread
+- **THEN** the Deliver group of `tasks.md` names `resolve_review_thread --thread --reply-file` for that thread and names no resolve for a `P2`/`P3` thread; the script refuses while the head's `agent-review` run is running, and on a concluded run resolves the thread, re-runs that run and posts the reply, in that order
+
+#### Scenario: Review fix changes a spec
+- **WHEN** a fix in the review loop changes what a spec requires
+- **THEN** the Deliver group names a change of its own for it — delta, validation, `archive_change` — and `openspec/specs/` is edited by the archive alone
 
 ### Requirement: `archive_change` archives the change before its PR
 One script, `archive_change <change>`, SHALL archive a change on its branch before the PR

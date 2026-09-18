@@ -74,9 +74,10 @@ _NEXT_ACTIONS: dict[str, str] = {
         "is the maintainer's call, not another round"
     ),
     "fix-blocking": (
-        "make one minimal fixer commit, push it, resolve any BLOCKING review thread it "
-        "addresses with `resolve_review_thread.py --thread <node-id>` before the "
-        "agent-review run on this head finishes, then run this gate again"
+        "make one minimal fixer commit, push it, `wait_for_pr.py <PR>`, then for each "
+        "BLOCKING review thread it addresses `resolve_review_thread.py --thread <node-id> "
+        "--reply-file <path>` (it re-runs the head's agent-review run and replies), "
+        "then run this gate again"
     ),
     "escalate": "stop the loop and hand the named anomaly to the maintainer",
     "review-pending": (
@@ -151,10 +152,10 @@ def _red_reason(red: Sequence[str]) -> str:
         reason += (
             f"; a red {REVIEW_CONTEXT} means either blocking findings or a "
             "review unavailable (empty or malformed outcome, live PR context lost) — "
-            "read the run before changing anything. If a BLOCKING thread was already "
-            "resolved after this run finished (the resolve missed the window), re-run "
-            "the completed agent-review run on this unchanged head instead of pushing "
-            "again — no push, no budget"
+            "read the run before changing anything. A BLOCKING thread this head already "
+            "addressed is closed with `resolve_review_thread.py --thread <node-id> "
+            "--reply-file <path>`, which re-runs this completed run on the resolved state "
+            "— no push, no budget"
         )
     return reason
 

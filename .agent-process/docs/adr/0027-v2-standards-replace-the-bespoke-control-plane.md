@@ -336,5 +336,115 @@ questions of #114 in its order:
   --reviewer github-actions`), which fails the check when the fallback published
   nothing on the head. The login on Claude's inline comments, if the fallback runs:
   <observed on the second PR>.
-* Whether a check run started by a `pull_request_review` / `pull_request_review_thread`
-  event is listed for the head (second PR): <observed on the second PR>.
+* Its third review asked to bind that presence read to the invocation (a run id in the
+  publication, or the action's own log) or to a dedicated app identity, since
+  `github-actions[bot]` is shared by every workflow of the repository with a write token.
+  Accepted as is by the owner (2026-09-17, recorded on #130): what can publish under that
+  login is a workflow of this repository with a write `GITHUB_TOKEN`, i.e. a collaborator
+  with write access — the merge authority already; a fork PR runs read-only and a human
+  comment carries a human login. Binding the evidence to the run is the parser coming back
+  under another name; a dedicated app identity is a repository setting and a secret, and
+  stays the person's call if a case shows the need.
+* `pull_request_review_thread` does not exist as a trigger any more: the first push of the
+  second PR (#137, `397c54f`) produced no `agent-review` run at all — GitHub reported
+  `Invalid workflow file (Line: 10, Col: 3): Unexpected value 'pull_request_review_thread'`
+  and the event is gone from the "Events that trigger workflows" reference. The caller
+  keeps `pull_request_review: [submitted]` only. A check run started by a `pull_request_review` event is listed
+  for the head: on #137, head `cb6ffe9`, Codex's review at 17:01:07Z started run
+  `35250133503` (`event: pull_request_review`, 11 s) four minutes after the
+  `pull_request` run `35249657967` of the same head; `gh pr checks 137` lists both under
+  `agent-review / agent-review`. The inference drawn then — that the required context
+  follows the later run — was wrong; see the last bullet of this section. That run had skipped the wait and the fallback
+  (enforcement only, as designed) — which Codex's third review of #137 showed to be a
+  hole: any submitted review, a human's or one of an older commit, starts such a run
+  while the `pull_request` run is still waiting, and with no thread yet it passes and
+  becomes the required context for a head nobody reviewed. A skipped job passes a
+  required check as well, so no `if` can filter the event; the callee now runs the same
+  path on every event, and a review-event run's conclusion derives from a review of the
+  head. Cost accepted: a human review on a PR Codex left silent starts a second wait and
+  a second Claude review.
+* A reply on a review thread is a submitted review: the fixer's REST reply on #137 became
+  a `COMMENTED` review by the author and started run `35251460261` on head `b6858f8`
+  (17:14:00Z, `event: pull_request_review`) — which, running the `@main` callee of that
+  hour, skipped the wait and the fallback and passed on enforcement alone, four minutes
+  before Codex's review of the head arrived with a `P1`: the hole of the previous bullet,
+  observed live. The rule orders the loop around it: resolve once the review of the new
+  head is in, reply after the resolve — a resolve is never the last write on a thread.
+  Codex's P1 on `8f272f3` (the sixth review of #137): the rule's wait had read "the Codex
+  review of the new head", a condition never true on a head Codex left silent, where the
+  check ran the fallback and the head is reviewed all the same — an addressed thread could
+  not be resolved on that path and the check stayed red. The wait is keyed to the concluded
+  check of the head, whichever carrier reviewed it (`wait_for_pr.py` returns on it either
+  way; `v2-2b-any-carrier`).
+* Retrospective of the second PR of `v2-2b` (owner and Claude, 2026-09-17, after seven
+  reworks, twenty commits and ten Codex reviews on one PR). The order of the step after a
+  push — wait, resolve, re-run, reply — was a sentence copied to the Deliver rule, step 4,
+  the `implementation` spec, this ADR and `review_gate.py`'s `fix-blocking` action; three
+  reworks were a copy that lagged or a clause written for one path, and the seventh (the
+  gate still printing the v1 window) was the same defect once more. The order is now the
+  script's: `resolve_review_thread.py --thread --reply-file` refuses while the head's
+  `agent-review` run is running, resolves, re-runs that run, replies last (`close_round`,
+  transports injected); the rule, step 4 and the gate name the call (`v2-2b-loop-script`).
+  What else the retrospective named, for the process rather than this PR: a design that
+  rests on a platform behaviour observes it first (issue 138); a review finding on code
+  the PR did not set out to change is an issue, not a round — the reviewer does not set
+  the PR's scope; three rounds are three; one change is one PR. The caller pins the callee `@main`, so #137 exercises none of its own callee
+  changes; the same-path run is first observed on the PR after its merge:
+  <observed on the next PR>.
+* Fork PRs and the secret (2026-09-17, on the fourth and fifth Codex reviews of #137).
+  Codex asked whether a review event on a fork PR reaches the Claude step with the
+  repository's secret, and then noted that the caller YAML of a `pull_request_review` run
+  is read from the PR merge ref, so a fork can rewrite it and no condition in callee or
+  caller can protect the secret. Round 4 had answered the first with a guard on the
+  Claude step (`head.repo.full_name == github.repository`); the second showed the guard
+  protects nothing, and the platform documentation, read then instead of before round 4,
+  settles both: the events reference lists `pull_request_review` and
+  `pull_request_review_comment` under the same fork restriction as `pull_request` — every
+  secret but `GITHUB_TOKEN` is withheld from a run of a fork PR, the token is read-only
+  (observed in the wild: aws-actions/configure-aws-credentials#416, credentials absent on
+  `pull_request_review` from a fork). The guard was code for what the platform does and
+  is removed (`v2-2b-fork-policy`); the control that adds something is the repository
+  setting "Require approval for all external contributors"
+  (`PUT /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval`,
+  `approval_policy: all_external_contributors`, set on 2026-09-17 from
+  `first_time_contributors`): a run of a fork PR by a non-member does not start until the
+  person approves it, on every event but `pull_request_target`, which the process does not
+  use. A run of a fork PR holds no secret and is red on the missing Claude review unless
+  Codex, requested by a member, reviewed the head. Deletion condition: none; the
+  setting is the platform's, and a change of the event set of the caller re-reads the same
+  reference page.
+* Resolve-then-reply observed on #137, head `26bc2da`, before the rule relied on it (Codex's
+  P1 on that head asked for exactly this): thread `PRRT_kwDOUAa7yM6jdmmL` resolved at
+  18:04:21Z, replied to at 18:04:22Z; the reply started run `35256579419`
+  (`pull_request_review`, 18:04:23Z) on the unchanged head, whose enforcement listed the two
+  open threads of the newer review only — the resolve held and the run read it. The event
+  and the thread state are the platform's, independent of which callee the run executes,
+  so the observation stands for the merged one.
+* The review-event trigger is withdrawn (owner's decision, 2026-09-17): every event is a
+  required context of its own. On head `a1d0bad` of #137 the `pull_request` run
+  `35262221116` concluded red at 19:04Z while the `P1` thread was open; the resolve and
+  three replies started three `pull_request_review` runs that concluded green at 19:06Z,
+  and the PR stayed `mergeStateStatus: BLOCKED` — the branch protection's `statusCheckRollup`
+  listed the `pull_request` run as a required context of its own with `FAILURE` beside the
+  green review-event runs (the UI: two lines under `agent-review`, `(pull_request)` and
+  `(pull_request_review)`, both "Required"). `gh run rerun 35262221116` re-executed that
+  run on the same payload, its enforcement read the resolve, and the PR went `CLEAN`.
+  So a review-event run re-runs a check but never the required one: the design D6 of
+  `v2-2b` (a resolve needs no rerun by hand because the reply re-runs the check) is
+  false, and what the trigger adds is a second required line, a run — a wait and, on a head
+  Codex left silent, a Claude review — per reply, and the fork and `last: 30` questions of
+  the fourth and fifth Codex reviews. The caller runs on `pull_request` alone again; the
+  rule and step 4 read resolve → `gh run rerun <run-id>` → reply, the rerun being the
+  deterministic step a resolve needs (`v2-2b-push-only`). What #137 keeps: the callee on
+  one path for any event a caller may send, the resolve-after-wait and reply-after-resolve
+  order, the spec-fix rule, the fork setting. Lesson for the planner, as an issue of its
+  own: a platform behaviour a design rests on is verified on the platform before the
+  proposal, not inferred from a listing.
+* Review fixes of #137 (rounds 3–4) had edited `openspec/specs/` directly: the PR's change
+  was archived before the PR opened, as the process orders, and nothing described the new
+  behaviour as a delta. Owner's decision (2026-09-17, on Codex's P1 of `26bc2da`): a review
+  fix that changes a spec goes through a change of its own on the PR branch — delta,
+  `validate --strict`, `archive_change` — never a direct edit; the archive is the one path a
+  spec takes. `v2-2b-review-events` is that change for #137: the direct edits reverted, the
+  same text carried as a delta, the rule sentence with its assertion; no new issue or
+  branch, since it is the delta of the PR's own fixes.

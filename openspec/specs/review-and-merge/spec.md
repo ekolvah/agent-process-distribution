@@ -59,9 +59,13 @@ no review state, no evidence and no classification.
 - **WHEN** the read of the PR's reviews fails instead of establishing presence or absence
 - **THEN** the check fails without running the Claude action
 
+#### Scenario: Head from a fork
+- **WHEN** the PR head is in another repository and the wait ended absent, on any event
+- **THEN** the run has started only on the person's approval (the repository requires it for every external contributor) and holds no secret but the read-only `GITHUB_TOKEN` — the platform withholds the rest on `pull_request_review` as on `pull_request` —, so the Claude action fails and with it the check: a fork PR is reviewed by Codex or by a person, never by the fallback
+
 #### Scenario: Event other than a push
 - **WHEN** a caller runs the job for an event that is not `pull_request`
-- **THEN** it neither waits for Codex nor runs the Claude action; it runs its enforcement only
+- **THEN** it runs the same path — the wait, the fallback on absence, the verification, the enforcement — so its conclusion derives from a review of the head; a run that only enforced would pass a head without any review
 
 ### Requirement: No automation resolves a review thread
 No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
@@ -103,3 +107,7 @@ branch: a `P3` does not keep a PR from merging.
 #### Scenario: Blocking thread resolved
 - **WHEN** the fixer resolves the `P0`/`P1` thread its push addressed
 - **THEN** the next run of the check on that head passes
+
+#### Scenario: Review event re-runs the check
+- **WHEN** a review thread of the head is resolved after the check concluded on that head — a resolve has no event of its own, and a run another event starts is a required context of its own that leaves the `pull_request` run as it was
+- **THEN** the check is re-run by the fixer's `resolve_review_thread --thread --reply-file`, whose `gh run rerun` of that `pull_request` run reads the resolved state; the caller follows pushes alone and the script posts the reply after the resolve
