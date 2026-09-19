@@ -1,9 +1,15 @@
-"""Delivery scripts of the OpenSpec apply loop (change v2-1a-delivery-scripts).
+"""Delivery scripts of the OpenSpec apply loop (changes v2-1a-delivery-scripts and
+v2-2d-check-red-test).
 
 One test per scenario of the change's spec deltas that a script can prove; the
 scenario name is the test name. Scripts are imported inside the tests so that a
 missing script fails its own scenario instead of erroring the whole module at
 collection (``check_red`` counts a collection error as "not RED").
+
+``check_red`` is exercised through ``--test`` with a fake runner: a script that writes
+the fixture report named by ``FAKE_REPORT`` at the ``--junitxml=`` argument it receives
+and records its argv. The default runner (``python -m pytest``) is not spawned in the
+suite; the delivery of the change runs it live.
 """
 
 from __future__ import annotations
@@ -17,6 +23,14 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+_RUNNER = """\
+import os, pathlib, sys
+argv = sys.argv[1:]
+pathlib.Path(__file__).with_name("argv.txt").write_text("\\n".join(argv), encoding="utf-8")
+report = next(a for a in argv if a.startswith("--junitxml="))[len("--junitxml="):]
+fixture = pathlib.Path(os.environ["FAKE_REPORT"]).read_text(encoding="utf-8")
+pathlib.Path(report).write_text(fixture, encoding="utf-8")
+"""
 _PROJECT = {"id": "PVT_1", "number": 4, "title": "Board", "resourcePath": "/users/owner/projects/4"}
 _FIELDS = {
     "fields": [
@@ -78,63 +92,77 @@ class _Gh:
         return [c for c in self.calls if c[:3] == ["gh", "project", "item-edit"]]
 
 
+def _fake_runner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, report_xml: str) -> str:
+    """The `--test` value: a runner that writes `report_xml` where `--junitxml=` says."""
+    runner = tmp_path / "runner.py"
+    runner.write_text(_RUNNER, encoding="utf-8")
+    fixture = tmp_path / f"fixture{len(list(tmp_path.glob('fixture*.xml')))}.xml"
+    fixture.write_text(report_xml, encoding="utf-8")
+    monkeypatch.setenv("FAKE_REPORT", str(fixture))
+    return f"{sys.executable} {runner}"
+
+
 def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Scenario: Behavioural change — `check_red --report` reads the runner's report, spawns nothing."""
+    """Scenarios: Behavioural change, Runner given — `check_red --test` runs the runner with
+    its own report path and the node ids, and judges RED from that report; `--report` is gone."""
     check_red = _script("check_red")
-
-    def no_spawn(*args: Any, **kwargs: Any) -> None:
-        raise AssertionError("--report must not spawn pytest")
-
-    monkeypatch.setattr(check_red.subprocess, "run", no_spawn)
-    red = tmp_path / "red.xml"
-    red.write_text(
+    node = "tests/publisher/test_x.py::test_a"
+    red = (
         '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_a">'
-        '<failure message="boom"/></testcase></testsuite></testsuites>',
-        encoding="utf-8",
+        '<failure message="boom"/></testcase></testsuite></testsuites>'
     )
-    green = tmp_path / "green.xml"
-    green.write_text(
+    green = (
         '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_a"/>'
-        "</testsuite></testsuites>",
-        encoding="utf-8",
+        "</testsuite></testsuites>"
     )
-    check_red.main(["--report", str(red), "tests/publisher/test_x.py::test_a"])
+
+    check_red.main(["--test", _fake_runner(tmp_path, monkeypatch, red), node])
+
+    argv = (tmp_path / "argv.txt").read_text(encoding="utf-8").splitlines()
+    assert "--tb=no" in argv
+    assert sum(a.startswith("--junitxml=") for a in argv) == 1
+    assert argv[-1] == node
+
     with pytest.raises(SystemExit) as exc:
-        check_red.main(["--report", str(green), "tests/publisher/test_x.py::test_a"])
+        check_red.main(["--test", _fake_runner(tmp_path, monkeypatch, green), node])
     assert exc.value.code == 1
 
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["--report", str(tmp_path / "any.xml"), node])
+    assert exc.value.code == 2
 
-def test_class_scoped_node_id(tmp_path: Path) -> None:
+
+def test_class_scoped_node_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A node id ending in a test class selects every test of that class, nested classes included."""
     check_red = _script("check_red")
-    report = tmp_path / "red.xml"
-    report.write_text(
+    runner = _fake_runner(
+        tmp_path,
+        monkeypatch,
         '<testsuites><testsuite><testcase classname="tests.publisher.test_x.TestA" name="test_a">'
         '<failure message="boom"/></testcase>'
         '<testcase classname="tests.publisher.test_x.TestA.TestInner" name="test_b">'
         '<failure message="boom"/></testcase>'
         '<testcase classname="tests.publisher.test_x" name="test_other"/>'
         "</testsuite></testsuites>",
-        encoding="utf-8",
     )
-    check_red.main(["--report", str(report), "tests/publisher/test_x.py::TestA"])
+    check_red.main(["--test", runner, "tests/publisher/test_x.py::TestA"])
     with pytest.raises(SystemExit) as exc:
-        check_red.main(["--report", str(report), "tests/publisher/test_x.py::TestB"])
+        check_red.main(["--test", runner, "tests/publisher/test_x.py::TestB"])
     assert exc.value.code == 1
 
 
-def test_parametrized_node_id(tmp_path: Path) -> None:
+def test_parametrized_node_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`::` inside a parameter id is part of the id, not a class delimiter."""
     check_red = _script("check_red")
-    report = tmp_path / "red.xml"
-    report.write_text(
+    runner = _fake_runner(
+        tmp_path,
+        monkeypatch,
         '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_p[a::b]">'
         '<failure message="boom"/></testcase>'
         '<testcase classname="tests.publisher.test_x" name="test_p[c]"/>'
         "</testsuite></testsuites>",
-        encoding="utf-8",
     )
-    check_red.main(["--report", str(report), "tests/publisher/test_x.py::test_p[a::b]"])
+    check_red.main(["--test", runner, "tests/publisher/test_x.py::test_p[a::b]"])
 
 
 def test_tracking_issue_created() -> None:
