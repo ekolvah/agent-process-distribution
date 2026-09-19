@@ -67,18 +67,22 @@ class _Gh:
         status: str | None = "Planned",
         other_items: list[tuple[str, str]] = (),
         fail_on: list[str] | None = None,
+        remote_branch: bool = False,
     ) -> None:
         self.calls: list[list[str]] = []
         self.projects = [_PROJECT] if projects is None else projects
         self.status = status
         self.other_items = list(other_items)
         self.fail_on = fail_on
+        self.remote_branch = remote_branch
 
     def __call__(self, cmd: list[str]) -> str:
         self.calls.append(cmd)
         head = cmd[:3]
         if self.fail_on is not None and cmd[: len(self.fail_on)] == self.fail_on:
             raise RuntimeError(f"`{' '.join(cmd)}` failed (rc=1): boom")
+        if head == ["git", "ls-remote", "--heads"]:
+            return f"0123abcd\trefs/heads/{cmd[-1]}\n" if self.remote_branch else ""
         if head == ["gh", "issue", "view"] and "projectItems" in cmd:
             # The shape `gh issue view 144 --json projectItems` printed: `title` is the
             # Project's title, one entry per Project the issue is an item of (v2-2f).
@@ -467,6 +471,27 @@ def test_interrupted_start_names_the_continuation(
     assert exc.value.code == 1
     err = capsys.readouterr().err
     assert comment_cmd in err and status_cmd not in err
+
+    # `gh issue develop -c` creates the remote branch, then checks it out: when the
+    # checkout fails the branch exists (`git ls-remote --heads origin <change>` lists it)
+    # and the continuation starts with `git switch` (PR 148, Codex P1, round 2).
+    switch_cmd = f"git switch {_CHANGE}"
+    root = _change(tmp_path / "c", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "issue", "develop"], remote_branch=True)
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert err.index(switch_cmd) < err.index(status_cmd) < err.index(comment_cmd)
+    assert gh.edits() == []
+
+    root = _change(tmp_path / "d", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "issue", "develop"], remote_branch=False)
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "no branch" in err and switch_cmd not in err and status_cmd not in err
 
 
 def test_plan_approved_creates_the_issue(
