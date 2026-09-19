@@ -99,9 +99,10 @@ def test_tasks_of_a_new_change() -> None:
     assert rule.index("priority") < rule.index("gh issue create")
     assert rule.index("archive_change.py") < rule.index("gh pr create")
     assert "finish_change" not in rule
-    # Scenario: Runner given — check_red runs the runner itself; the rule declares no
-    # runner in AGENTS.md and no report path (v2-2d-check-red-test).
-    assert "check_red.py --test" in rule
+    # Scenario: Runner given — check_red runs its own pytest; the rule names no runner
+    # argument, no runner in AGENTS.md and no report path (v2-2d-check-red-own-runner).
+    assert "check_red.py <node ids>" in rule
+    assert "--test" not in rule
     assert "AGENTS.md" not in rule
     assert "--report" not in rule
     # No tick after the archive (a pushed tick would move the reviewed head); a run

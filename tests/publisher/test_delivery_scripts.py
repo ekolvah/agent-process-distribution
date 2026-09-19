@@ -6,16 +6,17 @@ scenario name is the test name. Scripts are imported inside the tests so that a
 missing script fails its own scenario instead of erroring the whole module at
 collection (``check_red`` counts a collection error as "not RED").
 
-``check_red`` is exercised through ``--test`` with a fake runner: a script that writes
-the fixture report named by ``FAKE_REPORT`` at the ``--junitxml=`` argument it receives
-and records its argv. The default runner (``python -m pytest``) is not spawned in the
-suite; the delivery of the change runs it live.
+``check_red`` is exercised at the ``subprocess.run`` boundary: a fake that records the
+command it received, writes the fixture report at the ``--junitxml=`` argument and returns
+a ``CompletedProcess``. pytest itself is not spawned in the suite; the delivery of the
+change runs it live.
 """
 
 from __future__ import annotations
 
 import importlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -23,14 +24,6 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-_RUNNER = """\
-import os, pathlib, sys
-argv = sys.argv[1:]
-pathlib.Path(__file__).with_name("argv.txt").write_text("\\n".join(argv), encoding="utf-8")
-report = next(a for a in argv if a.startswith("--junitxml="))[len("--junitxml="):]
-fixture = pathlib.Path(os.environ["FAKE_REPORT"]).read_text(encoding="utf-8")
-pathlib.Path(report).write_text(fixture, encoding="utf-8")
-"""
 _PROJECT = {"id": "PVT_1", "number": 4, "title": "Board", "resourcePath": "/users/owner/projects/4"}
 _FIELDS = {
     "fields": [
@@ -92,19 +85,27 @@ class _Gh:
         return [c for c in self.calls if c[:3] == ["gh", "project", "item-edit"]]
 
 
-def _fake_runner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, report_xml: str) -> str:
-    """The `--test` value: a runner that writes `report_xml` where `--junitxml=` says."""
-    runner = tmp_path / "runner.py"
-    runner.write_text(_RUNNER, encoding="utf-8")
-    fixture = tmp_path / f"fixture{len(list(tmp_path.glob('fixture*.xml')))}.xml"
-    fixture.write_text(report_xml, encoding="utf-8")
-    monkeypatch.setenv("FAKE_REPORT", str(fixture))
-    return f"{sys.executable} {runner}"
+def _fake_pytest(monkeypatch: pytest.MonkeyPatch, report_xml: str) -> list[list[str]]:
+    """Replace `subprocess.run` of `check_red` with a pytest that writes `report_xml` where
+    `--junitxml=` says; returns the list the commands are recorded into."""
+    check_red = _script("check_red")
+    commands: list[list[str]] = []
+
+    def run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        commands.append(list(cmd))
+        report = next(a for a in cmd if a.startswith("--junitxml="))[len("--junitxml=") :]
+        Path(report).write_text(report_xml, encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
+
+    monkeypatch.setattr(check_red.subprocess, "run", run)
+    return commands
 
 
-def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Scenarios: Behavioural change, Runner given — `check_red --test` runs the runner with
-    its own report path and the node ids, and judges RED from that report; `--report` is gone."""
+def test_behavioural_change(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Scenarios: Behavioural change, Runner given, Configuration that cuts the run —
+    `check_red` runs `python -m pytest` of its own interpreter under its own configuration
+    with its own report path and the node ids, and judges RED from that report; no runner
+    argument exists."""
     check_red = _script("check_red")
     node = "tests/publisher/test_x.py::test_a"
     red = (
@@ -116,68 +117,47 @@ def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         "</testsuite></testsuites>"
     )
 
-    check_red.main(["--test", _fake_runner(tmp_path, monkeypatch, red), node])
+    commands = _fake_pytest(monkeypatch, red)
+    check_red.main([node])
 
-    argv = (tmp_path / "argv.txt").read_text(encoding="utf-8").splitlines()
-    assert "--tb=no" in argv
-    # Cancels a fail-fast flag wherever it came from (`-x` in the runner string or in
-    # `addopts`): pytest's last `maxfail` wins, and the RED verdict needs every test run.
-    assert "--maxfail=0" in argv
-    assert sum(a.startswith("--junitxml=") for a in argv) == 1
-    assert argv[-1] == node
+    (cmd,) = commands
+    assert cmd[:3] == [sys.executable, "-m", "pytest"]
+    assert "--tb=no" in cmd
+    # The run is the script's configuration, not the project's: `--maxfail=0` cancels a
+    # fail-fast `-x`/`--maxfail` from `addopts` (pytest's last `maxfail` wins), and
+    # `-p no:cacheprovider` makes `--stepwise`/`--lf`/`--ff` a usage error (rc 4, no
+    # report → exit 2). The RED verdict needs every node id run (PR 145, rounds 6–8).
+    assert "--maxfail=0" in cmd
+    assert "no:cacheprovider" in cmd and cmd[cmd.index("no:cacheprovider") - 1] == "-p"
+    assert sum(a.startswith("--junitxml=") for a in cmd) == 1
+    assert cmd[-1] == node
 
+    _fake_pytest(monkeypatch, green)
     with pytest.raises(SystemExit) as exc:
-        check_red.main(["--test", _fake_runner(tmp_path, monkeypatch, green), node])
+        check_red.main([node])
     assert exc.value.code == 1
 
+    # No runner argument: `--test` was an input for a consumer that does not exist
+    # (issue 112), and its failure modes cost three review rounds (PR 145).
     with pytest.raises(SystemExit) as exc:
-        check_red.main(["--report", str(tmp_path / "any.xml"), node])
-    assert exc.value.code == 2
-
-    # A runner that cannot be launched is a broken gate (2), not "tests are not RED" (1):
-    # exit 1 would read as a verdict on the tests (PR 145, Codex P1).
-    with pytest.raises(SystemExit) as exc:
-        check_red.main(["--test", str(tmp_path / "no-such-runner"), node])
-    assert exc.value.code == 2
-
-    # A runner string that does not split (an unmatched quote) is the same broken gate.
-    with pytest.raises(SystemExit) as exc:
-        check_red.main(["--test", 'python "unterminated', node])
+        check_red.main(["--test", "python -m pytest", node])
     assert exc.value.code == 2
 
 
-def test_runner_owns_the_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     """The report is the runner's answer to the node ids it received: `check_red` judges
-    every testcase in it and re-derives no selection of its own. A runner whose root differs
-    from the working directory (`--rootdir=sub`, a `./` or absolute node id) spells the
-    classname its own way; a second interpreter of the node id would drop the test and
-    report "no tests collected" (PR 145)."""
+    every testcase in it and re-derives no selection of its own. A node id spelled `./` or
+    as an absolute path, or a project whose `rootdir` differs, spells the classname its own
+    way; a second interpreter of the node id would drop the test and report "no tests
+    collected" (PR 145)."""
     check_red = _script("check_red")
-    runner = _fake_runner(
-        tmp_path,
+    _fake_pytest(
         monkeypatch,
         '<testsuites><testsuite><testcase classname="tests.test_x" name="test_a">'
         '<failure message="boom"/></testcase></testsuite></testsuites>',
     )
-    check_red.main(["--test", runner, "sub/tests/test_x.py::test_a"])
-    check_red.main(["--test", runner, "./tests/test_x.py::test_a"])
-
-
-def test_partial_report_is_no_verdict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A report that accounts for fewer tests than node ids were given is no verdict: a
-    fail-fast runner (`-x` in the runner string) stops at the first failure, and the
-    whole-report evaluation would call RED the tests that never ran (PR 145). Exit 2 — the
-    gate could not compute — never 0."""
-    check_red = _script("check_red")
-    runner = _fake_runner(
-        tmp_path,
-        monkeypatch,
-        '<testsuites><testsuite><testcase classname="tests.test_x" name="test_a">'
-        '<failure message="boom"/></testcase></testsuite></testsuites>',
-    )
-    with pytest.raises(SystemExit) as exc:
-        check_red.main(["--test", runner, "tests/test_x.py::test_a", "tests/test_x.py::test_b"])
-    assert exc.value.code == 2
+    check_red.main(["sub/tests/test_x.py::test_a"])
+    check_red.main(["./tests/test_x.py::test_a"])
 
 
 def test_tracking_issue_created() -> None:
