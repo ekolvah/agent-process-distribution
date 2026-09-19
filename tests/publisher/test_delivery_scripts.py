@@ -137,6 +137,25 @@ def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         check_red.main(["--test", str(tmp_path / "no-such-runner"), node])
     assert exc.value.code == 2
 
+    # A runner string that does not split (an unmatched quote) is the same broken gate.
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["--test", 'python "unterminated', node])
+    assert exc.value.code == 2
+
+
+def test_node_id_path_forms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A `./` prefix or an absolute path selects the same testcase: the report's classname
+    is relative to the runner's root, the node id is whatever the caller typed (PR 145)."""
+    check_red = _script("check_red")
+    runner = _fake_runner(
+        tmp_path,
+        monkeypatch,
+        '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_a">'
+        '<failure message="boom"/></testcase></testsuite></testsuites>',
+    )
+    check_red.main(["--test", runner, "./tests/publisher/test_x.py::test_a"])
+    check_red.main(["--test", runner, f"{ROOT / 'tests' / 'publisher' / 'test_x.py'}::test_a"])
+
 
 def test_class_scoped_node_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A node id ending in a test class selects every test of that class, nested classes included."""

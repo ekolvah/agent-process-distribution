@@ -139,6 +139,26 @@ def evaluate_report(xml_text: str, *, full: bool = False) -> tuple[bool, str]:
     return False, f"not RED: 0 green, but nothing failed either ({skipped} skipped of {total})"
 
 
+def _relative(node_id: str) -> str:
+    """The node id with its path as the report spells it: relative to the working
+    directory (the runner's root here), forward slashes, no `./`.
+
+    An absolute path or a `./` prefix runs the same test but reads as a different module
+    in `_selects`, which would drop the testcase and report "no tests collected" (PR 145).
+    A path on another drive (Windows) has no relative form and is kept as typed.
+    """
+    path, sep, rest = node_id.partition("::")
+    if os.path.isabs(path):
+        try:
+            path = os.path.relpath(path)
+        except ValueError:
+            pass
+    path = path.replace("\\", "/")
+    while path.startswith("./"):
+        path = path[2:]
+    return path + sep + rest
+
+
 def _selects(node_id: str, classname: str, name: str) -> bool:
     """Does a pytest node id (or a bare path) select the junit testcase `classname::name`?
 
@@ -148,7 +168,7 @@ def _selects(node_id: str, classname: str, name: str) -> bool:
     the classes nested in it. A `[params]` suffix belongs to the last segment whatever it
     contains (`test_p[a::b]` is one test), so `::` is a delimiter only before it.
     """
-    path, _, rest = node_id.replace("\\", "/").partition("::")
+    path, _, rest = _relative(node_id).partition("::")
     module = path.removesuffix(".py").strip("/").replace("/", ".")
     if not rest:
         return classname == module or classname.startswith(module + ".")
@@ -201,11 +221,16 @@ def main(argv: list[str] | None = None) -> None:
     # A string, split here rather than passed after `--`: the same string is what a future
     # `init` input will carry. Non-POSIX splitting on Windows keeps backslashes in paths;
     # quoted arguments in a given runner are unsupported there (design.md, Risks).
-    runner = (
-        shlex.split(args.test, posix=os.name != "nt")
-        if args.test
-        else [sys.executable, "-m", "pytest"]
-    )
+    try:
+        runner = (
+            shlex.split(args.test, posix=os.name != "nt")
+            if args.test
+            else [sys.executable, "-m", "pytest"]
+        )
+    except ValueError as exc:
+        # An unmatched quote in the runner string: nothing ran, so "gate broken" (2).
+        print(f"check_red: cannot split the runner command {args.test!r}: {exc}", file=sys.stderr)
+        sys.exit(2)
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "red.xml"
         # No `-q` here: the verbosity of this run has one home, `addopts` in
