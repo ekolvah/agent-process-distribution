@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
 """Confirm that a set of pytest paths are all failing (RED step).
 
-Usage: python .agent-process/scripts/check_red.py [--test "<runner command>"] <node-id> ...
+Usage: python .agent-process/scripts/check_red.py <node-id> ...
 
-The script runs the test runner itself: the command given as `--test` (`python -m pytest`
-when none is given) with `--tb=no --maxfail=0 --junitxml=<its own temporary file>` and the
-node ids appended (`--maxfail=0` cancels a fail-fast `-x` the runner string or `addopts`
-may carry: RED needs every test run), then judges every testcase of the report that run wrote: the report is the
-runner's answer to the node ids, and the script re-derives no selection of its own. The
-project declares no runner and no report path for it; the runner string is the script's
-input (a future `init` input carries the same string).
+The script runs the test runner itself: `python -m pytest` of its own interpreter, under
+its own configuration — `--tb=no --maxfail=0 -p no:cacheprovider --junitxml=<its own
+temporary file>` — with the node ids appended, then judges every testcase of the report
+that run wrote: the report is the runner's answer to the node ids, and the script
+re-derives no selection of its own. The project declares no runner and no report path for
+it, and the script takes no runner argument (an input without a consumer; a consumer with
+another runner is designed with that consumer, issue 112).
+
+**The boundary.** The gate guarantees that every node id it was given ran to a verdict,
+or that it exits 2: `--maxfail=0` cancels a fail-fast `-x`/`--maxfail` wherever it came
+from, and `-p no:cacheprovider` turns `--stepwise`, `--sw-skip`, `--lf`, `--ff`, `--nf`
+into a usage error (rc 4, no report → exit 2 with that error in the tail). An explicit
+selection in the project's `addopts` (`-k`, `-m`, `--deselect`) is the project's
+configuration: the gate judges the run under it, as the project runs its tests.
 
 Exits 0 only when the given tests are RED: no test is green AND at least one
 failed. Used by the implementer adapter to gate the RED→GREEN transition: if the
@@ -34,8 +41,6 @@ message asks the operator to fix.
 from __future__ import annotations
 
 import argparse
-import os
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -89,20 +94,13 @@ def _tail(text: str, max_chars: int, *, full: bool) -> str:
     return f"[cut {len(text) - max_chars} chars of pytest output; re-run with --full]\n{text[-max_chars:]}"
 
 
-def evaluate_report(xml_text: str, *, full: bool = False, at_least: int = 0) -> tuple[bool, str]:
+def evaluate_report(xml_text: str, *, full: bool = False) -> tuple[bool, str]:
     """RED-step verdict from a junit report. Pure function: no I/O or exit.
 
     RED := no green tests, no test errored, AND at least one failed. For `not RED`,
     name the offending tests; otherwise “not RED: 1 passed” does not identify which
     test already passes or did not execute (§IV). Above `_NAME_LIMIT` the naming is a
     count plus a sample, and `full=True` restores the complete list.
-
-    **A report short of `at_least` tests is no verdict** (`ValueError`, like a report
-    that does not parse). Every node id names at least one test, so a report with fewer
-    tests than node ids did not account for the whole selection: a runner that stopped
-    early despite the `--maxfail=0` `main` passes (one that does not honour the flag),
-    and calling that RED would pass tests that never ran. A count, not a re-derived
-    selection: the classname spelling is the runner's (see `main`).
 
     **`error` is not RED.** Collection/fixture error means the test did not run,
     while RED must prove the test catches behavior; accepting it would let `/implement`
@@ -126,12 +124,6 @@ def evaluate_report(xml_text: str, *, full: bool = False, at_least: int = 0) -> 
         tags_by_test.setdefault(key, set()).update(child.tag for child in case)
     if not tags_by_test:
         return False, "no tests collected (0 testcases in the junit report)"
-    if len(tags_by_test) < at_least:
-        raise ValueError(
-            f"the report accounts for {len(tags_by_test)} test(s) but {at_least} node ids were "
-            "given: the runner stopped early (it ignores --maxfail=0?) or a node id collected "
-            "nothing; no verdict on tests that did not run"
-        )
 
     def name_of(key: tuple[str, str]) -> str:
         return f"{key[0]}::{key[1]}".lstrip(":")
@@ -167,45 +159,33 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="print every test name and the whole pytest output instead of a capped digest",
     )
-    parser.add_argument(
-        "--test",
-        metavar="command",
-        help="the test runner command (default: python -m pytest); the report path and the "
-        "node ids are appended",
-    )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     paths = args.paths
-    # A string, split here rather than passed after `--`: the same string is what a future
-    # `init` input will carry. Non-POSIX splitting on Windows keeps backslashes in paths;
-    # quoted arguments in a given runner are unsupported there (design.md, Risks).
-    try:
-        runner = (
-            shlex.split(args.test, posix=os.name != "nt")
-            if args.test
-            else [sys.executable, "-m", "pytest"]
-        )
-    except ValueError as exc:
-        # An unmatched quote in the runner string: nothing ran, so "gate broken" (2).
-        print(f"check_red: cannot split the runner command {args.test!r}: {exc}", file=sys.stderr)
-        sys.exit(2)
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "red.xml"
         # No `-q` here: the verbosity of this run has one home, `addopts` in
         # pyproject.toml. `-q` is `action="count"`, so a second one would silently push this
         # subprocess to verbosity −2.
-        # `--maxfail=0` cancels a fail-fast flag wherever it came from: `-x` is
-        # `store_const` into `maxfail` and `--maxfail` a `store` into the same dest, so the
-        # last one wins, and the command line comes after `addopts` (observed on pytest
-        # 9.1.1: `-x --maxfail=0` and `addopts = -x` + `--maxfail=0` both ran every test).
-        # RED needs every test run: a report cut at the first failure hides a green test.
-        cmd = [*runner, "--tb=no", "--maxfail=0", f"--junitxml={report}", *paths]
-        try:
-            completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
-        except OSError as exc:
-            # The runner did not start (absent, not executable): no test ran, so this is
-            # "gate broken" (2), never "tests are not RED" (1), which reads as a verdict.
-            print(f"check_red: cannot run the test runner {cmd[0]!r}: {exc}", file=sys.stderr)
-            sys.exit(2)
+        # The run is this script's configuration, not the project's (the boundary in the
+        # module docstring). `--maxfail=0`: `-x` is `store_const` into `maxfail` and
+        # `--maxfail` a `store` into the same dest, so the last one wins, and the command
+        # line comes after `addopts` (pytest 9.1.1: `-x --maxfail=0` and `addopts = -x`
+        # + `--maxfail=0` both ran every test). `-p no:cacheprovider`: `--stepwise`,
+        # `--lf`, `--ff` live in that plugin and become "unrecognized arguments" (rc 4,
+        # no report → exit 2 below) instead of cutting or replaying the run. RED needs
+        # every node id run: a report cut at the first failure hides a green test.
+        cmd = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--tb=no",
+            "--maxfail=0",
+            "-p",
+            "no:cacheprovider",
+            f"--junitxml={report}",
+            *paths,
+        ]
+        completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
         if completed.stdout is None or completed.stderr is None:
             # Capture failed. Code 2 means “gate broken,” not 1: replacing it
             # with an empty string would parse a report with no pytest output and print
@@ -220,13 +200,8 @@ def main(argv: list[str] | None = None) -> None:
         try:
             # The whole report: it is the runner's answer to the node ids it received. A
             # selection re-derived here would be a second interpreter of the node id, and
-            # `--rootdir`, `./` or an absolute path spell the classname another way. The
-            # one thing checked is the count: fewer tests than node ids means the runner
-            # did not answer all of them (it stopped early despite `--maxfail=0`), so no
-            # verdict.
-            ok, msg = evaluate_report(
-                report.read_text(encoding="utf-8"), full=args.full, at_least=len(paths)
-            )
+            # `--rootdir`, `./` or an absolute path spell the classname another way.
+            ok, msg = evaluate_report(report.read_text(encoding="utf-8"), full=args.full)
         except (OSError, ValueError) as exc:
             # The gate could not compute. This is NOT RED: silently calling it “red”
             # would allow GREEN from an unread report (§IV/§VI). Code 2 distinguishes
