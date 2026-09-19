@@ -20,7 +20,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 `python .agent-process/scripts/archive_change.py v2-2d-check-red-own-runner` (marks its own task, archives, commits, pushes); then the review loop of PR 145 continues (task 6.3 of the archived `v2-2d-check-red-test`)
+- [x] 5.1 `python .agent-process/scripts/archive_change.py v2-2d-check-red-own-runner` (marks its own task, archives, commits, pushes); then the review loop of PR 145 continues (task 6.3 of the archived `v2-2d-check-red-test`)
 
 ## Scenario → test map
 
