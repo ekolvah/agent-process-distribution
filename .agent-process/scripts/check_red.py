@@ -5,9 +5,10 @@ Usage: python .agent-process/scripts/check_red.py [--test "<runner command>"] <n
 
 The script runs the test runner itself: the command given as `--test` (`python -m pytest`
 when none is given) with `--tb=no --junitxml=<its own temporary file>` and the node ids
-appended, then reads the report that run wrote, keeping only the testcases the node ids
-select. The project declares no runner and no report path for it; the runner string is
-the script's input (a future `init` input carries the same string).
+appended, then judges every testcase of the report that run wrote: the report is the
+runner's answer to the node ids, and the script re-derives no selection of its own. The
+project declares no runner and no report path for it; the runner string is the script's
+input (a future `init` input carries the same string).
 
 Exits 0 only when the given tests are RED: no test is green AND at least one
 failed. Used by the implementer adapter to gate the RED→GREEN transition: if the
@@ -139,64 +140,6 @@ def evaluate_report(xml_text: str, *, full: bool = False) -> tuple[bool, str]:
     return False, f"not RED: 0 green, but nothing failed either ({skipped} skipped of {total})"
 
 
-def _relative(node_id: str) -> str:
-    """The node id with its path as the report spells it: relative to the working
-    directory (the runner's root here), forward slashes, no `./`.
-
-    An absolute path or a `./` prefix runs the same test but reads as a different module
-    in `_selects`, which would drop the testcase and report "no tests collected" (PR 145).
-    A path on another drive (Windows) has no relative form and is kept as typed.
-    """
-    path, sep, rest = node_id.partition("::")
-    if os.path.isabs(path):
-        try:
-            path = os.path.relpath(path)
-        except ValueError:
-            pass
-    path = path.replace("\\", "/")
-    while path.startswith("./"):
-        path = path[2:]
-    return path + sep + rest
-
-
-def _selects(node_id: str, classname: str, name: str) -> bool:
-    """Does a pytest node id (or a bare path) select the junit testcase `classname::name`?
-
-    junit `classname` is the dotted module path plus any test class; a parametrized
-    `name` carries its `[params]` suffix, which a node id without brackets still selects.
-    A node id whose last segment is a test class selects every test of that class and of
-    the classes nested in it. A `[params]` suffix belongs to the last segment whatever it
-    contains (`test_p[a::b]` is one test), so `::` is a delimiter only before it.
-    """
-    path, _, rest = _relative(node_id).partition("::")
-    module = path.removesuffix(".py").strip("/").replace("/", ".")
-    if not rest:
-        return classname == module or classname.startswith(module + ".")
-    segments, bracket, params = rest.partition("[")
-    *classes, last = segments.split("::")
-    if not bracket:
-        scope = ".".join([module, *classes, last])
-        if classname == scope or classname.startswith(scope + "."):
-            return True
-    if classname != ".".join([module, *classes]):
-        return False
-    if bracket:
-        return name == last + bracket + params
-    return name == last or name.startswith(last + "[")
-
-
-def _select_cases(xml_text: str, node_ids: list[str]) -> str:
-    """The report reduced to the testcases the node ids select (same junit shape)."""
-    root = ET.fromstring(xml_text)
-    for suite in list(root.iter("testsuite")):
-        for case in list(suite):
-            if case.tag == "testcase" and not any(
-                _selects(n, case.get("classname", ""), case.get("name", "")) for n in node_ids
-            ):
-                suite.remove(case)
-    return ET.tostring(root, encoding="unicode")
-
-
 def main(argv: list[str] | None = None) -> None:
     # argparse rather than hand-parsed `sys.argv`: `--full` must not reach pytest as a
     # path, and a missing path must stay exit 2 ("usage error"), which `parser.error`
@@ -256,9 +199,11 @@ def main(argv: list[str] | None = None) -> None:
             sys.exit(2)
         stdout = completed.stdout + completed.stderr
         try:
-            xml_text = _select_cases(report.read_text(encoding="utf-8"), paths)
-            ok, msg = evaluate_report(xml_text, full=args.full)
-        except (OSError, ValueError, ET.ParseError) as exc:
+            # The whole report: it is the runner's answer to the node ids it received. A
+            # selection re-derived here would be a second interpreter of the node id, and
+            # `--rootdir`, `./` or an absolute path spell the classname another way.
+            ok, msg = evaluate_report(report.read_text(encoding="utf-8"), full=args.full)
+        except (OSError, ValueError) as exc:
             # The gate could not compute. This is NOT RED: silently calling it “red”
             # would allow GREEN from an unread report (§IV/§VI). Code 2 distinguishes
             # “gate broken” from “tests are not red” (1).

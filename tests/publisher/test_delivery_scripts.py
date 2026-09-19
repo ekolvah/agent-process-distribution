@@ -143,51 +143,21 @@ def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert exc.value.code == 2
 
 
-def test_node_id_path_forms(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A `./` prefix or an absolute path selects the same testcase: the report's classname
-    is relative to the runner's root, the node id is whatever the caller typed (PR 145)."""
+def test_runner_owns_the_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The report is the runner's answer to the node ids it received: `check_red` judges
+    every testcase in it and re-derives no selection of its own. A runner whose root differs
+    from the working directory (`--rootdir=sub`, a `./` or absolute node id) spells the
+    classname its own way; a second interpreter of the node id would drop the test and
+    report "no tests collected" (PR 145)."""
     check_red = _script("check_red")
     runner = _fake_runner(
         tmp_path,
         monkeypatch,
-        '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_a">'
+        '<testsuites><testsuite><testcase classname="tests.test_x" name="test_a">'
         '<failure message="boom"/></testcase></testsuite></testsuites>',
     )
-    check_red.main(["--test", runner, "./tests/publisher/test_x.py::test_a"])
-    check_red.main(["--test", runner, f"{ROOT / 'tests' / 'publisher' / 'test_x.py'}::test_a"])
-
-
-def test_class_scoped_node_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A node id ending in a test class selects every test of that class, nested classes included."""
-    check_red = _script("check_red")
-    runner = _fake_runner(
-        tmp_path,
-        monkeypatch,
-        '<testsuites><testsuite><testcase classname="tests.publisher.test_x.TestA" name="test_a">'
-        '<failure message="boom"/></testcase>'
-        '<testcase classname="tests.publisher.test_x.TestA.TestInner" name="test_b">'
-        '<failure message="boom"/></testcase>'
-        '<testcase classname="tests.publisher.test_x" name="test_other"/>'
-        "</testsuite></testsuites>",
-    )
-    check_red.main(["--test", runner, "tests/publisher/test_x.py::TestA"])
-    with pytest.raises(SystemExit) as exc:
-        check_red.main(["--test", runner, "tests/publisher/test_x.py::TestB"])
-    assert exc.value.code == 1
-
-
-def test_parametrized_node_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """`::` inside a parameter id is part of the id, not a class delimiter."""
-    check_red = _script("check_red")
-    runner = _fake_runner(
-        tmp_path,
-        monkeypatch,
-        '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_p[a::b]">'
-        '<failure message="boom"/></testcase>'
-        '<testcase classname="tests.publisher.test_x" name="test_p[c]"/>'
-        "</testsuite></testsuites>",
-    )
-    check_red.main(["--test", runner, "tests/publisher/test_x.py::test_p[a::b]"])
+    check_red.main(["--test", runner, "sub/tests/test_x.py::test_a"])
+    check_red.main(["--test", runner, "./tests/test_x.py::test_a"])
 
 
 def test_tracking_issue_created() -> None:

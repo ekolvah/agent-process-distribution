@@ -526,9 +526,15 @@ questions of #114 in its order:
   junit-xml style report file at given path`, so the report goes wherever the caller
   says and no project-side path is needed. `check_red --test "<runner command>" <node
   ids>` runs the runner (`python -m pytest` by default) with `--tb=no --junitxml=<its own
-  temporary file>` and evaluates that report per test. Deleted: `--report`, the runner
-  and report-path paragraph of `AGENTS.md`, the `.pytest-report.xml` entry of
-  `.gitignore` — two conventions that existed only to feed the script. Step 2d of issue
+  temporary file>` and evaluates that report per test, whole: the report is the runner's
+  answer to the node ids, and the script's own selection by node id (`_select_cases`,
+  kept for whole-suite `--report` files) went at the review of PR 145 — it was a second
+  interpreter of the node id, and `./`, an absolute path or `--rootdir` in the runner
+  string each spelled the classname another way. A runner that does not start or a
+  runner string that does not split exits 2 (no verdict), never 1. Deleted: `--report`,
+  the selection, the runner and report-path paragraph of `AGENTS.md`, the
+  `.pytest-report.xml` entry of `.gitignore` — two conventions that existed only to feed
+  the script. Step 2d of issue
   107 was split at the solution review into `v2-2d-check-red-test`,
   `v2-2e-wait-for-pr-checks` (`wait_for_pr` on `gh pr checks --watch`) and
   `v2-2f-start-change` (Group 0 and the propose tail as scripts): one PR that carried two

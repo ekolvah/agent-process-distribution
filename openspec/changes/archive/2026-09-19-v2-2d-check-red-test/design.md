@@ -43,6 +43,18 @@ input will be.
 junit-xml style report file at given path` (`--junitxml` is its alias the v1 branch of the
 script already passes; `check_red` keeps that spelling).
 
+*Amended at the review of PR 145 (round 3, owner's decision).* The report is evaluated
+whole, as the v1 spawn branch did: `_select_cases` and `_selects` are deleted. They were a
+second interpreter of the node id next to the runner, and each path form the runner
+accepts — `./`, an absolute path, `--rootdir=sub` in the runner string — spells the
+classname another way, so the filter dropped the test and the gate exited 1 with "no tests
+collected". The selection existed for `--report` over a whole-suite report; with `--test`
+the runner receives the node ids and the report is its answer to them. A runner that
+cannot start (`OSError`) or a runner string that does not split (`ValueError` from
+`shlex.split`) exits 2, not 1: nothing ran, so there is no verdict. Tests:
+`test_class_scoped_node_id` and `test_parametrized_node_id` went with the function;
+`test_runner_owns_the_selection` proves the whole report is judged.
+
 ### D2 The `tasks` rule names the call
 
 Group 1 of the `tasks` rule becomes: `python .agent-process/scripts/check_red.py --test
