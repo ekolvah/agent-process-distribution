@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Confirm that a set of pytest paths are all failing (RED step).
 
-Usage: python .agent-process/scripts/check_red.py [--report <junit.xml>] <path-or-nodeid> ...
+Usage: python .agent-process/scripts/check_red.py [--test "<runner command>"] <node-id> ...
 
-Without `--report` the script spawns pytest on the given paths (v1). With `--report` it
-spawns nothing and reads an existing junit report — the one the project's declared test
-runner writes (`AGENTS.md` names the command and the report path) — keeping only the
-testcases the given node ids select, so a whole-suite report answers for the new tests.
+The script runs the test runner itself: the command given as `--test` (`python -m pytest`
+when none is given) with `--tb=no --junitxml=<its own temporary file>` and the node ids
+appended, then reads the report that run wrote, keeping only the testcases the node ids
+select. The project declares no runner and no report path for it; the runner string is
+the script's input (a future `init` input carries the same string).
 
 Exits 0 only when the given tests are RED: no test is green AND at least one
 failed. Used by the implementer adapter to gate the RED→GREEN transition: if the
@@ -31,6 +32,8 @@ message asks the operator to fix.
 from __future__ import annotations
 
 import argparse
+import os
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -188,46 +191,43 @@ def main(argv: list[str] | None = None) -> None:
         help="print every test name and the whole pytest output instead of a capped digest",
     )
     parser.add_argument(
-        "--report",
-        metavar="junit.xml",
-        help="evaluate this existing junit report for the given node ids instead of running pytest",
+        "--test",
+        metavar="command",
+        help="the test runner command (default: python -m pytest); the report path and the "
+        "node ids are appended",
     )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     paths = args.paths
-    if args.report:
-        try:
-            xml_text = Path(args.report).read_text(encoding="utf-8")
-            ok, msg = evaluate_report(_select_cases(xml_text, paths), full=args.full)
-        except (OSError, ValueError, ET.ParseError) as exc:
-            print(
-                f"check_red: cannot evaluate the junit report {args.report}: {exc}", file=sys.stderr
-            )
-            sys.exit(2)
-        print(msg)
-        if not ok:
-            sys.exit(1)
-        return
+    # A string, split here rather than passed after `--`: the same string is what a future
+    # `init` input will carry. Non-POSIX splitting on Windows keeps backslashes in paths;
+    # quoted arguments in a given runner are unsupported there (design.md, Risks).
+    runner = (
+        shlex.split(args.test, posix=os.name != "nt")
+        if args.test
+        else [sys.executable, "-m", "pytest"]
+    )
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "red.xml"
         # No `-q` here: the verbosity of this run has one home, `addopts` in
         # pyproject.toml. `-q` is `action="count"`, so a second one would silently push this
         # subprocess to verbosity −2.
-        cmd = [sys.executable, "-m", "pytest", "--tb=no", f"--junitxml={report}", *paths]
+        cmd = [*runner, "--tb=no", f"--junitxml={report}", *paths]
         completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
         if completed.stdout is None or completed.stderr is None:
             # Capture failed. Code 2 means “gate broken,” not 1: replacing it
             # with an empty string would parse a report with no pytest output and print
             # empty diagnostics on failure.
             print(
-                f"check_red: capture failed for pytest (rc={completed.returncode}): "
+                f"check_red: capture failed for the runner (rc={completed.returncode}): "
                 f"stdout={completed.stdout!r} stderr={completed.stderr!r}",
                 file=sys.stderr,
             )
             sys.exit(2)
         stdout = completed.stdout + completed.stderr
         try:
-            ok, msg = evaluate_report(report.read_text(encoding="utf-8"), full=args.full)
-        except (OSError, ValueError) as exc:
+            xml_text = _select_cases(report.read_text(encoding="utf-8"), paths)
+            ok, msg = evaluate_report(xml_text, full=args.full)
+        except (OSError, ValueError, ET.ParseError) as exc:
             # The gate could not compute. This is NOT RED: silently calling it “red”
             # would allow GREEN from an unread report (§IV/§VI). Code 2 distinguishes
             # “gate broken” from “tests are not red” (1).
