@@ -75,6 +75,10 @@ pytest-compatible CLI is assumed either way. The count guard stays as the insura
 runner that ignores the flag. Test: `test_behavioural_change` asserts `--maxfail=0` in the
 runner's argv.
 
+*Superseded at round 8 (owner's decision) by the change `v2-2d-check-red-own-runner` on
+the same branch:* `--test` and the count guard go, the runner is the script's own and the
+run carries `-p no:cacheprovider` as well; the boundary of the gate is recorded there.
+
 ### D2 The `tasks` rule names the call
 
 Group 1 of the `tasks` rule becomes: `python .agent-process/scripts/check_red.py --test

@@ -521,25 +521,27 @@ questions of #114 in its order:
   `@main`, so the PR ran today's callee; the first PR after the merge is the observation:
   <confirmed on the first PR after the merge: run id, the step's output>. Deletion
   condition: the step goes when GitHub requires a linked issue natively.
-* `check_red` on the runner's own report (issue 132, `v2-2d-check-red-test`). Observed
-  2026-09-19: `python -m pytest --help` (pytest 9.1.1) prints `--junit-xml=path      Create
-  junit-xml style report file at given path`, so the report goes wherever the caller
-  says and no project-side path is needed. `check_red --test "<runner command>" <node
-  ids>` runs the runner (`python -m pytest` by default) with `--tb=no --junitxml=<its own
-  temporary file>` and evaluates that report per test, whole: the report is the runner's
-  answer to the node ids, and the script's own selection by node id (`_select_cases`,
-  kept for whole-suite `--report` files) went at the review of PR 145 — it was a second
-  interpreter of the node id, and `./`, an absolute path or `--rootdir` in the runner
-  string each spelled the classname another way. The script appends `--maxfail=0`
-  beside `--tb=no` and `--junitxml`: a fail-fast `-x` in the runner string or in
-  `addopts` would cut the report at the first failure and hide a green test, and
-  pytest's last `maxfail` wins (observed on 9.1.1: `-x --maxfail=0` ran every test). A
-  runner that does not start, a runner string that does not split, or a report with
-  fewer tests than node ids (a runner that stopped early regardless; the count is the
-  one check, no classname is read) exits 2 (no verdict), never 1. Deleted: `--report`,
-  the selection, the runner and report-path paragraph of `AGENTS.md`, the
-  `.pytest-report.xml` entry of `.gitignore` — two conventions that existed only to feed
-  the script. Step 2d of issue
+* `check_red` on the runner's own report (issue 132, `v2-2d-check-red-test` and, at
+  round 8 of the review of PR 145, `v2-2d-check-red-own-runner`). Observed 2026-09-19:
+  `python -m pytest --help` (pytest 9.1.1) prints `--junit-xml=path      Create junit-xml
+  style report file at given path`, so the report goes wherever the caller says and no
+  project-side path is needed. `check_red <node ids>` runs `python -m pytest` of its own
+  interpreter with `--tb=no --maxfail=0 -p no:cacheprovider --junitxml=<its own temporary
+  file>` and evaluates that report per test, whole: the report is the runner's answer to
+  the node ids. The boundary of the gate: every node id ran to a verdict or the gate
+  exits 2 — `--maxfail=0` cancels `-x`/`--maxfail` wherever they come from (pytest's
+  last `maxfail` wins, observed over `addopts = -x` too), `-p no:cacheprovider` makes
+  `--stepwise`/`--lf`/`--ff` a usage error (rc 4, no report; observed with `addopts =
+  --sw` too); an explicit selection in `addopts` (`-k`, `-m`, `--deselect`) is the
+  project's configuration and the run is judged under it. Deleted over the review: the
+  script's own selection by node id (`_select_cases`, a second interpreter of the node
+  id: `./`, an absolute path or `--rootdir` spelled the classname another way), the
+  `--test "<runner command>"` input (for a consumer that does not exist, issue 112; its
+  failure modes — a runner that does not start, a string that does not split, quotes on
+  Windows — cost three rounds), and the count guard of round 5 (dead once fail-fast is
+  cancelled; misfired on a duplicate node id). Deleted by the change: `--report`, the
+  runner and report-path paragraph of `AGENTS.md`, the `.pytest-report.xml` entry of
+  `.gitignore` — two conventions that existed only to feed the script. Step 2d of issue
   107 was split at the solution review into `v2-2d-check-red-test`,
   `v2-2e-wait-for-pr-checks` (`wait_for_pr` on `gh pr checks --watch`) and
   `v2-2f-start-change` (Group 0 and the propose tail as scripts): one PR that carried two
