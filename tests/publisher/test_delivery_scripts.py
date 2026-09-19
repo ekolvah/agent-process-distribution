@@ -120,6 +120,9 @@ def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
     argv = (tmp_path / "argv.txt").read_text(encoding="utf-8").splitlines()
     assert "--tb=no" in argv
+    # Cancels a fail-fast flag wherever it came from (`-x` in the runner string or in
+    # `addopts`): pytest's last `maxfail` wins, and the RED verdict needs every test run.
+    assert "--maxfail=0" in argv
     assert sum(a.startswith("--junitxml=") for a in argv) == 1
     assert argv[-1] == node
 
