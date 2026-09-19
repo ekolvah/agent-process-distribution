@@ -88,13 +88,20 @@ def _tail(text: str, max_chars: int, *, full: bool) -> str:
     return f"[cut {len(text) - max_chars} chars of pytest output; re-run with --full]\n{text[-max_chars:]}"
 
 
-def evaluate_report(xml_text: str, *, full: bool = False) -> tuple[bool, str]:
+def evaluate_report(xml_text: str, *, full: bool = False, at_least: int = 0) -> tuple[bool, str]:
     """RED-step verdict from a junit report. Pure function: no I/O or exit.
 
     RED := no green tests, no test errored, AND at least one failed. For `not RED`,
     name the offending tests; otherwise “not RED: 1 passed” does not identify which
     test already passes or did not execute (§IV). Above `_NAME_LIMIT` the naming is a
     count plus a sample, and `full=True` restores the complete list.
+
+    **A report short of `at_least` tests is no verdict** (`ValueError`, like a report
+    that does not parse). Every node id names at least one test, so a report with fewer
+    tests than node ids did not account for the whole selection: a fail-fast runner
+    (`-x`) stopped at the first failure, and calling that RED would pass tests that
+    never ran. A count, not a re-derived selection: the classname spelling is the
+    runner's (see `main`).
 
     **`error` is not RED.** Collection/fixture error means the test did not run,
     while RED must prove the test catches behavior; accepting it would let `/implement`
@@ -118,6 +125,12 @@ def evaluate_report(xml_text: str, *, full: bool = False) -> tuple[bool, str]:
         tags_by_test.setdefault(key, set()).update(child.tag for child in case)
     if not tags_by_test:
         return False, "no tests collected (0 testcases in the junit report)"
+    if len(tags_by_test) < at_least:
+        raise ValueError(
+            f"the report accounts for {len(tags_by_test)} test(s) but {at_least} node ids were "
+            "given: a fail-fast runner (-x) stopped early, or a node id collected nothing; "
+            "no verdict on tests that did not run"
+        )
 
     def name_of(key: tuple[str, str]) -> str:
         return f"{key[0]}::{key[1]}".lstrip(":")
@@ -201,8 +214,12 @@ def main(argv: list[str] | None = None) -> None:
         try:
             # The whole report: it is the runner's answer to the node ids it received. A
             # selection re-derived here would be a second interpreter of the node id, and
-            # `--rootdir`, `./` or an absolute path spell the classname another way.
-            ok, msg = evaluate_report(report.read_text(encoding="utf-8"), full=args.full)
+            # `--rootdir`, `./` or an absolute path spell the classname another way. The
+            # one thing checked is the count: fewer tests than node ids means the runner
+            # did not answer all of them (a fail-fast flag in `--test`), so no verdict.
+            ok, msg = evaluate_report(
+                report.read_text(encoding="utf-8"), full=args.full, at_least=len(paths)
+            )
         except (OSError, ValueError) as exc:
             # The gate could not compute. This is NOT RED: silently calling it “red”
             # would allow GREEN from an unread report (§IV/§VI). Code 2 distinguishes

@@ -55,6 +55,13 @@ cannot start (`OSError`) or a runner string that does not split (`ValueError` fr
 `test_class_scoped_node_id` and `test_parametrized_node_id` went with the function;
 `test_runner_owns_the_selection` proves the whole report is judged.
 
+*Amended at round 5 of the same review (owner's decision).* A report with fewer tests
+than node ids is no verdict (exit 2): every node id names at least one test, so a shorter
+report did not answer the whole selection — a fail-fast runner (`-x` in the runner
+string) stopped at the first failure, and judging that report whole would call RED the
+tests that never ran. The guard is a count, not a selection: it reads no classname.
+Test: `test_partial_report_is_no_verdict`.
+
 ### D2 The `tasks` rule names the call
 
 Group 1 of the `tasks` rule becomes: `python .agent-process/scripts/check_red.py --test

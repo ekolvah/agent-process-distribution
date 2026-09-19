@@ -530,8 +530,10 @@ questions of #114 in its order:
   answer to the node ids, and the script's own selection by node id (`_select_cases`,
   kept for whole-suite `--report` files) went at the review of PR 145 — it was a second
   interpreter of the node id, and `./`, an absolute path or `--rootdir` in the runner
-  string each spelled the classname another way. A runner that does not start or a
-  runner string that does not split exits 2 (no verdict), never 1. Deleted: `--report`,
+  string each spelled the classname another way. A runner that does not start, a
+  runner string that does not split, or a report with fewer tests than node ids (a
+  fail-fast `-x` in the runner string stopped at the first failure; the count is the one
+  check, no classname is read) exits 2 (no verdict), never 1. Deleted: `--report`,
   the selection, the runner and report-path paragraph of `AGENTS.md`, the
   `.pytest-report.xml` entry of `.gitignore` — two conventions that existed only to feed
   the script. Step 2d of issue
