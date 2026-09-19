@@ -132,14 +132,17 @@ def wait_for_pr(
         if checks and not pending:
             break
         waiting = ", ".join(pending) or _NO_CHECKS
-        # The deadline is checked before every sleep: a rollup that never fills ends here.
-        if clock() + POLL_SECONDS > deadline:
+        # The timeout is elapsed time, not a count of whole poll intervals: the last sleep
+        # is the remainder and the last read is at the deadline, so a rollup that never
+        # fills ends here, and never before `timeout` seconds passed (PR 147, round 1).
+        now = clock()
+        if now >= deadline:
             print(f"timeout after {int(timeout)}s: {waiting}")
             return 3
         if waiting != last:  # one line per state, not one per poll
             print(f"waiting: {waiting}")
             last = waiting
-        sleep(POLL_SECONDS)
+        sleep(min(POLL_SECONDS, deadline - now))
     url, threads = _unresolved_threads(gh, pr)
     failed = [c for c in checks if c["bucket"] not in {"pass", "skipping"}]
     for check in failed:

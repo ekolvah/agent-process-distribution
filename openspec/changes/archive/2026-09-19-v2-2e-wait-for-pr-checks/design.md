@@ -39,9 +39,9 @@ loop:
   else checks = json(stdout); pending = names with bucket == "pending"
   if checks and not pending: break
   waiting = ", ".join(pending) or "no checks reported"
-  if clock() + 30 > deadline: print "timeout after N s: <waiting>"; return 3
+  now = clock(); if now >= deadline: print "timeout after N s: <waiting>"; return 3
   if waiting != last: print "waiting: <waiting>"; last = waiting     # one line per state, not per poll
-  sleep(30)
+  sleep(min(30, deadline - now))   # the remainder last: the timeout is elapsed time (PR 147, round 1)
 url, threads = _unresolved_threads(gh, PR)        # query asks `url` where it asked `headRefOid`
 failed = bucket not in {"pass", "skipping"}       # fail and cancel both block the merge
 print failed: <name> <link> / unresolved: … / clean: N checks green, no unresolved threads (<url>)
@@ -65,8 +65,11 @@ every `gh` failure today, not exit 1 (a verdict on the PR).
 *Why the retry and the deadline.* Right after a push the rollup is empty for seconds, then
 the runs attach (v2-1a); every read is of the current head (`commits(last: 1)`), so a
 push during the wait is followed by the next read. The deadline is checked before every
-sleep, so a rollup that never fills (Actions disabled, a workflow file that does not
-parse) ends in exit 3 with `no checks reported`, never in an endless loop.
+sleep and the last sleep is the remainder, so a rollup that never fills (Actions disabled,
+a workflow file that does not parse) ends in exit 3 with `no checks reported` at the
+deadline — never in an endless loop, never before `timeout` seconds elapsed (the first
+draft returned when another whole interval did not fit: `--timeout 31` at 30 s, `--timeout
+10` at once — PR 147, round 1).
 
 *Failure modes of the new input (`gh pr checks --json`), and what the script does with
 each* (issue 146):
