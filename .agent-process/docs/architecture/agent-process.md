@@ -39,9 +39,11 @@ test) and ends the propose run with the architect review: the
 `architect-review.md` into the change directory against principles §I–VII
 (a scenario missing from the scenario → test map is a finding); on
 `rework` the planner applies the findings and reviews again; on `approve`
-the run ends with the tracking issue (created here when the change has none,
-the priority asked once) as a Project item in `Planned`, and the first
-delivery task reads the verdict. `openspec/specs/` is what the process does
+the run ends with `create_tracking_issue.py <change> [--priority]` — the
+tracking issue from the proposal when the change has none (the priority asked
+once), its number written into the `tracking issue <N>` token of Group 0 in
+`tasks.md`, `Planned` on the board — and the first delivery task,
+`start_change.py`, reads the verdict. `openspec/specs/` is what the process does
 today; `openspec/changes/` what is pending.
 
 ## Issue contract
@@ -82,9 +84,11 @@ This is the per-change flow. It applies only after the one-time repository
    starting the apply workflow (`/opsx:apply <change>`,
    `$openspec-apply-change`).
 3. The delivery steps are tasks of the change, put there by the `tasks` rule
-   of `openspec/config.yaml`: the linked branch on the tracking issue the
-   propose run left in `Planned` (`gh issue develop -c <N> --name <change>`),
-   Status `In Progress`, RED
+   of `openspec/config.yaml`: `start_change.py <change> --planner --implementer`
+   (the gate — the verdict starts with `approve`, the tracking issue the
+   propose run left is a Project item in `Planned` — then the linked branch
+   with `gh issue develop -c <N> --name <change>`, Status `In Progress` and the
+   provenance comment; exit 2 stops the apply before any branch exists), RED
    first (`check_red.py <node ids>` runs `python -m pytest` of its own interpreter under
    its own configuration with a report path of its own and reads that report — no
    runner argument, no declaration in `AGENTS.md`),
@@ -253,8 +257,9 @@ runs).
 ## Governance conventions
 
 1. Create issue branches only with `gh issue develop -c <N> --name <change>` from fresh
-   `origin/main` (Group 0 of the `tasks` rule); the linked branch closes the issue on
-   merge, so the PR body names the issue as a plain reference, never `Closes`.
+   `origin/main` — `start_change.py` runs it (Group 0 of the `tasks` rule); the linked
+   branch closes the issue on merge, so the PR body names the issue as a plain reference,
+   never `Closes`.
 2. Keep one PR to one logical unit. A temporary CI unblock for an unrelated
    failure may accompany the blocked change only with a tracked follow-up for
    the root cause.
@@ -265,9 +270,10 @@ runs).
    Medium for agentic capability work outside the process, Low otherwise; name
    the rule used) and write it with
    `python .agent-process/scripts/set_status.py <N> --priority <High|Medium|Low>`.
-5. The process writes two board Statuses itself, both from `set_status.py`:
-   `Planned` at the end of the propose run (the review entry of the `tasks`
-   rule) and `In Progress` in Group 0 of the same rule. `Todo` and `Done` belong
+5. The process writes two board Statuses itself, both through `set_status.py`:
+   `Planned` at the end of the propose run (`create_tracking_issue.py`, the
+   review entry of the `tasks` rule) and `In Progress` in Group 0 of the same
+   rule (`start_change.py`). `Todo` and `Done` belong
    to the Project's workflows (*Auto-add*, *Item added*, *Item reopened*; *Item
    closed*, *Pull request merged*). The v1 scripts `issue_branch.py`, `set_issue_priority.py` and
    `set_issue_status.py` are not part of the delivery flow; they go with the

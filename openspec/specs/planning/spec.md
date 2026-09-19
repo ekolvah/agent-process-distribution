@@ -76,10 +76,12 @@ writes `openspec/changes/<change>/architect-review.md` (Verdict, Findings, Scena
 against `principles.md` §I–VII and the scenario → test map of `tasks.md`. The review contract
 SHALL live in that rule, not in a schema: the schema is the unmodified `spec-driven`. On
 `rework` the planner SHALL apply or answer every finding in the artifact it names and the
-review SHALL run again. On `approve` the planner SHALL make sure the tracking issue exists
-(when the change has none: ask the person for the priority, then `gh issue create`) and set
-its Status to `Planned` with the priority; the propose run ends there. The apply gate SHALL
-be the first delivery task of `tasks.md` (the verdict line starts with `approve`), since
+review SHALL run again. On `approve` the planner SHALL run `create_tracking_issue <change>`
+— with the priority asked from the person when the change has no tracking issue yet — which
+creates the issue from the proposal, sets its Status to `Planned` with the priority and
+writes the number into `tasks.md`, or, when `tasks.md` already carries the number, sets
+`Planned` alone and refuses a priority; the propose run ends there. The apply gate SHALL be
+the first delivery task of `tasks.md` (the verdict line starts with `approve`), since
 artifact status is file existence only.
 
 #### Scenario: Review finding
@@ -94,6 +96,10 @@ artifact status is file existence only.
 #### Scenario: Plan approved
 - **WHEN** `architect-review.md` says `approve`
 - **THEN** the tracking issue exists and is a Project item in `Planned` with its priority before the propose run reports the artifacts ready
+
+#### Scenario: Existing tracking issue
+- **WHEN** `create_tracking_issue` runs on a change whose `tasks.md` already carries the issue number
+- **THEN** it creates no issue, refuses a priority, and moves that issue to `Planned`
 
 #### Scenario: Review archives with the change
 - **WHEN** a change whose directory holds `architect-review.md` is archived

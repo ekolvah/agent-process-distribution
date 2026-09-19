@@ -1,5 +1,5 @@
 """Delivery scripts of the OpenSpec apply loop (changes v2-1a-delivery-scripts,
-v2-2d-check-red-test and v2-2e-wait-for-pr-checks).
+v2-2d-check-red-test, v2-2e-wait-for-pr-checks and v2-2f-start-change).
 
 One test per scenario of the change's spec deltas that a script can prove; the
 scenario name is the test name. Scripts are imported inside the tests so that a
@@ -33,6 +33,7 @@ _FIELDS = {
             "type": "ProjectV2SingleSelectField",
             "options": [
                 {"id": "S_TODO", "name": "Todo"},
+                {"id": "S_PLAN", "name": "Planned"},
                 {"id": "S_PROG", "name": "In Progress"},
             ],
         },
@@ -51,15 +52,56 @@ def _script(name: str) -> Any:
 
 
 class _Gh:
-    """Fake `gh`: answers by command shape, records every call."""
+    """Fake `gh`: answers by command shape, records every call.
 
-    def __init__(self, *, projects: list[dict] | None = None) -> None:
+    `status` is what `gh issue view --json projectItems` reports for the issue on the
+    linked Project (`None`: the issue is no item of it); `other_items` are the issue's items
+    on other Projects, `(title, status)` each, listed first; `fail_on` is a command head
+    that raises as `run_gh` does on a non-zero exit.
+    """
+
+    def __init__(
+        self,
+        *,
+        projects: list[dict] | None = None,
+        status: str | None = "Planned",
+        other_items: list[tuple[str, str]] = (),
+        fail_on: list[str] | None = None,
+        remote_branch: bool = False,
+    ) -> None:
         self.calls: list[list[str]] = []
         self.projects = [_PROJECT] if projects is None else projects
+        self.status = status
+        self.other_items = list(other_items)
+        self.fail_on = fail_on
+        self.remote_branch = remote_branch
 
     def __call__(self, cmd: list[str]) -> str:
         self.calls.append(cmd)
         head = cmd[:3]
+        if self.fail_on is not None and cmd[: len(self.fail_on)] == self.fail_on:
+            raise RuntimeError(f"`{' '.join(cmd)}` failed (rc=1): boom")
+        if head == ["git", "ls-remote", "--heads"]:
+            return f"0123abcd\trefs/heads/{cmd[-1]}\n" if self.remote_branch else ""
+        if head == ["gh", "issue", "view"] and "projectItems" in cmd:
+            # The shape `gh issue view 144 --json projectItems` printed: `title` is the
+            # Project's title, one entry per Project the issue is an item of (v2-2f).
+            items = [(t, s) for t, s in self.other_items]
+            if self.status is not None:
+                items.append((_PROJECT["title"], self.status))
+            return json.dumps(
+                {
+                    "projectItems": [
+                        {"status": {"optionId": "S_X", "name": s}, "title": t} for t, s in items
+                    ]
+                }
+            )
+        if head == ["gh", "issue", "develop"]:
+            return "github.com/owner/repo/tree/branch\n"
+        if head == ["gh", "issue", "comment"]:
+            return "https://github.com/owner/repo/issues/7#issuecomment-1\n"
+        if head == ["gh", "issue", "create"]:
+            return "https://github.com/owner/repo/issues/7\n"
         if head == ["gh", "repo", "view"]:
             # `Nodes` with a capital N is what gh 2.87.3 prints for `--json projectsV2`.
             return json.dumps(
@@ -272,6 +314,253 @@ def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
         set_status.main(["7", "In Progress"], gh=gh)
     assert exc.value.code == 2
     assert gh.edits() == []
+
+
+_CHANGE = "v2-9-example"
+_START = [_CHANGE, "--planner", "Claude", "--implementer", "Codex"]
+_PLACEHOLDER = "tracking issue <N>"
+_GROUP0 = "- [ ] 0.1 `python .agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
+
+
+def _change(tmp_path: Path, *, verdict: str = "approve", tasks: str) -> Path:
+    """A change directory under `tmp_path` with the three files the scripts read."""
+    change_dir = tmp_path / "openspec" / "changes" / _CHANGE
+    change_dir.mkdir(parents=True)
+    (change_dir / "architect-review.md").write_text(
+        f"## Verdict\n\n{verdict}\nreasoning\n\n## Findings\n\nnone\n", encoding="utf-8"
+    )
+    (change_dir / "tasks.md").write_text(tasks, encoding="utf-8")
+    (change_dir / "proposal.md").write_text("## Why\n\nA fixture.\n", encoding="utf-8")
+    return tmp_path
+
+
+def _develops(gh: _Gh) -> list[list[str]]:
+    return [c for c in gh.calls if c[:3] == ["gh", "issue", "develop"]]
+
+
+def _creates(gh: _Gh) -> list[list[str]]:
+    return [c for c in gh.calls if c[:3] == ["gh", "issue", "create"]]
+
+
+def test_verdict_is_rework(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Verdict is rework — exit 2 naming the rework, no branch."""
+    start_change = _script("start_change")
+    root = _change(tmp_path, verdict="rework", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh()
+
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+
+    assert exc.value.code == 2
+    assert _develops(gh) == []
+    assert "rework" in capsys.readouterr().err
+
+
+def test_propose_run_stopped_before_its_tail(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Propose run stopped before its tail — the placeholder token, a Status other
+    than Planned or no Project item → `propose run not finished`, exit 2, no branch."""
+    start_change = _script("start_change")
+    line = "propose run not finished"
+
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_PLACEHOLDER))
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert line in capsys.readouterr().err
+
+    # The first token decides (Group 0 comes first): the literal `<N>`, the whole token or
+    # `tracking issue 9` in a later line — a test description, a quoted rule — is text
+    # (PR 148, Codex P2).
+    root = _change(
+        tmp_path / "b",
+        tasks=_GROUP0.format(token="tracking issue 7")
+        + "- [ ] 1.1 asserts `<N>` and `tracking issue <N>` in the rule; fixture tracking issue 9\n",
+    )
+    gh = _Gh()
+    start_change.main(_START, gh=gh, root=root)
+    assert _develops(gh) == [["gh", "issue", "develop", "-c", "7", "--name", _CHANGE]]
+
+    root = _change(
+        tmp_path / "b2",
+        tasks=_GROUP0.format(token=_PLACEHOLDER) + "- [ ] 1.1 fixture tracking issue 9\n",
+    )
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert line in capsys.readouterr().err
+
+    root = _change(tmp_path / "c", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(status="Todo")
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    err = capsys.readouterr().err
+    assert line in err and "Todo" in err
+
+    root = _change(tmp_path / "d", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(status=None)
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    err = capsys.readouterr().err
+    assert line in err and "Status: none" in err
+
+    # The Status read is the linked Project's, not the first item's: an unrelated board in
+    # Planned does not start the delivery, one in Todo does not block it (PR 148, Codex P1).
+    root = _change(tmp_path / "e", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(status=None, other_items=[("Other", "Planned")])
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert "Status: none" in capsys.readouterr().err
+
+    root = _change(tmp_path / "f", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(status="Planned", other_items=[("Other", "Todo")])
+    start_change.main(_START, gh=gh, root=root)
+    assert len(_develops(gh)) == 1
+
+
+def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
+    """Scenario: Tasks of a new change — on a Planned issue: the linked branch, In Progress,
+    the provenance line, in that order; nothing asked."""
+    start_change = _script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(status="Planned")
+
+    start_change.main(_START, gh=gh, root=root)
+
+    develop = _develops(gh)
+    assert develop == [["gh", "issue", "develop", "-c", "7", "--name", _CHANGE]]
+    edits = gh.edits()
+    assert len(edits) == 1
+    assert edits[0][edits[0].index("--single-select-option-id") + 1] == "S_PROG"
+    comments = [c for c in gh.calls if c[:3] == ["gh", "issue", "comment"]]
+    assert comments == [
+        ["gh", "issue", "comment", "7", "--body", "planner: Claude; implementer: Codex"]
+    ]
+    order = [gh.calls.index(develop[0]), gh.calls.index(edits[0]), gh.calls.index(comments[0])]
+    assert order == sorted(order)
+
+
+def test_interrupted_start_names_the_continuation(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A failure after the branch exists is exit 1 whose message names the steps left —
+    `set_status.py 7 "In Progress"` and the `gh issue comment` — so the person completes
+    them without a second `start_change` (PR 148, Codex P1)."""
+    start_change = _script("start_change")
+    status_cmd = 'set_status.py 7 "In Progress"'
+    comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Codex"'
+
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "project", "item-edit"])
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert status_cmd in err and comment_cmd in err
+
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "issue", "comment"])
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert comment_cmd in err and status_cmd not in err
+
+    # `gh issue develop -c` creates the remote branch, then checks it out: when the
+    # checkout fails the branch exists (`git ls-remote --heads origin <change>` lists it)
+    # and the continuation starts with `git switch` (PR 148, Codex P1, round 2).
+    switch_cmd = f"git switch {_CHANGE}"
+    root = _change(tmp_path / "c", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "issue", "develop"], remote_branch=True)
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert err.index(switch_cmd) < err.index(status_cmd) < err.index(comment_cmd)
+    assert gh.edits() == []
+
+    root = _change(tmp_path / "d", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "issue", "develop"], remote_branch=False)
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "no branch" in err and switch_cmd not in err and status_cmd not in err
+
+
+def test_plan_approved_creates_the_issue(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Plan approved — the issue from proposal.md, Planned with the priority, the
+    number into tasks.md before `set_status`; the priority is required on the placeholder."""
+    create = _script("create_tracking_issue")
+
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_PLACEHOLDER))
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE], gh=gh, root=root)
+    assert exc.value.code == 2 and _creates(gh) == []
+    assert "priority" in capsys.readouterr().err
+
+    # The number in the token and the literal `<N>` elsewhere: the existing-issue branch.
+    root = _change(
+        tmp_path / "b",
+        tasks=_GROUP0.format(token="tracking issue 7") + "- [ ] 1.1 asserts `<N>` in the rule\n",
+    )
+    gh = _Gh()
+    create.main([_CHANGE], gh=gh, root=root)
+    assert _creates(gh) == []
+    assert [e[e.index("--single-select-option-id") + 1] for e in gh.edits()] == ["S_PLAN"]
+
+    root = _change(tmp_path / "c", tasks=_GROUP0.format(token=_PLACEHOLDER))
+    gh = _Gh()
+    create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    created = _creates(gh)
+    assert len(created) == 1
+    assert created[0][created[0].index("--title") + 1] == _CHANGE
+    body_file = Path(created[0][created[0].index("--body-file") + 1])
+    assert body_file == root / "openspec" / "changes" / _CHANGE / "proposal.md"
+    tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
+    assert "tracking issue 7" in tasks and _PLACEHOLDER not in tasks
+    edits = gh.edits()
+    assert [e[e.index("--single-select-option-id") + 1] for e in edits] == ["S_PLAN", "P_HIGH"]
+    assert gh.calls.index(created[0]) < gh.calls.index(edits[0])
+    assert "issues/7" in capsys.readouterr().out
+
+    # `set_status` fails after the create: the number is already in tasks.md and the
+    # message names the resume — a re-run must not create a second issue.
+    root = _change(tmp_path / "d", tasks=_GROUP0.format(token=_PLACEHOLDER))
+    gh = _Gh(fail_on=["gh", "project", "item-edit"])
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    assert exc.value.code == 1
+    tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
+    assert "tracking issue 7" in tasks
+    assert "set_status.py 7 Planned --priority High" in capsys.readouterr().err
+
+
+def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Existing tracking issue — no create, a priority refused, Planned alone."""
+    create = _script("create_tracking_issue")
+
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    assert exc.value.code == 2 and gh.edits() == [] and _creates(gh) == []
+    assert "priority" in capsys.readouterr().err
+
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh()
+    create.main([_CHANGE], gh=gh, root=root)
+    assert _creates(gh) == []
+    assert [e[e.index("--single-select-option-id") + 1] for e in gh.edits()] == ["S_PLAN"]
 
 
 def _checks(*checks: tuple[str, str]) -> tuple[int, str, str]:

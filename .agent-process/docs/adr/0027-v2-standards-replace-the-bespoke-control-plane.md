@@ -128,6 +128,8 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 | `check_red` | `pytest --junitxml` | The script runs the runner and reads the report it wrote; what remains is the per-test RED verdict, which no runner prints |
 | `set_status` | `gh project item-edit`; Project built-in workflows | `item-edit` needs field and option IDs, not names; built-in workflows set Todo/Done only, never Planned/In Progress |
 | `wait_for_pr` | `gh pr checks --watch`; `gh pr checks --json` | `--watch` exits 1 on the empty rollup after a push as on a failure, refuses `--json` and leaves on `Pending == 0`, so a loop of our own remains — that loop reads `--json` (the buckets and the latest run per name are gh's) every 30 s until two reads agree on one head; review threads are GraphQL-only (v2-2e) |
+| `start_change` | `gh issue develop`; `gh project item-edit` (`set_status`); `gh issue comment` | Each step is native; the gate (the verdict, the issue in Planned, the token of tasks.md) and the order as exit codes are the script |
+| `create_tracking_issue` | `gh issue create`; `gh project item-edit` (`set_status`) | `gh issue create` prints a URL, not JSON; the number into tasks.md and Planned with the priority, in that order, are the composition |
 | `finish_change` | `openspec archive` + `git push` + `gh pr checks --watch` | The sequence must be the last task in both agents identically; OpenSpec has no post-archive hook |
 | `check_coverage` | `openspec validate`; a required check | `validate` knows scenarios, not test results; the check needs the scenario → test mapping |
 | `init` | `openspec init --tools claude,codex`; `/plugin`; `gh api` rulesets; `gh secret set` | Each step is native; the script is the one-command composition a ≤ 10-minute install needs |
@@ -140,6 +142,8 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 * Codex ships hooks and subagents as stable → the Codex-specific self-review artifact and
   the `wait_for_pr`-only guard are removed; hooks are restored from v1 (`codex_hooks`).
 * GitHub Projects gain a native Planned/In Progress trigger → `set_status` is deleted.
+* OpenSpec gains a post-review hook → `start_change` and `create_tracking_issue` are
+  deleted.
 * `gh pr checks --watch` learns the empty rollup and review threads → `wait_for_pr` is deleted.
 * `openspec validate` learns test results → `check_coverage` is deleted.
 * Telemetry shows v2 no better than v1 on the same task types after the minimum comparable
@@ -587,3 +591,36 @@ questions of #114 in its order:
   another whole interval did not fit. Not proved: a gap longer than 30 s between the runs
   of one push. A `gh` failure is exit 2 with its stderr, never a verdict on the PR.
   Deletion condition: the row above.
+* Group 0 and the propose tail as scripts (issue 144, `v2-2f-start-change`). The delivery
+  order lived in five copies — the `tasks` rule, every `tasks.md`, the architecture page,
+  the tests of the rule and of the scripts — because the rule spelled shell steps and prose
+  conditions instead of naming a script (the shape ADR 0027's issue 137 retrospective found
+  in the review loop). Observed 2026-09-19: `gh issue view 132 --json projectItems`
+  returned `{"projectItems":[{"status":{"optionId":"…","name":"Todo"},"title":"…"}]}`, so
+  the Status of the issue is one read; `gh issue develop --help`: "the new development
+  branch will be created from the specified remote branch" with `--base` defaulting to the
+  default branch, so the branch starts from `origin/main` without a fetch step in the rule;
+  `gh issue create --help` has no `--json` — the command prints the issue URL, whose last
+  path segment is the number. `start_change <change> --planner --implementer` is the gate
+  (verdict `approve`, the `tracking issue <N>` token of Group 0 replaced, the issue a
+  Project item in `Planned`) as exit 2, then `gh issue develop -c`, `set_status "In
+  Progress"` and the provenance comment; `create_tracking_issue <change> [--priority]` is
+  `gh issue create` from proposal.md, the number into the token before `set_status
+  "Planned" --priority` (a failure after the create leaves the number, so a re-run lands on
+  the existing-issue branch), or `Planned` alone when the number is there. Deleted: the
+  five copies of Group 0's shell steps, `grep -q "^approve"`, `gh issue view --json
+  projectItems` and `sed -i` over `tasks.md` in the rule. Review of PR 148 (Codex, round
+  1): the Status read is the linked Project's item, matched by `title` (`projectItems`
+  carries one entry per Project; `gh issue view 144 --json projectItems` printed
+  `"title":"agent-process-distribution agent process"`, the board's title) — the first
+  entry was whichever board came first (P1); a failure after `gh issue develop` names the
+  steps left (`set_status`, the comment) instead of a second `start_change` — observed
+  that the branch link moves to the PR once it opens (`linkedBranches` of issue 144 empty,
+  `closingIssuesReferences` of PR 148 → 144), so a re-run cannot tell a resume from a
+  finished change (P1); the first `tracking issue (<N>|\d+)` token of `tasks.md` decides,
+  not a whole-file membership test of the placeholder (P2). Round 2: `gh issue develop -c`
+  creates the remote branch, prints its URL, then checks it out (gh 2.87.3 `develop.go`,
+  `developRunCreate` → `checkoutBranch`), so its non-zero exit may leave the branch — the
+  failure is followed by `git ls-remote --heads origin <change>`: listed, the steps left
+  start with `git switch <change>`; empty, `no branch was created` (P1). Deletion condition:
+  the rows above.
