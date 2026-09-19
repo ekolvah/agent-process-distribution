@@ -6,10 +6,11 @@ Usage: python .agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 The implementing run ends only after checks and reviews: a check that has not concluded (the
 `agent-review` check waiting for the requested Codex review, or running the Claude fallback,
 included) is a pending review. The script reads `gh pr checks <PR> --json name,bucket,link`
-every 30 s until the head reports at least one check and none is in the `pending` bucket,
-then reads the unresolved review threads of either reviewer (GraphQL). The sorting is gh's
-(`pkg/cmd/pr/checks/aggregate.go`, tag v2.87.3): `pass`, `skipping`, `fail`, `cancel`,
-`pending` (STALE included), the latest run per name — a rerun replaces its entry.
+every 30 s until two reads in a row report the same non-empty set of checks with none in the
+`pending` bucket (the runs of one push attach one at a time, and a clean verdict ends the
+delivery loop), then reads the unresolved review threads of either reviewer (GraphQL). The
+sorting is gh's (`pkg/cmd/pr/checks/aggregate.go`, tag v2.87.3): `pass`, `skipping`, `fail`,
+`cancel`, `pending` (STALE included), the latest run per name — a rerun replaces its entry.
 
 Why `--json` and not `--watch` (`pkg/cmd/pr/checks/checks.go`): the loop exists for the
 rollup that is empty for seconds after a push — gh reports it as the error `no checks
@@ -18,8 +19,8 @@ reported on the '<branch>' branch` (line 303, before the export at 184–186). T
 `--json` (line 81) and leaves on `Pending == 0` (218), so a script around it would loop and
 re-read `--json` anyway. The `--json` read exits 0 with failed or pending checks (the export
 returns first, 189–191) and non-zero only on that error or one outside the checks. Every
-read is of the current head (`commits(last: 1)`); a push during the wait is followed by the
-next read, and the next `wait_for_pr` of the loop sees a check that attaches after the last.
+read is of the current head (`commits(last: 1)`): a push during the wait shows as pending
+on the next read and restarts the two-read agreement.
 
 Exit 0: nothing unresolved; 1: failed or cancelled checks or unresolved threads, each printed
 with its location; 2: `gh` itself failed, its stderr printed — never a verdict on the PR;
@@ -126,12 +127,23 @@ def wait_for_pr(
 ) -> int:
     deadline = clock() + timeout
     last: str | None = None
+    settled: list[str] | None = None
     while True:
         checks = _checks(gh, pr)
         pending = [str(c["name"]) for c in checks or [] if c["bucket"] == "pending"]
         if checks and not pending:
-            break
-        waiting = ", ".join(pending) or _NO_CHECKS
+            # A concluded set is trusted once two reads 30 s apart agree on it: the runs of
+            # one push attach one at a time, and a clean verdict ends the delivery loop, so
+            # no later read would see a workflow that attached after a fast one passed
+            # (PR 147, round 2). A push during the wait shows as pending and restarts it.
+            names = sorted(str(c["name"]) for c in checks)
+            if names == settled:
+                break
+            settled = names
+            waiting = f"a second read of {', '.join(names)}"
+        else:
+            settled = None
+            waiting = ", ".join(pending) or _NO_CHECKS
         # The timeout is elapsed time, not a count of whole poll intervals: the last sleep
         # is the remainder and the last read is at the deadline, so a rollup that never
         # fills ends here, and never before `timeout` seconds passed (PR 147, round 1).

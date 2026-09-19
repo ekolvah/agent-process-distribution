@@ -29,5 +29,5 @@
 
 ## Scenario → test map
 
-- implementation / Pending review → `tests/publisher/test_delivery_scripts.py::test_pending_review` (task 1.1: `pending` then `fail` → 1, `cancel` → 1, threads → 1, clean → 0, `pending` past the deadline → 3 naming the check, a `gh` failure → `RuntimeError`)
+- implementation / Pending review → `tests/publisher/test_delivery_scripts.py::test_pending_review` (task 1.1: `pending` then `fail` → 1, `cancel` → 1, threads → 1, clean → 0, `pending` past the deadline → 3 naming the check, a `gh` failure → `RuntimeError`; PR 147 round 1: a timeout that is not a multiple of the interval is waited through; round 2: a concluded set is trusted once two reads agree — a late-attaching check is waited on)
 - implementation / Empty rollup after a push → `tests/publisher/test_delivery_scripts.py::test_empty_rollup_after_push` (the `no checks reported` read → one sleep, then clean; the read that never fills → 3); the live wait on a real head → n/a: task 5.3 runs the script on this PR, recorded by the PR

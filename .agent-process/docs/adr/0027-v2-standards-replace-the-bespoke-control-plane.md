@@ -127,7 +127,7 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 | --- | --- | --- |
 | `check_red` | `pytest --junitxml` | The script runs the runner and reads the report it wrote; what remains is the per-test RED verdict, which no runner prints |
 | `set_status` | `gh project item-edit`; Project built-in workflows | `item-edit` needs field and option IDs, not names; built-in workflows set Todo/Done only, never Planned/In Progress |
-| `wait_for_pr` | `gh pr checks --watch`; `gh pr checks --json` | `--watch` exits 1 on the empty rollup after a push as on a failure, refuses `--json` and leaves on `Pending == 0`, so a loop of our own remains — that loop reads `--json` (the buckets and the latest run per name are gh's) every 30 s; review threads are GraphQL-only (v2-2e) |
+| `wait_for_pr` | `gh pr checks --watch`; `gh pr checks --json` | `--watch` exits 1 on the empty rollup after a push as on a failure, refuses `--json` and leaves on `Pending == 0`, so a loop of our own remains — that loop reads `--json` (the buckets and the latest run per name are gh's) every 30 s until two reads agree; review threads are GraphQL-only (v2-2e) |
 | `finish_change` | `openspec archive` + `git push` + `gh pr checks --watch` | The sequence must be the last task in both agents identically; OpenSpec has no post-archive hook |
 | `check_coverage` | `openspec validate`; a required check | `validate` knows scenarios, not test results; the check needs the scenario → test mapping |
 | `init` | `openspec init --tools claude,codex`; `/plugin`; `gh api` rulesets; `gh secret set` | Each step is native; the script is the one-command composition a ≤ 10-minute install needs |
@@ -573,10 +573,15 @@ questions of #114 in its order:
   does the watching at the same cadence, with one `gh` call per round, one exit-code
   meaning and a timeout line that names the pending checks. Deleted: the `gh pr view --json
   statusCheckRollup` poll and the script's own sorting of the rollup (`_concluded`,
-  `_failed`, `_GREEN`, `StatusContext` vs `CheckRun` — a copy of gh's buckets), the
-  two-poll settling guard, the head comparison after the thread query. What the script
-  stops proving: that no check attached between two reads 30 s apart and that the threads
-  were read on the head the checks settled on; a late required context or a new head
-  blocks the merge on the platform — the person merges — and the next `wait_for_pr` of the
-  loop, after every push, sees it. A `gh` failure is exit 2 with its stderr, never a
-  verdict on the PR. Deletion condition: the row above.
+  `_failed`, `_GREEN`, `StatusContext` vs `CheckRun` — a copy of gh's buckets), the head
+  comparison after the thread query (`gh pr checks --json` carries no head; a push during
+  the wait shows as pending on the next read). Kept, after review round 2 of PR 147 (P1):
+  the two-read settling — a concluded set is trusted once two reads 30 s apart agree on
+  its names, because the runs of one push attach one at a time and a clean verdict ends
+  the delivery loop, so no later read would see a late optional check (the first draft
+  had dropped it, arguing the next `wait_for_pr` sees it). Round 1 (P2): the timeout is
+  elapsed time, the last sleep the remainder — the first draft returned when another whole
+  interval did not fit. What the script stops proving: a push after the last read whose
+  runs conclude within 30 s — the platform blocks the merge on the new head, the person
+  merges. A `gh` failure is exit 2 with its stderr, never a verdict on the PR. Deletion
+  condition: the row above.

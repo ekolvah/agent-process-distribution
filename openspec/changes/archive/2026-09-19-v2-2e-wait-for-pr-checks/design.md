@@ -31,14 +31,16 @@ See proposal.md — Why. Current state that shapes the approach:
 ### D1 `wait_for_pr.py` reads `gh pr checks --json` until nothing is pending
 
 ```
-deadline = clock() + timeout; last = None
+deadline = clock() + timeout; last = None; settled = None
 loop:
   result = gh(["gh","pr","checks",PR,"--json","name,bucket,link"])
   rc ≠ 0 and "no checks reported" in stderr → checks = None          # empty rollup
   rc ≠ 0 otherwise                          → RuntimeError(stderr)   # main: exit 2
   else checks = json(stdout); pending = names with bucket == "pending"
-  if checks and not pending: break
-  waiting = ", ".join(pending) or "no checks reported"
+  if checks and not pending:                        # trusted once two reads agree (PR 147, round 2)
+    names = sorted(names); if names == settled: break
+    settled = names; waiting = "a second read of <names>"
+  else: settled = None; waiting = ", ".join(pending) or "no checks reported"
   now = clock(); if now >= deadline: print "timeout after N s: <waiting>"; return 3
   if waiting != last: print "waiting: <waiting>"; last = waiting     # one line per state, not per poll
   sleep(min(30, deadline - now))   # the remainder last: the timeout is elapsed time (PR 147, round 1)
@@ -85,20 +87,24 @@ each* (issue 146):
 | Fields renamed in a future `gh` | rc 0, `KeyError` on `name`/`bucket` | the traceback — visible; `link` is read with a default |
 | `None` capture | `run_gh` | `RuntimeError("… broken capture …")` as today |
 
-*What the script stops proving.* The settling guard proved that the set of checks did not
-grow between two polls 30 s apart; the head comparison proved that the threads were read
-on the head the checks settled on. Neither is proved now: a check attaching after the last
-read (the observed gap between the runs of one push is seconds, v2-1a) or a push after it
-is not seen by this run. What covers it: a required context that attaches late or a new
-head blocks the merge on the platform — the person merges — and the next `wait_for_pr` of
-the loop (after every push, by the `tasks` rule) sees it. The cost is one round ending
-early, never a silent green.
+*What the script stops proving.* The first draft dropped both guards of the old script:
+the settling (two polls 30 s apart agree on the set of checks) and the head comparison
+(the threads were read on the head the checks settled on), arguing that the next
+`wait_for_pr` of the loop sees a late check. Review round 2 of PR 147 (P1) showed the gap
+in that argument: a clean verdict ends the delivery loop, so no later read exists, and
+branch protection catches required contexts only — a late optional check would be a
+silent green. The settling is back, on `--json`: a concluded set is trusted once two reads
+30 s apart agree on its names (+30 s per run; the observed gap between the runs of one
+push is seconds, v2-1a). The head comparison stays out: `gh pr checks --json` carries no
+head, and a push during the wait shows as pending on the next read; what is not proved is
+a push after the last read whose runs concluded within 30 s — a new head blocks the merge
+on the platform, the person merges.
 
 *Alternatives.* `gh pr checks --watch` — above. `--fail-fast` — exits the watch on the
 first failure with the rest pending; the run wants all of them. `--required` — needs
 admin. Keep the `gh pr view` poll — the copy this change removes. `gh run watch` — per
-run, not per PR. Keep the settling (a second read 30 s after a clean one) — 30 s on every
-run for a gap of seconds, and no proof for a gap longer than 30 s either.
+run, not per PR. Drop the settling (the first draft) — ruled out at review round 2 of PR
+147, above.
 
 *Seams.* `gh(cmd) -> subprocess.CompletedProcess[str]`: `run_gh` no longer raises on
 rc ≠ 0 (the read needs rc and stderr), keeps the `None`-capture `RuntimeError`; `_json`
@@ -110,13 +116,16 @@ raises on rc ≠ 0 for the threads calls. `clock`, `sleep`, `timeout` as today.
   of `(rc, stdout, stderr)` from `_checks(*(name, bucket))` (stdout a JSON list of `{name,
   bucket, link}`), `gh repo view` and the GraphQL threads as today (`url` in place of
   `headRefOid`), counting the reads. Cases: `pending` then `fail` → 1, `failed:
-  agent-review` in out, two reads; `cancel` → 1; threads → 1 and `docs/a.md`; all `pass` → 0
-  and `clean:` with the URL; `pending` on every read with `timeout=120` (the fake `sleep`
-  advances the fake `clock`) → 3 with `timeout` and `agent-review` in out; a read `rc=1`
-  with `HTTP 401` → `RuntimeError` matching `401`. Deleted: the settling and head cases,
-  `_rollup`.
+  agent-review` in out, three reads (the second read confirms); `cancel` → 1; threads → 1
+  and `docs/a.md`; all `pass` → 0 and `clean:` with the URL, two reads and one `sleep(30)`;
+  a fast check alone, then the late one `pending`, then both `pass` → 0 and four reads
+  (PR 147, round 2); `pending` on every read with `timeout=120` (the fake `sleep` advances
+  the fake `clock`) → 3 with `timeout` and `agent-review` in out, four sleeps of 30;
+  `timeout=31` → sleeps 30 and 1, three reads; `timeout=10` → one sleep of 10, two reads
+  (PR 147, round 1); a read `rc=1` with `HTTP 401` → `RuntimeError` matching `401`.
+  Deleted: the head cases, `_rollup`.
 - `test_empty_rollup_after_push`: the read `rc=1` with `no checks reported on the 'x'
-  branch` then `pass` → 0, one `sleep(30)`, two reads; the same on every read with
+  branch` then `pass` → 0, two `sleep(30)`, three reads; the same on every read with
   `timeout=120` → 3 and `no checks` in out.
 - `test_none_capture_is_an_error` keeps `("wait_for_pr", "run_gh")` unchanged.
 
@@ -124,8 +133,8 @@ raises on rc ≠ 0 for the threads calls. `clock`, `sleep`, `timeout` as today.
 
 - [The `pending` bucket hides which state (QUEUED, STALE, …) a check is in] → the timeout
   line names the check; `gh pr checks <PR>` by hand shows its state.
-- [A late attachment or a push after the last read] → the next `wait_for_pr` of the loop
-  or the platform's required context; see "What the script stops proving".
+- [A push after the last read whose runs conclude within 30 s] → the platform blocks the
+  merge on the new head; see "What the script stops proving".
 - [The first live run of the rewritten script is this change's own PR] → the old script is
   on `main` until the merge; a failure is visible in the PR's review loop, on a branch.
 

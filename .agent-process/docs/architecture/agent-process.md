@@ -92,9 +92,9 @@ This is the per-change flow. It applies only after the one-time repository
    (`archive_change.py <change>`, before the PR so the reviewed head is the
    archived one), the PR (`gh pr create --body-file <report>`), and the review
    loop (`request_codex_review.py --request <PR>` after every push,
-   `wait_for_pr.py <PR>` — it reads `gh pr checks --json` until nothing is pending,
-   retrying the empty rollup after a push, then the review threads — at most three
-   rounds). On an
+   `wait_for_pr.py <PR>` — it reads `gh pr checks --json` until two reads 30 s apart
+   agree that nothing is pending, retrying the empty rollup after a push, then the
+   review threads — at most three rounds). On an
    `issue-*` branch of a repository still on the v1 issue contract, the v1
    steps below apply instead.
 4. Create the PR only with `python .agent-process/scripts/open_pr.py --body-file <report>`;
