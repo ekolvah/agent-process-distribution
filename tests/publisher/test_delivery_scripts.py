@@ -131,6 +131,12 @@ def test_behavioural_change(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         check_red.main(["--report", str(tmp_path / "any.xml"), node])
     assert exc.value.code == 2
 
+    # A runner that cannot be launched is a broken gate (2), not "tests are not RED" (1):
+    # exit 1 would read as a verdict on the tests (PR 145, Codex P1).
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["--test", str(tmp_path / "no-such-runner"), node])
+    assert exc.value.code == 2
+
 
 def test_class_scoped_node_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A node id ending in a test class selects every test of that class, nested classes included."""

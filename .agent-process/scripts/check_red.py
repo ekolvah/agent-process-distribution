@@ -212,7 +212,13 @@ def main(argv: list[str] | None = None) -> None:
         # pyproject.toml. `-q` is `action="count"`, so a second one would silently push this
         # subprocess to verbosity −2.
         cmd = [*runner, "--tb=no", f"--junitxml={report}", *paths]
-        completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
+        try:
+            completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
+        except OSError as exc:
+            # The runner did not start (absent, not executable): no test ran, so this is
+            # "gate broken" (2), never "tests are not RED" (1), which reads as a verdict.
+            print(f"check_red: cannot run the test runner {cmd[0]!r}: {exc}", file=sys.stderr)
+            sys.exit(2)
         if completed.stdout is None or completed.stderr is None:
             # Capture failed. Code 2 means “gate broken,” not 1: replacing it
             # with an empty string would parse a report with no pytest output and print
