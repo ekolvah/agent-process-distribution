@@ -85,9 +85,12 @@ class _Gh:
         return [c for c in self.calls if c[:3] == ["gh", "project", "item-edit"]]
 
 
-def _fake_pytest(monkeypatch: pytest.MonkeyPatch, report_xml: str) -> list[list[str]]:
+def _fake_pytest(
+    monkeypatch: pytest.MonkeyPatch, report_xml: str, *, returncode: int = 1
+) -> list[list[str]]:
     """Replace `subprocess.run` of `check_red` with a pytest that writes `report_xml` where
-    `--junitxml=` says; returns the list the commands are recorded into."""
+    `--junitxml=` says and exits `returncode`; returns the list the commands are recorded
+    into."""
     check_red = _script("check_red")
     commands: list[list[str]] = []
 
@@ -95,7 +98,7 @@ def _fake_pytest(monkeypatch: pytest.MonkeyPatch, report_xml: str) -> list[list[
         commands.append(list(cmd))
         report = next(a for a in cmd if a.startswith("--junitxml="))[len("--junitxml=") :]
         Path(report).write_text(report_xml, encoding="utf-8")
-        return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="")
+        return subprocess.CompletedProcess(cmd, returncode, stdout="", stderr="stopping")
 
     monkeypatch.setattr(check_red.subprocess, "run", run)
     return commands
@@ -124,12 +127,18 @@ def test_behavioural_change(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cmd[:3] == [sys.executable, "-m", "pytest"]
     assert "--tb=no" in cmd
     # The run is the script's configuration, not the project's: `--maxfail=0` cancels a
-    # fail-fast `-x`/`--maxfail` from `addopts` (pytest's last `maxfail` wins), and
-    # `-p no:cacheprovider` makes `--stepwise`/`--lf`/`--ff` a usage error (rc 4, no
-    # report → exit 2). The RED verdict needs every node id run (PR 145, rounds 6–8).
+    # fail-fast `-x`/`--maxfail` from `addopts` (pytest's last `maxfail` wins);
+    # `-p no:stepwise` makes `--stepwise` a usage error (rc 4, no report → exit 2); an
+    # empty `cache_dir` of the script's own leaves `--lf`/`--ff`/`--nf` nothing to replay
+    # while the `cache` fixture stays (`-p no:cacheprovider` took it away — PR 145,
+    # round 9). The RED verdict needs every node id run (rounds 6–9).
     assert "--maxfail=0" in cmd
-    assert "no:cacheprovider" in cmd and cmd[cmd.index("no:cacheprovider") - 1] == "-p"
-    assert sum(a.startswith("--junitxml=") for a in cmd) == 1
+    assert "no:stepwise" in cmd and cmd[cmd.index("no:stepwise") - 1] == "-p"
+    assert "no:cacheprovider" not in cmd
+    (report,) = (a for a in cmd if a.startswith("--junitxml="))
+    (cache_dir,) = (a for a in cmd if a.startswith("cache_dir="))
+    assert cmd[cmd.index(cache_dir) - 1] == "-o"
+    assert Path(cache_dir[len("cache_dir=") :]).parent == Path(report[len("--junitxml=") :]).parent
     assert cmd[-1] == node
 
     _fake_pytest(monkeypatch, green)
@@ -158,6 +167,30 @@ def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     check_red.main(["sub/tests/test_x.py::test_a"])
     check_red.main(["./tests/test_x.py::test_a"])
+
+
+@pytest.mark.parametrize("returncode", [2, 3, 4])
+def test_interrupted_run_is_no_verdict(monkeypatch: pytest.MonkeyPatch, returncode: int) -> None:
+    """Scenario: Configuration that cuts the run — pytest's exit code is the signal that the
+    run reached the end: 0, 1 and 5 are complete runs; 2 (interrupted: `pytest.exit()` from a
+    hook, `--stepwise`, Ctrl-C), 3 (internal error) and 4 (usage error) are not, and the
+    report they leave — partial or absent — is no verdict (exit 2), never RED (PR 145,
+    round 9)."""
+    check_red = _script("check_red")
+    red = (
+        '<testsuites><testsuite><testcase classname="tests.test_x" name="test_a">'
+        '<failure message="boom"/></testcase></testsuite></testsuites>'
+    )
+    _fake_pytest(monkeypatch, red, returncode=returncode)
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["tests/test_x.py::test_a", "tests/test_x.py::test_b"])
+    assert exc.value.code == 2
+
+    # 5 (no tests collected) is a complete run: the empty report is judged as such.
+    _fake_pytest(monkeypatch, "<testsuites><testsuite/></testsuites>", returncode=5)
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["tests/test_x.py::test_a"])
+    assert exc.value.code == 1
 
 
 def test_tracking_issue_created() -> None:
