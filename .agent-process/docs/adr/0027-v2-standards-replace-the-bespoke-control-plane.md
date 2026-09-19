@@ -125,7 +125,7 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 
 | Script | Native feature tried or ruled out | Why it falls short |
 | --- | --- | --- |
-| `check_red` | `pytest` JUnit report; a Claude Code `PreToolUse` hook | The report proves a failure, not that it preceded the code; a hook exists in Claude Code only |
+| `check_red` | `pytest --junitxml` | The script runs the runner and reads the report it wrote; what remains is the per-test RED verdict, which no runner prints |
 | `set_status` | `gh project item-edit`; Project built-in workflows | `item-edit` needs field and option IDs, not names; built-in workflows set Todo/Done only, never Planned/In Progress |
 | `wait_for_pr` | `gh pr checks --watch` | Watches checks only; review threads and the review apps are GraphQL-only |
 | `finish_change` | `openspec archive` + `git push` + `gh pr checks --watch` | The sequence must be the last task in both agents identically; OpenSpec has no post-archive hook |
@@ -521,3 +521,16 @@ questions of #114 in its order:
   `@main`, so the PR ran today's callee; the first PR after the merge is the observation:
   <confirmed on the first PR after the merge: run id, the step's output>. Deletion
   condition: the step goes when GitHub requires a linked issue natively.
+* `check_red` on the runner's own report (issue 132, `v2-2d-check-red-test`). Observed
+  2026-09-19: `python -m pytest --help` (pytest 9.1.1) prints `--junit-xml=path      Create
+  junit-xml style report file at given path`, so the report goes wherever the caller
+  says and no project-side path is needed. `check_red --test "<runner command>" <node
+  ids>` runs the runner (`python -m pytest` by default) with `--tb=no --junitxml=<its own
+  temporary file>` and evaluates that report per test. Deleted: `--report`, the runner
+  and report-path paragraph of `AGENTS.md`, the `.pytest-report.xml` entry of
+  `.gitignore` — two conventions that existed only to feed the script. Step 2d of issue
+  107 was split at the solution review into `v2-2d-check-red-test`,
+  `v2-2e-wait-for-pr-checks` (`wait_for_pr` on `gh pr checks --watch`) and
+  `v2-2f-start-change` (Group 0 and the propose tail as scripts): one PR that carried two
+  rewritten and two new scripts is the size that cost the review budget on issue 121.
+  Deletion condition: the script goes when a runner prints a per-test RED verdict.
