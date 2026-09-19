@@ -618,5 +618,9 @@ questions of #114 in its order:
   that the branch link moves to the PR once it opens (`linkedBranches` of issue 144 empty,
   `closingIssuesReferences` of PR 148 → 144), so a re-run cannot tell a resume from a
   finished change (P1); the first `tracking issue (<N>|\d+)` token of `tasks.md` decides,
-  not a whole-file membership test of the placeholder (P2). Deletion condition: the rows
-  above.
+  not a whole-file membership test of the placeholder (P2). Round 2: `gh issue develop -c`
+  creates the remote branch, prints its URL, then checks it out (gh 2.87.3 `develop.go`,
+  `developRunCreate` → `checkoutBranch`), so its non-zero exit may leave the branch — the
+  failure is followed by `git ls-remote --heads origin <change>`: listed, the steps left
+  start with `git switch <change>`; empty, `no branch was created` (P1). Deletion condition:
+  the rows above.

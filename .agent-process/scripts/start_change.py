@@ -14,7 +14,10 @@ re-review); when the token still carries the placeholder or the issue is not `Pl
 `gh issue develop -c <N> --name <change>` (the branch starts from the default branch, `--base`
 unset), `set_status <N> "In Progress"` and one comment on the issue, `planner: <p>;
 implementer: <i>`. A `gh` failure is exit 1 with its stderr; an unresolved Project name is
-exit 2, as `set_status` maps it; a failure once the branch exists names the steps left.
+exit 2, as `set_status` maps it; a failure once the branch exists names the steps left —
+`gh issue develop` creates the remote branch before it checks it out, so its failure is
+followed by `git ls-remote --heads origin <change>`: listed, the steps start with
+`git switch <change>`; empty, `no branch was created` and the run is repeated.
 
 Run once per change: a run interrupted before the archive resumes with `git switch <change>`
 and the steps the failure named, after the archive from `gh pr view <change>` — never with a
@@ -121,22 +124,30 @@ def start_change(
     if status != "Planned":
         print(f"{not_finished}; issue #{number} Status: {status}", file=sys.stderr)
         return 2
-    gh(["gh", "issue", "develop", "-c", str(number), "--name", change])
-    # From here the branch exists: a failure names the steps left, so the person completes
+    # Once the remote branch exists a failure names the steps left, so the person completes
     # them by hand — `start_change` is run once per change, never as a resume.
     body = f"planner: {planner}; implementer: {implementer}"
     left = [
+        f"git switch {change}",
         f'python .agent-process/scripts/set_status.py {number} "In Progress"',
         f'gh issue comment {number} --body "{body}"',
     ]
+    exists = f"the branch {change} exists — finish by hand"
+    try:
+        # Creates the remote branch, then checks it out: a failed checkout leaves the branch,
+        # which `ls-remote` shows; a failed create leaves nothing.
+        gh(["gh", "issue", "develop", "-c", str(number), "--name", change])
+    except RuntimeError as exc:
+        if not gh(["git", "ls-remote", "--heads", "origin", change]).strip():
+            raise RuntimeError(f"{exc}; no branch was created") from exc
+        raise RuntimeError(f"{exc}; {exists}: {'; then '.join(left)}") from exc
+    left.pop(0)
     try:
         set_status(number, "In Progress", gh=gh)
         left.pop(0)
         gh(["gh", "issue", "comment", str(number), "--body", body])
     except (KeyError, ValueError, RuntimeError) as exc:
-        raise type(exc)(
-            f"{exc}; the branch {change} exists — finish by hand: {'; then '.join(left)}"
-        ) from exc
+        raise type(exc)(f"{exc}; {exists}: {'; then '.join(left)}") from exc
     print(f"ok: {change} on issue #{number} — branch {change}, In Progress, provenance posted")
     return 0
 
