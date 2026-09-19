@@ -44,9 +44,13 @@ Observations the design rests on (gh 2.87.3, sources at tag `v2.87.3`, 2026-09-1
 - `wait_for_pr.py`: the loop reads `gh pr checks <PR> --json name,bucket,link` every 30 s
   until the head reports at least one check and none is `pending`, then reads the review
   threads (GraphQL, unchanged) and prints `failed:`/`unresolved:` lines. Deleted: the
-  `gh pr view` poll with its own sorting of the rollup, the two-poll settling, the head
-  comparison. Exit codes: 0 clean, 1 failed or unresolved, 2 `gh` itself failed (as today
-  for every `gh` error), 3 timeout naming what was still awaited.
+  `gh pr view` poll with its own sorting of the rollup. Exit codes: 0 clean, 1 failed or
+  unresolved, 2 `gh` itself failed (as today for every `gh` error), 3 timeout naming what
+  was still awaited. *Amended at the review of PR 147:* the first draft also deleted the
+  two-poll settling and the head comparison; both are back — a concluded set is trusted
+  once two reads 30 s apart agree on it, on one head (`gh pr view --json headRefOid` read
+  before the checks), and the threads are read on that head or the loop starts over
+  (design.md D1, "What the script stops proving").
 - `gh pr checks --watch` is considered and ruled out (design.md D1): the loop that must
   exist for the empty rollup does the watching at the same cadence.
 - ADR 0027: the `wait_for_pr` row of "Native alternatives considered", its deletion

@@ -5,12 +5,14 @@ Usage: python .agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 
 The implementing run ends only after checks and reviews: a check that has not concluded (the
 `agent-review` check waiting for the requested Codex review, or running the Claude fallback,
-included) is a pending review. The script reads `gh pr checks <PR> --json name,bucket,link`
-every 30 s until two reads in a row report the same non-empty set of checks with none in the
-`pending` bucket (the runs of one push attach one at a time, and a clean verdict ends the
-delivery loop), then reads the unresolved review threads of either reviewer (GraphQL). The
-sorting is gh's (`pkg/cmd/pr/checks/aggregate.go`, tag v2.87.3): `pass`, `skipping`, `fail`,
-`cancel`, `pending` (STALE included), the latest run per name — a rerun replaces its entry.
+included) is a pending review. The script reads the head (`gh pr view --json headRefOid`)
+and its checks (`gh pr checks <PR> --json name,bucket,link`) every 30 s until two reads in a
+row report, on one head, the same non-empty set of checks with none in the `pending` bucket
+(the runs of one push attach one at a time, and a clean verdict ends the delivery loop),
+then reads the unresolved review threads of either reviewer (GraphQL) — on that head, or
+reads again. The sorting is gh's (`pkg/cmd/pr/checks/aggregate.go`, tag v2.87.3): `pass`,
+`skipping`, `fail`, `cancel`, `pending` (STALE included), the latest run per name — a rerun
+replaces its entry.
 
 Why `--json` and not `--watch` (`pkg/cmd/pr/checks/checks.go`): the loop exists for the
 rollup that is empty for seconds after a push — gh reports it as the error `no checks
@@ -19,8 +21,8 @@ reported on the '<branch>' branch` (line 303, before the export at 184–186). T
 `--json` (line 81) and leaves on `Pending == 0` (218), so a script around it would loop and
 re-read `--json` anyway. The `--json` read exits 0 with failed or pending checks (the export
 returns first, 189–191) and non-zero only on that error or one outside the checks. Every
-read is of the current head (`commits(last: 1)`): a push during the wait shows as pending
-on the next read and restarts the two-read agreement.
+read is of the current head (`commits(last: 1)`) and carries no head, so the head is read
+first, separately: a push during the wait changes it and restarts the two-read agreement.
 
 Exit 0: nothing unresolved; 1: failed or cancelled checks or unresolved threads, each printed
 with its location; 2: `gh` itself failed, its stderr printed — never a verdict on the PR;
@@ -44,7 +46,7 @@ POLL_SECONDS = 30
 _NO_CHECKS = "no checks reported"
 _THREADS_QUERY = (
     "query($owner:String!,$name:String!,$pr:Int!,$after:String){"
-    "repository(owner:$owner,name:$name){pullRequest(number:$pr){url "
+    "repository(owner:$owner,name:$name){pullRequest(number:$pr){url headRefOid "
     "reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor}"
     "nodes{id isResolved path line comments(first:1){nodes{author{login} body url}}}}}}}"
 )
@@ -87,8 +89,12 @@ def _checks(gh: Gh, pr: int) -> list[dict[str, Any]] | None:
         raise RuntimeError(f"`{' '.join(cmd)}` returned no JSON: {result.stdout!r}") from exc
 
 
-def _unresolved_threads(gh: Gh, pr: int) -> tuple[str, list[dict[str, Any]]]:
-    """The PR's URL and its unresolved review threads."""
+def _head(gh: Gh, pr: int) -> str:
+    return str(_json(gh, ["gh", "pr", "view", str(pr), "--json", "headRefOid"])["headRefOid"])
+
+
+def _unresolved_threads(gh: Gh, pr: int) -> tuple[str, str, list[dict[str, Any]]]:
+    """The PR's URL, the head the threads were read on, and its unresolved review threads."""
     repo = _json(gh, ["gh", "repo", "view", "--json", "owner,name"])
     owner, name = str(repo["owner"]["login"]), str(repo["name"])
     threads: list[dict[str, Any]] = []
@@ -113,7 +119,7 @@ def _unresolved_threads(gh: Gh, pr: int) -> tuple[str, list[dict[str, Any]]]:
         page = pull["reviewThreads"]
         threads += [t for t in page["nodes"] if not t.get("isResolved")]
         if not page["pageInfo"].get("hasNextPage"):
-            return str(pull.get("url")), threads
+            return str(pull.get("url")), str(pull.get("headRefOid")), threads
         after = str(page["pageInfo"].get("endCursor"))
 
 
@@ -127,20 +133,30 @@ def wait_for_pr(
 ) -> int:
     deadline = clock() + timeout
     last: str | None = None
-    settled: list[str] | None = None
+    settled: tuple[str, list[str]] | None = None
     while True:
+        # The head is read before its checks: a push between the two reads then shows as a
+        # head the checks do not belong to, and the next read starts the agreement over.
+        head = _head(gh, pr)
         checks = _checks(gh, pr)
         pending = [str(c["name"]) for c in checks or [] if c["bucket"] == "pending"]
         if checks and not pending:
-            # A concluded set is trusted once two reads 30 s apart agree on it: the runs of
-            # one push attach one at a time, and a clean verdict ends the delivery loop, so
-            # no later read would see a workflow that attached after a fast one passed
-            # (PR 147, round 2). A push during the wait shows as pending and restarts it.
+            # A concluded set is trusted once two reads 30 s apart agree on it, on one head:
+            # the runs of one push attach one at a time, and a clean verdict ends the delivery
+            # loop, so no later read would see a workflow that attached after a fast one
+            # passed (PR 147, round 2); two heads each read with only its fast check attached
+            # agree on the names and prove nothing (round 3). The threads must be of that
+            # head too, or a push after the last read hides its runs.
             names = sorted(str(c["name"]) for c in checks)
-            if names == settled:
-                break
-            settled = names
-            waiting = f"a second read of {', '.join(names)}"
+            if (head, names) == settled:
+                url, threads_head, threads = _unresolved_threads(gh, pr)
+                if threads_head == head:
+                    break
+                settled = None
+                waiting = f"a push after the last read ({threads_head[:7]})"
+            else:
+                settled = (head, names)
+                waiting = f"a second read of {', '.join(names)} on {head[:7]}"
         else:
             settled = None
             waiting = ", ".join(pending) or _NO_CHECKS
@@ -155,7 +171,6 @@ def wait_for_pr(
             print(f"waiting: {waiting}")
             last = waiting
         sleep(min(POLL_SECONDS, deadline - now))
-    url, threads = _unresolved_threads(gh, pr)
     failed = [c for c in checks if c["bucket"] not in {"pass", "skipping"}]
     for check in failed:
         print(f"failed: {check['name']} {check.get('link', '')}".rstrip())
