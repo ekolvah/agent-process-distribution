@@ -24,7 +24,7 @@
 
 ## 5. Verify
 
-- [ ] 5.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` valid and `python .agent-process/scripts/ci_check.py` green; `git status --short` shows nothing of this change uncommitted
+- [x] 5.1 `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` valid and `python .agent-process/scripts/ci_check.py` green; `git status --short` shows nothing of this change uncommitted
 
 ## 6. Deliver
 
