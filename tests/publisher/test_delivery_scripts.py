@@ -1,5 +1,5 @@
-"""Delivery scripts of the OpenSpec apply loop (changes v2-1a-delivery-scripts and
-v2-2d-check-red-test).
+"""Delivery scripts of the OpenSpec apply loop (changes v2-1a-delivery-scripts,
+v2-2d-check-red-test and v2-2e-wait-for-pr-checks).
 
 One test per scenario of the change's spec deltas that a script can prove; the
 scenario name is the test name. Scripts are imported inside the tests so that a
@@ -274,33 +274,24 @@ def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
     assert gh.edits() == []
 
 
-def _rollup(*checks: tuple[str, str, str | None], head: str = "abc123") -> str:
-    return json.dumps(
-        {
-            "headRefOid": head,
-            "url": "https://github.com/owner/repo/pull/9",
-            "statusCheckRollup": [
-                {
-                    "__typename": "CheckRun",
-                    "name": name,
-                    "workflowName": name,
-                    "status": status,
-                    "conclusion": conclusion,
-                    "detailsUrl": f"https://ci.test/{name}",
-                }
-                for name, status, conclusion in checks
-            ],
-        }
-    )
+def _checks(*checks: tuple[str, str]) -> tuple[int, str, str]:
+    """A `gh pr checks --json name,bucket,link` read: exit 0 whatever the buckets are."""
+    rows = [{"name": n, "bucket": b, "link": f"https://ci.test/{n}"} for n, b in checks]
+    return 0, json.dumps(rows), ""
 
 
-def _threads(*unresolved: str, head: str = "abc123") -> str:
+# The rollup is empty for seconds after a push: gh reports it as an error, not as `[]`.
+_EMPTY = (1, "", "no checks reported on the 'x' branch\n")
+_PR_URL = "https://github.com/owner/repo/pull/9"
+
+
+def _threads(*unresolved: str) -> str:
     return json.dumps(
         {
             "data": {
                 "repository": {
                     "pullRequest": {
-                        "headRefOid": head,
+                        "url": _PR_URL,
                         "reviewThreads": {
                             "pageInfo": {"hasNextPage": False},
                             "nodes": [
@@ -330,90 +321,96 @@ def _threads(*unresolved: str, head: str = "abc123") -> str:
 
 
 class _Sequence:
-    """Fake `gh` for `wait_for_pr`: one rollup per poll, one thread payload per query."""
+    """Fake `gh` for `wait_for_pr`, a `CompletedProcess` per call: for `gh pr checks … --json`
+    the next of the `(rc, stdout, stderr)` reads (the last one repeats), counted in `polls`;
+    the threads payload for the GraphQL query."""
 
-    def __init__(self, rollups: list[str], threads: str | list[str]) -> None:
-        self.rollups = list(rollups)
-        self.threads = [threads] if isinstance(threads, str) else list(threads)
+    def __init__(self, reads: list[tuple[int, str, str]], threads: str) -> None:
+        self.reads = list(reads)
+        self.threads = threads
         self.polls = 0
 
-    def __call__(self, cmd: list[str]) -> str:
-        if cmd[:3] == ["gh", "pr", "view"]:
+    def __call__(self, cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd[:3] == ["gh", "pr", "checks"]:
+            assert "--json" in cmd and "--watch" not in cmd, cmd
             self.polls += 1
-            return self.rollups.pop(0) if len(self.rollups) > 1 else self.rollups[0]
+            rc, out, err = self.reads.pop(0) if len(self.reads) > 1 else self.reads[0]
+            return subprocess.CompletedProcess(cmd, rc, out, err)
         if cmd[:3] == ["gh", "repo", "view"]:
-            return json.dumps({"owner": {"login": "owner"}, "name": "repo"})
+            repo = json.dumps({"owner": {"login": "owner"}, "name": "repo"})
+            return subprocess.CompletedProcess(cmd, 0, repo, "")
         if cmd[:3] == ["gh", "api", "graphql"]:
-            return self.threads.pop(0) if len(self.threads) > 1 else self.threads[0]
+            return subprocess.CompletedProcess(cmd, 0, self.threads, "")
         raise AssertionError(f"unexpected gh call: {cmd}")
 
 
-def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
-    """Scenario: Pending review — a running check is pending; red or unresolved → 1; clean → 0; timeout → 3."""
+def _wait(
+    capsys: pytest.CaptureFixture[str],
+    reads: list[tuple[int, str, str]],
+    threads: str = _threads(),
+    *,
+    timeout: int = 1800,
+) -> tuple[int, str, _Sequence, list[float]]:
+    """Run `wait_for_pr` on the fake `gh`; the fake `sleep` advances the fake `clock`."""
     wait_for_pr = _script("wait_for_pr")
-    green = ("quality", "COMPLETED", "SUCCESS")
-    running = ("agent-review", "IN_PROGRESS", None)
-    red = ("agent-review", "COMPLETED", "FAILURE")
-    done = ("agent-review", "COMPLETED", "SUCCESS")
+    gh = _Sequence(reads, threads)
+    now = [0.0]
+    sleeps: list[float] = []
 
-    def run(rollups: list[str], threads: str, *, timeout: int = 1800) -> tuple[int, str]:
-        gh = _Sequence(rollups, threads)
-        ticks = iter(range(0, 10_000, 60))
-        code = wait_for_pr.wait_for_pr(
-            9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None, timeout=timeout
-        )
-        return code, capsys.readouterr().out
+    def sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        now[0] += seconds
 
-    code, out = run([_rollup(green, running), _rollup(green, red)], _threads())
-    assert code == 1 and "agent-review" in out
+    code = wait_for_pr.wait_for_pr(9, gh=gh, clock=lambda: now[0], sleep=sleep, timeout=timeout)
+    return code, capsys.readouterr().out, gh, sleeps
 
-    code, out = run([_rollup(green, done)], _threads("docs/a.md"))
+
+def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Pending review — a `pending` bucket is a pending review; `fail`, `cancel` or
+    an unresolved thread → 1; clean → 0; timeout → 3 naming the check; a `gh` failure is an
+    error, never a verdict."""
+    wait_for_pr = _script("wait_for_pr")
+    green, running = ("quality", "pass"), ("agent-review", "pending")
+    red, cancelled, done = (
+        ("agent-review", "fail"),
+        ("agent-review", "cancel"),
+        ("agent-review", "pass"),
+    )
+
+    code, out, gh, _ = _wait(capsys, [_checks(green, running), _checks(green, red)])
+    assert code == 1 and "failed: agent-review" in out and gh.polls == 2
+
+    code, out, _, _ = _wait(capsys, [_checks(green, cancelled)])
+    assert code == 1 and "failed: agent-review" in out
+
+    code, out, _, _ = _wait(capsys, [_checks(green, done)], _threads("docs/a.md"))
     assert code == 1 and "docs/a.md" in out
 
-    code, out = run([_rollup(green, done)], _threads())
-    assert code == 0
+    code, out, _, _ = _wait(capsys, [_checks(green, done)])
+    assert code == 0 and "clean:" in out and _PR_URL in out
 
-    code, out = run([_rollup(green, running)], _threads(), timeout=120)
-    assert code == 3 and "timeout" in out.lower()
+    code, out, _, _ = _wait(capsys, [_checks(green, running)], timeout=120)
+    assert code == 3 and "timeout" in out.lower() and "agent-review" in out
 
-    # Right after a push the rollup is empty until the workflows attach: pending, not clean.
-    code, out = run([_rollup(), _rollup(green, done)], _threads())
-    assert code == 0
-    code, out = run([_rollup()], _threads(), timeout=120)
+    with pytest.raises(RuntimeError, match="401"):
+        wait_for_pr.wait_for_pr(
+            9,
+            gh=_Sequence([(1, "", "HTTP 401")], _threads()),
+            clock=lambda: 0.0,
+            sleep=lambda s: None,
+        )
+
+
+def test_empty_rollup_after_push(capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Empty rollup after a push — `no checks reported` is read again after one
+    poll interval, never reported clean or failed; a rollup that never fills → 3."""
+    green, done = ("quality", "pass"), ("agent-review", "pass")
+
+    code, out, gh, sleeps = _wait(capsys, [_EMPTY, _checks(green, done)])
+    assert code == 0 and sleeps == [30] and gh.polls == 2
+
+    code, out, _, _ = _wait(capsys, [_EMPTY], timeout=120)
     assert code == 3 and "no checks" in out.lower()
-
-    # A concluded rollup counts only once two consecutive polls list the same checks: a
-    # workflow that attaches late must not be missed behind a fast one that already passed.
-    gh = _Sequence([_rollup(green), _rollup(green, running), _rollup(green, done)], _threads())
-    ticks = iter(range(0, 10_000, 60))
-    code = wait_for_pr.wait_for_pr(9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None)
-    assert code == 0 and gh.polls == 4
-
-    # A new head between the two polls restarts the settling: its fast check must not be
-    # confirmed by the previous head's poll.
-    gh = _Sequence(
-        [_rollup(green), _rollup(green, head="def456"), _rollup(green, running, head="def456")],
-        _threads(),
-    )
-    ticks = iter(range(0, 10_000, 60))
-    code = wait_for_pr.wait_for_pr(
-        9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None, timeout=240
-    )
-    assert code == 3 and "def456" in capsys.readouterr().out
-
-    # A push between the settled poll and the thread query: the threads answer names the
-    # new head, so the settling restarts on it instead of reporting the old head clean.
-    abc, done_def = _rollup(green, done), _rollup(green, done, head="def456")
-    gh = _Sequence([abc, abc, done_def], _threads(head="def456"))
-    ticks = iter(range(0, 10_000, 60))
-    code = wait_for_pr.wait_for_pr(9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None)
-    assert code == 0 and gh.polls == 4 and "def456" in capsys.readouterr().out
-    gh = _Sequence([abc, abc, _rollup(green, running, head="def456")], _threads(head="def456"))
-    ticks = iter(range(0, 10_000, 60))
-    code = wait_for_pr.wait_for_pr(
-        9, gh=gh, clock=lambda: next(ticks), sleep=lambda s: None, timeout=300
-    )
-    assert code == 3 and "def456" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
