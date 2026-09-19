@@ -1,4 +1,5 @@
-"""Planning runs on the OpenSpec skills with project rules (changes v2-1b, v2-1e).
+"""Planning runs on the OpenSpec skills with project rules (changes v2-1b, v2-1e,
+v2-2f-start-change).
 
 One test per scenario of the change's spec deltas that a script can prove; the
 scenario name is the test name.
@@ -56,7 +57,9 @@ def test_rework_verdict() -> None:
     tasks = " ".join(config["rules"]["tasks"])
     assert "run the review again" in tasks
     assert "the propose run ends on `approve`" in tasks
-    assert 'grep -q "^approve"' in tasks
+    # The gate is `start_change.py` reading the verdict (v2-2f), not a grep in the rule.
+    assert "start_change.py" in tasks
+    assert 'grep -q "^approve"' not in tasks
     # The gate is stated once: no second copy as apply guidance.
     assert "apply" not in config.get("operations", {})
     # The stock propose skill reports the plan ready once tasks.md exists; the
@@ -96,9 +99,12 @@ def test_review_archives_with_the_change(tmp_path: Path) -> None:
 def test_tasks_of_a_new_change() -> None:
     """Scenario: Tasks of a new change — priority before the issue, the archive before the PR."""
     rule = " ".join(yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"])
-    assert rule.index("priority") < rule.index("gh issue create")
+    assert rule.index("priority") < rule.index("create_tracking_issue.py")
     assert rule.index("archive_change.py") < rule.index("gh pr create")
     assert "finish_change" not in rule
+    # Group 0 and the propose tail are scripts (v2-2f): the shell steps left the rule.
+    for shell in ("gh issue create", "sed -i", "gh issue develop"):
+        assert shell not in rule, shell
     # Scenario: Runner given — check_red runs its own pytest; the rule names no runner
     # argument, no runner in AGENTS.md and no report path (v2-2d-check-red-own-runner).
     assert "check_red.py <node ids>" in rule
@@ -152,19 +158,21 @@ def test_plan_approved() -> None:
     """Scenario: Plan approved — the review entry ends with the issue in Planned; Group 0 asks nothing."""
     entries = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
     review = next(e for e in entries if e.startswith("Architect review"))
-    assert review.index("approve") < review.index('"Planned"')
-    assert "gh issue create" in review and "--priority" in review
+    # The tail is one command: `create_tracking_issue.py <change> --priority <answer>`
+    # (the issue from proposal.md, Planned with the priority, the number into tasks.md).
+    assert review.index("approve") < review.index("create_tracking_issue.py")
+    assert review.index("create_tracking_issue.py") < review.index("--priority")
     group0 = next(e for e in entries if "Group 0" in e)
-    assert "gh issue create" not in group0 and "priority" not in group0
-    # The gate also reads the issue: a propose run that stopped before its tail is a
+    assert "create_tracking_issue" not in group0 and "priority" not in group0
+    # The gate is `start_change.py`: the verdict, the issue's Status and the token of
+    # tasks.md are its exit codes — a propose run that stopped before its tail is a
     # visible stop of the apply, not a prompt and not a silent branch on a missing issue.
-    assert group0.index('"Planned"') < group0.index("gh issue develop")
+    assert "start_change.py" in group0
     assert "propose run not finished" in group0
-    # The number reaches the implementer of another session through tasks.md: the
-    # tail writes it after `gh issue create`, and a tasks.md still reading `<N>` is the
-    # "no issue" branch of the gate.
-    assert review.index("gh issue create") < review.index("openspec/changes/<change>/tasks.md")
-    assert "still read" in group0 and "`<N>`" in group0
+    assert '"Planned"' not in group0 and "gh issue view" not in group0
+    # The number reaches the implementer of another session through the token
+    # `tracking issue <N>` in Group 0 of tasks.md: the tail replaces it, both scripts read it.
+    assert "tracking issue <N>" in group0
 
 
 def test_design_on_a_platform_behaviour() -> None:
