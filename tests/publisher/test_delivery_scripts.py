@@ -285,13 +285,14 @@ _EMPTY = (1, "", "no checks reported on the 'x' branch\n")
 _PR_URL = "https://github.com/owner/repo/pull/9"
 
 
-def _threads(*unresolved: str) -> str:
+def _threads(*unresolved: str, head: str = "A") -> str:
     return json.dumps(
         {
             "data": {
                 "repository": {
                     "pullRequest": {
                         "url": _PR_URL,
+                        "headRefOid": head,
                         "reviewThreads": {
                             "pageInfo": {"hasNextPage": False},
                             "nodes": [
@@ -323,37 +324,53 @@ def _threads(*unresolved: str) -> str:
 class _Sequence:
     """Fake `gh` for `wait_for_pr`, a `CompletedProcess` per call: for `gh pr checks … --json`
     the next of the `(rc, stdout, stderr)` reads (the last one repeats), counted in `polls`;
-    the threads payload for the GraphQL query."""
+    for `gh pr view … --json headRefOid` the next of `heads`; for the GraphQL query the
+    next of the threads payloads (the last ones repeat)."""
 
-    def __init__(self, reads: list[tuple[int, str, str]], threads: str) -> None:
+    def __init__(
+        self,
+        reads: list[tuple[int, str, str]],
+        threads: str | list[str],
+        heads: list[str] | None = None,
+    ) -> None:
         self.reads = list(reads)
-        self.threads = threads
+        self.threads = [threads] if isinstance(threads, str) else list(threads)
+        self.heads = list(heads or ["A"])
         self.polls = 0
+
+    @staticmethod
+    def _next(items: list[Any]) -> Any:
+        return items.pop(0) if len(items) > 1 else items[0]
 
     def __call__(self, cmd: list[str]) -> subprocess.CompletedProcess[str]:
         if cmd[:3] == ["gh", "pr", "checks"]:
             assert "--json" in cmd and "--watch" not in cmd, cmd
             self.polls += 1
-            rc, out, err = self.reads.pop(0) if len(self.reads) > 1 else self.reads[0]
+            rc, out, err = self._next(self.reads)
             return subprocess.CompletedProcess(cmd, rc, out, err)
+        if cmd[:3] == ["gh", "pr", "view"]:
+            assert "headRefOid" in cmd, cmd
+            head = json.dumps({"headRefOid": self._next(self.heads)})
+            return subprocess.CompletedProcess(cmd, 0, head, "")
         if cmd[:3] == ["gh", "repo", "view"]:
             repo = json.dumps({"owner": {"login": "owner"}, "name": "repo"})
             return subprocess.CompletedProcess(cmd, 0, repo, "")
         if cmd[:3] == ["gh", "api", "graphql"]:
-            return subprocess.CompletedProcess(cmd, 0, self.threads, "")
+            return subprocess.CompletedProcess(cmd, 0, self._next(self.threads), "")
         raise AssertionError(f"unexpected gh call: {cmd}")
 
 
 def _wait(
     capsys: pytest.CaptureFixture[str],
     reads: list[tuple[int, str, str]],
-    threads: str = _threads(),
+    threads: str | list[str] = _threads(),
     *,
+    heads: list[str] | None = None,
     timeout: int = 1800,
 ) -> tuple[int, str, _Sequence, list[float]]:
     """Run `wait_for_pr` on the fake `gh`; the fake `sleep` advances the fake `clock`."""
     wait_for_pr = _script("wait_for_pr")
-    gh = _Sequence(reads, threads)
+    gh = _Sequence(reads, threads, heads)
     now = [0.0]
     sleeps: list[float] = []
 
@@ -396,6 +413,20 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
         capsys, [_checks(green), _checks(green, running), _checks(green, done)]
     )
     assert code == 0 and gh.polls == 4
+    # The two reads must be of one head (PR 147, round 3): a push between them, each head
+    # read while only its fast check had attached, agrees on the names and proves nothing.
+    code, out, gh, _ = _wait(
+        capsys,
+        [_checks(green), _checks(green), _checks(green, running), _checks(green, done)],
+        _threads(head="B"),
+        heads=["A", "B"],
+    )
+    assert code == 0 and gh.polls == 5
+    # A push after the last read: the threads answer names another head → read again on it.
+    code, out, gh, _ = _wait(
+        capsys, [_checks(green, done)], _threads(head="B"), heads=["A", "A", "B"]
+    )
+    assert code == 0 and gh.polls == 4 and "waiting: a push" in out
 
     code, out, _, sleeps = _wait(capsys, [_checks(green, running)], timeout=120)
     assert code == 3 and "timeout" in out.lower() and "agent-review" in out
