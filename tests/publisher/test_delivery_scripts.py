@@ -54,9 +54,10 @@ def _script(name: str) -> Any:
 class _Gh:
     """Fake `gh`: answers by command shape, records every call.
 
-    `status` is what `gh issue view --json projectItems` reports for the issue (`None`: the
-    issue is no Project item, `projectItems` empty); `fail_on` is a command head that
-    raises as `run_gh` does on a non-zero exit.
+    `status` is what `gh issue view --json projectItems` reports for the issue on the
+    linked Project (`None`: the issue is no item of it); `other_items` are the issue's items
+    on other Projects, `(title, status)` each, listed first; `fail_on` is a command head
+    that raises as `run_gh` does on a non-zero exit.
     """
 
     def __init__(
@@ -64,11 +65,13 @@ class _Gh:
         *,
         projects: list[dict] | None = None,
         status: str | None = "Planned",
+        other_items: list[tuple[str, str]] = (),
         fail_on: list[str] | None = None,
     ) -> None:
         self.calls: list[list[str]] = []
         self.projects = [_PROJECT] if projects is None else projects
         self.status = status
+        self.other_items = list(other_items)
         self.fail_on = fail_on
 
     def __call__(self, cmd: list[str]) -> str:
@@ -77,9 +80,18 @@ class _Gh:
         if self.fail_on is not None and cmd[: len(self.fail_on)] == self.fail_on:
             raise RuntimeError(f"`{' '.join(cmd)}` failed (rc=1): boom")
         if head == ["gh", "issue", "view"] and "projectItems" in cmd:
-            # The shape `gh issue view 132 --json projectItems` printed (proposal of v2-2f).
-            item = {"status": {"optionId": "S_X", "name": self.status}, "title": "t"}
-            return json.dumps({"projectItems": [] if self.status is None else [item]})
+            # The shape `gh issue view 144 --json projectItems` printed: `title` is the
+            # Project's title, one entry per Project the issue is an item of (v2-2f).
+            items = [(t, s) for t, s in self.other_items]
+            if self.status is not None:
+                items.append((_PROJECT["title"], self.status))
+            return json.dumps(
+                {
+                    "projectItems": [
+                        {"status": {"optionId": "S_X", "name": s}, "title": t} for t, s in items
+                    ]
+                }
+            )
         if head == ["gh", "issue", "develop"]:
             return "github.com/owner/repo/tree/branch\n"
         if head == ["gh", "issue", "comment"]:
@@ -355,14 +367,27 @@ def test_propose_run_stopped_before_its_tail(
     assert exc.value.code == 2 and _develops(gh) == []
     assert line in capsys.readouterr().err
 
-    # The token decides, not the literal `<N>` anywhere in the file.
+    # The first token decides (Group 0 comes first): the literal `<N>`, the whole token or
+    # `tracking issue 9` in a later line — a test description, a quoted rule — is text
+    # (PR 148, Codex P2).
     root = _change(
         tmp_path / "b",
-        tasks=_GROUP0.format(token="tracking issue 7") + "- [ ] 1.1 asserts `<N>` in the rule\n",
+        tasks=_GROUP0.format(token="tracking issue 7")
+        + "- [ ] 1.1 asserts `<N>` and `tracking issue <N>` in the rule; fixture tracking issue 9\n",
     )
     gh = _Gh()
     start_change.main(_START, gh=gh, root=root)
-    assert len(_develops(gh)) == 1
+    assert _develops(gh) == [["gh", "issue", "develop", "-c", "7", "--name", _CHANGE]]
+
+    root = _change(
+        tmp_path / "b2",
+        tasks=_GROUP0.format(token=_PLACEHOLDER) + "- [ ] 1.1 fixture tracking issue 9\n",
+    )
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert line in capsys.readouterr().err
 
     root = _change(tmp_path / "c", tasks=_GROUP0.format(token="tracking issue 7"))
     gh = _Gh(status="Todo")
@@ -379,6 +404,20 @@ def test_propose_run_stopped_before_its_tail(
     assert exc.value.code == 2 and _develops(gh) == []
     err = capsys.readouterr().err
     assert line in err and "Status: none" in err
+
+    # The Status read is the linked Project's, not the first item's: an unrelated board in
+    # Planned does not start the delivery, one in Todo does not block it (PR 148, Codex P1).
+    root = _change(tmp_path / "e", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(status=None, other_items=[("Other", "Planned")])
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert "Status: none" in capsys.readouterr().err
+
+    root = _change(tmp_path / "f", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(status="Planned", other_items=[("Other", "Todo")])
+    start_change.main(_START, gh=gh, root=root)
+    assert len(_develops(gh)) == 1
 
 
 def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
@@ -401,6 +440,33 @@ def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
     ]
     order = [gh.calls.index(develop[0]), gh.calls.index(edits[0]), gh.calls.index(comments[0])]
     assert order == sorted(order)
+
+
+def test_interrupted_start_names_the_continuation(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A failure after the branch exists is exit 1 whose message names the steps left —
+    `set_status.py 7 "In Progress"` and the `gh issue comment` — so the person completes
+    them without a second `start_change` (PR 148, Codex P1)."""
+    start_change = _script("start_change")
+    status_cmd = 'set_status.py 7 "In Progress"'
+    comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Codex"'
+
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "project", "item-edit"])
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert status_cmd in err and comment_cmd in err
+
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = _Gh(fail_on=["gh", "issue", "comment"])
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert comment_cmd in err and status_cmd not in err
 
 
 def test_plan_approved_creates_the_issue(
