@@ -530,10 +530,13 @@ questions of #114 in its order:
   answer to the node ids, and the script's own selection by node id (`_select_cases`,
   kept for whole-suite `--report` files) went at the review of PR 145 — it was a second
   interpreter of the node id, and `./`, an absolute path or `--rootdir` in the runner
-  string each spelled the classname another way. A runner that does not start, a
-  runner string that does not split, or a report with fewer tests than node ids (a
-  fail-fast `-x` in the runner string stopped at the first failure; the count is the one
-  check, no classname is read) exits 2 (no verdict), never 1. Deleted: `--report`,
+  string each spelled the classname another way. The script appends `--maxfail=0`
+  beside `--tb=no` and `--junitxml`: a fail-fast `-x` in the runner string or in
+  `addopts` would cut the report at the first failure and hide a green test, and
+  pytest's last `maxfail` wins (observed on 9.1.1: `-x --maxfail=0` ran every test). A
+  runner that does not start, a runner string that does not split, or a report with
+  fewer tests than node ids (a runner that stopped early regardless; the count is the
+  one check, no classname is read) exits 2 (no verdict), never 1. Deleted: `--report`,
   the selection, the runner and report-path paragraph of `AGENTS.md`, the
   `.pytest-report.xml` entry of `.gitignore` — two conventions that existed only to feed
   the script. Step 2d of issue

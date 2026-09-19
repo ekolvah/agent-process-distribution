@@ -4,8 +4,9 @@
 Usage: python .agent-process/scripts/check_red.py [--test "<runner command>"] <node-id> ...
 
 The script runs the test runner itself: the command given as `--test` (`python -m pytest`
-when none is given) with `--tb=no --junitxml=<its own temporary file>` and the node ids
-appended, then judges every testcase of the report that run wrote: the report is the
+when none is given) with `--tb=no --maxfail=0 --junitxml=<its own temporary file>` and the
+node ids appended (`--maxfail=0` cancels a fail-fast `-x` the runner string or `addopts`
+may carry: RED needs every test run), then judges every testcase of the report that run wrote: the report is the
 runner's answer to the node ids, and the script re-derives no selection of its own. The
 project declares no runner and no report path for it; the runner string is the script's
 input (a future `init` input carries the same string).
@@ -98,10 +99,10 @@ def evaluate_report(xml_text: str, *, full: bool = False, at_least: int = 0) -> 
 
     **A report short of `at_least` tests is no verdict** (`ValueError`, like a report
     that does not parse). Every node id names at least one test, so a report with fewer
-    tests than node ids did not account for the whole selection: a fail-fast runner
-    (`-x`) stopped at the first failure, and calling that RED would pass tests that
-    never ran. A count, not a re-derived selection: the classname spelling is the
-    runner's (see `main`).
+    tests than node ids did not account for the whole selection: a runner that stopped
+    early despite the `--maxfail=0` `main` passes (one that does not honour the flag),
+    and calling that RED would pass tests that never ran. A count, not a re-derived
+    selection: the classname spelling is the runner's (see `main`).
 
     **`error` is not RED.** Collection/fixture error means the test did not run,
     while RED must prove the test catches behavior; accepting it would let `/implement`
@@ -128,8 +129,8 @@ def evaluate_report(xml_text: str, *, full: bool = False, at_least: int = 0) -> 
     if len(tags_by_test) < at_least:
         raise ValueError(
             f"the report accounts for {len(tags_by_test)} test(s) but {at_least} node ids were "
-            "given: a fail-fast runner (-x) stopped early, or a node id collected nothing; "
-            "no verdict on tests that did not run"
+            "given: the runner stopped early (it ignores --maxfail=0?) or a node id collected "
+            "nothing; no verdict on tests that did not run"
         )
 
     def name_of(key: tuple[str, str]) -> str:
@@ -192,7 +193,12 @@ def main(argv: list[str] | None = None) -> None:
         # No `-q` here: the verbosity of this run has one home, `addopts` in
         # pyproject.toml. `-q` is `action="count"`, so a second one would silently push this
         # subprocess to verbosity −2.
-        cmd = [*runner, "--tb=no", f"--junitxml={report}", *paths]
+        # `--maxfail=0` cancels a fail-fast flag wherever it came from: `-x` is
+        # `store_const` into `maxfail` and `--maxfail` a `store` into the same dest, so the
+        # last one wins, and the command line comes after `addopts` (observed on pytest
+        # 9.1.1: `-x --maxfail=0` and `addopts = -x` + `--maxfail=0` both ran every test).
+        # RED needs every test run: a report cut at the first failure hides a green test.
+        cmd = [*runner, "--tb=no", "--maxfail=0", f"--junitxml={report}", *paths]
         try:
             completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
         except OSError as exc:
@@ -216,7 +222,8 @@ def main(argv: list[str] | None = None) -> None:
             # selection re-derived here would be a second interpreter of the node id, and
             # `--rootdir`, `./` or an absolute path spell the classname another way. The
             # one thing checked is the count: fewer tests than node ids means the runner
-            # did not answer all of them (a fail-fast flag in `--test`), so no verdict.
+            # did not answer all of them (it stopped early despite `--maxfail=0`), so no
+            # verdict.
             ok, msg = evaluate_report(
                 report.read_text(encoding="utf-8"), full=args.full, at_least=len(paths)
             )

@@ -62,6 +62,19 @@ string) stopped at the first failure, and judging that report whole would call R
 tests that never ran. The guard is a count, not a selection: it reads no classname.
 Test: `test_partial_report_is_no_verdict`.
 
+*Amended at round 7 (owner's decision).* The count guard does not see a fail-fast run
+behind one broad node id (a file, a class: one node id, several tests). Rather than
+interpreting the runner string or asking the runner for its collection, the script cancels
+fail-fast itself: `--maxfail=0` is appended beside `--tb=no` and `--junitxml`. Observed on
+pytest 9.1.1 (`_pytest/main.py`): `-x` is `store_const` into `maxfail`, `--maxfail` a
+`store` into the same dest with default `0` (no limit), so the last one wins; `pytest -x
+--maxfail=0` on a failing test followed by a green one printed `1 failed, 1 passed`, and so
+did `addopts = -x` with `--maxfail=0` on the command line (`addopts` precede the command
+line). The flag is of the same class as the two the script already appends: a
+pytest-compatible CLI is assumed either way. The count guard stays as the insurance for a
+runner that ignores the flag. Test: `test_behavioural_change` asserts `--maxfail=0` in the
+runner's argv.
+
 ### D2 The `tasks` rule names the call
 
 Group 1 of the `tasks` rule becomes: `python .agent-process/scripts/check_red.py --test
