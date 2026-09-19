@@ -85,7 +85,10 @@ This is the per-change flow. It applies only after the one-time repository
    of `openspec/config.yaml`: the linked branch on the tracking issue the
    propose run left in `Planned` (`gh issue develop -c <N> --name <change>`),
    Status `In Progress`, RED
-   first (`check_red.py`), implementation, `ci_check.py`, the archive
+   first (`check_red.py <node ids>` runs `python -m pytest` of its own interpreter under
+   its own configuration with a report path of its own and reads that report — no
+   runner argument, no declaration in `AGENTS.md`),
+   implementation, `ci_check.py`, the archive
    (`archive_change.py <change>`, before the PR so the reviewed head is the
    archived one), the PR (`gh pr create --body-file <report>`), and the review
    loop (`request_codex_review.py --request <PR>` after every push,

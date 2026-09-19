@@ -1,12 +1,28 @@
 #!/usr/bin/env python3
 """Confirm that a set of pytest paths are all failing (RED step).
 
-Usage: python .agent-process/scripts/check_red.py [--report <junit.xml>] <path-or-nodeid> ...
+Usage: python .agent-process/scripts/check_red.py <node-id> ...
 
-Without `--report` the script spawns pytest on the given paths (v1). With `--report` it
-spawns nothing and reads an existing junit report — the one the project's declared test
-runner writes (`AGENTS.md` names the command and the report path) — keeping only the
-testcases the given node ids select, so a whole-suite report answers for the new tests.
+The script runs the test runner itself: `python -m pytest` of its own interpreter, under
+its own configuration — `--tb=no --maxfail=0 -p no:stepwise -o cache_dir=<its own
+temporary directory> --junitxml=<its own temporary file>` — with the node ids appended,
+then judges every testcase of the report that run wrote: the report is the runner's
+answer to the node ids, and the script re-derives no selection of its own. The project
+declares no runner and no report path for it, and the script takes no runner argument (an
+input without a consumer; a consumer with another runner is designed with that consumer,
+issue 112).
+
+**The boundary.** The gate guarantees that every node id it was given ran to a verdict,
+or that it exits 2. The signal that the run reached the end is pytest's exit code: 0, 1
+and 5 are complete runs; 2 (interrupted — `pytest.exit()` from a hook, Ctrl-C), 3
+(internal error) and 4 (usage error) are not, and the report they leave, partial or
+absent, is never judged. What stops or shortens a run without changing the exit code is
+cancelled by the configuration: `--maxfail=0` cancels a fail-fast `-x`/`--maxfail`
+wherever it came from (rc 1 either way); an empty `cache_dir` of the script's own leaves
+`--lf`, `--ff`, `--nf` nothing to replay, and the `cache` fixture stays available;
+`-p no:stepwise` makes `--stepwise`/`--sw-skip` a usage error. An explicit selection in
+the project's `addopts` (`-k`, `-m`, `--deselect`) is the project's configuration: the
+gate judges the run under it, as the project runs its tests.
 
 Exits 0 only when the given tests are RED: no test is green AND at least one
 failed. Used by the implementer adapter to gate the RED→GREEN transition: if the
@@ -41,6 +57,11 @@ from pathlib import Path
 # `skipped` is included: a skipped test checked nothing, so treating it as green
 # would block the RED step on nonexistent coverage.
 _NOT_GREEN = frozenset({"failure", "error", "skipped"})
+
+# pytest exit codes of a run that reached the end: 0 all passed, 1 tests failed, 5 no
+# tests collected. 2 (interrupted), 3 (internal error) and 4 (usage error) leave a
+# partial or absent report — no verdict.
+_COMPLETE_RUN = frozenset({0, 1, 5})
 
 # ~12 names at the measured ~80 characters per node id: enough that the usual case
 # (a handful of accidentally green new tests) is never sampled at all, while a whole-suite
@@ -136,44 +157,6 @@ def evaluate_report(xml_text: str, *, full: bool = False) -> tuple[bool, str]:
     return False, f"not RED: 0 green, but nothing failed either ({skipped} skipped of {total})"
 
 
-def _selects(node_id: str, classname: str, name: str) -> bool:
-    """Does a pytest node id (or a bare path) select the junit testcase `classname::name`?
-
-    junit `classname` is the dotted module path plus any test class; a parametrized
-    `name` carries its `[params]` suffix, which a node id without brackets still selects.
-    A node id whose last segment is a test class selects every test of that class and of
-    the classes nested in it. A `[params]` suffix belongs to the last segment whatever it
-    contains (`test_p[a::b]` is one test), so `::` is a delimiter only before it.
-    """
-    path, _, rest = node_id.replace("\\", "/").partition("::")
-    module = path.removesuffix(".py").strip("/").replace("/", ".")
-    if not rest:
-        return classname == module or classname.startswith(module + ".")
-    segments, bracket, params = rest.partition("[")
-    *classes, last = segments.split("::")
-    if not bracket:
-        scope = ".".join([module, *classes, last])
-        if classname == scope or classname.startswith(scope + "."):
-            return True
-    if classname != ".".join([module, *classes]):
-        return False
-    if bracket:
-        return name == last + bracket + params
-    return name == last or name.startswith(last + "[")
-
-
-def _select_cases(xml_text: str, node_ids: list[str]) -> str:
-    """The report reduced to the testcases the node ids select (same junit shape)."""
-    root = ET.fromstring(xml_text)
-    for suite in list(root.iter("testsuite")):
-        for case in list(suite):
-            if case.tag == "testcase" and not any(
-                _selects(n, case.get("classname", ""), case.get("name", "")) for n in node_ids
-            ):
-                suite.remove(case)
-    return ET.tostring(root, encoding="unicode")
-
-
 def main(argv: list[str] | None = None) -> None:
     # argparse rather than hand-parsed `sys.argv`: `--full` must not reach pytest as a
     # path, and a missing path must stay exit 2 ("usage error"), which `parser.error`
@@ -187,45 +170,64 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="print every test name and the whole pytest output instead of a capped digest",
     )
-    parser.add_argument(
-        "--report",
-        metavar="junit.xml",
-        help="evaluate this existing junit report for the given node ids instead of running pytest",
-    )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     paths = args.paths
-    if args.report:
-        try:
-            xml_text = Path(args.report).read_text(encoding="utf-8")
-            ok, msg = evaluate_report(_select_cases(xml_text, paths), full=args.full)
-        except (OSError, ValueError, ET.ParseError) as exc:
-            print(
-                f"check_red: cannot evaluate the junit report {args.report}: {exc}", file=sys.stderr
-            )
-            sys.exit(2)
-        print(msg)
-        if not ok:
-            sys.exit(1)
-        return
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "red.xml"
         # No `-q` here: the verbosity of this run has one home, `addopts` in
         # pyproject.toml. `-q` is `action="count"`, so a second one would silently push this
         # subprocess to verbosity −2.
-        cmd = [sys.executable, "-m", "pytest", "--tb=no", f"--junitxml={report}", *paths]
+        # The run is this script's configuration, not the project's (the boundary in the
+        # module docstring). `--maxfail=0`: `-x` is `store_const` into `maxfail` and
+        # `--maxfail` a `store` into the same dest, so the last one wins, and the command
+        # line comes after `addopts` (pytest 9.1.1: `-x --maxfail=0` and `addopts = -x`
+        # + `--maxfail=0` both ran every test). `-o cache_dir=<tmp>`: `--lf`/`--ff`/`--nf`
+        # replay the cache of a previous run, and this one is empty (`-o` overrides
+        # `cache_dir` in the ini as well); the plugin itself stays, so a test using the
+        # `cache` fixture still runs. `-p no:stepwise`: `--stepwise` becomes "unrecognized
+        # arguments" (rc 4, no report → exit 2 below). RED needs every node id run: a
+        # report cut at the first failure hides a green test.
+        cmd = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--tb=no",
+            "--maxfail=0",
+            "-p",
+            "no:stepwise",
+            "-o",
+            f"cache_dir={Path(tmp) / 'cache'}",
+            f"--junitxml={report}",
+            *paths,
+        ]
         completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
         if completed.stdout is None or completed.stderr is None:
             # Capture failed. Code 2 means “gate broken,” not 1: replacing it
             # with an empty string would parse a report with no pytest output and print
             # empty diagnostics on failure.
             print(
-                f"check_red: capture failed for pytest (rc={completed.returncode}): "
+                f"check_red: capture failed for the runner (rc={completed.returncode}): "
                 f"stdout={completed.stdout!r} stderr={completed.stderr!r}",
                 file=sys.stderr,
             )
             sys.exit(2)
         stdout = completed.stdout + completed.stderr
+        if completed.returncode not in _COMPLETE_RUN:
+            # The run did not reach the end (interrupted, internal error, usage error):
+            # the report it left, partial or absent, would call RED the tests that never
+            # ran. No verdict (the boundary in the module docstring).
+            print(
+                f"check_red: pytest did not complete the run (rc={completed.returncode}); "
+                "the report is not judged",
+                file=sys.stderr,
+            )
+            print("--- pytest output ---", file=sys.stderr)
+            print(_tail(stdout, _TAIL_UNEVALUATED, full=args.full), file=sys.stderr)
+            sys.exit(2)
         try:
+            # The whole report: it is the runner's answer to the node ids it received. A
+            # selection re-derived here would be a second interpreter of the node id, and
+            # `--rootdir`, `./` or an absolute path spell the classname another way.
             ok, msg = evaluate_report(report.read_text(encoding="utf-8"), full=args.full)
         except (OSError, ValueError) as exc:
             # The gate could not compute. This is NOT RED: silently calling it “red”

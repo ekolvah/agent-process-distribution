@@ -61,10 +61,10 @@ rules:
       `gh issue comment <N> --body "planner: <carrier of the propose run>; implementer:
       <this carrier>"` (Claude or Codex; ask when the planner is unknown).
     - >-
-      Group 1 — RED first: write the tests of the scenario → test map, run the test
-      runner AGENTS.md declares (it writes the JUnit report there), verify
-      `python .agent-process/scripts/check_red.py --report <report path> <node ids>` exits 0,
-      commit before any implementation. When the map names no test (docs-only, `skip_specs`,
+      Group 1 — RED first: write the tests of the scenario → test map, verify
+      `python .agent-process/scripts/check_red.py <node ids>` exits 0 (the script runs
+      `python -m pytest` of its own interpreter under its own configuration, with a report
+      path of its own and the node ids), commit before any implementation. When the map names no test (docs-only, `skip_specs`,
       a rename), the group is one task that records `no RED: <reason>`.
     - >-
       Implementation groups: one task per scenario, design decision or review finding,
