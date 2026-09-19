@@ -127,7 +127,7 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 | --- | --- | --- |
 | `check_red` | `pytest --junitxml` | The script runs the runner and reads the report it wrote; what remains is the per-test RED verdict, which no runner prints |
 | `set_status` | `gh project item-edit`; Project built-in workflows | `item-edit` needs field and option IDs, not names; built-in workflows set Todo/Done only, never Planned/In Progress |
-| `wait_for_pr` | `gh pr checks --watch` | Watches checks only; review threads and the review apps are GraphQL-only |
+| `wait_for_pr` | `gh pr checks --watch`; `gh pr checks --json` | `--watch` exits 1 on the empty rollup after a push as on a failure, refuses `--json` and leaves on `Pending == 0`, so a loop of our own remains — that loop reads `--json` (the buckets and the latest run per name are gh's) every 30 s until two reads agree on one head; review threads are GraphQL-only (v2-2e) |
 | `finish_change` | `openspec archive` + `git push` + `gh pr checks --watch` | The sequence must be the last task in both agents identically; OpenSpec has no post-archive hook |
 | `check_coverage` | `openspec validate`; a required check | `validate` knows scenarios, not test results; the check needs the scenario → test mapping |
 | `init` | `openspec init --tools claude,codex`; `/plugin`; `gh api` rulesets; `gh secret set` | Each step is native; the script is the one-command composition a ≤ 10-minute install needs |
@@ -140,7 +140,7 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 * Codex ships hooks and subagents as stable → the Codex-specific self-review artifact and
   the `wait_for_pr`-only guard are removed; hooks are restored from v1 (`codex_hooks`).
 * GitHub Projects gain a native Planned/In Progress trigger → `set_status` is deleted.
-* `gh pr checks --watch` learns review threads → `wait_for_pr` is deleted.
+* `gh pr checks --watch` learns the empty rollup and review threads → `wait_for_pr` is deleted.
 * `openspec validate` learns test results → `check_coverage` is deleted.
 * Telemetry shows v2 no better than v1 on the same task types after the minimum comparable
   sample (`v2-6`) → the decision is revisited in a new record, not patched here.
@@ -550,7 +550,40 @@ questions of #114 in its order:
   runner and report-path paragraph of `AGENTS.md`, the `.pytest-report.xml` entry of
   `.gitignore` — two conventions that existed only to feed the script. Step 2d of issue
   107 was split at the solution review into `v2-2d-check-red-test`,
-  `v2-2e-wait-for-pr-checks` (`wait_for_pr` on `gh pr checks --watch`) and
+  `v2-2e-wait-for-pr-checks` (`wait_for_pr` on `gh pr checks`) and
   `v2-2f-start-change` (Group 0 and the propose tail as scripts): one PR that carried two
   rewritten and two new scripts is the size that cost the review budget on issue 121.
   Deletion condition: the script goes when a runner prints a per-test RED verdict.
+* `wait_for_pr` on `gh pr checks --json` (issue 143, `v2-2e-wait-for-pr-checks`).
+  Observed 2026-09-19 (gh 2.87.3, sources at tag `v2.87.3`): `pkg/cmd/pr/checks/checks.go`
+  reports the empty rollup as the error `no checks reported on the '<branch>' branch` (line
+  303, returned before the export at 184–186); `--json` writes the export and returns before
+  the `Failed`/`Pending` exits (189–191 precede 248–252), so a `--json` read exits 0 on failed
+  or pending checks and non-zero only on an error; `--json` with `--watch` is refused (line
+  81); the watch leaves on `Pending == 0` (218) and exits 1 on the empty rollup inside its
+  loop (228–237) as on a failure (248–249). `api/query_builder.go` reads `commits(last: 1)`:
+  every read is of the current head. `pkg/cmd/pr/checks/aggregate.go` sorts each context
+  into `pass`, `skipping`, `fail`, `cancel` or `pending` (STALE included; lines 72–88) and
+  keeps the latest run per name (`eliminateDuplicates`, 96–120). `gh pr checks 145 --json
+  name,bucket,link,state` exited 0 with two `pass` entries carrying `name`, `bucket`, `link`
+  and `state`. `gh pr view 137 --json statusCheckRollup` listed one `agent-review /
+  agent-review` entry after the `gh run rerun` of that head: a rerun replaces its entry, so
+  a queued rerun is a `pending` bucket, not a duplicate behind a concluded one. `--watch`
+  is ruled out (design.md D1 of the change): the loop that must exist for the empty rollup
+  does the watching at the same cadence, with one `gh` call per round, one exit-code
+  meaning and a timeout line that names the pending checks. Deleted: the `gh pr view --json
+  statusCheckRollup` poll and the script's own sorting of the rollup (`_concluded`,
+  `_failed`, `_GREEN`, `StatusContext` vs `CheckRun` — a copy of gh's buckets). Kept,
+  after the review of PR 147: the two-read settling (round 2, P1) — a concluded set is
+  trusted once two reads 30 s apart agree on its names, because the runs of one push
+  attach one at a time and a clean verdict ends the delivery loop, so no later read would
+  see a late optional check (the first draft had dropped it, arguing the next
+  `wait_for_pr` sees it); the head comparison (round 3, P1) — the agreement is on one
+  head, read with `gh pr view --json headRefOid` before the checks (`gh pr checks --json`
+  carries no head), and the threads query returns the head it read on: two heads each
+  read with only its fast check attached would agree on the names, and a push after the
+  last read would pair one head's checks with another's threads. Round 1 (P2): the
+  timeout is elapsed time, the last sleep the remainder — the first draft returned when
+  another whole interval did not fit. Not proved: a gap longer than 30 s between the runs
+  of one push. A `gh` failure is exit 2 with its stderr, never a verdict on the PR.
+  Deletion condition: the row above.
