@@ -59,13 +59,18 @@ or fail closed, never pass silently.
 The implementer SHALL write the failing test named in `tasks.md` and prove it red with
 `check_red` before writing code; this is a `config.yaml` rule on `tasks`.
 Documentation-only, rename and one-line non-behavioural changes are exempt (`principles.md`
-§I). The project's test-runner command SHALL be declared in `AGENTS.md` together with the path
-of the JUnit XML report it writes; `check_red` reads that report and requires nothing else
-of the runner.
+§I). `check_red` SHALL run the test runner itself — the command given as its `--test`
+input, `python -m pytest` when none is given — with a JUnit XML report path of its own
+choosing and the node ids appended, and SHALL take the verdict per test from that report;
+it SHALL require no runner declaration and no report path of the project.
 
 #### Scenario: Behavioural change
 - **WHEN** the implementer starts a behavioural task
 - **THEN** the first commit contains a test that `check_red` reports as failing
+
+#### Scenario: Runner given
+- **WHEN** `check_red` is called with `--test "<runner command>"` and node ids
+- **THEN** it runs that command with the report path and the node ids appended and judges RED from the report the run wrote, without any declared report path
 
 ### Requirement: GitHub links branch, PR and issue
 The delivery tasks SHALL create the linked branch with `gh issue develop -c N` on the
