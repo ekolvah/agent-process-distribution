@@ -389,8 +389,17 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     code, out, _, _ = _wait(capsys, [_checks(green, done)])
     assert code == 0 and "clean:" in out and _PR_URL in out
 
-    code, out, _, _ = _wait(capsys, [_checks(green, running)], timeout=120)
+    code, out, _, sleeps = _wait(capsys, [_checks(green, running)], timeout=120)
     assert code == 3 and "timeout" in out.lower() and "agent-review" in out
+    assert sleeps == [30, 30, 30, 30]
+
+    # The timeout is the time that elapsed, not the number of whole poll intervals that fit
+    # (PR 147, round 1): a timeout that is not a multiple of the interval is waited through,
+    # the last sleep is the remainder, and the last read is at the deadline.
+    code, out, gh, sleeps = _wait(capsys, [_checks(green, running)], timeout=31)
+    assert code == 3 and sleeps == [30, 1] and gh.polls == 3
+    code, out, gh, sleeps = _wait(capsys, [_checks(green, running)], timeout=10)
+    assert code == 3 and sleeps == [10] and gh.polls == 2
 
     with pytest.raises(RuntimeError, match="401"):
         wait_for_pr.wait_for_pr(
