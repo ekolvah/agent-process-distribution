@@ -34,4 +34,4 @@
 ## Scenario → test map
 
 - implementation / Behavioural change → `tests/publisher/test_delivery_scripts.py::test_behavioural_change` (task 1.1: the fake runner receives `--junitxml=` and the node id, RED → 0, GREEN → 1)
-- implementation / Runner given → the same test (task 1.1: `--test "<python> runner.py"` is the command run; `--report` is refused) and `test_class_scoped_node_id`, `test_parametrized_node_id` through `--test`; the rule text → `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` (`check_red.py --test`, no `AGENTS.md`)
+- implementation / Runner given → the same test (task 1.1: `--test "<python> runner.py"` is the command run; `--report` is refused; an absent runner or an unmatched quote → 2) and `test_runner_owns_the_selection` (the report is judged whole: a classname the node id path does not spell is still a verdict — review of PR 145, design.md D1 amendment; `test_class_scoped_node_id` and `test_parametrized_node_id` went with the selection); the rule text → `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` (`check_red.py --test`, no `AGENTS.md`)
