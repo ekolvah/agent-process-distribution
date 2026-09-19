@@ -160,6 +160,23 @@ def test_runner_owns_the_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     check_red.main(["--test", runner, "./tests/test_x.py::test_a"])
 
 
+def test_partial_report_is_no_verdict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A report that accounts for fewer tests than node ids were given is no verdict: a
+    fail-fast runner (`-x` in the runner string) stops at the first failure, and the
+    whole-report evaluation would call RED the tests that never ran (PR 145). Exit 2 — the
+    gate could not compute — never 0."""
+    check_red = _script("check_red")
+    runner = _fake_runner(
+        tmp_path,
+        monkeypatch,
+        '<testsuites><testsuite><testcase classname="tests.test_x" name="test_a">'
+        '<failure message="boom"/></testcase></testsuite></testsuites>',
+    )
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["--test", runner, "tests/test_x.py::test_a", "tests/test_x.py::test_b"])
+    assert exc.value.code == 2
+
+
 def test_tracking_issue_created() -> None:
     """Scenario: Tracking issue created — names resolve to ids, item-edit carries them."""
     set_status = _script("set_status")
