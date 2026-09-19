@@ -526,14 +526,21 @@ questions of #114 in its order:
   `python -m pytest --help` (pytest 9.1.1) prints `--junit-xml=path      Create junit-xml
   style report file at given path`, so the report goes wherever the caller says and no
   project-side path is needed. `check_red <node ids>` runs `python -m pytest` of its own
-  interpreter with `--tb=no --maxfail=0 -p no:cacheprovider --junitxml=<its own temporary
-  file>` and evaluates that report per test, whole: the report is the runner's answer to
-  the node ids. The boundary of the gate: every node id ran to a verdict or the gate
-  exits 2 — `--maxfail=0` cancels `-x`/`--maxfail` wherever they come from (pytest's
-  last `maxfail` wins, observed over `addopts = -x` too), `-p no:cacheprovider` makes
-  `--stepwise`/`--lf`/`--ff` a usage error (rc 4, no report; observed with `addopts =
-  --sw` too); an explicit selection in `addopts` (`-k`, `-m`, `--deselect`) is the
-  project's configuration and the run is judged under it. Deleted over the review: the
+  interpreter with `--tb=no --maxfail=0 -p no:stepwise -o cache_dir=<its own temporary
+  directory> --junitxml=<its own temporary file>` and evaluates that report per test,
+  whole: the report is the runner's answer to the node ids. The boundary of the gate:
+  every node id ran to a verdict or the gate exits 2. The signal that the run reached
+  the end is pytest's exit code — 0, 1, 5 complete; 2 (interrupted: `pytest.exit()`,
+  `--stepwise`, Ctrl-C), 3, 4 leave a partial or absent report that is not judged
+  (round 9). What shortens a run without changing the exit code is cancelled by the
+  configuration: `--maxfail=0` cancels `-x`/`--maxfail` wherever they come from
+  (pytest's last `maxfail` wins, observed over `addopts = -x` too); an empty `cache_dir`
+  of the script's own leaves `--lf`/`--ff`/`--nf` nothing to replay (`-o` wins over the
+  ini) and keeps the `cache` fixture, which `-p no:cacheprovider` of round 8 had taken
+  away; `-p no:stepwise` makes `--stepwise` a usage error; an explicit selection in
+  `addopts` (`-k`, `-m`, `--deselect`) is the project's configuration and the run is
+  judged under it. Nine rounds because each fix closed the reviewer's example, not the
+  class (issue 146 carries the rule). Deleted over the review: the
   script's own selection by node id (`_select_cases`, a second interpreter of the node
   id: `./`, an absolute path or `--rootdir` spelled the classname another way), the
   `--test "<runner command>"` input (for a consumer that does not exist, issue 112; its

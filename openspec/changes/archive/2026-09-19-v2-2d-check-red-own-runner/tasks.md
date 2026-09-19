@@ -25,5 +25,5 @@
 ## Scenario → test map
 
 - implementation / Behavioural change → `tests/publisher/test_delivery_scripts.py::test_behavioural_change` (RED → return, GREEN → exit 1)
-- implementation / Runner given → the same `test_behavioural_change` (the command is `python -m pytest` of `sys.executable` with `--tb=no`, `--maxfail=0`, `-p no:cacheprovider`, one `--junitxml=`, the node id last; `--test` → 2) and `test_runner_owns_the_selection` (the report is judged whole)
-- implementation / Configuration that cuts the run → the same `test_behavioural_change` (the two flags in the command); the pytest behaviour behind them is the observation in design.md D1; the rule text → `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change`
+- implementation / Runner given → the same `test_behavioural_change` (the command is `python -m pytest` of `sys.executable` with `--tb=no`, `--maxfail=0`, `-p no:stepwise`, `-o cache_dir=` beside one `--junitxml=`, the node id last; `--test` → 2) and `test_runner_owns_the_selection` (the report is judged whole)
+- implementation / Configuration that cuts the run → the same `test_behavioural_change` (the flags in the command) and `test_interrupted_run_is_no_verdict` (rc 2, 3, 4 → exit 2 whatever the report says; rc 5 → the report is judged; review round 9); the pytest behaviour behind them is the observation in design.md D1; the rule text → `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change`

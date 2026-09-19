@@ -77,7 +77,9 @@ runner's argv.
 
 *Superseded at round 8 (owner's decision) by the change `v2-2d-check-red-own-runner` on
 the same branch:* `--test` and the count guard go, the runner is the script's own and the
-run carries `-p no:cacheprovider` as well; the boundary of the gate is recorded there.
+run carries the script's own cache and stepwise settings; the boundary of the gate — and
+its round-9 amendment (pytest's exit code as the signal of a complete run) — is recorded
+there.
 
 ### D2 The `tasks` rule names the call
 

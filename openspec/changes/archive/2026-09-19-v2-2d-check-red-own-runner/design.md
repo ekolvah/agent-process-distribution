@@ -61,6 +61,28 @@ a second interpreter, and `addopts` is not on the string. Keeping `--test` with 
 flags: cheaper now, but the input without a consumer keeps its failure-mode family (three
 of the eight rounds) and would be redesigned anyway when a consumer appears.
 
+*Amended at round 9 of the review of PR 145 (owner's decision), closed by its class.*
+Two findings followed from the paragraphs above: `-p no:cacheprovider` disables the whole
+plugin, so a test that uses the `cache` fixture errors at setup (P1); and an interrupted
+run — `pytest.exit()` from a hook — returns 2 with a partial report that the gate judged
+RED (P1). Both are instances of one invariant that the boundary states and the
+implementation did not derive from: the signal that the run reached the end is pytest's
+own exit code. The script now accepts the report only when `returncode` is 0, 1 or 5
+(`_COMPLETE_RUN`); 2 (interrupted), 3 (internal error) and 4 (usage error) exit 2 with the
+tail. The configuration cancels what shortens a run without changing the exit code:
+`--maxfail=0` stays; `-p no:cacheprovider` is replaced by `-o cache_dir=<tmp>/cache` — an
+empty cache of the script's own leaves `--lf`/`--ff`/`--nf` nothing to replay (also over
+`addopts = --lf` and `cache_dir` in the ini, `-o` wins), and the `cache` fixture stays;
+`-p no:stepwise` keeps `--stepwise` a usage error, as the spec says ("stepping disabled").
+Observed on pytest 9.1.1 (same fixture): `--sw` → rc 2 (`Session.Interrupted` is a
+`KeyboardInterrupt`), `-x` → rc 1, `-k` → rc 1; `--lf`/`--ff` with `-o cache_dir=<empty>`
+→ `1 failed, 1 passed`; the `cache` fixture under `-o cache_dir` → the test runs;
+`pytest.exit()` from `pytest_runtest_logreport` → rc 2, one testcase of two in the
+report. Tests: `test_interrupted_run_is_no_verdict` (rc 2, 3, 4 → exit 2; rc 5 → the
+empty report is judged), `test_behavioural_change` asserts `-p no:stepwise`, `-o
+cache_dir=` beside the report path, and no `no:cacheprovider`. Why nine rounds: each fix
+closed the reviewer's example, not the class; issue 146 carries the rule.
+
 *The scenario name "Runner given" stays.* OpenSpec 1.13.0 refuses a MODIFIED block that
 drops a scenario the current spec has (`validate --strict`: `MODIFIED "RED first for
 behavioural changes" omits scenario(s) the current spec still has: "Runner given". Copy
@@ -83,8 +105,9 @@ one `--junitxml=`, the node id last; `--test` is refused (argparse, exit 2).
 
 - [A project whose runner is not `python -m pytest` cannot use the gate] → true today as
   well (the default was the only exercised path); the input returns with its consumer.
-- [`-p no:cacheprovider` disables the cache for the gate's run only] → the gate never
-  reads or writes `.pytest_cache`; the project's own runs are untouched.
+- [The gate's run writes a cache of its own] → `-o cache_dir=<tmp>/cache` lives in the
+  script's temporary directory and goes with it; the project's `.pytest_cache` and its
+  own runs are untouched.
 
 ## Migration Plan
 
