@@ -609,5 +609,14 @@ questions of #114 in its order:
   "Planned" --priority` (a failure after the create leaves the number, so a re-run lands on
   the existing-issue branch), or `Planned` alone when the number is there. Deleted: the
   five copies of Group 0's shell steps, `grep -q "^approve"`, `gh issue view --json
-  projectItems` and `sed -i` over `tasks.md` in the rule. Deletion condition: the rows
+  projectItems` and `sed -i` over `tasks.md` in the rule. Review of PR 148 (Codex, round
+  1): the Status read is the linked Project's item, matched by `title` (`projectItems`
+  carries one entry per Project; `gh issue view 144 --json projectItems` printed
+  `"title":"agent-process-distribution agent process"`, the board's title) — the first
+  entry was whichever board came first (P1); a failure after `gh issue develop` names the
+  steps left (`set_status`, the comment) instead of a second `start_change` — observed
+  that the branch link moves to the PR once it opens (`linkedBranches` of issue 144 empty,
+  `closingIssuesReferences` of PR 148 → 144), so a re-run cannot tell a resume from a
+  finished change (P1); the first `tracking issue (<N>|\d+)` token of `tasks.md` decides,
+  not a whole-file membership test of the placeholder (P2). Deletion condition: the rows
   above.
