@@ -378,7 +378,7 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     )
 
     code, out, gh, _ = _wait(capsys, [_checks(green, running), _checks(green, red)])
-    assert code == 1 and "failed: agent-review" in out and gh.polls == 2
+    assert code == 1 and "failed: agent-review" in out and gh.polls == 3
 
     code, out, _, _ = _wait(capsys, [_checks(green, cancelled)])
     assert code == 1 and "failed: agent-review" in out
@@ -386,8 +386,16 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     code, out, _, _ = _wait(capsys, [_checks(green, done)], _threads("docs/a.md"))
     assert code == 1 and "docs/a.md" in out
 
-    code, out, _, _ = _wait(capsys, [_checks(green, done)])
+    code, out, gh, sleeps = _wait(capsys, [_checks(green, done)])
     assert code == 0 and "clean:" in out and _PR_URL in out
+    # A concluded set is trusted once two reads 30 s apart agree on it: a workflow that
+    # attaches late is never hidden behind a fast one that already passed, because a clean
+    # verdict ends the delivery loop and no later read would see it (PR 147, round 2).
+    assert gh.polls == 2 and sleeps == [30]
+    code, out, gh, _ = _wait(
+        capsys, [_checks(green), _checks(green, running), _checks(green, done)]
+    )
+    assert code == 0 and gh.polls == 4
 
     code, out, _, sleeps = _wait(capsys, [_checks(green, running)], timeout=120)
     assert code == 3 and "timeout" in out.lower() and "agent-review" in out
@@ -416,7 +424,7 @@ def test_empty_rollup_after_push(capsys: pytest.CaptureFixture[str]) -> None:
     green, done = ("quality", "pass"), ("agent-review", "pass")
 
     code, out, gh, sleeps = _wait(capsys, [_EMPTY, _checks(green, done)])
-    assert code == 0 and sleeps == [30] and gh.polls == 2
+    assert code == 0 and sleeps == [30, 30] and gh.polls == 3
 
     code, out, _, _ = _wait(capsys, [_EMPTY], timeout=120)
     assert code == 3 and "no checks" in out.lower()
