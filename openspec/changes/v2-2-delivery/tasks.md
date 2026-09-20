@@ -54,8 +54,8 @@
 
 ## 7. Transition the live protection with the person
 
-- [ ] 7.1 Stop for explicit person confirmation of the live transition. Then install the issue-112 ruleset and read back that it is active, targets the default branch, has no bypass actor, and requires strict `quality / quality` from integration `15368`.
-- [ ] 7.2 Remove only `agent-review / agent-review` from classic protection. Read back that classic strict `quality / quality`, the repository's other classic protections, and the active ruleset all remain; restore the old review context before reverting the caller if rollback is needed.
+- [x] 7.1 Stop for explicit person confirmation of the live transition. Then install the issue-112 ruleset and read back that it is active, targets the default branch, has no bypass actor, and requires strict `quality / quality` from integration `15368`.
+- [x] 7.2 Remove only `agent-review / agent-review` from classic protection. Read back that classic strict `quality / quality`, the repository's other classic protections, and the active ruleset all remain; restore the old review context before reverting the caller if rollback is needed.
 
 ## 8. Archive, publish, and inspect the final head
 
