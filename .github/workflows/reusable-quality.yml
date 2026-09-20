@@ -30,7 +30,7 @@ jobs:
         run: |
           linked="$(gh pr view "$PR" --json closingIssuesReferences --jq '.closingIssuesReferences | length')"
           if test "$linked" = "0"; then
-            echo "::error::PR $PR links no issue. Link it from the gh issue develop branch or the PR sidebar."
+            echo "::error::PR $PR links no issue. Link it from the gh issue develop branch or the PR sidebar, then run: gh run rerun $GITHUB_RUN_ID"
             exit 1
           fi
           echo "ok: PR $PR links $linked issue(s)"

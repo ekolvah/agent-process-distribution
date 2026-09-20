@@ -166,7 +166,7 @@ def test_a_mutation_reporting_an_unresolved_thread_fails_loudly() -> None:
 
 
 # Scenario: Blocking thread addressed — the step after the wait is one command:
-# the head's `agent-review` run concluded (the review of the head is in, Codex's or
+# the head's `agent-process` run concluded (the review of the head is in, Codex's or
 # the fallback's), resolve, re-run that run (a resolve has no event of its own,
 # and the required context is the head's `pull_request` run), reply. The order
 # lives in code, not in a sentence copied to five places.
@@ -233,7 +233,7 @@ def test_close_round_refuses_without_a_head_run() -> None:
     payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
     calls: list[str] = []
 
-    with pytest.raises(RuntimeError, match="no `agent-review` run"):
+    with pytest.raises(RuntimeError, match="no `agent-process` run"):
         close_round(payload, "thread-1", "fixed", **_round(status=None, calls=calls))
 
     assert calls == [f"head-run {_HEAD[:7]}"]
@@ -318,3 +318,19 @@ def test_close_round_refuses_an_empty_reply() -> None:
         close_round(payload, "thread-1", "  \n", **_round(status="completed", calls=calls))
 
     assert calls == []
+
+
+def test_head_run_targets_the_current_agent_process_workflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def run_gh(cmd: list[str]) -> str:
+        calls.append(cmd)
+        return '[{"databaseId": 42, "status": "completed"}]'
+
+    monkeypatch.setattr(_module, "run_gh", run_gh)
+
+    assert _module._gh_head_run(_HEAD) == (42, "completed")
+    assert "agent-process.yml" in calls[0]
+    assert "agent-review.yml" not in calls[0]

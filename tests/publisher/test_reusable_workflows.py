@@ -54,6 +54,7 @@ def test_quality_verifies_issue_link_and_strict_openspec() -> None:
     names = list(steps)
     assert names[0] == "Verify the PR links its issue"
     assert "--json closingIssuesReferences" in steps[names[0]]["run"]
+    assert "gh run rerun $GITHUB_RUN_ID" in steps[names[0]]["run"]
     validate = steps["Validate OpenSpec"]
     assert "@fission-ai/openspec@1.13.0" in validate["run"]
     assert "validate --strict --all" in validate["run"]

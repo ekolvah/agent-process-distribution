@@ -40,6 +40,7 @@ class FakeRunner:
         self.projects = list(projects or [])
         self.calls: list[tuple[list[str], str | None]] = []
         self.dirty = False
+        self.origin = "https://github.com/ekolvah/agent-process-distribution.git"
 
     def __call__(
         self, cmd: list[str], *, cwd: Path | None = None, input: str | None = None
@@ -54,6 +55,8 @@ class FakeRunner:
             )
         elif cmd[:3] == ["git", "status", "--porcelain"]:
             out = " M dirty\n" if self.dirty else ""
+        elif cmd[:4] == ["git", "remote", "get-url", "origin"]:
+            out = f"{self.origin}\n"
         elif cmd[:3] == ["gh", "repo", "view"] and "nameWithOwner,defaultBranchRef" in cmd:
             out = json.dumps({"nameWithOwner": "owner/repo", "defaultBranchRef": {"name": "main"}})
         elif cmd[:3] == ["gh", "repo", "view"] and "owner,name,projectsV2" in cmd:
@@ -252,7 +255,7 @@ def test_codex_checkout_refuses_dirty_or_foreign_link(tmp_path: Path) -> None:
         module.update_codex_skill(home, "2.0.0", fake, "linux")
     fake.dirty = False
     link = home / ".agents" / "skills" / "agent-process"
-    link.rmdir()
+    link.unlink() if link.is_symlink() else link.rmdir()
     foreign = home / "foreign"
     foreign.mkdir()
     completed = subprocess.run(
@@ -264,6 +267,19 @@ def test_codex_checkout_refuses_dirty_or_foreign_link(tmp_path: Path) -> None:
     assert completed.returncode == 0, completed.stderr
     with pytest.raises(module.InstallConflict, match="foreign"):
         module.update_codex_skill(home, "2.0.0", fake, "linux")
+
+
+def test_codex_checkout_refuses_foreign_origin_before_update(tmp_path: Path) -> None:
+    module, fake, _, home = _install(tmp_path)
+    fake.calls.clear()
+    fake.origin = "https://github.com/other/process.git"
+
+    with pytest.raises(module.InstallConflict, match="foreign.*origin"):
+        module.update_codex_skill(home, "2.0.0", fake, "linux")
+
+    commands = [cmd for cmd, _ in fake.calls]
+    assert not any(cmd[:2] == ["git", "fetch"] for cmd in commands)
+    assert not any(cmd[:2] == ["git", "checkout"] for cmd in commands)
 
 
 def test_windows_skill_link_uses_a_junction(tmp_path: Path) -> None:

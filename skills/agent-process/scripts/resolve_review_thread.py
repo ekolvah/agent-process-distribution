@@ -12,7 +12,7 @@ this finding" from the maintainer's authenticated local session. Different
 actor, credential, and trigger — never wired into a workflow.
 
 `--thread` is the whole step after `wait_for_pr.py`: it refuses while the head's
-`agent-review` run is running, resolves the thread, re-runs that run (a resolve
+`agent-process` run is running, resolves the thread, re-runs that run (a resolve
 has no event of its own, and the required context is the head's `pull_request`
 run — ADR 0027) and posts the reply last. The order lives here, not in a rule.
 """
@@ -237,7 +237,7 @@ def close_round(
 ) -> int:
     """The step after the wait, in one call: resolve, re-run the head's check, reply.
 
-    `head_run(head_sha) -> (run_id, status) | None` finds the `agent-review` run of
+    `head_run(head_sha) -> (run_id, status) | None` finds the `agent-process` run of
     the head; the step refuses until it concluded — the review of the head is in
     then, Codex's or the fallback's the run started when none came. A resolve has
     no event of its own and the required context is that `pull_request` run, so
@@ -259,12 +259,12 @@ def close_round(
     run = head_run(head)
     if run is None:
         raise RuntimeError(
-            f"no `agent-review` run of the head {head} — nothing to re-run; push first"
+            f"no `agent-process` run of the head {head} — nothing to re-run; push first"
         )
     run_id, status = run
     if status != "completed":
         raise RuntimeError(
-            f"the `agent-review` run {run_id} of the head {head} is still {status} — "
+            f"the `agent-process` run {run_id} of the head {head} is still {status} — "
             "`wait_for_pr.py <PR>` first: the review of the head, Codex's or the fallback's, "
             "is in when it concluded"
         )
@@ -299,7 +299,7 @@ def _gh_mutate(thread_id: str) -> dict:
 
 
 def _gh_head_run(head: str) -> tuple[int, str] | None:
-    """The newest `agent-review` run the `pull_request` event started on `head`."""
+    """The newest `agent-process` run the `pull_request` event started on `head`."""
     raw = run_gh(
         [
             "run",
@@ -307,7 +307,7 @@ def _gh_head_run(head: str) -> tuple[int, str] | None:
             "--commit",
             head,
             "--workflow",
-            "agent-review.yml",
+            "agent-process.yml",
             "--event",
             "pull_request",
             "--limit",
@@ -354,7 +354,7 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     group.add_argument(
         "--thread",
         metavar="NODE-ID",
-        help="resolve this thread, re-run the head's agent-review run, reply (--reply-file)",
+        help="resolve this thread, re-run the head's agent-process run, reply (--reply-file)",
     )
     parser.add_argument(
         "--reply-file",

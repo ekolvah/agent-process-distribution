@@ -153,6 +153,14 @@ def update_codex_skill(home: Path, version: str, runner: Runner, platform: str) 
                 f"conflict: foreign Codex skill link at {link}; leave it unchanged"
             )
     if checkout.exists():
+        origin = run_checked(
+            ["git", "remote", "get-url", "origin"], runner=runner, cwd=checkout
+        ).strip()
+        if origin.rstrip("/") != REPOSITORY.rstrip("/"):
+            raise InstallConflict(
+                f"conflict: foreign Codex checkout origin {origin!r} at {checkout}; "
+                f"expected {REPOSITORY!r}"
+            )
         dirty = run_checked(["git", "status", "--porcelain"], runner=runner, cwd=checkout)
         if dirty:
             raise InstallConflict(
