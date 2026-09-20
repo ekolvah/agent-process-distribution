@@ -124,8 +124,11 @@ rules:
       finding; a scenario missing from the scenario → test map of tasks.md is a finding,
       and so is a Group 1 that names no test without a `no RED: <reason>` task, and a
       platform behaviour a design rests on that is asserted, not observed (no reference
-      page, run id or command output beside it, and no pointer to one on record). The review
-      points at the artifacts and does not restate them. On `rework` the planner applies
+      page, run id or command output beside it, and no pointer to one on record), a
+      replaced input or a dropped guard without the list of the `design` rule, and a
+      catcher the review cannot trace to a step the flow reaches in the described case.
+      The review points at the artifacts and does not restate them. On `rework` the
+      planner applies
       or answers every finding in the artifact it names and asks to run the review again;
       the propose run ends on `approve` — then the tracking issue: when the change has
       none (Group 0 of tasks.md still carries `tracking issue <N>`), ask the person for
