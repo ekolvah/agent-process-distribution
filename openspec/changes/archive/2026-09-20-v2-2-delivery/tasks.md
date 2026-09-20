@@ -59,7 +59,7 @@
 
 ## 8. Archive, publish, and inspect the final head
 
-- [ ] 8.1 Verify a clean worktree, then run `python skills/agent-process/scripts/archive_change.py v2-2-delivery`.
+- [x] 8.1 Verify a clean worktree, then run `python skills/agent-process/scripts/archive_change.py v2-2-delivery`.
 - [ ] 8.2 Run `gh pr create --title "v2-2-delivery" --body-file <report>` with issue 112 as a plain reference (no `Closes`), the archived design, the scenario-to-test map, the accepted trust-boundary gaps, and the protection-transition evidence. If an interrupted run finds the change archived, resume from `gh pr view v2-2-delivery` instead of re-entering apply.
 - [ ] 8.3 For this transitional issue only, run `python .agent-process/scripts/request_codex_review.py --request <PR>` under the currently enforced v1 process, then run `python skills/agent-process/scripts/wait_for_pr.py <PR>` until all checks on one settled head conclude.
 - [ ] 8.4 Address or answer findings in at most three rounds. After every push, re-run `python .agent-process/scripts/request_codex_review.py --request <PR>` and `python skills/agent-process/scripts/wait_for_pr.py <PR>`. Resolve an addressed older-head P0/P1 thread only with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>` from the fixing session; answer P2/P3 without resolving. A spec fix uses its own delta and archive, and an archived-design change updates the archived design and scenario map in the same push.
