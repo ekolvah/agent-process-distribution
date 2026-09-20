@@ -20,15 +20,15 @@
 
 ## 3. Implement deterministic initialization
 
-- [ ] 3.1 Add only the five owned templates: `agent-process.yml`, `dependabot.yml`, `config.yaml`, `settings.json`, and `ruleset.json`. Make workflow substitution YAML-safe for literal multiline setup/test commands. Verify `python -m pytest tests/publisher/test_plugin.py::test_closed_installed_payload tests/publisher/test_init.py -q -k "literal_commands"`.
-- [ ] 3.2 Implement the stdlib-only local `init.py` seam and dry-run/confirmation state machine with UTF-8 subprocess capture and unmodified `None` stdout/stderr. Verify `python -m pytest tests/publisher/test_init.py -q -k "dry_run or confirmation or utf8 or none_capture"`.
-- [ ] 3.3 Implement pinned OpenSpec initialization, the marker-owned config pointer, owned caller, conflict-safe Dependabot entry, and two-key Claude settings merge. Verify `python -m pytest tests/publisher/test_init.py::test_fresh_repository tests/publisher/test_init.py::test_second_run tests/publisher/test_init.py::test_consumer_owned_file -q`.
-- [ ] 3.4 Implement the versioned Codex checkout plus `~/.agents/skills/agent-process` symlink or Windows junction. Refuse dirty checkouts, foreign links, and destructive replacement before fetching and selecting the requested tag. Verify `python -m pytest tests/publisher/test_init.py -q -k "codex_checkout or skill_link"`.
-- [ ] 3.5 Implement unique-name ruleset create/update/read-back and fail on several name matches. Verify `python -m pytest tests/publisher/test_init.py::test_ruleset_blocks_direct_updates tests/publisher/test_init.py::test_ruleset_requires_quality tests/publisher/test_init.py -q -k "ruleset"`.
-- [ ] 3.6 Implement zero/one/many linked-Project handling with `gh project copy 4` and `gh project link`; do not verify fields or workflow switches. Verify `python -m pytest tests/publisher/test_init.py -q -k "project"`.
-- [ ] 3.7 Print, but do not execute, the secret command, Codex automatic-review instruction, and Project visibility/workflow checklist. Verify `python -m pytest tests/publisher/test_init.py -q -k "printed_instructions"`.
-- [ ] 3.8 Exercise `init --dry-run` against a temporary fixture repository; verify no write occurs, then use the fake-remote seam for a confirmed run and assert no repository file outside the closed allow-list. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_plugin.py::test_closed_installed_payload -q`.
-- [ ] 3.9 Commit the initialization unit.
+- [x] 3.1 Add only the five owned templates: `agent-process.yml`, `dependabot.yml`, `config.yaml`, `settings.json`, and `ruleset.json`. Make workflow substitution YAML-safe for literal multiline setup/test commands. Verify `python -m pytest tests/publisher/test_plugin.py::test_closed_installed_payload tests/publisher/test_init.py -q -k "literal_commands"`.
+- [x] 3.2 Implement the stdlib-only local `init.py` seam and dry-run/confirmation state machine with UTF-8 subprocess capture and unmodified `None` stdout/stderr. Verify `python -m pytest tests/publisher/test_init.py -q -k "dry_run or confirmation or utf8 or none_capture"`.
+- [x] 3.3 Implement pinned OpenSpec initialization, the marker-owned config pointer, owned caller, conflict-safe Dependabot entry, and two-key Claude settings merge. Verify `python -m pytest tests/publisher/test_init.py::test_fresh_repository tests/publisher/test_init.py::test_second_run tests/publisher/test_init.py::test_consumer_owned_file -q`.
+- [x] 3.4 Implement the versioned Codex checkout plus `~/.agents/skills/agent-process` symlink or Windows junction. Refuse dirty checkouts, foreign links, and destructive replacement before fetching and selecting the requested tag. Verify `python -m pytest tests/publisher/test_init.py -q -k "codex_checkout or skill_link"`.
+- [x] 3.5 Implement unique-name ruleset create/update/read-back and fail on several name matches. Verify `python -m pytest tests/publisher/test_init.py::test_ruleset_blocks_direct_updates tests/publisher/test_init.py::test_ruleset_requires_quality tests/publisher/test_init.py -q -k "ruleset"`.
+- [x] 3.6 Implement zero/one/many linked-Project handling with `gh project copy 4` and `gh project link`; do not verify fields or workflow switches. Verify `python -m pytest tests/publisher/test_init.py -q -k "project"`.
+- [x] 3.7 Print, but do not execute, the secret command, Codex automatic-review instruction, and Project visibility/workflow checklist. Verify `python -m pytest tests/publisher/test_init.py -q -k "printed_instructions"`.
+- [x] 3.8 Exercise `init --dry-run` against a temporary fixture repository; verify no write occurs, then use the fake-remote seam for a confirmed run and assert no repository file outside the closed allow-list. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_plugin.py::test_closed_installed_payload -q`.
+- [x] 3.9 Commit the initialization unit.
 
 ## 4. Replace the workflow and review surface
 

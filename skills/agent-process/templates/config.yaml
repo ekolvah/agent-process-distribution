@@ -1,0 +1,11 @@
+# agent-process:begin
+rules:
+  proposal:
+    - Follow the agent-process skill's `#proposal` section.
+  specs:
+    - Follow the agent-process skill's `#specs` section.
+  design:
+    - Follow the agent-process skill's `#design` section.
+  tasks:
+    - Follow the agent-process skill's `#tasks` and `#architect-review` sections.
+# agent-process:end

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -66,7 +65,13 @@ class FakeRunner:
         elif cmd[:3] == ["cmd", "/c", "mklink"]:
             link, target = Path(cmd[-2]), Path(cmd[-1])
             link.parent.mkdir(parents=True, exist_ok=True)
-            os.symlink(target, link, target_is_directory=True)
+            completed = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+            assert completed.returncode == 0, completed.stderr
+        elif cmd[:2] == ["ln", "-s"]:
+            target, link = Path(cmd[-2]), Path(cmd[-1])
+            link.parent.mkdir(parents=True, exist_ok=True)
+            completed = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True, text=True, encoding="utf-8")
+            assert completed.returncode == 0, completed.stderr
         return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
 
 
@@ -92,6 +97,12 @@ def test_fresh_repository(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     assert "gh secret set CLAUDE_CODE_OAUTH_TOKEN" in out
     assert "Codex automatic review" in out
     assert "Project visibility" in out
+    assert {p.relative_to(repo).as_posix() for p in repo.rglob("*") if p.is_file()} == {
+        "openspec/config.yaml",
+        ".github/workflows/agent-process.yml",
+        ".github/dependabot.yml",
+        ".claude/settings.json",
+    }
 
 
 def test_second_run(tmp_path: Path) -> None:
@@ -144,9 +155,10 @@ def test_codex_checkout_refuses_dirty_or_foreign_link(tmp_path: Path) -> None:
         module.update_codex_skill(home, "2.0.0", fake, "linux")
     fake.dirty = False
     link = home / ".agents" / "skills" / "agent-process"
-    link.unlink()
+    link.rmdir()
     foreign = home / "foreign"; foreign.mkdir()
-    os.symlink(foreign, link, target_is_directory=True)
+    completed = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(foreign)], capture_output=True, text=True, encoding="utf-8")
+    assert completed.returncode == 0, completed.stderr
     with pytest.raises(module.InstallConflict, match="foreign"):
         module.update_codex_skill(home, "2.0.0", fake, "linux")
 
@@ -200,3 +212,22 @@ def test_none_capture_is_not_an_empty_string(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="capture"):
         module.run_checked(["git", "status"], runner=broken)
 
+
+def test_utf8_capture(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _module()
+    seen: dict[str, Any] = {}
+    def fake_run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    module.subprocess_runner(["gh", "repo", "view"])
+    assert seen["encoding"] == "utf-8"
+    assert seen["capture_output"] is True
+
+
+def test_printed_instructions(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _install(tmp_path)
+    out = capsys.readouterr().out
+    assert "gh secret set CLAUDE_CODE_OAUTH_TOKEN" in out
+    assert "enable Codex automatic review" in out
+    assert "Auto-add" in out and "Pull request merged" in out

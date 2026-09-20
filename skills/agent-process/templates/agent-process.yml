@@ -1,0 +1,40 @@
+name: Agent process
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  quality:
+    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@v2.0.0"
+    with:
+      setup: __SETUP_JSON__
+      test: __TEST_JSON__
+
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: write
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Claude review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: |
+            Review pull request ${{ github.event.pull_request.number }} at head
+            ${{ github.event.pull_request.head.sha }}. Leave concise inline findings with
+            severity P0-P3. Do not approve, request changes, or merge. This review is
+            advisory; the person decides whether to merge.
