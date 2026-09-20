@@ -361,6 +361,14 @@ def _creates(gh: _Gh) -> list[list[str]]:
     return [c for c in gh.calls if c[:3] == ["gh", "issue", "create"]]
 
 
+def test_moved_start_scripts_resolve_repository_root() -> None:
+    start_change = _script("start_change")
+    create_tracking_issue = _script("create_tracking_issue")
+
+    assert start_change.ROOT == ROOT
+    assert create_tracking_issue.ROOT == ROOT
+
+
 def test_verdict_is_rework(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Verdict is rework — exit 2 naming the rework, no branch."""
     start_change = _script("start_change")

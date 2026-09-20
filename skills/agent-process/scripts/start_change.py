@@ -35,7 +35,7 @@ from pathlib import Path
 
 from set_status import Gh, _linked_project, _repo, run_gh, set_status
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 CARRIERS = ("Claude", "Codex")
 PLACEHOLDER = "tracking issue <N>"
 _TOKEN = re.compile(r"tracking issue (<N>|\d+)")

@@ -88,18 +88,24 @@ class FakeRunner:
         elif cmd[:3] == ["cmd", "/c", "mklink"]:
             link, target = Path(cmd[-2]), Path(cmd[-1])
             link.parent.mkdir(parents=True, exist_ok=True)
-            completed = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
-            assert completed.returncode == 0, completed.stderr
+            if sys.platform == "win32":
+                completed = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+                assert completed.returncode == 0, completed.stderr
+            else:
+                link.symlink_to(target, target_is_directory=True)
         elif cmd[:2] == ["ln", "-s"]:
             target, link = Path(cmd[-2]), Path(cmd[-1])
             link.parent.mkdir(parents=True, exist_ok=True)
-            completed = subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(link), str(target)],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-            )
-            assert completed.returncode == 0, completed.stderr
+            if sys.platform == "win32":
+                completed = subprocess.run(
+                    ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                )
+                assert completed.returncode == 0, completed.stderr
+            else:
+                link.symlink_to(target, target_is_directory=True)
         return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
 
 
@@ -295,6 +301,26 @@ def test_ruleset_requires_quality(tmp_path: Path) -> None:
     assert rule["parameters"]["required_status_checks"] == [
         {"context": "quality / quality", "integration_id": 15368}
     ]
+
+
+@pytest.mark.parametrize("missing", ["pull_request", "deletion", "non_fast_forward"])
+def test_ruleset_readback_rejects_a_missing_barrier(missing: str) -> None:
+    module = _module()
+    observed = module._ruleset_body("main")
+    observed["rules"] = [rule for rule in observed["rules"] if rule["type"] != missing]
+
+    with pytest.raises(RuntimeError, match="barrier"):
+        module._verify_ruleset(observed, "main")
+
+
+def test_ruleset_readback_rejects_non_strict_quality() -> None:
+    module = _module()
+    observed = module._ruleset_body("main")
+    required = next(rule for rule in observed["rules"] if rule["type"] == "required_status_checks")
+    required["parameters"]["strict_required_status_checks_policy"] = False
+
+    with pytest.raises(RuntimeError, match="strict"):
+        module._verify_ruleset(observed, "main")
 
 
 def test_project_reuse_and_ambiguity(tmp_path: Path) -> None:

@@ -197,8 +197,17 @@ def _verify_ruleset(observed: dict[str, Any], default_branch: str) -> None:
     include = ((observed.get("conditions") or {}).get("ref_name") or {}).get("include") or []
     if f"refs/heads/{default_branch}" not in include:
         raise RuntimeError("ruleset read-back does not target the default branch")
-    required = [r for r in observed.get("rules", []) if r.get("type") == "required_status_checks"]
-    checks = required[0]["parameters"]["required_status_checks"] if len(required) == 1 else []
+    rules = observed.get("rules", [])
+    types = {rule.get("type") for rule in rules if isinstance(rule, dict)}
+    barriers = {"pull_request", "deletion", "non_fast_forward"}
+    if not barriers <= types:
+        missing = ", ".join(sorted(barriers - types))
+        raise RuntimeError(f"ruleset read-back is missing barrier rule(s): {missing}")
+    required = [r for r in rules if r.get("type") == "required_status_checks"]
+    parameters = required[0].get("parameters", {}) if len(required) == 1 else {}
+    if parameters.get("strict_required_status_checks_policy") is not True:
+        raise RuntimeError("ruleset read-back does not require strict status checks")
+    checks = parameters.get("required_status_checks", [])
     if checks != [{"context": "quality / quality", "integration_id": 15368}]:
         raise RuntimeError(
             "ruleset read-back does not require quality / quality from GitHub Actions"
