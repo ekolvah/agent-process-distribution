@@ -131,7 +131,13 @@ run (a resolve has no event of its own, and the required context is the head's
 through a change of its own on the PR branch — a delta under
 `openspec/changes/<change>/specs/`, validated and archived by `archive_change` before the
 push — never through a direct edit of `openspec/specs/`: the archive is what carries a
-spec, on the first PR and on every fix. The tasks after the archive SHALL leave no tick in
+spec, on the first PR and on every fix. A review fix that changes a design decision SHALL
+amend the archived `design.md` beside that decision and the scenario → test map of the
+archived `tasks.md` in the same push. A review finding on what a script does SHALL be
+closed by its class: the fix names the invariant the finding violates, enumerates the
+other inputs that violate it from the tool's own documentation, states what each added
+flag or switch takes away, and the RED test covers the class, not the reviewer's example.
+The tasks after the archive SHALL leave no tick in
 the repository — the PR is their record — and a run interrupted after the archive SHALL
 resume from `gh pr view <change>`, not from the apply. The PR body SHALL name the tracking
 issue as a plain reference, not with a `Closes` keyword: the branch from `gh issue develop
@@ -156,6 +162,14 @@ issue as a plain reference, not with a `Closes` keyword: the branch from `gh iss
 #### Scenario: Review fix changes a spec
 - **WHEN** a fix in the review loop changes what a spec requires
 - **THEN** the Deliver group names a change of its own for it — delta, validation, `archive_change` — and `openspec/specs/` is edited by the archive alone
+
+#### Scenario: Design decision changed at review
+- **WHEN** a fix in the review loop changes a design decision of the archived change
+- **THEN** the Deliver group names the amendment of the archived `design.md` beside that decision and of the scenario → test map of the archived `tasks.md`, in the same push as the fix
+
+#### Scenario: Finding closed by its class
+- **WHEN** a fix in the review loop closes a review finding on what a script does
+- **THEN** the Deliver group names the invariant, the enumeration of the other violating inputs from the tool's own documentation, what each added flag takes away, and a RED test of the class, not of the reviewer's example
 
 ### Requirement: `archive_change` archives the change before its PR
 One script, `archive_change <change>`, SHALL archive a change on its branch before the PR
