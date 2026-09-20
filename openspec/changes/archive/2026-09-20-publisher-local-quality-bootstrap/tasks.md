@@ -14,7 +14,7 @@
 ## 3. Verify and archive
 
 - [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and `python .agent-process/scripts/ci_check.py` GREEN.
-- [ ] 3.2 Verify a clean worktree, then run `python skills/agent-process/scripts/archive_change.py publisher-local-quality-bootstrap`.
+- [x] 3.2 Verify a clean worktree, then run `python skills/agent-process/scripts/archive_change.py publisher-local-quality-bootstrap`.
 
 ## 4. Review the correction
 
