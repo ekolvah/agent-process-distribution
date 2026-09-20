@@ -1,24 +1,27 @@
 name: Reusable quality
 
-# This workflow is called by a consumer job. It deliberately has no pull_request
-# trigger, so it is not a standalone PR context after this repository self-applies
-# the template; the caller is the context that branch protection observes.
 on:
   workflow_call:
+    inputs:
+      setup:
+        description: Optional consumer setup command.
+        required: false
+        type: string
+        default: ""
+      test:
+        description: Consumer quality command.
+        required: true
+        type: string
 
 permissions:
   contents: read
-  pull-requests: read
   issues: read
+  pull-requests: read
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      # The PR → issue link is GitHub's own field, computed within seconds of the
-      # PR and read here once, no poll (ADR 0027, v2-2c). No checkout precedes
-      # this step, so GH_REPO names the repository. No `shell:` key: `run` is
-      # `bash -e {0}`, so a failed read is red — never a pass.
       - name: Verify the PR links its issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -27,56 +30,20 @@ jobs:
         run: |
           linked="$(gh pr view "$PR" --json closingIssuesReferences --jq '.closingIssuesReferences | length')"
           if test "$linked" = "0"; then
-            echo "::error::PR $PR links no issue. Link one — \`Closes #N\` in the PR body, or open the PR from the branch of \`gh issue develop -c N --name <branch>\` — then \`gh run rerun $GITHUB_RUN_ID\`."
+            echo "::error::PR $PR links no issue. Link it from the gh issue develop branch or the PR sidebar."
             exit 1
           fi
           echo "ok: PR $PR links $linked issue(s)"
-      # Within this invoked callee, check PR code but keep the driver and check
-      # selection on the default branch. Caller-workflow authenticity needs the
-      # external trust anchor documented in ADR 0012.
-      - name: Checkout trusted quality driver
+      - name: Checkout PR head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.repository.default_branch }}
-          path: trusted
-      - name: Checkout PR under test
-        uses: actions/checkout@v4
-        with:
-          path: pr
-      - name: Select quality driver
-        id: quality-driver
-        run: |
-          if test -f "$GITHUB_WORKSPACE/trusted/.agent-process/scripts/ci_check.py"; then
-            echo "path=trusted" >> "$GITHUB_OUTPUT"
-          else
-            echo "path=pr" >> "$GITHUB_OUTPUT"
-            echo "::notice::bootstrap fallback: default branch has no quality driver yet"
-          fi
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            pr/.agent-process/requirements.txt
-            pr/.agent-process/requirements-dev.txt
-      - name: Install consumer dependencies
-        working-directory: pr
-        run: python -m pip install -r .agent-process/requirements.txt -r .agent-process/requirements-dev.txt
-      # Feature-detected: a bare consumer render has no product dependencies
-      # of its own, and the thin caller (ci.yml) cannot prepend a setup step
-      # of its own to a job it only `uses:` — this is the one place able to
-      # install them before the product-scoped checks run.
-      - name: Install product dependencies
-        working-directory: pr
-        run: |
-          if [ -f requirements.txt ]; then
-            python -m pip install -r requirements.txt
-          elif [ -f pyproject.toml ] && grep -Eq '^\[project\]' pyproject.toml; then
-            python -m pip install -e .
-          fi
-      # One step keeps the externally required context stable. The trusted
-      # driver's registry decides the full set of checks; it runs in the PR
-      # worktree so its commands inspect the change, not the trusted checkout.
-      - name: Run trusted quality checks
-        working-directory: pr
-        run: python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/.agent-process/scripts/ci_check.py"
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Run consumer setup
+        if: inputs.setup != ''
+        run: ${{ inputs.setup }}
+      - name: Run consumer quality
+        run: ${{ inputs.test }}
+      - name: Validate OpenSpec
+        if: hashFiles('openspec/config.yaml') != ''
+        run: npx -y @fission-ai/openspec@1.13.0 validate --strict --all

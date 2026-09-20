@@ -32,12 +32,12 @@
 
 ## 4. Replace the workflow and review surface
 
-- [ ] 4.1 Extend `reusable-quality.yml` with setup/test inputs, linked-issue validation, PR-head checkout, optional setup, the consumer test command, and pinned strict OpenSpec validation when `openspec/` exists. Verify `python -m pytest tests/publisher/test_reusable_workflows.py::test_quality_check_on_a_pr tests/publisher/test_reusable_workflows.py::test_consumer_test_failure_is_quality_failure -q`.
-- [ ] 4.2 Add the single publisher `.github/workflows/agent-process.yml` caller using `@main` until the release tag exists. Pass the publisher dependency install and `ci_check.py` as setup/test. Verify `python -m pytest tests/publisher/test_reusable_workflows.py -q -k "one_caller or publisher"`.
-- [ ] 4.3 Invoke `anthropics/claude-code-action@v1` directly in an advisory job, with no custom parser, fallback, required verdict, or process-owned Codex request. Verify `python -m pytest tests/publisher/test_reusable_workflows.py::test_direct_advisory_reviews tests/publisher/test_reusable_workflows.py::test_review_is_visible_but_not_required -q`.
-- [ ] 4.4 Delete `ci.yml`, `agent-review.yml`, and `reusable-agent-review.yml`, and add the GitHub Actions Dependabot entry. Verify `python -m pytest tests/publisher/test_reusable_workflows.py tests/publisher/test_plugin.py::test_version_drift -q`.
-- [ ] 4.5 Add the active, no-bypass default-branch ruleset template requiring pull requests, strict `quality / quality` from GitHub Actions integration `15368`, non-fast-forward protection, and deletion protection. Verify `python -m pytest tests/publisher/test_init.py::test_ruleset_blocks_direct_updates tests/publisher/test_init.py::test_ruleset_requires_quality -q`.
-- [ ] 4.6 Run the Group 1 workflow, ruleset, version, and CI-contract tests GREEN, then commit the workflow/review unit.
+- [x] 4.1 Extend `reusable-quality.yml` with setup/test inputs, linked-issue validation, PR-head checkout, optional setup, the consumer test command, and pinned strict OpenSpec validation when `openspec/` exists. Verify `python -m pytest tests/publisher/test_reusable_workflows.py::test_quality_check_on_a_pr tests/publisher/test_reusable_workflows.py::test_consumer_test_failure_is_quality_failure -q`.
+- [x] 4.2 Add the single publisher `.github/workflows/agent-process.yml` caller using `@main` until the release tag exists. Pass the publisher dependency install and `ci_check.py` as setup/test. Verify `python -m pytest tests/publisher/test_reusable_workflows.py -q -k "one_caller or publisher"`.
+- [x] 4.3 Invoke `anthropics/claude-code-action@v1` directly in an advisory job, with no custom parser, fallback, required verdict, or process-owned Codex request. Verify `python -m pytest tests/publisher/test_reusable_workflows.py::test_direct_advisory_reviews tests/publisher/test_reusable_workflows.py::test_review_is_visible_but_not_required -q`.
+- [x] 4.4 Delete `ci.yml`, `agent-review.yml`, and `reusable-agent-review.yml`, and add the GitHub Actions Dependabot entry. Verify `python -m pytest tests/publisher/test_reusable_workflows.py tests/publisher/test_plugin.py::test_version_drift -q`.
+- [x] 4.5 Add the active, no-bypass default-branch ruleset template requiring pull requests, strict `quality / quality` from GitHub Actions integration `15368`, non-fast-forward protection, and deletion protection. Verify `python -m pytest tests/publisher/test_init.py::test_ruleset_blocks_direct_updates tests/publisher/test_init.py::test_ruleset_requires_quality -q`.
+- [x] 4.6 Run the Group 1 workflow, ruleset, version, and CI-contract tests GREEN, then commit the workflow/review unit.
 
 ## 5. Record the new operational boundary
 
