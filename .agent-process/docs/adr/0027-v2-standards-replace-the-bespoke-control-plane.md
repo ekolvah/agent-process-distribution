@@ -624,3 +624,9 @@ questions of #114 in its order:
   failure is followed by `git ls-remote --heads origin <change>`: listed, the steps left
   start with `git switch <change>`; empty, `no branch was created` (P1). Deletion condition:
   the rows above.
+* Planning rules from the review rounds of PR 145 and 147 (issue 146, the two entries
+  above): the `design` rule lists the failure modes and catchers of a replaced input (PR
+  147 named "the next `wait_for_pr`" after a clean verdict — none runs), the review finds
+  an untraceable catcher, the fixer amends the archive in the same push and closes a script
+  finding by its class. Archive after the review rejected: the reviewed head would lack the
+  delta. No script.
