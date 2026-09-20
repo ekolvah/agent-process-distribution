@@ -197,6 +197,53 @@ def test_asserted_platform_fact() -> None:
     assert review.index("is a finding") < review.index("asserted, not observed")
 
 
+def _deliver_entry() -> str:
+    entries = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
+    return next(e for e in entries if "wait_for_pr" in e and "three rounds" in e)
+
+
+def test_replaced_input_designed() -> None:
+    """Scenario: Replaced input designed — the `design` rule names the trigger, the three lists and the exclusion."""
+    rules = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]
+    assert "design" in rules
+    rule = " ".join(rules["design"])
+    for part in (
+        "replaces a project-declared input",
+        "failure modes",
+        "stops proving",
+        "which script, which run, on which head",
+        "not a role",
+    ):
+        assert part in rule, part
+
+
+def test_untraceable_catcher() -> None:
+    """Scenario: Untraceable catcher — the Architect review entry names both findings."""
+    entries = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["rules"]["tasks"]
+    review = next(e for e in entries if e.startswith("Architect review"))
+    for part in ("without the list", "cannot trace"):
+        assert part in review, part
+        assert review.index("is a finding") < review.index(part), part
+
+
+def test_design_decision_changed_at_review() -> None:
+    """Scenario: Design decision changed at review — the amendment sits between the spec-changing fix and the round limit."""
+    deliver = _deliver_entry()
+    amend = deliver.index("amends the archived `design.md`")
+    assert deliver.index("never a direct edit of `openspec/specs/`") < amend
+    assert amend < deliver.index("three rounds")
+
+
+def test_finding_closed_by_its_class() -> None:
+    """Scenario: Finding closed by its class — the Deliver entry names the trigger and what closes the class."""
+    deliver = _deliver_entry()
+    start = deliver.index("amends the archived")
+    end = deliver.index("three rounds")
+    for part in ("closed by its class", "invariant", "takes away", "not the reviewer's example"):
+        assert part in deliver, part
+        assert start < deliver.index(part) < end, part
+
+
 def test_pinned_openspec() -> None:
     """The commands the process runs use the version the tests validate against."""
     for path in (CONFIG, ARCHIVE):

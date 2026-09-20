@@ -45,6 +45,13 @@ rules:
       its output — a run of a standard checker counts; a listing, a name or an inference
       from another behaviour does not; an observation already on record (an ADR entry, an
       archived change) is pointed at, not repeated.
+  design:
+    - >-
+      A design that replaces a project-declared input with one the caller supplies, or
+      drops a guard, lists beside that decision the failure modes of the new input (when
+      one is replaced), what the component stops proving, and for each lost proof the
+      delivery-flow step that catches it — which script, which run, on which head — not a
+      role or the platform in general.
   tasks:
     - >-
       Group 0 — Delivery start, one task: `python .agent-process/scripts/start_change.py
@@ -91,9 +98,14 @@ rules:
       spec goes through a change of its own on the PR branch — `npx -y
       @fission-ai/openspec@1.13.0 new change <name>`, the delta under its `specs/`,
       `validate --strict`, `python .agent-process/scripts/archive_change.py <name>` — never
-      a direct edit of `openspec/specs/`: the archive is what carries a spec —, repeat at
-      most three rounds; the fourth leaves the rest to the
-      person with a reply. The person merges. The tasks after the archive leave no tick in
+      a direct edit of `openspec/specs/`: the archive is what carries a spec —; a fix that
+      changes a design decision amends the archived `design.md` beside that decision and
+      the scenario → test map of the archived `tasks.md` in the same push; a finding on
+      what a script does is closed by its class (the invariant it violates, the other
+      inputs that violate it from the tool's own documentation, what each added switch
+      takes away, a RED test of the class, not the reviewer's example); repeat at most
+      three rounds; the fourth leaves the rest to the person with a reply. The person
+      merges. The tasks after the archive leave no tick in
       the repository: the change is closed and a pushed tick would move the reviewed head —
       the PR (its checks, threads and merge) is their record. A run interrupted after the
       archive does not re-enter the apply (`openspec status` no longer knows the change):
@@ -117,8 +129,11 @@ rules:
       finding; a scenario missing from the scenario → test map of tasks.md is a finding,
       and so is a Group 1 that names no test without a `no RED: <reason>` task, and a
       platform behaviour a design rests on that is asserted, not observed (no reference
-      page, run id or command output beside it, and no pointer to one on record). The review
-      points at the artifacts and does not restate them. On `rework` the planner applies
+      page, run id or command output beside it, and no pointer to one on record), a
+      replaced input or a dropped guard without the list of the `design` rule, and a
+      catcher the review cannot trace to a step the flow reaches in the described case.
+      The review points at the artifacts and does not restate them. On `rework` the
+      planner applies
       or answers every finding in the artifact it names and asks to run the review again;
       the propose run ends on `approve` — then the tracking issue: when the change has
       none (Group 0 of tasks.md still carries `tracking issue <N>`), ask the person for

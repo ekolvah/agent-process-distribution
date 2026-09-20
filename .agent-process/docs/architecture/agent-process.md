@@ -15,7 +15,7 @@ are Claude for `planner` and `reviewer`, and Codex for `implementer` and
 | `planner` | The person's request, repository context, and user decisions | A validated OpenSpec change (`openspec/changes/<name>/`) with its architect review, and its tracking issue as a Project item in `Planned` with a priority (created by the planner when the change has none) | human approval, then `implementer` |
 | `implementer` | The approved change | Focused branch, RED evidence, implementation, docs, PR; the change archived on the PR | `reviewer` |
 | `reviewer` | Plan, diff, and checks | Visible, actionable findings or an explicit clean result | `fixer` or human |
-| `fixer` | Review or CI finding | Minimal correction with passing relevant checks | `reviewer` or human |
+| `fixer` | Review or CI finding | Minimal correction with passing relevant checks; a finding on what a script does is closed by its class; a design decision changed at review is amended in the archived change by the same push | `reviewer` or human |
 
 The artifact, not an agent report, authorizes a hand-off. A plan is the change
 directory (`openspec validate --strict` is the only automated check on it; the
@@ -32,12 +32,15 @@ proposal → spec deltas → design → tasks. What this project adds is the
 `rules:` of `openspec/config.yaml` — the `proposal` rule (read before
 writing, ask instead of guessing, a bug records its reproduction and root
 cause before the design, a design on a platform behaviour records its
-observation) and the `tasks` rule, which is the delivery flow
+observation), the `design` rule (a replaced input lists its failure modes; a
+replaced input or a dropped guard lists the proofs lost and the delivery-flow
+step that catches each) and the `tasks` rule, which is the delivery flow
 below as tasks of the change (`no RED: <reason>` when the map names no
 test) and ends the propose run with the architect review: the
 `architect-reviewer` subagent in Claude, a self-review in Codex, writes
 `architect-review.md` into the change directory against principles §I–VII
-(a scenario missing from the scenario → test map is a finding); on
+(a scenario missing from the scenario → test map is a finding, and so is
+an untraceable catcher); on
 `rework` the planner applies the findings and reviews again; on `approve`
 the run ends with `create_tracking_issue.py <change> [--priority]` — the
 tracking issue from the proposal when the change has none (the priority asked
