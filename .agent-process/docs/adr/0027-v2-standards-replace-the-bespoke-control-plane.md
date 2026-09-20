@@ -630,3 +630,43 @@ questions of #114 in its order:
   an untraceable catcher, the fixer amends the archive in the same push and closes a script
   finding by its class. Archive after the review rejected: the reviewed head would lack the
   delta. No script.
+
+### v2-2 delivery and distribution observations
+
+Issue 112 (`v2-2-delivery`, 2026-09-20) resolves the distribution and review choices:
+
+* Fresh-repository observation: `npx -y @fission-ai/openspec@1.13.0 init --tools
+  'claude,codex' --no-animation` generated the six Claude commands/skills, the six Codex
+  skills, and `openspec/config.yaml`; it created no hook, workflow, settings, or Project
+  file. Agent-process therefore composes around the pinned native initializer rather than
+  copying its output.
+* Current Codex documentation and local CLI observation supersede the old `$CODEX_HOME`
+  assumption: user skills are discovered under `~/.agents/skills`, including symlinked
+  directories. The installer keeps the immutable-tag checkout under
+  `~/.agent-process/distribution` and makes `~/.agents/skills/agent-process` a Unix symlink
+  or Windows junction to `skills/agent-process`. A dirty checkout or foreign target stops
+  before fetch/tag selection.
+* One caller replaces `ci.yml` and `agent-review.yml`. Its quality job calls the tagged
+  reusable workflow with literal consumer setup/test commands; its review job calls
+  `anthropics/claude-code-action@v1` directly. Codex automatic review is enabled by the
+  person. The bespoke wait/parser/fallback/enforcement review workflow is deleted and both
+  app reviews are advisory.
+* The installer copies user Project 4 only when no Project is linked and then links it.
+  One is reused; several are ambiguous and stop. Project fields, views, visibility, and
+  workflow switches are not verified or mutated because their UI choices are person-owned
+  and the workflow settings lack a write API.
+* The active no-bypass ruleset requires a PR and strict `quality / quality` from GitHub
+  Actions integration 15368, and blocks deletion and non-fast-forward updates. GitHub's
+  repository ruleset binds a status check by context and integration, not by the workflow
+  definition that produced it. A consumer-editable caller can omit a gate or seek the same
+  name; the pinned callee alone does not authenticate the caller.
+* Removing distributed PreToolUse, PostToolUse, and Stop hooks loses immediate navigation,
+  post-edit, and terminal-loop proofs. Removing the required review workflow loses machine
+  proof that a process-classified review exists and that P0/P1 threads are closed. The
+  ruleset still rejects unsafe default-branch ref updates, and a non-zero declared quality
+  command remains red, but no document relabels those narrower proofs as equivalents.
+* The accepted catcher for omitted quality commands, caller replacement, and advisory
+  review state is the person's inspection of every current-head `.github/workflows/**`
+  diff and visible review state before merge. This is a deliberate weaker boundary for a
+  personal repository; an organization-level required workflow may strengthen it. The
+  terminal step names the exact head and inspection rather than an abstract reviewer role.

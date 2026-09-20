@@ -41,10 +41,10 @@
 
 ## 5. Record the new operational boundary
 
-- [ ] 5.1 Update `AGENTS.md`, `.claude/rules/`, the canonical process document, and every executable path example to load the shared skill and call its moved scripts. Keep this implementation run's transitional delivery commands explicit until the new process is merged. Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_delivery_scripts.py tests/agent_process/test_doc_links.py -q`.
-- [ ] 5.2 Amend ADR 0027 with the observed OpenSpec bootstrap, current Codex skill/link location, one-caller/direct-action choice, Project copy/link boundary, name-bound required-check limitation, dropped-hook/review proofs, and current-head workflow-diff merge boundary. Verify `python -m pytest tests/agent_process/test_adr_records.py tests/agent_process/test_doc_narrative.py -q`.
-- [ ] 5.3 Update the installation document with the exact installed allow-list, bootstrap/update/rollback steps, advisory review behavior, and the person-owned secret/Codex/Project UI actions. Do not add a consumer `AGENTS.md` fragment, report-path convention, copied process test, or field/workflow verifier. Verify `python -m pytest tests/agent_process/test_doc_headers.py tests/agent_process/test_doc_links.py tests/agent_process/test_doc_narrative.py tests/publisher/test_plugin.py -q`.
-- [ ] 5.4 Run the documentation and source-of-truth tests GREEN, then commit the documentation/contract unit.
+- [x] 5.1 Update `AGENTS.md`, `.claude/rules/`, the canonical process document, and every executable path example to load the shared skill and call its moved scripts. Keep this implementation run's transitional delivery commands explicit until the new process is merged. Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_delivery_scripts.py tests/agent_process/test_doc_links.py -q`.
+- [x] 5.2 Amend ADR 0027 with the observed OpenSpec bootstrap, current Codex skill/link location, one-caller/direct-action choice, Project copy/link boundary, name-bound required-check limitation, dropped-hook/review proofs, and current-head workflow-diff merge boundary. Verify `python -m pytest tests/agent_process/test_adr_records.py tests/agent_process/test_doc_narrative.py -q`.
+- [x] 5.3 Update the installation document with the exact installed allow-list, bootstrap/update/rollback steps, advisory review behavior, and the person-owned secret/Codex/Project UI actions. Do not add a consumer `AGENTS.md` fragment, report-path convention, copied process test, or field/workflow verifier. Verify `python -m pytest tests/agent_process/test_doc_headers.py tests/agent_process/test_doc_links.py tests/agent_process/test_doc_narrative.py tests/publisher/test_plugin.py -q`.
+- [x] 5.4 Run the documentation and source-of-truth tests GREEN, then commit the documentation/contract unit.
 
 ## 6. Verify the implementation
 

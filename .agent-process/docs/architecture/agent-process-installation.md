@@ -1,291 +1,153 @@
 # Agent-process installation
 
-**Question this document answers:** How does a repository install and activate
-the agent process before its first issue delivery?
+**Question this document answers:** How does a person bootstrap, install, update, verify,
+and roll back agent-process 2.0 in a consumer repository?
 
-> **Retired.** The Copier installation and update path described below was deleted
-> with the template mirror (#119, `v2-0b-delete-copier-mirror`); the scripts it names no
-> longer exist. Installation returns as `init` in `v2-2-delivery` (#112). The text is kept
-> as history and for its trust-boundary paragraphs, which `reusable-quality.yml` still
-> follows.
+Installation is separate from per-issue delivery. It needs Node/`npx`, Python 3.12 or
+newer, `git`, authenticated `gh`, Claude Code, and Codex. The portable plugin ships no
+hooks and the repository receives no Python control-plane copy.
 
-This document describes the one-time repository setup. It is separate from
-the [delivery flow](agent-process.md): installation prepares the repository;
-delivery flow handles one issue at a time.
+## Bootstrap the shared skill once
 
-## Bootstrap exception
+Claude Code can bootstrap from the marketplace:
 
-Until this payload is installed and its GitHub Project is activated, a
-repository's first process-installation issues may create their branches and
-publish their PRs manually. Those bootstrap changes must still state the issue
-number and use the normal tests and review workflow. Once activation succeeds,
-all later delivery uses `python .agent-process/scripts/issue_branch.py <N>`; do not retain a
-manual-branch bypass as a second process.
-
-For this one bootstrap PR, the repository's callers invoke their local
-root-only reusable workflows. Each workflow uses the PR driver only when the
-default branch does not yet contain its driver; once this payload merges, it
-returns to the default-branch driver. This narrow fallback makes the first
-required checks executable without changing the pinned references copied to
-ordinary consumer repositories.
-
-## Installation order
-
-Complete these steps in order. The credential preflight is a hard precondition
-of Project bootstrap: from the merge that carries this payload, the review
-workflows run on every pull request.
-
-1. Copy the payload with `copier copy`. It writes files only in the local
-   checkout. Answering `claude_adapter_installed` consents to the Layer 1
-   deny-list and its `PreToolUse`/`PostToolUse` hooks, which run on every Bash,
-   Read, Edit, and Write call.
-2. If the Claude adapter is adopted, install its Layer 1 plugin after the
-   payload with the marketplace's `/plugin install` command. This is a local
-   Claude configuration action; the plugin hooks rely on `.agent-process/scripts/hooks.py`
-   copied in the previous step.
-3. If the Codex adapter is adopted, confirm this repository is a trusted
-   Codex project before relying on any of `.codex/hooks.json`'s groups —
-   Codex loads a project's `.codex/` layer, hooks included, only for a
-   directory the operator has recorded as trusted in their own
-   `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`). Run the read-only preflight:
-
-   ```bash
-   python .agent-process/scripts/check_codex_project_trust.py
-   ```
-
-   | Exit | Meaning | Next action |
-   | --- | --- | --- |
-   | `0` | The repository is trusted (project trust); Codex will load its `.codex/` layer. | Continue — but see the hook-trust note below before relying on the `Stop` gate. |
-   | `1` | No matching entry, or one present but not `trusted`. | Run `codex` once in this repository and accept its folder-trust prompt, or add the `[projects."<path>"]` entry the preflight prints to `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`), then rerun the preflight. |
-   | `2` | The git root or `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`) could not be resolved or parsed. | Fix the reported cause, then rerun the preflight. |
-
-   This is a per-operator, per-machine setting stored outside the
-   repository; `copier copy` cannot set it, and a fresh clone or a new
-   machine starts untrusted again.
-
-   **Project trust is necessary but not sufficient.** Codex CLI gates
-   *executing* a hook behind a second, separate, per-hook approval it also
-   persists outside the repository. There is no supported non-interactive way
-   to verify that from this preflight — the exit-0 message names this
-   explicitly. Run `codex` once in this repository and confirm no
-   `Hooks need review` prompt appears at startup, or pass
-   `--dangerously-bypass-hook-trust` for unattended invocations that already
-   vet the hook source.
-4. Configure the two review credentials, including
-   `CLAUDE_CODE_OAUTH_TOKEN` for the Claude fallback carrier, then run the
-   read-only preflight:
-
-   ```bash
-   python .agent-process/scripts/check_review_credentials.py --repo ekolvah/agent-process-distribution
-   ```
-
-   It checks only that `CLAUDE_CODE_OAUTH_TOKEN` is named in the repository or
-   inherited-organisation secret lists, and that the
-   `chatgpt-codex-connector` App covers this repository. It never reads a
-   secret value. A present but expired or revoked token therefore passes; the
-   later `agent-review` check is still the validity test.
-
-   | Exit | Meaning | Next action |
-   | --- | --- | --- |
-   | `0` | Both prerequisites are present. | Continue to bootstrap. |
-   | `1` | A secret or App repository grant is absent. | Follow the precise command or settings URL printed by the preflight, then rerun it. |
-   | `2` | GitHub did not provide usable evidence. | Do not treat it as missing; obtain a suitable `gh` token and use the printed settings URL. |
-
-   On every PR head that needs review, the PR author comments `@codex review`.
-   The workflow never posts that command or enables Automatic reviews. The
-   `agent-review` check waits for the Codex review of the head — read as
-   present or absent, never parsed — and runs the Claude fallback carrier with
-   `CLAUDE_CODE_OAUTH_TOKEN` only when the requested Codex review does not
-   arrive within the wait (an error or usage-limit message from Codex is no
-   review). The check's last step fails while an unresolved thread whose first
-   comment carries `P0/P1` exists, by either reviewer, and replies to no
-   thread; `P2`/`P3` threads never block. The Claude Code Action is pinned
-   through the mutable `@v1` tag, so a later run may resolve to a different
-   revision. The preflight above proves only that `CLAUDE_CODE_OAUTH_TOKEN`
-   and the Codex App grant are *present* — an expired or revoked credential
-   still passes it; the fallback run is the validity test.
-
-   Also inspect the organisation Actions policy. If it uses "Allow specified
-   actions and reusable workflows", permit the pinned
-   `ekolvah/agent-process-distribution/.github/workflows/*.yml` reference.
-   GitHub does not expose that policy to the common maintainer token (the live
-   probe returned 404), so this is an explicit operator check rather than an
-   unearned green result.
-5. Activate the GitHub Project with the bootstrap command below. It may write
-   remote Project configuration only in `create` mode with `--confirm-create`.
-6. Inspect the branch-protection plan. This command authenticates with `gh`, resolves
-   the repository's real default branch, validates the local workflow declaration,
-   and reads live classic protection, but performs no remote write:
-
-   ```bash
-   python .agent-process/scripts/install_branch_protection.py
-   ```
-
-   After reviewing the exact actions, authorize this installation explicitly:
-
-   ```bash
-   python .agent-process/scripts/install_branch_protection.py --confirm-write
-   ```
-
-   On an already protected branch, the installer adds only missing process contexts
-   and changes only strict checking or administrator enforcement when either is off.
-   Existing checks and App bindings, review policy, push restrictions, and every other
-   consumer-owned field remain in place. If protection is absent, the confirmed command
-   creates one baseline: strict process checks, administrator enforcement, no invented
-   review or push restriction, and force-push/deletion disabled. Every confirmed run
-   re-reads GitHub and verifies those postconditions.
-
-   Several narrow API writes cannot be atomic. If a later call fails after an earlier
-   one succeeded, the command exits non-zero, prints observed progress, and asks you to
-   rerun the same idempotent command. Do not replace that recovery with a full-list
-   branch-protection update: it can remove consumer policy.
-
-Enable the copied local pre-push probe after reviewing it:
-
-```bash
-git config core.hooksPath .agent-process/.githooks
+```text
+/plugin marketplace add ekolvah/agent-process-distribution
+/plugin install agent-process@agent-process-marketplace
 ```
 
-The caller permission grants (`contents: read`, `issues: read`,
-`pull-requests: read` for quality and `pull-requests: write` for review) are
-part of the published contract. A
-release that requires a wider callee permission is breaking until callers are
-re-rendered.
+Then run `/agent-process:init` and supply the target repository's complete test command
+plus an optional setup command.
 
-## Workflow-definition trust
-
-Thin callers are part of the PR head. Classic branch protection matches a
-check's displayed name, so it cannot prove that a PR did not replace a caller
-with a different job that reports the same name. Before treating these checks
-as a security boundary, configure an organisation or platform trust anchor
-that requires the intended workflow definition (for example, a Ruleset
-Required Workflow where that GitHub feature is available). Do not switch these
-review workflows to `pull_request_target` as a shortcut: the review carrier has
-a credential and reads untrusted PR material. Until an external anchor is
-configured, required contexts remain delivery evidence, not proof that an
-untrusted contributor ran the publisher's policy.
-
-## Activation
-
-`copier copy` copies the payload but does not create or alter GitHub resources.
-The copied process is inactive until its GitHub Project is configured. Run:
+For the first Codex bootstrap, before the user-level link exists, check out the immutable
+release and create the link explicitly. On Unix:
 
 ```bash
-python .agent-process/scripts/bootstrap_github_project.py --confirm-create
+git clone --filter=blob:none --branch v2.0.0 --single-branch https://github.com/ekolvah/agent-process-distribution.git "$HOME/.agent-process/distribution"
+mkdir -p "$HOME/.agents/skills"
+ln -s "$HOME/.agent-process/distribution/skills/agent-process" "$HOME/.agents/skills/agent-process"
 ```
 
-In `existing` mode, bootstrap reads the selected Project and verifies `Priority`
-(`High`, `Medium`, `Low`) plus the built-in `Status` field containing `Planned`
-and `In Progress`. `Todo` and `Done` are expected GitHub-owned options; the
-process never creates or selects a second `Agent status` field.
+On Windows PowerShell:
 
-If an initial existing-mode activation lacks `Status: Planned`, run the same
-confirmed setup command below instead of the unconfirmed activation command.
+```powershell
+git clone --filter=blob:none --branch v2.0.0 --single-branch https://github.com/ekolvah/agent-process-distribution.git "$env:USERPROFILE\.agent-process\distribution"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.agents\skills"
+cmd /c mklink /J "$env:USERPROFILE\.agents\skills\agent-process" "$env:USERPROFILE\.agent-process\distribution\skills\agent-process"
+```
 
-In `create` mode, `--confirm-create` is an explicit approval for the remote
-write. Bootstrap checks GitHub authentication, creates a Project, links the
-repository, and adds the required fields. If a later setup operation fails,
-it deletes the Project created in that invocation. If deletion also fails, it
-prints the exact `gh project delete` command for the maintainer.
+Review the checked-out `SKILL.md`, restart Codex so it discovers the linked skill, and run
+its install procedure. `init` normalizes the same checkout and link; it refuses a dirty
+checkout or foreign link before fetching or selecting a tag.
 
-On successful activation bootstrap atomically writes
-`.agent-process/scripts/project_settings.py`. Review and commit that file. It contains the
-real, repository-owned Project and field IDs that every process runner uses.
+## Run the installer
 
-For an activated Project that lacks built-in `Status: Planned`, or for initial
-existing-mode activation that lacks it, run the explicit status setup after
-reviewing the source change. It uses committed generated settings when present:
+From the consumer repository, first show the complete plan without writing:
 
 ```bash
-python .agent-process/scripts/bootstrap_github_project.py --confirm-status-setup
+python "$HOME/.agents/skills/agent-process/scripts/init.py" --setup "python -m pip install -r requirements.txt" --test "python -m pytest" --dry-run
 ```
 
-The command appends only missing `Planned`, preserves all existing Status option
-identities, re-reads the field, and then writes generated settings. For older
-settings that stored `@me`, it derives the canonical owner and verifies the
-Project number from the stored Project node before any field read. It never
-migrates individual item values. Review and commit those settings, then after
-current-head review re-read all Project views. If none uses the old field, delete
-the custom `Agent status` field with `gh project field-delete --id <field-id>`.
-That one-time cleanup permanently discards values stored only in that field;
-there is no recovery or migration command.
+On Windows, use the corresponding `%USERPROFILE%` or PowerShell path. After reviewing the
+plan, authorize the local and remote composition once:
 
-## Updating the process
+```bash
+python "$HOME/.agents/skills/agent-process/scripts/init.py" --setup "python -m pip install -r requirements.txt" --test "python -m pytest" --confirm-remote
+```
 
-Run `copier update` from the target repository and review the copied
-scripts. `workflow_references` tracks `@main` by default for a fresh
-`copier copy`. Copier reuses an already-recorded answer on
-update, though, so a target installed before this default changed keeps its
-persisted SHA until it explicitly re-answers `workflow_references` (or
-removes that key from `copier-answers.yml` before updating) to pick up
-`@main` — a plain update alone does not move it. This release changes required
-contexts to GitHub's composed `caller / callee` names, so after updating run
-the activation/protection step again; existing v0.1.x protection otherwise
-points at contexts that no workflow publishes.
+The literal setup/test strings are YAML-escaped, so multiline shell commands remain one
+caller input. An empty test command is refused. Every subprocess capture is UTF-8; an
+unavailable stdout or stderr is an error rather than an empty result.
 
-This release also adds a `Stop` handler to `.codex/hooks.json` for the Codex
-adapter (ADR 0021). Changing that file changes the hook definition hash
-Codex CLI compares against its persisted per-hook trust, so an already-Codex-adopted
-repository that runs `copier update` gets project trust unchanged but hook
-trust reset for the changed file — the same "necessary but not sufficient"
-gap step 3 names for a first install. After updating, redo that step's
-confirmation: run `codex` once in the repository and confirm no
-`Hooks need review` prompt appears, or pass `--dangerously-bypass-hook-trust`
-for unattended invocations that already vet the hook source.
+## Exact repository footprint
 
-No adopter installed the pre-`.agent-process/` layout before it moved
-under one root, so this release defines no `copier update` migration path
-from that older layout — only a fresh `copier copy` is supported going in
-([ADR 0019](../adr/0019-single-root-agent-process-layout.md)).
+Pinned `npx -y @fission-ai/openspec@1.13.0 init --tools claude,codex --no-animation`
+owns these generated families:
 
-Installation and update place every process conformance test under the
-reserved `tests/agent_process/` subtree — the only path a copied test occupies
-in the target repository; product tests elsewhere are never touched. Before
-running `copier update` on a repository that predates this reserved subtree,
-clone the `agent-process-distribution` source separately and, from that
-checkout, run `python .agent-process/scripts/check_consumer_test_collision.py <path>` with
-`<path>` pointing at the target repository — this script itself ships only
-through the update it is meant to run ahead of, so a pre-existing target
-checkout does not have it yet. It renders the target's current template and
-reports, by exact relative path, any file already occupying a location
-`tests/agent_process/` reserves for itself. Copier's own `--conflict`
-handling does not catch this case, since it only marks a conflict for a path
-it previously tracked through a prior render's diff, so a brand-new template
-path colliding with pre-existing, unrelated content would otherwise be
-silently overwritten. See
-[`agent-process.md`'s "Test suite ownership"](agent-process.md#test-suite-ownership)
-for the full publisher/consumer split.
+- `.claude/commands/opsx/{apply,archive,explore,propose,sync,update}.md`
+- `.claude/skills/openspec-{apply-change,archive-change,explore,propose,sync-specs,update-change}/SKILL.md`
+- `.agents/skills/openspec-{apply-change,archive-change,explore,propose,sync-specs,update-change}/SKILL.md`
+- `openspec/config.yaml` and later user-created `openspec/specs/**` and
+  `openspec/changes/**`
 
-## Where the payload lands
+Agent-process adds or merges only:
 
-Every process file renders under `.agent-process/`, except the closed root set
-[ADR 0019](../adr/0019-single-root-agent-process-layout.md) defines and
-individually justifies: the real-named `.github/workflows/ci.yml`,
-`agent-review.yml` and `.github/pull_request_template.md`; the tool-mandated
-`.agents/**`, `.claude/**`, `.codex/**`; the managed-fragment `AGENTS.md` and
-`.gitignore`; and the reserved `tests/agent_process/` subtree. Product
-configuration stays consumer-owned. The two callers retain the composed
-contexts `quality / quality` and `agent-review / agent-review` without
-replacing a consumer's own workflow files; `ci.yml` carries `pull-requests:
-read` and `issues: read` for the step of `quality` that reads the PR's
-`closingIssuesReferences`.
+- the marker-owned pointer block in `openspec/config.yaml`;
+- `.github/workflows/agent-process.yml`;
+- the marker-owned GitHub Actions entry in `.github/dependabot.yml`;
+- `extraKnownMarketplaces.agent-process-marketplace` and
+  `enabledPlugins["agent-process@agent-process-marketplace"]` in
+  `.claude/settings.json`.
 
-An unavoidable shared text file uses one explicit `<!-- agent-process:begin -->`
-through `<!-- agent-process:end -->` fragment. Duplicate or malformed markers
-are a conflict, not an opportunity for automatic recovery.
+Outside the repository it keeps `~/.agent-process/distribution` at release tag `v2.0.0`
+and links `~/.agents/skills/agent-process` to its skill directory. Remote state is one
+active repository ruleset and zero or one linked copy of user Project 4.
 
-Do not use `copier copy --force` against a non-empty repository: it can replace
-product CI, dependency, ignore, or contributor files before an operator can
-review the remaining conflicts. This single-root layout removes most of the
-collision surface that made `--force` tempting, but the reviewable adoption
-tool for an established repository does not ship with this release and is
-tracked separately. Perform a render or an update on a clean branch and submit
-its resulting diff for review. Remote branch-protection changes remain the
-separate, explicitly confirmed installation step above.
+No `.agent-process/`, hook, `AGENTS.md` fragment, review contract, report-path convention,
+process script, or process test is installed in the consumer. An unmarked conflicting
+`rules:` block, workflow, Dependabot file, malformed marker pair, foreign skill link,
+dirty checkout, duplicate process ruleset, or several linked Projects is a visible
+conflict; the installer leaves consumer-owned content unchanged.
 
-## Incomplete activation
+## Remote writes and person-owned actions
 
-If bootstrap exits with an error, the process remains inactive: its prior
-settings file is unchanged and `python .agent-process/scripts/issue_branch.py <N>` stops
-before creating a branch. Correct the reported GitHub access, Project number,
-or field configuration, then rerun bootstrap. Do not edit IDs by hand.
+With `--confirm-remote`, `init` upserts the uniquely named active ruleset, reads it back,
+and verifies that it targets the default branch, has no bypass actor, blocks deletion and
+non-fast-forward updates, requires a pull request, and strictly requires
+`quality / quality` from GitHub Actions integration 15368.
+
+If no Project is linked, it runs `gh project copy 4 --source-owner ekolvah --target-owner
+@me --format json` and links the copy. One linked Project is reused; several stop the run.
+The script intentionally does not inspect or mutate Project fields, views, visibility, or
+workflow switches.
+
+The command prints these remaining actions for the person and does not perform them:
+
+1. Run `gh secret set CLAUDE_CODE_OAUTH_TOKEN` and enter the value directly into `gh`.
+2. Enable Codex automatic review for PR open and every push in the Codex GitHub settings.
+3. Set the Project's intended visibility and verify the built-in workflows for Auto-add,
+   Item added, Item reopened, Item closed, and Pull request merged.
+
+The secret value and UI decisions never enter `init` output or arguments.
+
+## Advisory review and workflow trust
+
+The one caller invokes the tagged reusable quality workflow and calls
+`anthropics/claude-code-action@v1` directly. Codex automatic review is independent. Neither
+review is required or parsed; failures and comments remain visible for the person.
+
+The required quality context is bound by name and GitHub Actions integration, not by an
+authenticated caller definition. Before every merge, inspect the current-head diff of
+`.github/workflows/**` and the visible review state. Organization repositories may add a
+required-workflow ruleset as a stronger external trust anchor. Do not move a credentialed
+review to `pull_request_target`.
+
+## Repeat, update, and partial recovery
+
+Rerunning the same version is idempotent. Completed local files, the correct link, the
+unique ruleset, and one linked Project are reported unchanged or updated without
+duplication. If a later step fails, fix the named cause and rerun the same command; earlier
+steps are safe to observe again.
+
+For an update, update the Claude plugin, then run the existing linked skill's `init.py`
+with the new `--version`. It checks that the checkout is clean, fetches tags, selects the
+new immutable tag, updates the caller/reference and settings, and re-reads remote state.
+Dependabot independently proposes GitHub Actions reference updates for review.
+
+## Rollback
+
+Rollback is ordered so the default branch never loses a required context:
+
+1. Restore the previous caller and any previous classic required context before removing
+   or disabling the new caller.
+2. Verify that the restored context is green on the rollback PR head.
+3. Point the Claude plugin and Codex checkout back to the previous immutable tag; never
+   move or reuse a release tag.
+4. Restore the previous skill link only if its resolved target is known; never replace a
+   foreign path.
+5. After protection is restored, delete the uniquely identified process ruleset with
+   `gh api --method DELETE repos/OWNER/REPO/rulesets/ID` if rollback requires it.
+6. Unlink or delete a copied Project only after the person confirms it contains no unique
+   item state; Project deletion is destructive and is not automated by `init`.
+
+Repository files not owned by the closed allow-list are never rollback targets.
