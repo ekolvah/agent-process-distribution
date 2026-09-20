@@ -1,6 +1,6 @@
 """Tests for `.agent-process/scripts/ci_check.py` — the pre-commit gate runner.
 
-Covers `CHECKS` ↔ `ci.yml` step parity, module-discovery exclusions, runner exit
+Covers the publisher caller's complete-run command, module-discovery exclusions, runner exit
 codes, and the capture-failure path that must name its real cause.
 """
 
@@ -16,7 +16,7 @@ import yaml
 from scripts import ci_check
 from scripts.ci_check import _find_modules, _has_product_scope, _run, _tracked_files, run_selected
 
-_CI_YML = Path(__file__).resolve().parent.parent.parent / ".github" / "workflows" / "ci.yml"
+_CI_YML = Path(__file__).resolve().parent.parent.parent / ".github" / "workflows" / "agent-process.yml"
 
 
 def _init_repo(tmp_path: Path) -> None:
@@ -47,12 +47,12 @@ def _quality_caller() -> dict[str, Any]:
 
 
 class TestStepParity:
-    """The core defect: ci.yml duplicated the check list by hand and drifted —
-    some registry checks were silently missing in CI. The caller passes check names
-    to the callee, so parity remains enforceable without copying workflow steps."""
+    """The publisher's caller invokes the registry's complete local run."""
 
-    def test_ci_yml_cannot_select_a_subset_of_checks(self) -> None:
-        assert "with" not in _quality_caller()
+    def test_caller_cannot_select_a_subset_of_checks(self) -> None:
+        quality = _quality_caller()
+        assert "ci_check.py" in quality["with"]["test"]
+        assert "--only" not in quality["with"]["test"]
 
     def test_full_runner_visits_every_registered_check(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

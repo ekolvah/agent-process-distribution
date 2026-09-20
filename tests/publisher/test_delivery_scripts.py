@@ -15,6 +15,7 @@ change runs it live.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import json
 import subprocess
 import sys
@@ -24,6 +25,7 @@ from typing import Any
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+SKILL_SCRIPTS = ROOT / "skills" / "agent-process" / "scripts"
 _PROJECT = {"id": "PVT_1", "number": 4, "title": "Board", "resourcePath": "/users/owner/projects/4"}
 _FIELDS = {
     "fields": [
@@ -48,6 +50,21 @@ _FIELDS = {
 
 
 def _script(name: str) -> Any:
+    path = SKILL_SCRIPTS / f"{name}.py"
+    if path.is_file():
+        module_name = f"agent_process_skill_{name}"
+        if module_name in sys.modules:
+            return sys.modules[module_name]
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        sys.path.insert(0, str(SKILL_SCRIPTS))
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.remove(str(SKILL_SCRIPTS))
+        return module
     return importlib.import_module(f"scripts.{name}")
 
 
@@ -319,7 +336,7 @@ def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
 _CHANGE = "v2-9-example"
 _START = [_CHANGE, "--planner", "Claude", "--implementer", "Codex"]
 _PLACEHOLDER = "tracking issue <N>"
-_GROUP0 = "- [ ] 0.1 `python .agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
+_GROUP0 = "- [ ] 0.1 `python skills/agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
 
 
 def _change(tmp_path: Path, *, verdict: str = "approve", tasks: str) -> Path:
@@ -795,7 +812,7 @@ def test_archive_commit(tmp_path: Path) -> None:
     tasks.write_text(
         "- [x] 1.1 done\n"
         "- [ ] 4.1 `git status --short` empty;\n"
-        f"  `python .agent-process/scripts/archive_change.py {change}` archives, commits, pushes.\n"
+        f"  `python skills/agent-process/scripts/archive_change.py {change}` archives, commits, pushes.\n"
         "- [ ] 4.2 `gh pr create`; the person merges.\n",
         encoding="utf-8",
     )
@@ -837,6 +854,6 @@ def test_archive_commit(tmp_path: Path) -> None:
     # Scenario: Archive commit — the worktree must be clean before the archive; a stray edit
     # would be left behind the pushed head, so the script stops instead of committing openspec/.
     lock.unlink()
-    status = " M .agent-process/scripts/wait_for_pr.py\n"
+    status = " M skills/agent-process/scripts/wait_for_pr.py\n"
     assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
     assert order == []

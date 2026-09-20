@@ -1,10 +1,8 @@
-"""The delivery turn-boundary gate's Claude `Stop` wiring (issue #56).
+"""Repository-only v1 hook wiring retained during the v2 delivery transition.
 
-The decision logic itself (`scripts.delivery_state`) and its adapter
-(`scripts.hooks.stop_response`) are covered in `tests/publisher/test_hooks.py`
-and `tests/publisher/test_delivery_state.py`; this file only asserts the
-`.claude/settings.json` wiring, mirroring `TestClaudeHookWiring` in
-`test_navigation_policy.py`.
+The portable plugin has no hooks; its absence is covered by
+``tests/publisher/test_plugin.py``. These assertions cover only this publisher's
+temporary local settings until the remaining v1 cleanup changes land.
 """
 
 from __future__ import annotations
@@ -12,123 +10,25 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
-
-import pytest
-import yaml
 
 _REPO = Path(__file__).resolve().parents[2]
-_CLAUDE_SETTINGS = _REPO / ".claude" / "settings.json"
-_CODEX_HOOKS = _REPO / ".codex" / "hooks.json"
-_COPIER_ANSWERS = _REPO / ".agent-process" / "copier-answers.yml"
 
 
-def _settings() -> Any:
-    return json.loads(_CLAUDE_SETTINGS.read_text(encoding="utf-8"))
+def test_publisher_claude_stop_hook_is_wired_once() -> None:
+    settings = json.loads((_REPO / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    entries = settings["hooks"]["Stop"]
+    assert len(entries) == 1
+    commands = [hook["command"] for hook in entries[0]["hooks"]]
+    assert any(re.search(r"hooks\.py stop", command) for command in commands)
 
 
-def _answers() -> dict[str, Any]:
-    return yaml.safe_load(_COPIER_ANSWERS.read_text(encoding="utf-8"))
+def test_publisher_codex_hooks_remain_during_transition() -> None:
+    hooks = json.loads((_REPO / ".codex" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
+    expected = {"PreToolUse": "pre-tool", "PostToolUse": "on-edit", "Stop": "stop"}
+    for event, subcommand in expected.items():
+        commands = [hook["command"] for entry in hooks[event] for hook in entry["hooks"]]
+        assert any(re.search(rf"codex_hooks\.py {subcommand}", command) for command in commands)
 
 
-def _resource_attributes() -> dict[str, str]:
-    """Parse `OTEL_RESOURCE_ATTRIBUTES` the way the OTel SDK does: a comma-joined
-    `key=value` list. Returning a mapping rather than the raw string is the point —
-    the carrier has to stay a list so a later launch-time step can add a pair to it
-    (issue #101) without rewriting the format."""
-    raw = _settings()["env"]["OTEL_RESOURCE_ATTRIBUTES"]
-    pairs = {}
-    for part in raw.split(","):
-        assert "=" in part, f"not a key=value pair: {part!r}"
-        key, _, value = part.partition("=")
-        pairs[key] = value
-    return pairs
-
-
-def _codex_hooks() -> Any:
-    return json.loads(_CODEX_HOOKS.read_text(encoding="utf-8"))
-
-
-@pytest.mark.skipif(
-    not _CLAUDE_SETTINGS.is_file(),
-    reason="the generated project does not include the optional Claude adapter",
-)
-class TestStopHookWiring:
-    def test_stop_hook_is_wired_exactly_once(self) -> None:
-        entries = _settings()["hooks"]["Stop"]
-        assert len(entries) == 1
-        commands = [hook["command"] for hook in entries[0]["hooks"]]
-        assert any(re.search(r"hooks\.py stop", command) for command in commands)
-
-
-@pytest.mark.skipif(
-    not _CLAUDE_SETTINGS.is_file(),
-    reason="the generated project does not include the optional Claude adapter",
-)
-class TestTelemetryAttribution:
-    """Project attribution on the agent telemetry (issue #97).
-
-    A telemetry assertion in a file whose stated subject is hook and gate wiring is
-    deliberate: this is the one place that already reads `.claude/settings.json`
-    behind the optional-adapter `skipif`, and the attribution rides the same file.
-
-    Deliberate gap, recorded here rather than reopened as work-for-work: no test
-    asserts that a *live* Claude Code session emits these attributes. That crosses
-    a process boundary into the harness and a third-party exporter; issue #97's
-    AC1(a) covers it as a one-shot observation with captured evidence, following
-    the convention in `tests/publisher/test_test_suite_ownership.py` and
-    `tests/agent_process/test_branch_protection.py`.
-    """
-
-    def test_settings_carry_the_project_as_a_resource_attribute(self) -> None:
-        attributes = _resource_attributes()
-        answers = _answers()
-
-        project = attributes["vcs.repository.name"]
-        assert project, "the project attribute must not be empty"
-        # Which of the two answers wins was a template rule (mirror deleted by
-        # #119); this test only asserts the value is one of them and so cannot
-        # drift into a second encoding of the fallback.
-        assert project in {answers.get("github_repository"), answers.get("repo_name")}
-
-    def test_the_carrier_stays_a_multi_pair_list(self) -> None:
-        attributes = _resource_attributes()
-        answers = _answers()
-
-        github_repository = answers.get("github_repository")
-        if github_repository:
-            assert (
-                attributes["vcs.repository.url.full"] == f"https://github.com/{github_repository}"
-            )
-            assert len(attributes) >= 2
-        else:
-            # An adopter who left `github_repository` blank has no canonical URL,
-            # so the pair is omitted rather than guessed.
-            assert "vcs.repository.url.full" not in attributes
-
-
-class TestCodexHookWiring:
-    """`.codex/hooks.json` is mandatory in every render (issue #75, AC 6): unlike
-    `TestStopHookWiring` above, this class takes no `skipif` — a missing file here
-    must fail loudly, not skip silently (§IV)."""
-
-    def test_every_event_group_maps_to_its_subcommand(self) -> None:
-        hooks = _codex_hooks()["hooks"]
-
-        pre_tool_use = hooks["PreToolUse"]
-        assert len(pre_tool_use) == 1
-        assert pre_tool_use[0]["matcher"] == "^Bash$"
-        pre_tool_commands = [hook["command"] for hook in pre_tool_use[0]["hooks"]]
-        assert any(re.search(r"codex_hooks\.py pre-tool", command) for command in pre_tool_commands)
-
-        post_tool_use = hooks["PostToolUse"]
-        assert len(post_tool_use) == 1
-        assert post_tool_use[0]["matcher"] == "^apply_patch$"
-        post_tool_commands = [hook["command"] for hook in post_tool_use[0]["hooks"]]
-        assert any(re.search(r"codex_hooks\.py on-edit", command) for command in post_tool_commands)
-
-        stop = hooks["Stop"]
-        assert len(stop) == 1
-        assert "matcher" not in stop[0]
-        stop_commands = [hook["command"] for hook in stop[0]["hooks"]]
-        assert any(re.search(r"codex_hooks\.py stop", command) for command in stop_commands)
+def test_copier_attribution_record_is_not_a_contract() -> None:
+    assert not (_REPO / ".agent-process" / "copier-answers.yml").exists()
