@@ -74,7 +74,8 @@
 | distribution | Consumer-owned file | `tests/publisher/test_init.py::test_consumer_owned_file` |
 | distribution | Rule change | `tests/publisher/test_plugin.py::test_rule_change` |
 | distribution | New release | `tests/publisher/test_plugin.py::test_version_drift` |
-| distribution | Quality check on a PR | `tests/publisher/test_reusable_workflows.py::test_quality_check_on_a_pr` |
+| distribution | Quality check on a PR | `tests/publisher/test_reusable_workflows.py::test_consumer_caller_pins_release_tag` |
+| distribution | Quality check on the publisher PR | `tests/publisher/test_reusable_workflows.py::test_publisher_caller_uses_local_reusable` |
 | distribution | Rendered payload | `tests/publisher/test_plugin.py::test_closed_installed_payload` |
 | distribution | Process change | `tests/publisher/test_plugin.py::test_publisher_dogfoods_process` |
 | implementation | Consumer test fails | `tests/publisher/test_reusable_workflows.py::test_consumer_test_failure_is_quality_failure` |

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   quality:
-    uses: "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@main"
+    uses: "./.github/workflows/reusable-quality.yml"
     with:
       setup: "python -m pip install -r .agent-process/requirements.txt -r .agent-process/requirements-dev.txt"
       test: "python .agent-process/scripts/ci_check.py"

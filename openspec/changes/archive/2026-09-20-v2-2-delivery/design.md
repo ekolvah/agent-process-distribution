@@ -45,6 +45,9 @@ Platform observations used by this design:
 - Live reads on 2026-09-20 show this repository has no ruleset and classic protection has
   strict checks `quality / quality` and `agent-review / agent-review`, both under GitHub
   Actions app id `15368`, with admin enforcement, force pushes and deletions blocked.
+- The issue-112 pull request's Actions run `35523639249` ended in `startup_failure` with zero jobs because the
+  new caller passed `setup` and `test` to `reusable-quality.yml@main` while the unmerged
+  default-branch callee still exposed the old no-input interface.
 
 ## Goals / Non-Goals
 
@@ -167,9 +170,12 @@ until their scheduled cleanup; the template test proves none leaks into `setting
 
 The reusable quality workflow owns the PR-link read, checks out the PR head, runs setup
 when non-empty, runs test, and runs pinned strict OpenSpec validation when `openspec/`
-exists. Its file and steps come from the ref the caller pins. The publisher's own caller
-uses `@main` until the release tag exists and passes its current dependency install plus
-`ci_check.py` as setup/test.
+exists. In consumers, its file and steps come from the immutable release ref the caller
+pins. The publisher's own caller uses the repository-local reusable workflow and passes
+its current dependency install plus `ci_check.py` as setup/test: before the first release
+tag exists, that is the only stable merged configuration that both compiles and exercises
+the changed callee. The publisher-only loss of an immutable callee is caught by terminal
+inspection of every current-head workflow diff before the person merges.
 
 Codex review is not requested by the workflow or delivery procedure. The person enables
 the app's automatic review setting from `init`'s printed instruction. Both reviews are
@@ -178,7 +184,10 @@ advisory; only quality is required.
 Alternative: keep `reusable-agent-review.yml`. Rejected by the owner review: the official
 action can be called directly, and the wait/parser/fallback/enforcement code is bespoke
 review control. Alternative: `pull_request_target` for a trusted caller. Rejected by the
-observed base-SHA binding and the credential risk.
+observed base-SHA binding and the credential risk. Alternative: keep the publisher on
+`@main` until tagging. Rejected by run `35523639249`: GitHub validates the caller inputs
+against the old default-branch interface and creates no job. A temporary tag or branch is
+also rejected because the merged caller would depend on a mutable or disposable ref.
 
 ### D6. The ruleset requires quality by name and protects the ref
 

@@ -68,9 +68,22 @@ def test_one_caller_and_publisher_inputs() -> None:
     caller = _workflow("agent-process.yml")
     assert set(caller["jobs"]) == {"quality", "review"}
     quality = caller["jobs"]["quality"]
-    assert quality["uses"].endswith("reusable-quality.yml@main")
     assert "pip install" in quality["with"]["setup"]
     assert "ci_check.py" in quality["with"]["test"]
+
+
+def test_consumer_caller_pins_release_tag() -> None:
+    template = (ROOT / "skills" / "agent-process" / "templates" / "agent-process.yml").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@v2.0.0"
+    ) in template
+
+
+def test_publisher_caller_uses_local_reusable() -> None:
+    quality = _workflow("agent-process.yml")["jobs"]["quality"]
+    assert quality["uses"] == "./.github/workflows/reusable-quality.yml"
 
 
 def test_direct_advisory_reviews() -> None:
