@@ -28,26 +28,42 @@ def _module() -> ModuleType:
 
 
 class FakeRunner:
-    def __init__(self, home: Path, *, rulesets: list[dict[str, Any]] | None = None, projects: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        home: Path,
+        *,
+        rulesets: list[dict[str, Any]] | None = None,
+        projects: list[dict[str, Any]] | None = None,
+    ) -> None:
         self.home = home
         self.rulesets = list(rulesets or [])
         self.projects = list(projects or [])
         self.calls: list[tuple[list[str], str | None]] = []
         self.dirty = False
 
-    def __call__(self, cmd: list[str], *, cwd: Path | None = None, input: str | None = None) -> subprocess.CompletedProcess[str]:
+    def __call__(
+        self, cmd: list[str], *, cwd: Path | None = None, input: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
         self.calls.append((list(cmd), input))
         out = ""
         if cmd[:2] == ["git", "clone"]:
             checkout = Path(cmd[-1])
             (checkout / "skills" / "agent-process").mkdir(parents=True)
-            (checkout / "skills" / "agent-process" / "SKILL.md").write_text("fixture\n", encoding="utf-8")
+            (checkout / "skills" / "agent-process" / "SKILL.md").write_text(
+                "fixture\n", encoding="utf-8"
+            )
         elif cmd[:3] == ["git", "status", "--porcelain"]:
             out = " M dirty\n" if self.dirty else ""
         elif cmd[:3] == ["gh", "repo", "view"] and "nameWithOwner,defaultBranchRef" in cmd:
             out = json.dumps({"nameWithOwner": "owner/repo", "defaultBranchRef": {"name": "main"}})
         elif cmd[:3] == ["gh", "repo", "view"] and "owner,name,projectsV2" in cmd:
-            out = json.dumps({"owner": {"login": "owner"}, "name": "repo", "projectsV2": {"nodes": self.projects}})
+            out = json.dumps(
+                {
+                    "owner": {"login": "owner"},
+                    "name": "repo",
+                    "projectsV2": {"nodes": self.projects},
+                }
+            )
         elif cmd[:3] == ["gh", "api", "repos/owner/repo/rulesets"] and "--method" not in cmd:
             out = json.dumps(self.rulesets)
         elif cmd[:3] == ["gh", "api", "repos/owner/repo/rulesets"] and "--method" in cmd:
@@ -58,7 +74,14 @@ class FakeRunner:
         elif cmd[:3] == ["gh", "api", "repos/owner/repo/rulesets/41"]:
             out = json.dumps(self.rulesets[0])
         elif cmd[:3] == ["gh", "project", "copy"]:
-            self.projects = [{"id": "PVT_9", "number": 9, "title": "Agent process", "resourcePath": "/users/owner/projects/9"}]
+            self.projects = [
+                {
+                    "id": "PVT_9",
+                    "number": 9,
+                    "title": "Agent process",
+                    "resourcePath": "/users/owner/projects/9",
+                }
+            ]
             out = json.dumps(self.projects[0])
         elif cmd[:3] == ["gh", "project", "link"]:
             out = ""
@@ -70,26 +93,50 @@ class FakeRunner:
         elif cmd[:2] == ["ln", "-s"]:
             target, link = Path(cmd[-2]), Path(cmd[-1])
             link.parent.mkdir(parents=True, exist_ok=True)
-            completed = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], capture_output=True, text=True, encoding="utf-8")
+            completed = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
             assert completed.returncode == 0, completed.stderr
         return subprocess.CompletedProcess(cmd, 0, stdout=out, stderr="")
 
 
-def _install(tmp_path: Path, *, runner: FakeRunner | None = None, platform: str = "linux", setup: str = "") -> tuple[Any, FakeRunner, Path, Path]:
+def _install(
+    tmp_path: Path, *, runner: FakeRunner | None = None, platform: str = "linux", setup: str = ""
+) -> tuple[Any, FakeRunner, Path, Path]:
     module = _module()
     repo, home = tmp_path / "repo", tmp_path / "home"
     repo.mkdir(parents=True)
     home.mkdir(parents=True)
     fake = runner or FakeRunner(home)
-    module.install(root=repo, home=home, setup=setup, test="python -m pytest\npython -m ruff check .", version="2.0.0", dry_run=False, confirm_remote=True, runner=fake, platform=platform)
+    module.install(
+        root=repo,
+        home=home,
+        setup=setup,
+        test="python -m pytest\npython -m ruff check .",
+        version="2.0.0",
+        dry_run=False,
+        confirm_remote=True,
+        runner=fake,
+        platform=platform,
+    )
     return module, fake, repo, home
 
 
 def test_fresh_repository(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _, fake, repo, home = _install(tmp_path)
-    for relative in ("openspec/config.yaml", ".github/workflows/agent-process.yml", ".github/dependabot.yml", ".claude/settings.json"):
+    for relative in (
+        "openspec/config.yaml",
+        ".github/workflows/agent-process.yml",
+        ".github/dependabot.yml",
+        ".claude/settings.json",
+    ):
         assert (repo / relative).is_file(), relative
-    assert (home / ".agents" / "skills" / "agent-process").resolve() == (home / ".agent-process" / "distribution" / "skills" / "agent-process").resolve()
+    assert (home / ".agents" / "skills" / "agent-process").resolve() == (
+        home / ".agent-process" / "distribution" / "skills" / "agent-process"
+    ).resolve()
     commands = [call[0] for call in fake.calls]
     assert any(cmd[:3] == ["npx", "-y", "@fission-ai/openspec@1.13.0"] for cmd in commands)
     assert any(cmd[:3] == ["gh", "project", "copy"] for cmd in commands)
@@ -109,7 +156,17 @@ def test_second_run(tmp_path: Path) -> None:
     _, fake, repo, home = _install(tmp_path)
     before = {p.relative_to(repo): p.read_bytes() for p in repo.rglob("*") if p.is_file()}
     module = _module()
-    module.install(root=repo, home=home, setup="", test="python -m pytest\npython -m ruff check .", version="2.0.0", dry_run=False, confirm_remote=True, runner=fake, platform="linux")
+    module.install(
+        root=repo,
+        home=home,
+        setup="",
+        test="python -m pytest\npython -m ruff check .",
+        version="2.0.0",
+        dry_run=False,
+        confirm_remote=True,
+        runner=fake,
+        platform="linux",
+    )
     after = {p.relative_to(repo): p.read_bytes() for p in repo.rglob("*") if p.is_file()}
     assert before == after
     assert len(fake.rulesets) == 1
@@ -119,30 +176,64 @@ def test_second_run(tmp_path: Path) -> None:
 def test_consumer_owned_file(tmp_path: Path) -> None:
     module = _module()
     repo, home = tmp_path / "repo", tmp_path / "home"
-    repo.mkdir(); home.mkdir()
+    repo.mkdir()
+    home.mkdir()
     target = repo / ".github" / "dependabot.yml"
     target.parent.mkdir(parents=True)
     target.write_text("version: 2\nupdates: []\n", encoding="utf-8")
     with pytest.raises(module.InstallConflict):
-        module.install(root=repo, home=home, setup="", test="pytest", version="2.0.0", dry_run=False, confirm_remote=True, runner=FakeRunner(home), platform="linux")
+        module.install(
+            root=repo,
+            home=home,
+            setup="",
+            test="pytest",
+            version="2.0.0",
+            dry_run=False,
+            confirm_remote=True,
+            runner=FakeRunner(home),
+            platform="linux",
+        )
     assert target.read_text(encoding="utf-8") == "version: 2\nupdates: []\n"
 
 
 def test_dry_run_and_confirmation(tmp_path: Path) -> None:
     module = _module()
     repo, home = tmp_path / "repo", tmp_path / "home"
-    repo.mkdir(); home.mkdir()
+    repo.mkdir()
+    home.mkdir()
     fake = FakeRunner(home)
-    module.install(root=repo, home=home, setup="", test="pytest", version="2.0.0", dry_run=True, confirm_remote=False, runner=fake, platform="linux")
+    module.install(
+        root=repo,
+        home=home,
+        setup="",
+        test="pytest",
+        version="2.0.0",
+        dry_run=True,
+        confirm_remote=False,
+        runner=fake,
+        platform="linux",
+    )
     assert not any(repo.iterdir()) and fake.calls == []
     with pytest.raises(module.InstallConflict, match="confirm"):
-        module.install(root=repo, home=home, setup="", test="pytest", version="2.0.0", dry_run=False, confirm_remote=False, runner=fake, platform="linux")
+        module.install(
+            root=repo,
+            home=home,
+            setup="",
+            test="pytest",
+            version="2.0.0",
+            dry_run=False,
+            confirm_remote=False,
+            runner=fake,
+            platform="linux",
+        )
 
 
 def test_literal_commands_are_yaml_safe(tmp_path: Path) -> None:
     setup = "python -m pip install -r requirements.txt\necho 'ready: yes'"
     _, _, repo, _ = _install(tmp_path, setup=setup)
-    workflow = yaml.safe_load((repo / ".github" / "workflows" / "agent-process.yml").read_text(encoding="utf-8"))
+    workflow = yaml.safe_load(
+        (repo / ".github" / "workflows" / "agent-process.yml").read_text(encoding="utf-8")
+    )
     quality = workflow["jobs"]["quality"]
     assert quality["with"]["setup"] == setup
     assert quality["with"]["test"] == "python -m pytest\npython -m ruff check ."
@@ -156,8 +247,14 @@ def test_codex_checkout_refuses_dirty_or_foreign_link(tmp_path: Path) -> None:
     fake.dirty = False
     link = home / ".agents" / "skills" / "agent-process"
     link.rmdir()
-    foreign = home / "foreign"; foreign.mkdir()
-    completed = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(foreign)], capture_output=True, text=True, encoding="utf-8")
+    foreign = home / "foreign"
+    foreign.mkdir()
+    completed = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(link), str(foreign)],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
     assert completed.returncode == 0, completed.stderr
     with pytest.raises(module.InstallConflict, match="foreign"):
         module.update_codex_skill(home, "2.0.0", fake, "linux")
@@ -174,8 +271,12 @@ def test_ruleset_create_update_and_ambiguity(tmp_path: Path) -> None:
     assert fake.rulesets[0]["enforcement"] == "active"
     module.upsert_ruleset(repo, fake)
     assert any("PUT" in cmd for cmd, _ in fake.calls)
-    home = tmp_path / "ambiguous" / "home"; home.mkdir(parents=True)
-    many = FakeRunner(home, rulesets=[{"id": 1, "name": module.RULESET_NAME}, {"id": 2, "name": module.RULESET_NAME}])
+    home = tmp_path / "ambiguous" / "home"
+    home.mkdir(parents=True)
+    many = FakeRunner(
+        home,
+        rulesets=[{"id": 1, "name": module.RULESET_NAME}, {"id": 2, "name": module.RULESET_NAME}],
+    )
     with pytest.raises(module.InstallConflict, match="several"):
         module.upsert_ruleset(tmp_path, many)
 
@@ -191,13 +292,21 @@ def test_ruleset_requires_quality(tmp_path: Path) -> None:
     _, fake, _, _ = _install(tmp_path)
     rule = next(r for r in fake.rulesets[0]["rules"] if r["type"] == "required_status_checks")
     assert rule["parameters"]["strict_required_status_checks_policy"] is True
-    assert rule["parameters"]["required_status_checks"] == [{"context": "quality / quality", "integration_id": 15368}]
+    assert rule["parameters"]["required_status_checks"] == [
+        {"context": "quality / quality", "integration_id": 15368}
+    ]
 
 
 def test_project_reuse_and_ambiguity(tmp_path: Path) -> None:
     module = _module()
-    home = tmp_path / "home"; home.mkdir()
-    one = FakeRunner(home, projects=[{"id": "P", "number": 3, "title": "Existing", "resourcePath": "/users/owner/projects/3"}])
+    home = tmp_path / "home"
+    home.mkdir()
+    one = FakeRunner(
+        home,
+        projects=[
+            {"id": "P", "number": 3, "title": "Existing", "resourcePath": "/users/owner/projects/3"}
+        ],
+    )
     module.ensure_project(tmp_path, one)
     assert not any(cmd[:3] == ["gh", "project", "copy"] for cmd, _ in one.calls)
     many = FakeRunner(home, projects=[{"number": 1, "title": "A"}, {"number": 2, "title": "B"}])
@@ -207,8 +316,10 @@ def test_project_reuse_and_ambiguity(tmp_path: Path) -> None:
 
 def test_none_capture_is_not_an_empty_string(tmp_path: Path) -> None:
     module = _module()
+
     def broken(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(cmd, 0, stdout=None, stderr=None)
+
     with pytest.raises(RuntimeError, match="capture"):
         module.run_checked(["git", "status"], runner=broken)
 
@@ -216,9 +327,11 @@ def test_none_capture_is_not_an_empty_string(tmp_path: Path) -> None:
 def test_utf8_capture(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _module()
     seen: dict[str, Any] = {}
+
     def fake_run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         seen.update(kwargs)
         return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
     monkeypatch.setattr(module.subprocess, "run", fake_run)
     module.subprocess_runner(["gh", "repo", "view"])
     assert seen["encoding"] == "utf-8"

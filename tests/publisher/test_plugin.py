@@ -14,11 +14,20 @@ SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 SCRIPTS = ROOT / "skills" / "agent-process" / "scripts"
 TEMPLATES = ROOT / "skills" / "agent-process" / "templates"
 MOVED_SCRIPTS = {
-    "archive_change.py", "check_red.py", "create_tracking_issue.py",
-    "resolve_review_thread.py", "set_status.py", "start_change.py", "wait_for_pr.py",
+    "archive_change.py",
+    "check_red.py",
+    "create_tracking_issue.py",
+    "resolve_review_thread.py",
+    "set_status.py",
+    "start_change.py",
+    "wait_for_pr.py",
 }
 TEMPLATE_NAMES = {
-    "agent-process.yml", "dependabot.yml", "config.yaml", "settings.json", "ruleset.json",
+    "agent-process.yml",
+    "dependabot.yml",
+    "config.yaml",
+    "settings.json",
+    "ruleset.json",
 }
 
 
@@ -41,7 +50,14 @@ def test_rule_change() -> None:
 def test_shared_skill_owns_the_procedure_and_scripts() -> None:
     text = SKILL.read_text(encoding="utf-8")
     assert text.startswith("---\nname: agent-process\n")
-    for heading in ("## Proposal", "## Specs", "## Design", "## Tasks", "## Architect review", "## Install"):
+    for heading in (
+        "## Proposal",
+        "## Specs",
+        "## Design",
+        "## Tasks",
+        "## Architect review",
+        "## Install",
+    ):
         assert heading in text
     assert {p.name for p in SCRIPTS.glob("*.py")} == MOVED_SCRIPTS | {"init.py"}
     for path in SCRIPTS.glob("*.py"):
@@ -68,7 +84,9 @@ def test_publisher_dogfoods_process() -> None:
     caller = ROOT / ".github" / "workflows" / "agent-process.yml"
     assert caller.is_file()
     assert not (ROOT / ".github" / "workflows" / "ci.yml").exists()
-    assert "skills/agent-process/SKILL.md" in (ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8")
+    assert "skills/agent-process/SKILL.md" in (ROOT / "openspec" / "config.yaml").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_settings_template_contains_only_portable_plugin_keys() -> None:
@@ -88,4 +106,3 @@ def test_version_drift() -> None:
     assert "reusable-quality.yml@v2.0.0" in template
     init_source = (SCRIPTS / "init.py").read_text(encoding="utf-8")
     assert 'VERSION = "2.0.0"' in init_source
-

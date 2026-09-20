@@ -48,9 +48,9 @@
 
 ## 6. Verify the implementation
 
-- [ ] 6.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all`.
-- [ ] 6.2 Run `python .agent-process/scripts/ci_check.py` using the publisher's retained v1 entry point and fix failures at their root without widening the change.
-- [ ] 6.3 Review `git diff`, confirm the implementation matches the closed footprint and explicit proof losses, check `git status --short`, and commit any final implementation-only correction.
+- [x] 6.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all`.
+- [x] 6.2 Run `python .agent-process/scripts/ci_check.py` using the publisher's retained v1 entry point and fix failures at their root without widening the change.
+- [x] 6.3 Review `git diff`, confirm the implementation matches the closed footprint and explicit proof losses, check `git status --short`, and commit any final implementation-only correction.
 
 ## 7. Transition the live protection with the person
 

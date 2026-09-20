@@ -122,7 +122,9 @@ def _merge_settings(path: Path) -> str:
     plugins = settings.setdefault("enabledPlugins", {})
     if not isinstance(marketplaces, dict) or not isinstance(plugins, dict):
         raise InstallConflict(f"conflict: plugin settings in {path} are not objects")
-    marketplaces["agent-process-marketplace"] = portable["extraKnownMarketplaces"]["agent-process-marketplace"]
+    marketplaces["agent-process-marketplace"] = portable["extraKnownMarketplaces"][
+        "agent-process-marketplace"
+    ]
     plugins["agent-process@agent-process-marketplace"] = True
     rendered = json.dumps(settings, indent=2, ensure_ascii=False) + "\n"
     if path.exists() and path.read_text(encoding="utf-8") == rendered:
@@ -147,15 +149,22 @@ def update_codex_skill(home: Path, version: str, runner: Runner, platform: str) 
     link = home / ".agents" / "skills" / "agent-process"
     if link.exists() or link.is_symlink():
         if not _same_target(link, target):
-            raise InstallConflict(f"conflict: foreign Codex skill link at {link}; leave it unchanged")
+            raise InstallConflict(
+                f"conflict: foreign Codex skill link at {link}; leave it unchanged"
+            )
     if checkout.exists():
         dirty = run_checked(["git", "status", "--porcelain"], runner=runner, cwd=checkout)
         if dirty:
-            raise InstallConflict(f"conflict: dirty Codex checkout at {checkout}; commit or clean it first")
+            raise InstallConflict(
+                f"conflict: dirty Codex checkout at {checkout}; commit or clean it first"
+            )
         run_checked(["git", "fetch", "--tags", "origin"], runner=runner, cwd=checkout)
     else:
         checkout.parent.mkdir(parents=True, exist_ok=True)
-        run_checked(["git", "clone", "--filter=blob:none", "--no-checkout", REPOSITORY, str(checkout)], runner=runner)
+        run_checked(
+            ["git", "clone", "--filter=blob:none", "--no-checkout", REPOSITORY, str(checkout)],
+            runner=runner,
+        )
     run_checked(["git", "checkout", "--detach", f"v{version}"], runner=runner, cwd=checkout)
     if not target.is_dir():
         raise RuntimeError(f"selected tag v{version} has no skill at {target}")
@@ -171,7 +180,9 @@ def update_codex_skill(home: Path, version: str, runner: Runner, platform: str) 
 
 
 def _repo(root: Path, runner: Runner) -> tuple[str, str]:
-    raw = run_checked(["gh", "repo", "view", "--json", "nameWithOwner,defaultBranchRef"], runner=runner, cwd=root)
+    raw = run_checked(
+        ["gh", "repo", "view", "--json", "nameWithOwner,defaultBranchRef"], runner=runner, cwd=root
+    )
     data = json.loads(raw)
     return str(data["nameWithOwner"]), str(data["defaultBranchRef"]["name"])
 
@@ -189,48 +200,96 @@ def _verify_ruleset(observed: dict[str, Any], default_branch: str) -> None:
     required = [r for r in observed.get("rules", []) if r.get("type") == "required_status_checks"]
     checks = required[0]["parameters"]["required_status_checks"] if len(required) == 1 else []
     if checks != [{"context": "quality / quality", "integration_id": 15368}]:
-        raise RuntimeError("ruleset read-back does not require quality / quality from GitHub Actions")
+        raise RuntimeError(
+            "ruleset read-back does not require quality / quality from GitHub Actions"
+        )
 
 
 def upsert_ruleset(root: Path, runner: Runner) -> int:
     repo, default_branch = _repo(root, runner)
     endpoint = f"repos/{repo}/rulesets"
-    payload = json.loads(run_checked(["gh", "api", endpoint, "--paginate", "--slurp"], runner=runner, cwd=root))
-    listed = [item for page in payload for item in page] if payload and all(isinstance(page, list) for page in payload) else payload
+    payload = json.loads(
+        run_checked(["gh", "api", endpoint, "--paginate", "--slurp"], runner=runner, cwd=root)
+    )
+    listed = (
+        [item for page in payload for item in page]
+        if payload and all(isinstance(page, list) for page in payload)
+        else payload
+    )
     if not isinstance(listed, list) or not all(isinstance(item, dict) for item in listed):
         raise RuntimeError("ruleset list read-back is not a JSON array of objects")
     matches = [item for item in listed if item.get("name") == RULESET_NAME]
     if len(matches) > 1:
-        raise InstallConflict(f"conflict: several rulesets named {RULESET_NAME!r}; refusing to choose")
+        raise InstallConflict(
+            f"conflict: several rulesets named {RULESET_NAME!r}; refusing to choose"
+        )
     body = _ruleset_body(default_branch)
     if matches:
         rule_id = int(matches[0]["id"])
         method, target = "PUT", f"{endpoint}/{rule_id}"
     else:
         method, target = "POST", endpoint
-    created = json.loads(run_checked(["gh", "api", target, "--method", method, "--input", "-"], runner=runner, cwd=root, input=json.dumps(body)))
+    created = json.loads(
+        run_checked(
+            ["gh", "api", target, "--method", method, "--input", "-"],
+            runner=runner,
+            cwd=root,
+            input=json.dumps(body),
+        )
+    )
     rule_id = int(created["id"])
-    observed = json.loads(run_checked(["gh", "api", f"{endpoint}/{rule_id}"], runner=runner, cwd=root))
+    observed = json.loads(
+        run_checked(["gh", "api", f"{endpoint}/{rule_id}"], runner=runner, cwd=root)
+    )
     _verify_ruleset(observed, default_branch)
     print(f"written: ruleset {RULESET_NAME} ({rule_id})")
     return rule_id
 
 
 def ensure_project(root: Path, runner: Runner) -> int:
-    raw = run_checked(["gh", "repo", "view", "--json", "owner,name,projectsV2"], runner=runner, cwd=root)
+    raw = run_checked(
+        ["gh", "repo", "view", "--json", "owner,name,projectsV2"], runner=runner, cwd=root
+    )
     data = json.loads(raw)
-    projects = (data.get("projectsV2") or {}).get("nodes") or (data.get("projectsV2") or {}).get("Nodes") or []
+    projects = (
+        (data.get("projectsV2") or {}).get("nodes")
+        or (data.get("projectsV2") or {}).get("Nodes")
+        or []
+    )
     if len(projects) > 1:
         names = ", ".join(f"#{p.get('number')} {p.get('title')}" for p in projects)
-        raise InstallConflict(f"conflict: several Projects are linked ({names}); refusing to choose")
+        raise InstallConflict(
+            f"conflict: several Projects are linked ({names}); refusing to choose"
+        )
     if projects:
         number = int(projects[0]["number"])
         print(f"unchanged: linked Project #{number} {projects[0].get('title', '')}")
         return number
-    copied = json.loads(run_checked(["gh", "project", "copy", str(TEMPLATE_PROJECT), "--source-owner", TEMPLATE_OWNER, "--target-owner", "@me", "--format", "json"], runner=runner, cwd=root))
+    copied = json.loads(
+        run_checked(
+            [
+                "gh",
+                "project",
+                "copy",
+                str(TEMPLATE_PROJECT),
+                "--source-owner",
+                TEMPLATE_OWNER,
+                "--target-owner",
+                "@me",
+                "--format",
+                "json",
+            ],
+            runner=runner,
+            cwd=root,
+        )
+    )
     number = int(copied["number"])
     repo = f"{data['owner']['login']}/{data['name']}"
-    run_checked(["gh", "project", "link", str(number), "--owner", "@me", "--repo", repo], runner=runner, cwd=root)
+    run_checked(
+        ["gh", "project", "link", str(number), "--owner", "@me", "--repo", repo],
+        runner=runner,
+        cwd=root,
+    )
     print(f"written: copied and linked Project #{number}")
     return number
 
@@ -238,7 +297,9 @@ def ensure_project(root: Path, runner: Runner) -> int:
 def _manual_instructions() -> None:
     print("planned: enter the Claude credential yourself: gh secret set CLAUDE_CODE_OAUTH_TOKEN")
     print("planned: enable Codex automatic review for this repository in the Codex GitHub settings")
-    print("planned: set Project visibility as intended and enable Auto-add, Item added, Item reopened, Item closed, and Pull request merged workflows in the Project UI")
+    print(
+        "planned: set Project visibility as intended and enable Auto-add, Item added, Item reopened, Item closed, and Pull request merged workflows in the Project UI"
+    )
 
 
 def _plan(root: Path, home: Path, version: str) -> None:
@@ -253,8 +314,15 @@ def _plan(root: Path, home: Path, version: str) -> None:
 
 
 def install(
-    *, root: Path, home: Path, setup: str, test: str, version: str = VERSION,
-    dry_run: bool, confirm_remote: bool, runner: Runner = subprocess_runner,
+    *,
+    root: Path,
+    home: Path,
+    setup: str,
+    test: str,
+    version: str = VERSION,
+    dry_run: bool,
+    confirm_remote: bool,
+    runner: Runner = subprocess_runner,
     platform: str = sys.platform,
 ) -> None:
     if not test.strip():
@@ -264,10 +332,23 @@ def install(
         return
     if not confirm_remote:
         raise InstallConflict("refusing writes without --confirm-remote; run --dry-run first")
-    run_checked(["npx", "-y", OPENSPEC, "init", "--tools", "claude,codex", "--no-animation"], runner=runner, cwd=root)
+    run_checked(
+        ["npx", "-y", OPENSPEC, "init", "--tools", "claude,codex", "--no-animation"],
+        runner=runner,
+        cwd=root,
+    )
     _merge_marked(root / "openspec" / "config.yaml", _template("config.yaml"), reject_key="rules")
-    workflow = _template("agent-process.yml").replace("@v2.0.0", f"@v{version}").replace("__SETUP_JSON__", json.dumps(setup)).replace("__TEST_JSON__", json.dumps(test))
-    _write(root / ".github" / "workflows" / "agent-process.yml", MANAGED_HEADER + "\n" + workflow, owned=True)
+    workflow = (
+        _template("agent-process.yml")
+        .replace("@v2.0.0", f"@v{version}")
+        .replace("__SETUP_JSON__", json.dumps(setup))
+        .replace("__TEST_JSON__", json.dumps(test))
+    )
+    _write(
+        root / ".github" / "workflows" / "agent-process.yml",
+        MANAGED_HEADER + "\n" + workflow,
+        owned=True,
+    )
     _merge_marked(root / ".github" / "dependabot.yml", _template("dependabot.yml"))
     _merge_settings(root / ".claude" / "settings.json")
     update_codex_skill(home, version, runner, platform)
@@ -286,7 +367,15 @@ def main(argv: list[str] | None = None) -> None:
     mode.add_argument("--confirm-remote", action="store_true")
     ns = parser.parse_args(argv)
     try:
-        install(root=Path.cwd(), home=Path.home(), setup=ns.setup, test=ns.test, version=ns.version, dry_run=ns.dry_run, confirm_remote=ns.confirm_remote)
+        install(
+            root=Path.cwd(),
+            home=Path.home(),
+            setup=ns.setup,
+            test=ns.test,
+            version=ns.version,
+            dry_run=ns.dry_run,
+            confirm_remote=ns.confirm_remote,
+        )
     except InstallConflict as exc:
         print(str(exc), file=sys.stderr)
         raise SystemExit(2) from exc

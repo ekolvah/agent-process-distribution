@@ -24,7 +24,7 @@ relevant branch (`fixer_revisions >= max_runs`) would require synthesising
 `plan_completed` / `architect_completed` / `implementation_completed` and a
 stand-in `review_outcome` — factoids this gate never verified (§V) — plus three
 dead route branches that would silently move the verdict whenever the router
-changes. What is shared is *data*: the role catalogue and `REQUIRED_CONTEXTS`.
+changes. What is shared is *data*: the role catalogue and review context name.
 No policy gets a second home.
 
 A PR touching the review controller is no longer a special case: the
@@ -51,10 +51,12 @@ from urllib.parse import quote
 
 try:
     from scripts.agent_orchestrator import load_catalog
-    from scripts.check_branch_protection import REQUIRED_CONTEXTS, REVIEW_CONTEXT
+    from scripts.check_branch_protection import REVIEW_CONTEXT
 except ModuleNotFoundError:  # documented direct script entry point
     from agent_orchestrator import load_catalog
-    from check_branch_protection import REQUIRED_CONTEXTS, REVIEW_CONTEXT
+    from check_branch_protection import REVIEW_CONTEXT
+
+GATE_CONTEXTS = ("quality / quality", REVIEW_CONTEXT)
 
 REVIEW_WORKFLOW_FILE = "agent-review.yml"
 
@@ -164,16 +166,14 @@ def evaluate(evidence: ReviewEvidence, fixer_budget: int) -> Verdict:
     """Return the loop verdict for the current PR head."""
     by_name = {check.name: check for check in evidence.checks}
     pending = [
-        name
-        for name in REQUIRED_CONTEXTS
-        if name not in by_name or by_name[name].status != "COMPLETED"
+        name for name in GATE_CONTEXTS if name not in by_name or by_name[name].status != "COMPLETED"
     ]
     if pending:
         return _verdict(
             "review-pending",
             f"required checks are not final on {evidence.head_sha[:8]}: {', '.join(pending)}",
         )
-    red = [name for name in REQUIRED_CONTEXTS if by_name[name].conclusion != "SUCCESS"]
+    red = [name for name in GATE_CONTEXTS if by_name[name].conclusion != "SUCCESS"]
     if red:
         spent = fixer_revisions(evidence)
         if spent >= fixer_budget:

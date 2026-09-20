@@ -88,6 +88,12 @@ external anchor.
 There is no process-owned review outcome gate in v2. Review is visible evidence for the
 person, while the required machine gate is quality.
 
+## Review gate verdicts
+
+The publisher temporarily retains the v1 `review_gate.py` verdicts for changes already
+scheduled on that process. They are a compatibility surface during the migration, not a
+v2 required check or a distributed consumer contract.
+
 ## Advisory review
 
 The caller invokes `anthropics/claude-code-action@v1` directly. The person enables Codex

@@ -336,7 +336,9 @@ def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
 _CHANGE = "v2-9-example"
 _START = [_CHANGE, "--planner", "Claude", "--implementer", "Codex"]
 _PLACEHOLDER = "tracking issue <N>"
-_GROUP0 = "- [ ] 0.1 `python skills/agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
+_GROUP0 = (
+    "- [ ] 0.1 `python skills/agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
+)
 
 
 def _change(tmp_path: Path, *, verdict: str = "approve", tasks: str) -> Path:

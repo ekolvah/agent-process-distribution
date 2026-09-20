@@ -54,12 +54,20 @@ def test_review_archives_with_the_change(tmp_path: Path) -> None:
         (change / name).write_text(text, encoding="utf-8")
     completed = _openspec("archive", "fixture", "-y", cwd=tmp_path)
     assert completed.returncode == 0, completed.stdout + completed.stderr
-    assert list((tmp_path / "openspec" / "changes" / "archive").glob("*-fixture/architect-review.md"))
+    assert list(
+        (tmp_path / "openspec" / "changes" / "archive").glob("*-fixture/architect-review.md")
+    )
 
 
 def test_tasks_of_a_new_change() -> None:
     text = _skill()
-    assert text.index("start_change.py") < text.index("check_red.py") < text.index("archive_change.py") < text.index("gh pr create") < text.index("wait_for_pr.py")
+    assert (
+        text.index("start_change.py")
+        < text.index("check_red.py")
+        < text.index("archive_change.py")
+        < text.index("gh pr create")
+        < text.index("wait_for_pr.py")
+    )
     assert "tracking issue <N>" in text
     assert "automatic Codex" in text
     assert "@codex review" not in text
@@ -75,7 +83,12 @@ def test_plan_approved() -> None:
 
 
 def test_design_on_a_platform_behaviour() -> None:
-    for part in ("platform behaviour", "observation, not the inference", "reference page", "run id"):
+    for part in (
+        "platform behaviour",
+        "observation, not the inference",
+        "reference page",
+        "run id",
+    ):
         assert part in _skill()
 
 
@@ -84,7 +97,12 @@ def test_asserted_platform_fact() -> None:
 
 
 def test_replaced_input_designed() -> None:
-    for part in ("replaces a project-declared input", "failure modes", "stops proving", "which script, which run, on which head"):
+    for part in (
+        "replaces a project-declared input",
+        "failure modes",
+        "stops proving",
+        "which script, which run, on which head",
+    ):
         assert part in _skill()
 
 
@@ -116,5 +134,11 @@ def test_one_planning_home() -> None:
 
 
 def test_label_change() -> None:
-    for path in ("commands/plan.md", "commands/implement.md", "agents/discovery.md", ".agents/skills/plan-issue", ".agents/skills/implement-issue"):
+    for path in (
+        "commands/plan.md",
+        "commands/implement.md",
+        "agents/discovery.md",
+        ".agents/skills/plan-issue",
+        ".agents/skills/implement-issue",
+    ):
         assert not (ROOT / path).exists()

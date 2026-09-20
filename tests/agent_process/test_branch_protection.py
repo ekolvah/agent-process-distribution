@@ -138,11 +138,16 @@ def _protected_policy(*, strict: bool = True, admins: bool = True) -> dict[str, 
 class TestProtectionInstallation:
     def test_protected_branch_adds_only_missing_contexts_and_preserves_policy(self) -> None:
         before = _protected_policy()
+        before["required_status_checks"]["checks"] = [
+            check
+            for check in before["required_status_checks"]["checks"]
+            if check["context"] not in REQUIRED_CONTEXTS
+        ]
         client = _MemoryProtectionClient(before)
 
         report = install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
 
-        missing = tuple(context for context in REQUIRED_CONTEXTS if context != REQUIRED_CONTEXTS[0])
+        missing = REQUIRED_CONTEXTS
         assert client.writes == [("add_contexts", "main", missing)]
         assert report.changed is True
         assert client.protection_reads == 2
@@ -247,9 +252,13 @@ class TestProtectionInstallation:
         assert invalid_declaration.writes == []
 
     def test_partial_failure_is_visible_and_rerun_converges(self) -> None:
-        client = _MemoryProtectionClient(
-            _protected_policy(strict=False, admins=False), fail_on="set_admins"
-        )
+        policy = _protected_policy(strict=False, admins=False)
+        policy["required_status_checks"]["checks"] = [
+            check
+            for check in policy["required_status_checks"]["checks"]
+            if check["context"] not in REQUIRED_CONTEXTS
+        ]
+        client = _MemoryProtectionClient(policy, fail_on="set_admins")
 
         with pytest.raises(BranchProtectionError, match="partial.*add.*strict.*rerun"):
             install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
@@ -276,11 +285,9 @@ class TestProtectionInstallation:
 
 
 class TestDriftDetection:
-    def test_controller_gate_is_not_a_required_context(self) -> None:
-        assert REQUIRED_CONTEXTS == (
-            "quality / quality",
-            "agent-review / agent-review",
-        )
+    def test_only_quality_is_a_required_context(self) -> None:
+        assert REQUIRED_CONTEXTS == ("quality / quality",)
+        assert "review" in NOT_REQUIRED
 
     """Чистое сравнение объявленного состава контекстов с фактическим."""
 

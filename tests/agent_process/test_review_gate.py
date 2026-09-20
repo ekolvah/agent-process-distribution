@@ -20,6 +20,7 @@ from scripts.check_branch_protection import (
     REVIEW_CONTEXT as PROTECTION_REVIEW_CONTEXT,
 )
 from scripts.review_gate import (
+    GATE_CONTEXTS,
     REVIEW_CONTEXT,
     VERDICT_EXIT_CODES,
     CheckRun,
@@ -51,7 +52,7 @@ def _checks(
     """Every required context COMPLETED/SUCCESS unless overridden."""
     graded = overrides or {}
     return tuple(
-        CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS"))) for name in REQUIRED_CONTEXTS
+        CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS"))) for name in GATE_CONTEXTS
     )
 
 
@@ -168,9 +169,10 @@ class TestVerdict:
 class TestContracts:
     """Structural guards: they hold by construction, so they stay out of the RED set."""
 
-    def test_review_context_is_part_of_required_contexts(self) -> None:
+    def test_legacy_review_gate_keeps_its_own_context_set(self) -> None:
         assert REVIEW_CONTEXT is PROTECTION_REVIEW_CONTEXT
-        assert REVIEW_CONTEXT in REQUIRED_CONTEXTS
+        assert REVIEW_CONTEXT in GATE_CONTEXTS
+        assert REVIEW_CONTEXT not in REQUIRED_CONTEXTS
 
     def test_every_verdict_has_a_distinct_exit_code(self) -> None:
         assert sorted(VERDICT_EXIT_CODES.values()) == [0, 10, 20, 30]
@@ -206,7 +208,7 @@ def _pr_payload(**overrides: Any) -> dict[str, Any]:
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS",
             }
-            for name in REQUIRED_CONTEXTS
+            for name in GATE_CONTEXTS
         ],
         "files": [{"path": "src/kinozal_scraper/app.py"}],
     }
@@ -252,7 +254,7 @@ class TestEvidence:
 
         evidence = collect_evidence("465")
 
-        assert {check.name for check in evidence.checks} == set(REQUIRED_CONTEXTS)
+        assert {check.name for check in evidence.checks} == set(GATE_CONTEXTS)
 
     def test_controller_paths_are_not_special_in_the_verdict(
         self, monkeypatch: pytest.MonkeyPatch

@@ -48,14 +48,13 @@ import yaml
 
 # Canonical required-context composition for the repository's default branch.
 REVIEW_CONTEXT = "agent-review / agent-review"
-REQUIRED_CONTEXTS: tuple[str, ...] = (
-    "quality / quality",
-    "agent-review / agent-review",
-)
+REQUIRED_CONTEXTS: tuple[str, ...] = ("quality / quality",)
 
 # PR jobs deliberately NOT required, with reasons. An empty reason is a forgotten decision,
 # not an accepted one, so the guard rejects it.
-NOT_REQUIRED: dict[str, str] = {}
+NOT_REQUIRED: dict[str, str] = {
+    "review": "Claude and Codex reviews are advisory; the person decides whether to merge."
+}
 
 
 # `gh` substitutes `{owner}`/`{repo}` placeholders; no leading slash, or Windows MSYS

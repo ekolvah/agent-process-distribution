@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 _ROOT = Path(__file__).resolve().parents[2]
 _MOVED = _ROOT / "skills" / "agent-process" / "scripts" / "resolve_review_thread.py"
 if _MOVED.is_file():

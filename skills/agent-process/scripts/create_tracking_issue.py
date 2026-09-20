@@ -77,7 +77,9 @@ def create_tracking_issue(
     tasks_md.write_text(
         re.sub(re.escape(PLACEHOLDER), f"tracking issue {number}", text, count=1), encoding="utf-8"
     )
-    resume = f"python skills/agent-process/scripts/set_status.py {number} Planned --priority {priority}"
+    resume = (
+        f"python skills/agent-process/scripts/set_status.py {number} Planned --priority {priority}"
+    )
     try:
         set_status(number, "Planned", priority=priority, gh=gh)
     except (KeyError, ValueError, RuntimeError) as exc:
