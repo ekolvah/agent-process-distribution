@@ -98,9 +98,14 @@ rules:
       spec goes through a change of its own on the PR branch — `npx -y
       @fission-ai/openspec@1.13.0 new change <name>`, the delta under its `specs/`,
       `validate --strict`, `python .agent-process/scripts/archive_change.py <name>` — never
-      a direct edit of `openspec/specs/`: the archive is what carries a spec —, repeat at
-      most three rounds; the fourth leaves the rest to the
-      person with a reply. The person merges. The tasks after the archive leave no tick in
+      a direct edit of `openspec/specs/`: the archive is what carries a spec —; a fix that
+      changes a design decision amends the archived `design.md` beside that decision and
+      the scenario → test map of the archived `tasks.md` in the same push; a finding on
+      what a script does is closed by its class (the invariant it violates, the other
+      inputs that violate it from the tool's own documentation, what each added switch
+      takes away, a RED test of the class, not the reviewer's example); repeat at most
+      three rounds; the fourth leaves the rest to the person with a reply. The person
+      merges. The tasks after the archive leave no tick in
       the repository: the change is closed and a pushed tick would move the reviewed head —
       the PR (its checks, threads and merge) is their record. A run interrupted after the
       archive does not re-enter the apply (`openspec status` no longer knows the change):
