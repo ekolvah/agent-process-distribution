@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Confirm that a set of pytest paths are all failing (RED step).
 
-Usage: python .agent-process/scripts/check_red.py <node-id> ...
+Usage: python skills/agent-process/scripts/check_red.py <node-id> ...
 
 The script runs the test runner itself: `python -m pytest` of its own interpreter, under
 its own configuration — `--tb=no --maxfail=0 -p no:stepwise -o cache_dir=<its own

@@ -26,122 +26,14 @@ context: |
   openspec/changes/<name>/architect-review.md carries a Verdict that starts with `approve`
   and the change's tracking issue is a Project item in `Planned` with its priority.
 
+# agent-process:begin
 rules:
   proposal:
-    - >-
-      Read the code and prior art before writing; when a scope decision is the person's,
-      ask before writing the proposal.
-    - >-
-      Bug: record the reproduction (the failing test, or the exact observation when a test
-      needs project-specific capture) and the root cause under **Why**, before any design.
-    - >-
-      **Impact** lists every file added, edited and removed; a doc-only PR is separate
-      from code.
-    - >-
-      A design that rests on a platform behaviour (an event, a permission, a merge rule, a
-      token scope, a CLI flag) verifies it on the platform before the proposal is written
-      and records the observation, not the inference, under **Why** or in design.md beside
-      the decision: the reference page (URL and the sentence) or the run id / command and
-      its output — a run of a standard checker counts; a listing, a name or an inference
-      from another behaviour does not; an observation already on record (an ADR entry, an
-      archived change) is pointed at, not repeated.
+    - Follow `skills/agent-process/SKILL.md#proposal`.
+  specs:
+    - Follow `skills/agent-process/SKILL.md#specs`.
   design:
-    - >-
-      A design that replaces a project-declared input with one the caller supplies, or
-      drops a guard, lists beside that decision the failure modes of the new input (when
-      one is replaced), what the component stops proving, and for each lost proof the
-      delivery-flow step that catches it — which script, which run, on which head — not a
-      role or the platform in general.
+    - Follow `skills/agent-process/SKILL.md#design`.
   tasks:
-    - >-
-      Group 0 — Delivery start, one task: `python .agent-process/scripts/start_change.py
-      <change> --planner <carrier of the propose run> --implementer <this carrier>` (Claude
-      or Codex; ask when the planner is unknown), its text carrying the token
-      `tracking issue <N>` — the propose run replaces `<N>` with the number, and both
-      scripts read the token there. The script reads the verdict of `architect-review.md`
-      (on `rework` no delivery task runs: apply the findings, re-review) and the Status of
-      the issue, creates the linked branch from origin/main, sets In Progress and posts
-      the provenance line; it prints `propose run not finished` and exits 2 when the token
-      still carries `<N>` or the issue is not a Project item in Planned — nothing is asked
-      and nothing is created here.
-    - >-
-      Group 1 — RED first: write the tests of the scenario → test map, verify
-      `python .agent-process/scripts/check_red.py <node ids>` exits 0 (the script runs
-      `python -m pytest` of its own interpreter under its own configuration, with a report
-      path of its own and the node ids), commit before any implementation. When the map names no test (docs-only, `skip_specs`,
-      a rename), the group is one task that records `no RED: <reason>`.
-    - >-
-      Implementation groups: one task per scenario, design decision or review finding,
-      each with its verify command; every group ends with a commit of its work.
-    - >-
-      Verify group: `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and
-      `python .agent-process/scripts/ci_check.py` green.
-    - >-
-      Deliver group, in this order: `git status --short` empty (commit what is left) →
-      `python .agent-process/scripts/archive_change.py <change>` (marks its own task,
-      archives, commits, pushes — the archive is the head the PR opens on, so the
-      reviewed head is the archived one) →
-      `gh pr create --title "<change>" --body-file <report>` (change name, the tracking
-      issue as a plain reference — no `Closes`: the linked branch closes it on merge —
-      the scenario → test map, deferrals) → `python .agent-process/scripts/request_codex_review.py --request <PR>`
-      (after the PR and after every push: the `agent-review` check waits for the Codex
-      review of the head and runs the Claude review only when none arrives) →
-      `python .agent-process/scripts/wait_for_pr.py <PR>` → apply every unresolved thread,
-      push, re-request, `wait_for_pr.py <PR>` again — it returns on the concluded check
-      of the head, whose review is Codex's or the fallback's when none came — then a
-      `P0`/`P1` thread the push addressed is resolved with
-      `python .agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
-      --thread <id> --reply-file <path>` (`--list` prints the open ones; the script
-      refuses while the head's run is running, resolves, re-runs that run and replies —
-      the order is its, not this rule's);
-      a `P2`/`P3` thread is answered, never resolved by the process; a fix that changes a
-      spec goes through a change of its own on the PR branch — `npx -y
-      @fission-ai/openspec@1.13.0 new change <name>`, the delta under its `specs/`,
-      `validate --strict`, `python .agent-process/scripts/archive_change.py <name>` — never
-      a direct edit of `openspec/specs/`: the archive is what carries a spec —; a fix that
-      changes a design decision amends the archived `design.md` beside that decision and
-      the scenario → test map of the archived `tasks.md` in the same push; a finding on
-      what a script does is closed by its class (the invariant it violates, the other
-      inputs that violate it from the tool's own documentation, what each added switch
-      takes away, a RED test of the class, not the reviewer's example); repeat at most
-      three rounds; the fourth leaves the rest to the person with a reply. The person
-      merges. The tasks after the archive leave no tick in
-      the repository: the change is closed and a pushed tick would move the reviewed head —
-      the PR (its checks, threads and merge) is their record. A run interrupted after the
-      archive does not re-enter the apply (`openspec status` no longer knows the change):
-      it continues with `gh pr view <change>` — open the PR when there is none —
-      then the review loop.
-    - >-
-      End with a `## Scenario → test map` section: every `#### Scenario:` of the spec
-      deltas → a named test, or `n/a: <reason>`.
-    - >-
-      Architect review — after tasks.md is written and before the artifacts are reported
-      ready, not a group of tasks.md: the planner invokes the architect review (Claude: the
-      `architect-reviewer` subagent; Codex: the planner itself as a self-review, stated in
-      the Verdict line), which reviews the proposal, the spec deltas, the design and the
-      task list against principles §I–VII (`.agent-process/docs/architecture/principles.md`)
-      and writes `openspec/changes/<change>/architect-review.md` with three sections —
-      `## Verdict`: a line starting with `approve` or `rework`, plus one line of reasoning;
-      `## Findings`: one bullet per finding, `§<principle> · <artifact>:<heading or line> —
-      what is wrong → what to change`, or `none`; `## Scenario coverage`: every scenario of
-      the spec deltas no test can prove, as `<capability> / <scenario> → n/a: <reason>` with
-      the reason tasks.md carries. A simpler design that meets the same scenarios is a
-      finding; a scenario missing from the scenario → test map of tasks.md is a finding,
-      and so is a Group 1 that names no test without a `no RED: <reason>` task, and a
-      platform behaviour a design rests on that is asserted, not observed (no reference
-      page, run id or command output beside it, and no pointer to one on record), a
-      replaced input or a dropped guard without the list of the `design` rule, and a
-      catcher the review cannot trace to a step the flow reaches in the described case.
-      The review points at the artifacts and does not restate them. On `rework` the
-      planner applies
-      or answers every finding in the artifact it names and asks to run the review again;
-      the propose run ends on `approve` — then the tracking issue: when the change has
-      none (Group 0 of tasks.md still carries `tracking issue <N>`), ask the person for
-      its priority (High/Medium/Low), then
-      `python .agent-process/scripts/create_tracking_issue.py <change> --priority "<the answer>"`
-      (creates the issue from proposal.md, sets Planned with the priority and writes the
-      number into the Group 0 token: that is how the implementer of another session finds
-      it); when it exists, `python .agent-process/scripts/create_tracking_issue.py <change>`
-      alone (Todo → Planned on the board; the priority was set at creation); only then
-      report the artifacts ready. Artifact status is file existence only: the verdict is
-      the gate, and task 0.1 reads it.
+    - Follow `skills/agent-process/SKILL.md#tasks` and `#architect-review`.
+# agent-process:end

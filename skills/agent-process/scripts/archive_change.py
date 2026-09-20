@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Archive a change before its PR opens: mark the own task, archive, commit, push.
 
-Usage: python .agent-process/scripts/archive_change.py <change>
+Usage: python skills/agent-process/scripts/archive_change.py <change>
 
 A Deliver task of every `tasks.md`, run before `gh pr create` so the head the review reads
 is the archived one and no push follows the last review round. `openspec archive` moves

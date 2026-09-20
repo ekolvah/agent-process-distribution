@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Set an issue's Status and/or Priority in the repository's GitHub Project by name.
 
-Usage: python .agent-process/scripts/set_status.py <N> ["<Status>"] [--priority "<Priority>"]
+Usage: python skills/agent-process/scripts/set_status.py <N> ["<Status>"] [--priority "<Priority>"]
 
 The process writes two Statuses: "Planned" at the end of the propose run and "In Progress"
 at the start of the apply; "Todo" and "Done" are the Project's own workflows. The Project is
