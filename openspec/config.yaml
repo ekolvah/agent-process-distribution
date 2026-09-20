@@ -45,6 +45,13 @@ rules:
       its output — a run of a standard checker counts; a listing, a name or an inference
       from another behaviour does not; an observation already on record (an ADR entry, an
       archived change) is pointed at, not repeated.
+  design:
+    - >-
+      A design that replaces a project-declared input with one the caller supplies, or
+      drops a guard, lists beside that decision the failure modes of the new input (when
+      one is replaced), what the component stops proving, and for each lost proof the
+      delivery-flow step that catches it — which script, which run, on which head — not a
+      role or the platform in general.
   tasks:
     - >-
       Group 0 — Delivery start, one task: `python .agent-process/scripts/start_change.py
