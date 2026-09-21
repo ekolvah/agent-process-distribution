@@ -181,6 +181,11 @@ Codex review is not requested by the workflow or delivery procedure. The person 
 the app's automatic review setting from `init`'s printed instruction. Both reviews are
 advisory; only quality is required.
 
+The inherited thread resolver keeps its settled-current-head precondition, resolves the
+exact addressed older-head P0/P1 thread, and replies without re-running the combined
+workflow. Re-running would start another advisory Claude review on an unchanged head
+after the prescribed wait even though required quality does not depend on thread state.
+
 Alternative: keep `reusable-agent-review.yml`. Rejected by the owner review: the official
 action can be called directly, and the wait/parser/fallback/enforcement code is bespoke
 review control. Alternative: `pull_request_target` for a trusted caller. Rejected by the

@@ -12,9 +12,9 @@ this finding" from the maintainer's authenticated local session. Different
 actor, credential, and trigger — never wired into a workflow.
 
 `--thread` is the whole step after `wait_for_pr.py`: it refuses while the head's
-`agent-process` run is running, resolves the thread, re-runs that run (a resolve
-has no event of its own, and the required context is the head's `pull_request`
-run — ADR 0027) and posts the reply last. The order lives here, not in a rule.
+`agent-process` run is running, resolves the thread, and posts the reply last.
+It does not re-run the combined workflow on an unchanged head. The order lives
+here, not in a rule.
 """
 
 from __future__ import annotations
@@ -232,35 +232,29 @@ def close_round(
     pr: int,
     head_run: Callable[[str], tuple[int, str] | None],
     mutate: Callable[[str], object],
-    rerun: Callable[[int], None],
     post_reply: Callable[[int, str], None],
 ) -> int:
-    """The step after the wait, in one call: resolve, re-run the head's check, reply.
+    """The step after the wait, in one call: resolve and reply.
 
     `head_run(head_sha) -> (run_id, status) | None` finds the `agent-process` run of
     the head; the step refuses until it concluded — the review of the head is in
     then, Codex's or the fallback's the run started when none came. A resolve has
-    no event of its own and the required context is that `pull_request` run, so
-    `rerun(run_id)` re-executes it on the resolved state; `post_reply(comment_id,
-    body)` answers on the thread last — a resolve is never the last write on a
-    thread. Returns the run id. The transports are injected (§II).
+    `post_reply(comment_id, body)` answers on the thread last — a resolve is
+    never the last write on a thread. Returns the settled run id. The transports
+    are injected (§II).
 
     A failure after the resolve is re-raised naming what is still undone, ids
     filled in: the thread has left `--list` by then and `--thread` cannot be
     retried, so the message is where the operator learns how to finish the step
-    by hand (§IV). A failed rerun names the rerun and the reply; a failed reply
-    names the reply alone — a second rerun of a run in progress is refused.
-    `repo` and `pr` are here for that command alone: it is pasted, not
-    reconstructed.
+    by hand (§IV). A failed reply names the reply alone. `repo` and `pr` are here
+    for that command alone: it is pasted, not reconstructed.
     """
     if not reply.strip():
         raise RuntimeError("an empty reply — the thread is answered after the resolve, always")
     head = head_ref_oid(payload)
     run = head_run(head)
     if run is None:
-        raise RuntimeError(
-            f"no `agent-process` run of the head {head} — nothing to re-run; push first"
-        )
+        raise RuntimeError(f"no `agent-process` run of the head {head} — push and wait first")
     run_id, status = run
     if status != "completed":
         raise RuntimeError(
@@ -277,18 +271,11 @@ def close_round(
         "-F body=@<reply-file>`"
     )
     try:
-        rerun(run_id)
-    except Exception as exc:
-        raise RuntimeError(
-            f"{thread_id} is resolved and gone from --list; the rerun failed ({exc}). "
-            f"Still undone, by hand: `gh run rerun {run_id}`, then the reply {reply_call}"
-        ) from exc
-    try:
         post_reply(comment_id, reply)
     except Exception as exc:
         raise RuntimeError(
-            f"{thread_id} is resolved and gone from --list, run {run_id} re-run; the reply "
-            f"failed ({exc}). Still undone, by hand: the reply {reply_call}"
+            f"{thread_id} is resolved and gone from --list; the reply failed ({exc}). "
+            f"Still undone, by hand: the reply {reply_call}"
         ) from exc
     return run_id
 
@@ -325,10 +312,6 @@ def _gh_head_run(head: str) -> tuple[int, str] | None:
     return int(run["databaseId"]), str(run.get("status", ""))
 
 
-def _gh_rerun(run_id: int) -> None:
-    run_gh(["run", "rerun", str(run_id)])
-
-
 def _gh_post_reply(repo: str, pr: int) -> Callable[[int, str], None]:
     def post(comment_id: int, body: str) -> None:
         run_gh(
@@ -354,7 +337,7 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     group.add_argument(
         "--thread",
         metavar="NODE-ID",
-        help="resolve this thread, re-run the head's agent-process run, reply (--reply-file)",
+        help="resolve this thread after the settled head run, then reply (--reply-file)",
     )
     parser.add_argument(
         "--reply-file",
@@ -385,10 +368,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             pr=options.pr,
             head_run=_gh_head_run,
             mutate=_gh_mutate,
-            rerun=_gh_rerun,
             post_reply=_gh_post_reply(options.repo, options.pr),
         )
-        print(f"ok: resolved {options.thread}, re-run {run_id}, replied")
+        print(f"ok: resolved {options.thread} after settled run {run_id}, replied")
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc

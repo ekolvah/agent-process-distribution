@@ -87,7 +87,7 @@
 | implementation | Tasks of a new change | `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` |
 | implementation | Propose run stopped before its tail | `tests/publisher/test_delivery_scripts.py::test_propose_run_stopped_before_its_tail` |
 | implementation | Verdict is rework | `tests/publisher/test_delivery_scripts.py::test_verdict_is_rework` |
-| implementation | Blocking thread addressed | `tests/publisher/test_resolve_review_thread.py::test_close_round_resolves_reruns_the_head_run_and_replies_in_that_order` |
+| implementation | Blocking thread addressed | `tests/publisher/test_resolve_review_thread.py::test_close_round_resolves_and_replies_without_rerunning_the_head` |
 | implementation | Review fix changes a spec | `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` |
 | implementation | Design decision changed at review | `tests/publisher/test_planning_workflow.py::test_design_decision_changed_at_review` |
 | implementation | Finding closed by its class | `tests/publisher/test_planning_workflow.py::test_finding_closed_by_its_class` |

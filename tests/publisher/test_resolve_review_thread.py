@@ -167,9 +167,8 @@ def test_a_mutation_reporting_an_unresolved_thread_fails_loudly() -> None:
 
 # Scenario: Blocking thread addressed — the step after the wait is one command:
 # the head's `agent-process` run concluded (the review of the head is in, Codex's or
-# the fallback's), resolve, re-run that run (a resolve has no event of its own,
-# and the required context is the head's `pull_request` run), reply. The order
-# lives in code, not in a sentence copied to five places.
+# the fallback's), resolve, then reply. Resolving an addressed thread does not
+# rerun the combined quality and advisory-review workflow on an unchanged head.
 
 
 def _round(*, status: str | None, calls: list[str]) -> dict:
@@ -181,9 +180,6 @@ def _round(*, status: str | None, calls: list[str]) -> dict:
         calls.append(f"resolve {thread_id}")
         return {"data": {"resolveReviewThread": {"thread": {"isResolved": True}}}}
 
-    def rerun(run_id: int) -> None:
-        calls.append(f"rerun {run_id}")
-
     def post_reply(comment_id: int, body: str) -> None:
         calls.append(f"reply {comment_id} {body}")
 
@@ -192,7 +188,6 @@ def _round(*, status: str | None, calls: list[str]) -> dict:
         "pr": 140,
         "head_run": head_run,
         "mutate": mutate,
-        "rerun": rerun,
         "post_reply": post_reply,
     }
 
@@ -201,7 +196,7 @@ def _round(*, status: str | None, calls: list[str]) -> dict:
 _REPLY_CALL = "repos/ekolvah/agent-process-distribution/pulls/140/comments/1/replies"
 
 
-def test_close_round_resolves_reruns_the_head_run_and_replies_in_that_order() -> None:
+def test_close_round_resolves_and_replies_without_rerunning_the_head() -> None:
     payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
     calls: list[str] = []
 
@@ -213,7 +208,6 @@ def test_close_round_resolves_reruns_the_head_run_and_replies_in_that_order() ->
     assert calls == [
         f"head-run {_HEAD[:7]}",
         "resolve thread-1",
-        "rerun 35",
         "reply 1 fixed in abc1234",
     ]
 
@@ -246,37 +240,8 @@ def _failing(transports: dict, name: str) -> dict:
     return {**transports, name: fail}
 
 
-def test_close_round_names_the_rerun_and_the_reply_when_the_rerun_fails() -> None:
-    """D3 (issue 139): after a successful resolve the thread is gone from `--list`
-    and `--thread` cannot be retried; the error names what is still undone with
-    the ids filled in — here the rerun and the reply — and nothing after the
-    failure runs."""
-    payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
-    calls: list[str] = []
-
-    with pytest.raises(RuntimeError) as failure:
-        close_round(
-            payload,
-            "thread-1",
-            "fixed",
-            **_failing(_round(status="completed", calls=calls), "rerun"),
-        )
-
-    message = str(failure.value)
-    assert "gh run rerun 35" in message
-    assert _REPLY_CALL in message
-    assert "<owner" not in message and "<pr>" not in message
-    # `gh api -f` sends a static string; only `-F` reads a leading `@` as a file
-    # (Codex's P1 on PR 140).
-    assert "-F body=@" in message
-    assert "-f body=" not in message
-    assert "502" in message
-    assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1"]
-
-
 def test_close_round_names_the_reply_alone_when_the_reply_fails() -> None:
-    """The rerun went through: a second `gh run rerun` of a run in progress is
-    refused, so the error names the reply alone."""
+    """After resolution, recovery names the only remaining action: the reply."""
     payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
     calls: list[str] = []
 
@@ -294,7 +259,7 @@ def test_close_round_names_the_reply_alone_when_the_reply_fails() -> None:
     assert "-F body=@" in message
     assert "gh run rerun" not in message
     assert "502" in message
-    assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1", "rerun 35"]
+    assert calls == [f"head-run {_HEAD[:7]}", "resolve thread-1"]
 
 
 def test_close_round_refuses_an_unknown_thread_before_any_write() -> None:
