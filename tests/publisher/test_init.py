@@ -258,13 +258,16 @@ def test_codex_checkout_refuses_dirty_or_foreign_link(tmp_path: Path) -> None:
     link.unlink() if link.is_symlink() else link.rmdir()
     foreign = home / "foreign"
     foreign.mkdir()
-    completed = subprocess.run(
-        ["cmd", "/c", "mklink", "/J", str(link), str(foreign)],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    assert completed.returncode == 0, completed.stderr
+    if sys.platform == "win32":
+        completed = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(foreign)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        assert completed.returncode == 0, completed.stderr
+    else:
+        link.symlink_to(foreign, target_is_directory=True)
     with pytest.raises(module.InstallConflict, match="foreign"):
         module.update_codex_skill(home, "2.0.0", fake, "linux")
 
