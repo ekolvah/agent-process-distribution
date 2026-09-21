@@ -2,9 +2,26 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
+from pathlib import Path
+
 import pytest
 
-from scripts.resolve_review_thread import close_round, list_blocking, resolve
+_ROOT = Path(__file__).resolve().parents[2]
+_MOVED = _ROOT / "skills" / "agent-process" / "scripts" / "resolve_review_thread.py"
+if _MOVED.is_file():
+    _spec = importlib.util.spec_from_file_location("agent_process_resolve_review_thread", _MOVED)
+    assert _spec and _spec.loader
+    _module = importlib.util.module_from_spec(_spec)
+    sys.modules[_spec.name] = _module
+    _spec.loader.exec_module(_module)
+else:  # RED commit: the source has not moved yet.
+    from scripts import resolve_review_thread as _module
+
+close_round = _module.close_round
+list_blocking = _module.list_blocking
+resolve = _module.resolve
 
 _HEAD = "4165198873b01503d9c2e33436cc5d94f98b017d"  # pragma: allowlist secret
 _BEHIND = "98cd7850000000000000000000000000000000"  # pragma: allowlist secret

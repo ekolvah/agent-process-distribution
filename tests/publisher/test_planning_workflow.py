@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "openspec" / "config.yaml"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 ARCHIVE = ROOT / ".agent-process" / "scripts" / "archive_change.py"
+SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 _V1_ENTRY_POINTS = (
     "commands/plan.md",
     "commands/implement.md",
@@ -29,6 +30,19 @@ _V1_ENTRY_POINTS = (
     ".agent-process/scripts/check_fixture_ratchet.py",
     "tests/agent_process/test_validate_issue_status.py",
 )
+
+
+def test_artifact_rules_point_to_shared_skill() -> None:
+    """Scenario: Procedure changes once — config keeps context and points at one source."""
+    config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
+    assert config["schema"] == "spec-driven"
+    assert "This repository publishes" in config["context"]
+    assert set(config["rules"]) == {"proposal", "specs", "design", "tasks"}
+    for artifact, rules in config["rules"].items():
+        joined = " ".join(rules)
+        assert "skills/agent-process/SKILL.md" in joined
+        assert f"#{artifact}" in joined
+        assert len(joined) < 240
 
 
 def test_roles_and_carriers() -> None:
