@@ -1,9 +1,9 @@
 ## Why
 
-PR #151 changed the shared procedure's package location and introduced a stateful installer in
+PR [151](https://github.com/ekolvah/agent-process-distribution/pull/151) changed the shared procedure's package location and introduced a stateful installer in
 one review, so package path/import regressions could not be isolated from version handoff,
 filesystem, platform-link, Project, workflow, and protection failures. The replacement
-sequence under parent #112 therefore starts with a package-only foundation whose behavior can
+sequence under [parent issue 112](https://github.com/ekolvah/agent-process-distribution/issues/112) therefore starts with a package-only foundation whose behavior can
 be proven before any installer or remote-write state exists.
 
 ## What Changes

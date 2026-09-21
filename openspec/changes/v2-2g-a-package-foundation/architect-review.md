@@ -1,7 +1,7 @@
 ## Verdict
 
 approve — Codex planner self-review: the plan is the minimum package-only foundation for
-#152. It preserves the current delivery and review behavior, moves only the seven scripts
+[issue 152](https://github.com/ekolvah/agent-process-distribution/issues/152). It preserves the current delivery and review behavior, moves only the seven scripts
 owned by the shared procedure, and leaves installer, Project, workflow, protection, review
 migration, and v1 removal to their separately owned issues.
 

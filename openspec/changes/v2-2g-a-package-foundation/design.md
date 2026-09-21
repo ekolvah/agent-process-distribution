@@ -7,10 +7,10 @@ mixed into the repository-only `.agent-process/scripts/` control plane. The Clau
 metadata-only at version `0.1.0`; this publisher does not enable it locally.
 
 ADR 0027 already decides that the procedure is written once as Agent Skills and that delivery
-uses a Claude plugin plus Codex skills. The frozen PR #151 demonstrates the concrete package
+uses a Claude plugin plus Codex skills. The frozen PR ([151](https://github.com/ekolvah/agent-process-distribution/pull/151)) demonstrates the concrete package
 shape: a plugin-root `skills/agent-process/` directory with optional `scripts/`, and it exposed
 path/import defects separately from installer defects. This change adopts only that package
-boundary. Issues #155, #156, #153, #154, #114, and #115 own every later state transition.
+boundary. Later state transitions have separate owners (issues #155, #156, #153, #154, #114, and #115).
 
 ## Goals / Non-Goals
 
@@ -19,7 +19,7 @@ boundary. Issues #155, #156, #153, #154, #114, and #115 own every later state tr
 - Establish one reviewable portable procedure source for both carriers.
 - Move only scripts the shared procedure directly invokes and preserve their current behavior.
 - Make the publisher exercise the plugin/skill source without installing anything elsewhere.
-- Leave a stable package boundary on which #155 can build the local installer.
+- Leave a stable package boundary on which the local installer can build (issue #155).
 
 **Non-Goals:**
 
@@ -28,8 +28,8 @@ boundary. Issues #155, #156, #153, #154, #114, and #115 own every later state tr
 - Landing or activating a workflow or required check (#153 and #154).
 - Changing review policy, Project delivery state, v1 hooks, or the remaining control plane
   (#114 and #115).
-- Publishing the immutable `v2.0.0` tag; that remains a person action after the full #112
-  sequence merges.
+- Publishing the immutable `v2.0.0` tag; that remains a person action after the full sequence
+  completes (issue #112).
 
 ## Decisions
 
@@ -37,7 +37,7 @@ boundary. Issues #155, #156, #153, #154, #114, and #115 own every later state tr
 
 Add `skills/agent-process/SKILL.md` with sections for proposal, specifications, design,
 tasks, architect review, and delivery. The content is a structural move of the current
-`openspec/config.yaml` rules, with paths adjusted only for D2; it does not adopt PR #151's
+`openspec/config.yaml` rules, with paths adjusted only for D2; it does not adopt the frozen PR's
 advisory-review procedure. The stock OpenSpec skills remain the user-facing entry points and
 load project context from `openspec/config.yaml`. Each artifact rule in that config becomes a
 short directive to follow the matching shared-skill section.
@@ -72,7 +72,8 @@ scripts keep their present behavior and paths until their owning issues.
 
 Alternative: copy the seven files and keep compatibility wrappers. Rejected because two
 executable copies would make the package source ambiguous. Alternative: move the whole
-script tree. Rejected because it would absorb #114/#115 and recreate PR #151's oversized
+script tree. Rejected because it would absorb later control-plane work (issues #114 and #115)
+and recreate the frozen PR's oversized
 transition.
 
 ### D3. Package identity and publisher dogfood are source-only
@@ -84,13 +85,14 @@ absence of installer/templates/hooks inside the plugin package, and retention of
 repository-only settings outside that package.
 
 The future immutable tag does not yet exist and no consumer references `v2.0.0` in this
-change. The version denotes the in-repository package being assembled by #112; the person
+change. The version denotes the in-repository package being assembled under the parent issue
+(#112); the person
 creates the release tag only after the sequence completes.
 
 Alternative: postpone all metadata until the installer. Rejected because the package PR
 would not exercise the same plugin discovery path it claims to establish. Alternative:
-publish/tag now. Rejected because #155/#156/#153/#154 are required before the package is a
-usable release.
+publish/tag now. Rejected because later installer and activation work is required before the
+package is a usable release (issues #155, #156, #153, and #154).
 
 ### D4. Pointer tests preserve every current proof
 
@@ -105,18 +107,19 @@ The unchanged current-head CI/review workflow is the delivery catcher for this P
 path-contract tests fail before implementation if any command or import still relies on an
 old location.
 
-Alternative: test only that files exist. Rejected because PR #151 showed that structural
+Alternative: test only that files exist. Rejected because the frozen PR
+([151](https://github.com/ekolvah/agent-process-distribution/pull/151)) showed that structural
 presence does not prove consumer `cwd`, sibling imports, or emitted recovery commands.
 
 ### D5. The package has a hard stop before installer state
 
 This change contains no `commands/init.md`, `init.py`, templates directory, consumer fixture,
 user checkout/link, Project call, workflow replacement, ruleset payload, or protection API.
-Tests enumerate the package tree and reject those additions. Documentation names #155 and
-#156 as the next steps rather than describing not-yet-delivered installation behavior.
+Tests enumerate the package tree and reject those additions. Documentation names the installer
+and provisioning issues (#155 and #156) as the next steps rather than describing not-yet-delivered installation behavior.
 
 Alternative: include dormant templates for convenience. Rejected because template ownership
-and version handoff are behavior of #155 and would make this package review depend on an
+and version handoff are behavior of the installer issue (#155) and would make this package review depend on an
 installer that does not exist yet.
 
 ## Risks / Trade-offs
@@ -142,4 +145,4 @@ installer that does not exist yet.
 4. Run strict OpenSpec validation and the complete current CI command; archive and deliver
    under the unchanged v1 workflow/review gate.
 5. On failure, revert this PR as a unit. It creates no consumer, user-profile, Project,
-   workflow, or protection state. After merge, #155 starts from the established package.
+   workflow, or protection state. After merge, the installer starts from the established package (issue #155).

@@ -20,7 +20,7 @@ are Claude for `planner` and `reviewer`, and Codex for `implementer` and
 The artifact, not an agent report, authorizes a hand-off. A plan is the change
 directory (`openspec validate --strict` is the only automated check on it; the
 person approves by running the apply command); an implementer must use
-`python .agent-process/scripts/check_red.py` for RED and
+`python skills/agent-process/scripts/check_red.py` for RED and
 `python .agent-process/scripts/ci_check.py` before delivery. GitHub branch
 protection and required checks are the final delivery gate.
 
@@ -28,8 +28,9 @@ protection and required checks are the final delivery gate.
 
 Planning is the OpenSpec propose workflow (`/opsx:propose` in Claude Code,
 `$openspec-propose` in Codex) on the unmodified `spec-driven` schema:
-proposal → spec deltas → design → tasks. What this project adds is the
-`rules:` of `openspec/config.yaml` — the `proposal` rule (read before
+proposal → spec deltas → design → tasks. What this project adds is the portable procedure in
+[`skills/agent-process/SKILL.md`](../../../skills/agent-process/SKILL.md), reached through the
+short `rules:` pointers of `openspec/config.yaml` — the `proposal` procedure (read before
 writing, ask instead of guessing, a bug records its reproduction and root
 cause before the design, a design on a platform behaviour records its
 observation), the `design` rule (a replaced input lists its failure modes; a
@@ -52,7 +53,7 @@ today; `openspec/changes/` what is pending.
 ## Issue contract
 
 The GitHub issue tracks a change: title, the change name and the Project
-fields (Status, Priority — `python .agent-process/scripts/set_status.py <N>
+fields (Status, Priority — `python skills/agent-process/scripts/set_status.py <N>
 ["<Status>"] [--priority <name>]`, at least one of the two). The plan lives in
 the change directory, not in the issue body.
 
@@ -113,7 +114,7 @@ This is the per-change flow. It applies only after the one-time repository
    `python .agent-process/scripts/request_codex_review.py --request <PR>` through the local
    authenticated PR-author session. If that push addressed a `P0`/`P1` review
    thread, after `wait_for_pr.py <PR>` run
-   `python .agent-process/scripts/resolve_review_thread.py --repo OWNER/REPO
+   `python skills/agent-process/scripts/resolve_review_thread.py --repo OWNER/REPO
    --pr <PR> --thread <node-id> --reply-file <path>` (`--list` prints every open
    `P0`/`P1` thread and its node id): the script refuses while the head's
    `agent-review` run is running, resolves the thread, re-runs that run and
@@ -272,7 +273,7 @@ runs).
 4. Ask the person for issue priority (High for user-facing bugs and process work,
    Medium for agentic capability work outside the process, Low otherwise; name
    the rule used) and write it with
-   `python .agent-process/scripts/set_status.py <N> --priority <High|Medium|Low>`.
+   `python skills/agent-process/scripts/set_status.py <N> --priority <High|Medium|Low>`.
 5. The process writes two board Statuses itself, both through `set_status.py`:
    `Planned` at the end of the propose run (`create_tracking_issue.py`, the
    review entry of the `tasks` rule) and `In Progress` in Group 0 of the same
