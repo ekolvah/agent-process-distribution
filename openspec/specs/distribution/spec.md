@@ -26,9 +26,13 @@ consumer's other files are never touched, and publisher-only tests never reach a
 - **THEN** every rendered file is under the process root or in the closed exception set, and no publisher test is among them
 
 ### Requirement: This repository dogfoods its own process
-This repository SHALL carry the same rendered payload a consumer receives, so every process
-change is exercised here before a consumer sees it.
+This repository SHALL carry the same rendered payload a consumer currently receives and
+SHALL expose and enable the shared Claude plugin/skill package that later distribution steps
+will install. Repository sessions and publisher tests SHALL exercise the shared skill source,
+its portable scripts, its OpenSpec rule pointers, and its package-version identity before a
+consumer installation path is added. Repository-only settings and v1 process files SHALL NOT
+be represented as part of the portable package.
 
 #### Scenario: Process change
-- **WHEN** the payload changes in this repository
-- **THEN** this repository's own sessions and CI run the changed payload
+- **WHEN** the shared procedure, a portable script, a rule pointer, or package metadata changes
+- **THEN** this repository's own sessions and publisher tests exercise the changed package source while its current consumer payload and delivery gates remain intact
