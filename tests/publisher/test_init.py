@@ -237,6 +237,41 @@ def test_dry_run_and_confirmation(tmp_path: Path) -> None:
         )
 
 
+def test_selected_release_precedes_template_rendering(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _module()
+    repo, home = tmp_path / "repo", tmp_path / "home"
+    repo.mkdir()
+    home.mkdir()
+    fake = FakeRunner(home)
+    selected = False
+    original_template = module._template
+
+    def select_release(*_args: Any, **_kwargs: Any) -> None:
+        nonlocal selected
+        selected = True
+
+    def read_template(name: str) -> str:
+        assert selected, f"template {name} was read before selecting the requested release"
+        return original_template(name)
+
+    monkeypatch.setattr(module, "update_codex_skill", select_release)
+    monkeypatch.setattr(module, "_template", read_template)
+
+    module.install(
+        root=repo,
+        home=home,
+        setup="",
+        test="pytest",
+        version="2.1.0",
+        dry_run=False,
+        confirm_remote=True,
+        runner=fake,
+        platform="linux",
+    )
+
+
 def test_literal_commands_are_yaml_safe(tmp_path: Path) -> None:
     setup = "python -m pip install -r requirements.txt\necho 'ready: yes'"
     _, _, repo, _ = _install(tmp_path, setup=setup)

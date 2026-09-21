@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 from set_status import Gh, run_gh, set_status
-from start_change import PLACEHOLDER, ROOT, tracking_issue
+from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue
 
 PRIORITIES = ("High", "Medium", "Low")
 
@@ -77,9 +77,7 @@ def create_tracking_issue(
     tasks_md.write_text(
         re.sub(re.escape(PLACEHOLDER), f"tracking issue {number}", text, count=1), encoding="utf-8"
     )
-    resume = (
-        f"python skills/agent-process/scripts/set_status.py {number} Planned --priority {priority}"
-    )
+    resume = f'python "{SCRIPT_DIR / "set_status.py"}" {number} Planned --priority {priority}'
     try:
         set_status(number, "Planned", priority=priority, gh=gh)
     except (KeyError, ValueError, RuntimeError) as exc:

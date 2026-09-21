@@ -361,12 +361,21 @@ def _creates(gh: _Gh) -> list[list[str]]:
     return [c for c in gh.calls if c[:3] == ["gh", "issue", "create"]]
 
 
-def test_moved_start_scripts_resolve_repository_root() -> None:
-    start_change = _script("start_change")
-    create_tracking_issue = _script("create_tracking_issue")
+def test_moved_start_scripts_resolve_consumer_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = SKILL_SCRIPTS / "start_change.py"
+    spec = importlib.util.spec_from_file_location("consumer_root_start_change", path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(SKILL_SCRIPTS))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(SKILL_SCRIPTS))
 
-    assert start_change.ROOT == ROOT
-    assert create_tracking_issue.ROOT == ROOT
+    assert module.ROOT == tmp_path
 
 
 def test_verdict_is_rework(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -390,13 +399,15 @@ def test_propose_run_stopped_before_its_tail(
     than Planned or no Project item → `propose run not finished`, exit 2, no branch."""
     start_change = _script("start_change")
     line = "propose run not finished"
+    create_command = str(SKILL_SCRIPTS / "create_tracking_issue.py")
 
     root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_PLACEHOLDER))
     gh = _Gh()
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 2 and _develops(gh) == []
-    assert line in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert line in err and create_command in err
 
     # The first token decides (Group 0 comes first): the literal `<N>`, the whole token or
     # `tracking issue 9` in a later line — a test description, a quoted rule — is text
@@ -480,7 +491,7 @@ def test_interrupted_start_names_the_continuation(
     `set_status.py 7 "In Progress"` and the `gh issue comment` — so the person completes
     them without a second `start_change` (PR 148, Codex P1)."""
     start_change = _script("start_change")
-    status_cmd = 'set_status.py 7 "In Progress"'
+    status_cmd = f'python "{SKILL_SCRIPTS / "set_status.py"}" 7 "In Progress"'
     comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Codex"'
 
     root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
@@ -569,7 +580,10 @@ def test_plan_approved_creates_the_issue(
     assert exc.value.code == 1
     tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
     assert "tracking issue 7" in tasks
-    assert "set_status.py 7 Planned --priority High" in capsys.readouterr().err
+    assert (
+        f'python "{SKILL_SCRIPTS / "set_status.py"}" 7 Planned --priority High'
+        in capsys.readouterr().err
+    )
 
 
 def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

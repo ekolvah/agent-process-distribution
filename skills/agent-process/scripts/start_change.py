@@ -35,13 +35,15 @@ from pathlib import Path
 
 from set_status import Gh, _linked_project, _repo, run_gh, set_status
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path.cwd()
+SCRIPT_DIR = Path(__file__).resolve().parent
 CARRIERS = ("Claude", "Codex")
 PLACEHOLDER = "tracking issue <N>"
 _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
 NOT_FINISHED = (
     "propose run not finished: run its tail "
-    "(python skills/agent-process/scripts/create_tracking_issue.py {change} --priority <High|Medium|Low>) first"
+    f'(python "{SCRIPT_DIR / "create_tracking_issue.py"}" '
+    "{change} --priority <High|Medium|Low>) first"
 )
 
 
@@ -126,7 +128,7 @@ def start_change(
     body = f"planner: {planner}; implementer: {implementer}"
     left = [
         f"git switch {change}",
-        f'python skills/agent-process/scripts/set_status.py {number} "In Progress"',
+        f'python "{SCRIPT_DIR / "set_status.py"}" {number} "In Progress"',
         f'gh issue comment {number} --body "{body}"',
     ]
     exists = f"the branch {change} exists — finish by hand"

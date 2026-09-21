@@ -349,6 +349,7 @@ def install(
         return
     if not confirm_remote:
         raise InstallConflict("refusing writes without --confirm-remote; run --dry-run first")
+    update_codex_skill(home, version, runner, platform)
     run_checked(
         ["npx", "-y", OPENSPEC, "init", "--tools", "claude,codex", "--no-animation"],
         runner=runner,
@@ -368,7 +369,6 @@ def install(
     )
     _merge_marked(root / ".github" / "dependabot.yml", _template("dependabot.yml"))
     _merge_settings(root / ".claude" / "settings.json")
-    update_codex_skill(home, version, runner, platform)
     upsert_ruleset(root, runner)
     ensure_project(root, runner)
     _manual_instructions()
