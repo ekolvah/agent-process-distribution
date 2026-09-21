@@ -48,7 +48,9 @@ def test_shared_skill_owns_the_procedure_and_scripts() -> None:
 
 def test_package_has_no_installer_state() -> None:
     relative_files = {
-        path.relative_to(PACKAGE).as_posix() for path in PACKAGE.rglob("*") if path.is_file()
+        path.relative_to(PACKAGE).as_posix()
+        for path in PACKAGE.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
     }
     assert relative_files == {"SKILL.md"} | {f"scripts/{name}" for name in MOVED_SCRIPTS}
     forbidden = ("init.py", "template", "hook", "workflow", "ruleset", "protection")
@@ -75,4 +77,3 @@ def test_version_drift() -> None:
     marketplace = _json(MARKETPLACE)
     assert plugin["version"] == "2.0.0"
     assert marketplace["plugins"][0]["version"] == plugin["version"]
-

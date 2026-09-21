@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Group 0 of the `tasks` rule as one command: the gate, the branch, the Status, the provenance.
 
-Usage: python .agent-process/scripts/start_change.py <change> --planner <Claude|Codex>
+Usage: python skills/agent-process/scripts/start_change.py <change> --planner <Claude|Codex>
        --implementer <Claude|Codex>
 
 The gate is exit codes, not prose the agent evaluates: the first non-empty line under
@@ -33,18 +33,17 @@ import re
 import sys
 from pathlib import Path
 
-try:
-    from scripts.set_status import Gh, _linked_project, _repo, run_gh, set_status
-except ModuleNotFoundError:  # documented direct script entry point
-    from set_status import Gh, _linked_project, _repo, run_gh, set_status
+from set_status import Gh, _linked_project, _repo, run_gh, set_status
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path.cwd()
+SCRIPT_DIR = Path(__file__).resolve().parent
 CARRIERS = ("Claude", "Codex")
 PLACEHOLDER = "tracking issue <N>"
 _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
 NOT_FINISHED = (
     "propose run not finished: run its tail "
-    "(python .agent-process/scripts/create_tracking_issue.py {change} --priority <High|Medium|Low>) first"
+    f'(python "{SCRIPT_DIR / "create_tracking_issue.py"}" '
+    "{change} --priority <High|Medium|Low>) first"
 )
 
 
@@ -129,7 +128,7 @@ def start_change(
     body = f"planner: {planner}; implementer: {implementer}"
     left = [
         f"git switch {change}",
-        f'python .agent-process/scripts/set_status.py {number} "In Progress"',
+        f'python "{SCRIPT_DIR / "set_status.py"}" {number} "In Progress"',
         f'gh issue comment {number} --body "{body}"',
     ]
     exists = f"the branch {change} exists — finish by hand"

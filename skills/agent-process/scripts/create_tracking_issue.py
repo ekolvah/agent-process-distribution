@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The tail of the propose run as one command: the tracking issue in `Planned` with its priority.
 
-Usage: python .agent-process/scripts/create_tracking_issue.py <change> [--priority <High|Medium|Low>]
+Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--priority <High|Medium|Low>]
 
 `tasks.md` of the change decides the branch through its `tracking issue <N>` token (Group 0;
 the same read as `start_change`): while it carries the placeholder, `--priority` is required
@@ -22,12 +22,8 @@ import re
 import sys
 from pathlib import Path
 
-try:
-    from scripts.set_status import Gh, run_gh, set_status
-    from scripts.start_change import PLACEHOLDER, ROOT, tracking_issue
-except ModuleNotFoundError:  # documented direct script entry point
-    from set_status import Gh, run_gh, set_status
-    from start_change import PLACEHOLDER, ROOT, tracking_issue
+from set_status import Gh, run_gh, set_status
+from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue
 
 PRIORITIES = ("High", "Medium", "Low")
 
@@ -81,7 +77,7 @@ def create_tracking_issue(
     tasks_md.write_text(
         re.sub(re.escape(PLACEHOLDER), f"tracking issue {number}", text, count=1), encoding="utf-8"
     )
-    resume = f"python .agent-process/scripts/set_status.py {number} Planned --priority {priority}"
+    resume = f'python "{SCRIPT_DIR / "set_status.py"}" {number} Planned --priority {priority}'
     try:
         set_status(number, "Planned", priority=priority, gh=gh)
     except (KeyError, ValueError, RuntimeError) as exc:

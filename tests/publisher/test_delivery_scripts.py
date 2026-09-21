@@ -90,9 +90,13 @@ def test_moved_start_scripts_resolve_consumer_root(
     spec = importlib.util.spec_from_file_location("consumer_start_change", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.path.insert(0, str(SKILL_SCRIPTS))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(SKILL_SCRIPTS))
     assert module.ROOT == tmp_path
-    assert "skills/agent-process/scripts/set_status.py" in module.start_change.__code__.co_consts
+    assert 'SCRIPT_DIR / "set_status.py"' in path.read_text(encoding="utf-8")
 
 
 class _Gh:
@@ -363,7 +367,7 @@ def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
 _CHANGE = "v2-9-example"
 _START = [_CHANGE, "--planner", "Claude", "--implementer", "Codex"]
 _PLACEHOLDER = "tracking issue <N>"
-_GROUP0 = "- [ ] 0.1 `python .agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
+_GROUP0 = "- [ ] 0.1 `python skills/agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
 
 
 def _change(tmp_path: Path, *, verdict: str = "approve", tasks: str) -> Path:
@@ -497,7 +501,7 @@ def test_interrupted_start_names_the_continuation(
     `set_status.py 7 "In Progress"` and the `gh issue comment` — so the person completes
     them without a second `start_change` (PR 148, Codex P1)."""
     start_change = _script("start_change")
-    status_cmd = 'set_status.py 7 "In Progress"'
+    status_path = str(SKILL_SCRIPTS / "set_status.py")
     comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Codex"'
 
     root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
@@ -506,7 +510,7 @@ def test_interrupted_start_names_the_continuation(
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
     err = capsys.readouterr().err
-    assert status_cmd in err and comment_cmd in err
+    assert status_path in err and '7 "In Progress"' in err and comment_cmd in err
 
     root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
     gh = _Gh(fail_on=["gh", "issue", "comment"])
@@ -514,7 +518,7 @@ def test_interrupted_start_names_the_continuation(
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
     err = capsys.readouterr().err
-    assert comment_cmd in err and status_cmd not in err
+    assert comment_cmd in err and status_path not in err
 
     # `gh issue develop -c` creates the remote branch, then checks it out: when the
     # checkout fails the branch exists (`git ls-remote --heads origin <change>` lists it)
@@ -526,7 +530,7 @@ def test_interrupted_start_names_the_continuation(
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
     err = capsys.readouterr().err
-    assert err.index(switch_cmd) < err.index(status_cmd) < err.index(comment_cmd)
+    assert err.index(switch_cmd) < err.index(status_path) < err.index(comment_cmd)
     assert gh.edits() == []
 
     root = _change(tmp_path / "d", tasks=_GROUP0.format(token="tracking issue 7"))
@@ -535,7 +539,7 @@ def test_interrupted_start_names_the_continuation(
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
     err = capsys.readouterr().err
-    assert "no branch" in err and switch_cmd not in err and status_cmd not in err
+    assert "no branch" in err and switch_cmd not in err and status_path not in err
 
 
 def test_plan_approved_creates_the_issue(
@@ -586,7 +590,9 @@ def test_plan_approved_creates_the_issue(
     assert exc.value.code == 1
     tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
     assert "tracking issue 7" in tasks
-    assert "set_status.py 7 Planned --priority High" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert str(SKILL_SCRIPTS / "set_status.py") in err
+    assert "7 Planned --priority High" in err
 
 
 def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -839,7 +845,7 @@ def test_archive_commit(tmp_path: Path) -> None:
     tasks.write_text(
         "- [x] 1.1 done\n"
         "- [ ] 4.1 `git status --short` empty;\n"
-        f"  `python .agent-process/scripts/archive_change.py {change}` archives, commits, pushes.\n"
+        f"  `python skills/agent-process/scripts/archive_change.py {change}` archives, commits, pushes.\n"
         "- [ ] 4.2 `gh pr create`; the person merges.\n",
         encoding="utf-8",
     )
@@ -881,6 +887,6 @@ def test_archive_commit(tmp_path: Path) -> None:
     # Scenario: Archive commit — the worktree must be clean before the archive; a stray edit
     # would be left behind the pushed head, so the script stops instead of committing openspec/.
     lock.unlink()
-    status = " M .agent-process/scripts/wait_for_pr.py\n"
+    status = " M skills/agent-process/scripts/wait_for_pr.py\n"
     assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
     assert order == []
