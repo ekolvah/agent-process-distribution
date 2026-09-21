@@ -69,7 +69,9 @@ def test_publisher_dogfoods_process() -> None:
     }
     assert settings["enabledPlugins"] == {"agent-process@agent-process-marketplace": True}
     config = yaml.safe_load((ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8"))
-    assert all("skills/agent-process/SKILL.md" in " ".join(rule) for rule in config["rules"].values())
+    assert all(
+        "skills/agent-process/SKILL.md" in " ".join(rule) for rule in config["rules"].values()
+    )
 
 
 def test_version_drift() -> None:

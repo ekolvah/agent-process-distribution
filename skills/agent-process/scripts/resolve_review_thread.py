@@ -75,8 +75,16 @@ def fetch_review_threads(repo: str, pr: int) -> dict:
     owner, name = repo.split("/", 1)
     raw = run_gh(
         [
-            "api", "graphql", "-f", f"query={_QUERY}", "-F", f"owner={owner}",
-            "-F", f"name={name}", "-F", f"number={pr}",
+            "api",
+            "graphql",
+            "-f",
+            f"query={_QUERY}",
+            "-F",
+            f"owner={owner}",
+            "-F",
+            f"name={name}",
+            "-F",
+            f"number={pr}",
         ]
     )
     return json.loads(raw)
@@ -116,7 +124,9 @@ def review_threads(payload: object) -> list[ReviewThread]:
         comments = thread.get("comments")
         if not isinstance(comments, Mapping):
             raise RuntimeError("GraphQL thread has no comments")
-        if isinstance(comments.get("pageInfo"), Mapping) and comments["pageInfo"].get("hasNextPage"):
+        if isinstance(comments.get("pageInfo"), Mapping) and comments["pageInfo"].get(
+            "hasNextPage"
+        ):
             raise RuntimeError("a review thread has more than 100 comments")
         records = comments.get("nodes")
         if not isinstance(records, list):
@@ -138,8 +148,11 @@ def review_threads(payload: object) -> list[ReviewThread]:
             oid = original.get("oid") if isinstance(original, Mapping) else None
             result.append(
                 ReviewThread(
-                    str(thread.get("id", "unknown")), comment_id, priority.group(0).upper(),
-                    str(comment.get("url", "")), priority.group("number") in {"0", "1"},
+                    str(thread.get("id", "unknown")),
+                    comment_id,
+                    priority.group(0).upper(),
+                    str(comment.get("url", "")),
+                    priority.group("number") in {"0", "1"},
                     str(oid) if isinstance(oid, str) else None,
                 )
             )
@@ -153,6 +166,7 @@ def blocking_threads(payload: object) -> list[tuple[str, str, str]]:
         for thread in review_threads(payload)
         if thread.blocking
     ]
+
 
 _MUTATION = """
 mutation($threadId: ID!) {

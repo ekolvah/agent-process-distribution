@@ -20,8 +20,8 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify every change and spec passes
-- [ ] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify the complete repository quality suite passes under the unchanged v1 workflows, hooks, review policy, and protection; confirm `git diff --name-only` contains no installer, template, workflow, Project, ruleset/protection, or unrelated control-plane file
+- [x] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify every change and spec passes
+- [x] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify the complete repository quality suite passes under the unchanged v1 workflows, hooks, review policy, and protection; confirm `git diff --name-only` contains no installer, template, workflow, Project, ruleset/protection, or unrelated control-plane file
 
 ## 5. Deliver
 

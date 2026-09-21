@@ -108,7 +108,12 @@ def test_plan_approved() -> None:
 
 
 def test_design_on_a_platform_behaviour() -> None:
-    for part in ("platform behaviour", "observation, not the inference", "reference page", "run id"):
+    for part in (
+        "platform behaviour",
+        "observation, not the inference",
+        "reference page",
+        "run id",
+    ):
         assert part in _skill(), part
 
 
