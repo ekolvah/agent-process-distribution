@@ -78,8 +78,8 @@ interrupted run SHALL resume from the PR. Scripts SHALL be invoked from the load
 - **THEN** it exits 2 before creating a branch and names the rework
 
 #### Scenario: Blocking thread addressed
-- **WHEN** a push addresses a `P0` or `P1` thread
-- **THEN** the fixer may resolve that exact older-head thread from its own session and then waits for the caller checks again
+- **WHEN** a pushed correction addresses a `P0` or `P1` thread and the current-head workflow has settled
+- **THEN** the fixer may resolve that exact older-head thread from its own session and reply without re-running the combined workflow on the unchanged head
 
 #### Scenario: Review fix changes a spec
 - **WHEN** a review fix changes what a spec requires
