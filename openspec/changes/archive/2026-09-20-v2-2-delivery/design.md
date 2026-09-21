@@ -95,9 +95,12 @@ The Codex install step keeps a checkout of this repository at the process tag un
 user-owned process directory and makes `~/.agents/skills/agent-process` point to its
 `skills/agent-process` directory (a symlink on Unix, a directory junction on Windows).
 On update it refuses a dirty checkout or a link with another target, fetches the requested
-tag, and changes the checkout only after those checks. This gives `SKILL.md` and
-`scripts/` one shared target and follows the current OpenAI path rather than the stale
-`~/.codex/skills` assumption.
+tag, and changes the checkout only after those checks. When the requested version differs
+from the running installer's version, the bootstrap hands the same literal arguments to
+that tag's `init.py` and returns; a private guard makes a version mismatch fail instead of
+recursing. This gives `SKILL.md`, `scripts/`, templates, and installer logic one shared
+version and follows the current OpenAI path rather than the stale `~/.codex/skills`
+assumption.
 
 The bootstrap remains agent-native: Claude installs the marketplace plugin; Codex uses
 its skill installation/bootstrap path to obtain the init skill once. `init` owns all
@@ -133,9 +136,11 @@ Confirmed remote steps, in order:
 7. Upsert the repository ruleset by its unique process name (zero matches → POST, one →
    PUT, several → error) from `ruleset.json` after substituting the default branch.
 8. Read linked Projects. With none, run
-   `gh project copy 4 --source-owner ekolvah --target-owner @me --format json` and
-   `gh project link`; with exactly one, reuse it; with several, report them and stop rather
-   than choose. Do not verify or mutate fields/workflows.
+   `gh project copy 4 --source-owner ekolvah --target-owner @me --format json` with a
+   repository-specific title and `gh project link`. Before copying, reuse an unlinked
+   exact-title Project left by a failed link; several matches are a conflict. With exactly
+   one linked Project, reuse it; with several, report them and stop rather than choose. Do
+   not verify or mutate fields/workflows.
 9. Print `gh secret set CLAUDE_CODE_OAUTH_TOKEN`, the Codex automatic-review setting
    instruction, and the Project visibility/workflow checklist. Secret contents and UI
    choices never enter the script.

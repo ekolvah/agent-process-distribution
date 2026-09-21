@@ -282,32 +282,54 @@ def ensure_project(root: Path, runner: Runner) -> int:
         number = int(projects[0]["number"])
         print(f"unchanged: linked Project #{number} {projects[0].get('title', '')}")
         return number
-    copied = json.loads(
+    repo = f"{data['owner']['login']}/{data['name']}"
+    title = f"{repo} agent process"
+    viewer = run_checked(["gh", "api", "user", "--jq", ".login"], runner=runner, cwd=root).strip()
+    available = json.loads(
         run_checked(
-            [
-                "gh",
-                "project",
-                "copy",
-                str(TEMPLATE_PROJECT),
-                "--source-owner",
-                TEMPLATE_OWNER,
-                "--target-owner",
-                "@me",
-                "--format",
-                "json",
-            ],
+            ["gh", "project", "list", "--owner", viewer, "--format", "json", "--limit", "100"],
             runner=runner,
             cwd=root,
         )
     )
-    number = int(copied["number"])
-    repo = f"{data['owner']['login']}/{data['name']}"
+    matches = [
+        project for project in available.get("projects", []) if project.get("title") == title
+    ]
+    if len(matches) > 1:
+        numbers = ", ".join(f"#{project.get('number')}" for project in matches)
+        raise InstallConflict(
+            f"conflict: several unlinked Projects named {title!r} ({numbers}); refusing to choose"
+        )
+    if matches:
+        number = int(matches[0]["number"])
+    else:
+        copied = json.loads(
+            run_checked(
+                [
+                    "gh",
+                    "project",
+                    "copy",
+                    str(TEMPLATE_PROJECT),
+                    "--source-owner",
+                    TEMPLATE_OWNER,
+                    "--target-owner",
+                    "@me",
+                    "--title",
+                    title,
+                    "--format",
+                    "json",
+                ],
+                runner=runner,
+                cwd=root,
+            )
+        )
+        number = int(copied["number"])
     run_checked(
         ["gh", "project", "link", str(number), "--owner", "@me", "--repo", repo],
         runner=runner,
         cwd=root,
     )
-    print(f"written: copied and linked Project #{number}")
+    print(f"written: linked Project #{number}")
     return number
 
 
@@ -341,6 +363,7 @@ def install(
     confirm_remote: bool,
     runner: Runner = subprocess_runner,
     platform: str = sys.platform,
+    selected_release: bool = False,
 ) -> None:
     if not test.strip():
         raise InstallConflict("a non-empty --test command is required")
@@ -350,6 +373,37 @@ def install(
     if not confirm_remote:
         raise InstallConflict("refusing writes without --confirm-remote; run --dry-run first")
     update_codex_skill(home, version, runner, platform)
+    if version != VERSION:
+        if selected_release:
+            raise RuntimeError(
+                f"selected release v{version} reports installer version {VERSION}; refusing recursion"
+            )
+        selected_init = (
+            home
+            / ".agent-process"
+            / "distribution"
+            / "skills"
+            / "agent-process"
+            / "scripts"
+            / "init.py"
+        )
+        run_checked(
+            [
+                sys.executable,
+                str(selected_init),
+                "--setup",
+                setup,
+                "--test",
+                test,
+                "--version",
+                version,
+                "--confirm-remote",
+                "--selected-release",
+            ],
+            runner=runner,
+            cwd=root,
+        )
+        return
     run_checked(
         ["npx", "-y", OPENSPEC, "init", "--tools", "claude,codex", "--no-animation"],
         runner=runner,
@@ -382,6 +436,7 @@ def main(argv: list[str] | None = None) -> None:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true")
     mode.add_argument("--confirm-remote", action="store_true")
+    parser.add_argument("--selected-release", action="store_true", help=argparse.SUPPRESS)
     ns = parser.parse_args(argv)
     try:
         install(
@@ -392,6 +447,7 @@ def main(argv: list[str] | None = None) -> None:
             version=ns.version,
             dry_run=ns.dry_run,
             confirm_remote=ns.confirm_remote,
+            selected_release=ns.selected_release,
         )
     except InstallConflict as exc:
         print(str(exc), file=sys.stderr)

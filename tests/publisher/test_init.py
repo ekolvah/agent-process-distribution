@@ -38,6 +38,7 @@ class FakeRunner:
         self.home = home
         self.rulesets = list(rulesets or [])
         self.projects = list(projects or [])
+        self.owner_projects = list(self.projects)
         self.calls: list[tuple[list[str], str | None]] = []
         self.dirty = False
         self.origin = "https://github.com/ekolvah/agent-process-distribution.git"
@@ -67,6 +68,12 @@ class FakeRunner:
                     "projectsV2": {"nodes": self.projects},
                 }
             )
+        elif cmd[:3] == ["gh", "api", "user"]:
+            out = "owner\n"
+        elif cmd[:3] == ["gh", "project", "list"]:
+            out = json.dumps(
+                {"projects": self.owner_projects, "totalCount": len(self.owner_projects)}
+            )
         elif cmd[:3] == ["gh", "api", "repos/owner/repo/rulesets"] and "--method" not in cmd:
             out = json.dumps(self.rulesets)
         elif cmd[:3] == ["gh", "api", "repos/owner/repo/rulesets"] and "--method" in cmd:
@@ -77,16 +84,20 @@ class FakeRunner:
         elif cmd[:3] == ["gh", "api", "repos/owner/repo/rulesets/41"]:
             out = json.dumps(self.rulesets[0])
         elif cmd[:3] == ["gh", "project", "copy"]:
-            self.projects = [
+            self.owner_projects = [
                 {
                     "id": "PVT_9",
                     "number": 9,
-                    "title": "Agent process",
+                    "title": cmd[cmd.index("--title") + 1],
                     "resourcePath": "/users/owner/projects/9",
                 }
             ]
-            out = json.dumps(self.projects[0])
+            out = json.dumps(self.owner_projects[0])
         elif cmd[:3] == ["gh", "project", "link"]:
+            number = int(cmd[3])
+            self.projects = [
+                project for project in self.owner_projects if project["number"] == number
+            ]
             out = ""
         elif cmd[:3] == ["cmd", "/c", "mklink"]:
             link, target = Path(cmd[-2]), Path(cmd[-1])
@@ -272,6 +283,42 @@ def test_selected_release_precedes_template_rendering(
     )
 
 
+def test_update_hands_off_to_the_selected_release(tmp_path: Path) -> None:
+    module = _module()
+    repo, home = tmp_path / "repo", tmp_path / "home"
+    repo.mkdir()
+    home.mkdir()
+    fake = FakeRunner(home)
+
+    module.install(
+        root=repo,
+        home=home,
+        setup="python -m pip install -r requirements.txt",
+        test="pytest",
+        version="2.1.0",
+        dry_run=False,
+        confirm_remote=True,
+        runner=fake,
+        platform="linux",
+    )
+
+    selected = (
+        home
+        / ".agent-process"
+        / "distribution"
+        / "skills"
+        / "agent-process"
+        / "scripts"
+        / "init.py"
+    )
+    commands = [cmd for cmd, _ in fake.calls]
+    handoff = next(cmd for cmd in commands if len(cmd) > 1 and cmd[1] == str(selected))
+    assert handoff[0] == sys.executable
+    assert handoff[handoff.index("--version") + 1] == "2.1.0"
+    assert "--selected-release" in handoff
+    assert not any(cmd[:2] == ["npx", "-y"] for cmd in commands)
+
+
 def test_literal_commands_are_yaml_safe(tmp_path: Path) -> None:
     setup = "python -m pip install -r requirements.txt\necho 'ready: yes'"
     _, _, repo, _ = _install(tmp_path, setup=setup)
@@ -392,6 +439,33 @@ def test_project_reuse_and_ambiguity(tmp_path: Path) -> None:
     many = FakeRunner(home, projects=[{"number": 1, "title": "A"}, {"number": 2, "title": "B"}])
     with pytest.raises(module.InstallConflict, match="several"):
         module.ensure_project(tmp_path, many)
+
+
+def test_project_link_failure_reuses_the_copy_on_retry(tmp_path: Path) -> None:
+    module = _module()
+    home = tmp_path / "home"
+    home.mkdir()
+
+    class LinkFailsOnce(FakeRunner):
+        failed = False
+
+        def __call__(
+            self, cmd: list[str], *, cwd: Path | None = None, input: str | None = None
+        ) -> subprocess.CompletedProcess[str]:
+            if cmd[:3] == ["gh", "project", "link"] and not self.failed:
+                self.failed = True
+                self.calls.append((list(cmd), input))
+                return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="transient")
+            return super().__call__(cmd, cwd=cwd, input=input)
+
+    fake = LinkFailsOnce(home)
+    with pytest.raises(RuntimeError, match="transient"):
+        module.ensure_project(tmp_path, fake)
+    module.ensure_project(tmp_path, fake)
+
+    commands = [cmd for cmd, _ in fake.calls]
+    assert sum(cmd[:3] == ["gh", "project", "copy"] for cmd in commands) == 1
+    assert sum(cmd[:3] == ["gh", "project", "link"] for cmd in commands) == 2
 
 
 def test_none_capture_is_not_an_empty_string(tmp_path: Path) -> None:

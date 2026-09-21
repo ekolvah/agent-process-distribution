@@ -70,10 +70,10 @@
 | Capability | Scenario | Test evidence |
 |---|---|---|
 | distribution | Fresh repository | `tests/publisher/test_init.py::test_fresh_repository` |
-| distribution | Second run | `tests/publisher/test_init.py::test_second_run` |
+| distribution | Second run | `tests/publisher/test_init.py::test_second_run`, `tests/publisher/test_init.py::test_project_link_failure_reuses_the_copy_on_retry` |
 | distribution | Consumer-owned file | `tests/publisher/test_init.py::test_consumer_owned_file` |
 | distribution | Rule change | `tests/publisher/test_plugin.py::test_rule_change` |
-| distribution | New release | `tests/publisher/test_plugin.py::test_version_drift` |
+| distribution | New release | `tests/publisher/test_plugin.py::test_version_drift`, `tests/publisher/test_init.py::test_update_hands_off_to_the_selected_release` |
 | distribution | Quality check on a PR | `tests/publisher/test_reusable_workflows.py::test_consumer_caller_pins_release_tag` |
 | distribution | Quality check on the publisher PR | `tests/publisher/test_reusable_workflows.py::test_publisher_caller_uses_local_reusable` |
 | distribution | Rendered payload | `tests/publisher/test_plugin.py::test_closed_installed_payload` |
