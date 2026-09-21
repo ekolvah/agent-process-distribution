@@ -50,9 +50,12 @@ class FakeRunner:
         out = ""
         if cmd[:2] == ["git", "clone"]:
             checkout = Path(cmd[-1])
-            (checkout / "skills" / "agent-process").mkdir(parents=True)
+            (checkout / "skills" / "agent-process" / "scripts").mkdir(parents=True)
             (checkout / "skills" / "agent-process" / "SKILL.md").write_text(
                 "fixture\n", encoding="utf-8"
+            )
+            (checkout / "skills" / "agent-process" / "scripts" / "init.py").write_text(
+                "# fixture\n", encoding="utf-8"
             )
         elif cmd[:3] == ["git", "status", "--porcelain"]:
             out = " M dirty\n" if self.dirty else ""
@@ -317,6 +320,35 @@ def test_update_hands_off_to_the_selected_release(tmp_path: Path) -> None:
     assert handoff[handoff.index("--version") + 1] == "2.1.0"
     assert "--selected-release" in handoff
     assert not any(cmd[:2] == ["npx", "-y"] for cmd in commands)
+
+
+def test_update_dry_run_previews_the_selected_release(tmp_path: Path) -> None:
+    module = _module()
+    repo, home = tmp_path / "repo", tmp_path / "home"
+    repo.mkdir()
+    home.mkdir()
+    fake = FakeRunner(home)
+
+    module.install(
+        root=repo,
+        home=home,
+        setup="python -m pip install -r requirements.txt",
+        test="pytest",
+        version="2.1.0",
+        dry_run=True,
+        confirm_remote=False,
+        runner=fake,
+        platform="linux",
+    )
+
+    commands = [cmd for cmd, _ in fake.calls]
+    clone = next(cmd for cmd in commands if cmd[:2] == ["git", "clone"])
+    assert ["--branch", "v2.1.0"] == clone[clone.index("--branch") : clone.index("--branch") + 2]
+    handoff = next(cmd for cmd in commands if len(cmd) > 1 and cmd[0] == sys.executable)
+    assert "--dry-run" in handoff and "--confirm-remote" not in handoff
+    assert "--selected-release" in handoff
+    assert not any(repo.iterdir())
+    assert not (home / ".agent-process" / "distribution").exists()
 
 
 def test_literal_commands_are_yaml_safe(tmp_path: Path) -> None:

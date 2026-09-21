@@ -96,11 +96,12 @@ user-owned process directory and makes `~/.agents/skills/agent-process` point to
 `skills/agent-process` directory (a symlink on Unix, a directory junction on Windows).
 On update it refuses a dirty checkout or a link with another target, fetches the requested
 tag, and changes the checkout only after those checks. When the requested version differs
-from the running installer's version, the bootstrap hands the same literal arguments to
-that tag's `init.py` and returns; a private guard makes a version mismatch fail instead of
-recursing. This gives `SKILL.md`, `scripts/`, templates, and installer logic one shared
-version and follows the current OpenAI path rather than the stale `~/.codex/skills`
-assumption.
+from the running installer's version, dry-run clones that tag into a temporary directory
+and delegates its preview there without changing the installed checkout. Confirmation
+updates the persistent checkout, hands the same literal arguments to that tag's `init.py`,
+and returns; a private guard makes a version mismatch fail instead of recursing. This
+gives the preview, `SKILL.md`, `scripts/`, templates, and installer logic one shared version
+and follows the current OpenAI path rather than the stale `~/.codex/skills` assumption.
 
 The bootstrap remains agent-native: Claude installs the marketplace plugin; Codex uses
 its skill installation/bootstrap path to obtain the init skill once. `init` owns all

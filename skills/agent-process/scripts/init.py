@@ -7,6 +7,7 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -352,6 +353,21 @@ def _plan(root: Path, home: Path, version: str) -> None:
     _manual_instructions()
 
 
+def _handoff_command(script: Path, *, setup: str, test: str, version: str, mode: str) -> list[str]:
+    return [
+        sys.executable,
+        str(script),
+        "--setup",
+        setup,
+        "--test",
+        test,
+        "--version",
+        version,
+        mode,
+        "--selected-release",
+    ]
+
+
 def install(
     *,
     root: Path,
@@ -367,6 +383,40 @@ def install(
 ) -> None:
     if not test.strip():
         raise InstallConflict("a non-empty --test command is required")
+    if selected_release and version != VERSION:
+        raise RuntimeError(
+            f"selected release v{version} reports installer version {VERSION}; refusing recursion"
+        )
+    if dry_run and version != VERSION:
+        with tempfile.TemporaryDirectory(prefix="agent-process-preview-") as temporary:
+            checkout = Path(temporary) / "distribution"
+            run_checked(
+                [
+                    "git",
+                    "clone",
+                    "--filter=blob:none",
+                    "--depth",
+                    "1",
+                    "--branch",
+                    f"v{version}",
+                    REPOSITORY,
+                    str(checkout),
+                ],
+                runner=runner,
+            )
+            selected_init = checkout / "skills" / "agent-process" / "scripts" / "init.py"
+            run_checked(
+                _handoff_command(
+                    selected_init,
+                    setup=setup,
+                    test=test,
+                    version=version,
+                    mode="--dry-run",
+                ),
+                runner=runner,
+                cwd=root,
+            )
+        return
     _plan(root, home, version)
     if dry_run:
         return
@@ -374,10 +424,6 @@ def install(
         raise InstallConflict("refusing writes without --confirm-remote; run --dry-run first")
     update_codex_skill(home, version, runner, platform)
     if version != VERSION:
-        if selected_release:
-            raise RuntimeError(
-                f"selected release v{version} reports installer version {VERSION}; refusing recursion"
-            )
         selected_init = (
             home
             / ".agent-process"
@@ -388,18 +434,13 @@ def install(
             / "init.py"
         )
         run_checked(
-            [
-                sys.executable,
-                str(selected_init),
-                "--setup",
-                setup,
-                "--test",
-                test,
-                "--version",
-                version,
-                "--confirm-remote",
-                "--selected-release",
-            ],
+            _handoff_command(
+                selected_init,
+                setup=setup,
+                test=test,
+                version=version,
+                mode="--confirm-remote",
+            ),
             runner=runner,
             cwd=root,
         )
