@@ -22,15 +22,15 @@ procedure copy, or second role-specific entry point SHALL exist.
 ### Requirement: Roles and carriers
 Roles SHALL be carried as follows: planner — `/opsx:propose` in Claude, `$openspec-propose`
 in Codex; architect review — the `architect-reviewer` subagent in Claude (independent), a
-self-review in Codex, both writing `architect-review.md` into the change directory as the last
-step of the propose run; implementer and fixer —
+self-review in Codex, both writing `architect-review.json` into the change directory as the last
+step of the propose run, valid against `skills/agent-process/architect-review.schema.json`; implementer and fixer —
 `openspec-apply-change` (`/opsx:apply`, `$openspec-apply-change`) executing `tasks.md`,
 whose delivery tasks the `tasks` rule puts into every change; PR review — `claude-code-action` workflow and the Codex GitHub app;
 merge — the person.
 
 #### Scenario: Codex plans a change
 - **WHEN** the person runs `$openspec-propose` in Codex
-- **THEN** the change carries a self-review `architect-review.md` instead of a subagent review
+- **THEN** the change carries `architect-review.json` whose `reviewer` is `self-review` instead of `architect-reviewer`, valid against the review schema
 
 ### Requirement: Provenance is one line in the tracking issue
 "Who planned, who implemented" SHALL be one line in the tracking issue, not a catalogue file.
