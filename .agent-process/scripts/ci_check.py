@@ -122,6 +122,10 @@ def check_lint() -> None:
         _run([sys.executable, "-m", "ruff", "check", ".", *_product_scope_excludes("--exclude")])
 
 
+def check_module_size() -> None:
+    pass
+
+
 # Captured third-party HTML kept as test fixtures: asset digests and cache-busting
 # hashes in someone else's markup read as high-entropy strings, i.e. false positives
 # by construction. Excluded as *files* rather than whitelisted as secret hashes — a
