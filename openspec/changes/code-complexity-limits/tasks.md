@@ -23,8 +23,8 @@
 
 ## 5. Verify
 
-- [ ] 5.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify every change and spec passes
-- [ ] 5.2 Run `python .agent-process/scripts/ci_check.py` and verify it passes, including `==> module-size`; confirm `git diff --name-only origin/main` lists only the paths of the proposal's Impact and the change directory
+- [x] 5.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify every change and spec passes
+- [x] 5.2 Run `python .agent-process/scripts/ci_check.py` and verify it passes, including `==> module-size`; confirm `git diff --name-only origin/main` lists only the paths of the proposal's Impact and the change directory
 
 ## 6. Deliver
 
