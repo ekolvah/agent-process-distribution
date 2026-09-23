@@ -19,7 +19,7 @@
 
 ## 4. Decision record
 
-- [ ] 4.1 Write `.agent-process/docs/adr/0028-standard-linters-limit-code-complexity.md` (MADR, `status: "accepted"`): the decision of design D1–D4 and D6, the superseded "complexity-lint gate was rejected" paragraph of ADR 0016 named per design D7, "Native alternatives considered" (radon/xenon, flake8 plugins, a bespoke counter, reviewer prose), the baseline list, and the deletion condition (remove `module-size` and pylint if ruff ships a module-length rule; drop the gate if the baseline grows instead of shrinking); verify `python -m pytest tests/agent_process -q -k "adr or doc"` is green; commit as `docs(adr): standard linters limit code complexity`
+- [x] 4.1 Write `.agent-process/docs/adr/0028-standard-linters-limit-code-complexity.md` (MADR, `status: "accepted"`): the decision of design D1–D4 and D6, the superseded "complexity-lint gate was rejected" paragraph of ADR 0016 named per design D7, "Native alternatives considered" (radon/xenon, flake8 plugins, a bespoke counter, reviewer prose), the baseline list, and the deletion condition (remove `module-size` and pylint if ruff ships a module-length rule; drop the gate if the baseline grows instead of shrinking); verify `python -m pytest tests/agent_process -q -k "adr or doc"` is green; commit as `docs(adr): standard linters limit code complexity`
 
 ## 5. Verify
 

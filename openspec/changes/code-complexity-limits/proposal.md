@@ -2,8 +2,8 @@
 
 Nothing in this repository limits function complexity or module size: both ruff configs select
 only `E, F, I, BLE, TRY400`, and [ADR 0016](../../../.agent-process/docs/adr/0016-review-gate-blocks-on-narrow-simplicity-violations.md)
-rejected a complexity-lint gate. `tests/publisher/test_init.py` reached 1216 lines in PR #160
-with no check reacting (issue #161).
+rejected a complexity-lint gate. `tests/publisher/test_init.py` reached 1216 lines with no
+check reacting (PR #160, issue #161).
 
 Observed on `main` at `8a2552c`:
 
