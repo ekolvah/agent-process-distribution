@@ -28,7 +28,7 @@
 
 ## 6. Deliver
 
-- [ ] 6.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py code-complexity-limits`; verify it applies the `implementation` delta, commits the archive, and pushes the branch
+- [x] 6.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py code-complexity-limits`; verify it applies the `implementation` delta, commits the archive, and pushes the branch
 - [ ] 6.2 Run `gh pr create --title "code-complexity-limits" --body-file <report>`; the report references issue 161 without `Closes`, carries the scenario → test map and the baseline list, and states that `module-size` runs in CI from the first PR after merge (design, Risks)
 - [ ] 6.3 Run `python .agent-process/scripts/request_codex_review.py --request <PR>` and `python skills/agent-process/scripts/wait_for_pr.py <PR>`; after each corrective push run both again; resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`, answer P2/P3 without resolving, run `python .agent-process/scripts/review_gate.py <PR>` on the settled head, and stop at `ready-for-human` or the three-round escalation
 
