@@ -6,7 +6,8 @@ Claude or Codex adapter is the only permitted executor.
 
 The **target** process is specified with [OpenSpec](https://github.com/Fission-AI/OpenSpec):
 `openspec/specs/` holds what is implemented, `openspec/changes/` what is pending (the
-tracking issue #107 lists the v2 changes), `openspec/config.yaml` the conventions. A PR that
+tracking issue #107 lists the v2 changes), `openspec/config.yaml` the repository context,
+and [`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md) the portable procedure. A PR that
 changes target behaviour carries its change's spec delta (`openspec validate --strict`); a
 PR that only touches a v1 mechanism the target drops does not. Until v2 lands the document
 above stays the enforced contract.
@@ -21,8 +22,8 @@ above stays the enforced contract.
   That document is the sole source of task gates, commands, and status
   transitions; this file does not restate them.
 - Use `$openspec-propose` for the Codex planner entry point and
-  `$openspec-apply-change` for the Codex implementer entry point. The project rules
-  they follow are in `openspec/config.yaml`; the architect review is written as
+  `$openspec-apply-change` for the Codex implementer entry point. The project context and
+  shared-skill pointers they follow are in `openspec/config.yaml`; the architect review is written as
   `architect-review.md` by the planner as a self-review in Codex; they do not
   replace any gate in that document.
 - The advisory control plane (`.agent-process/scripts/agent_orchestrator.py` plus

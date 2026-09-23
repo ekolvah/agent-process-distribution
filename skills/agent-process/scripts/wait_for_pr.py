@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Wait until a PR's checks concluded, then report what is left for the author.
 
-Usage: python .agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
+Usage: python skills/agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 
 The implementing run ends only after checks and reviews: a check that has not concluded (the
 `agent-review` check waiting for the requested Codex review, or running the Claude fallback,

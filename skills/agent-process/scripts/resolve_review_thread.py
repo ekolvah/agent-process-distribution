@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Resolve one P0/P1 review thread the fixer's own correction addressed.
 
-Usage: python .agent-process/scripts/resolve_review_thread.py --repo OWNER/REPO --pr N
+Usage: python skills/agent-process/scripts/resolve_review_thread.py --repo OWNER/REPO --pr N
            --list | --thread NODE-ID --reply-file PATH
 
 CI never infers whether a finding was addressed (ADR 0022): the required
@@ -21,25 +21,152 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import subprocess
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import NamedTuple
 
-try:
-    from scripts.check_blocking_review_threads import (
-        blocking_threads,
-        fetch_review_threads,
-        head_ref_oid,
-        review_threads,
+_REVIEWERS = frozenset({"chatgpt-codex-connector", "github-actions"})
+_PRIORITY = re.compile(r"\bP(?P<number>[0-3])\b", re.IGNORECASE)
+_QUERY = """
+query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      headRefOid
+      reviewThreads(first: 100) {
+        pageInfo { hasNextPage }
+        nodes {
+          id isResolved
+          comments(first: 100) {
+            pageInfo { hasNextPage }
+            nodes { databaseId body url replyTo { id } author { login } originalCommit { oid } }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+class ReviewThread(NamedTuple):
+    thread_id: str
+    comment_id: int
+    priority: str
+    url: str
+    blocking: bool
+    original_commit_oid: str | None = None
+
+
+def run_gh(args: list[str]) -> str:
+    result = subprocess.run(
+        ["gh", *args], text=True, capture_output=True, encoding="utf-8", check=False
     )
-    from scripts.gh_io import run_gh
-except ModuleNotFoundError:  # Direct execution from the relocated payload.
-    from check_blocking_review_threads import (
-        blocking_threads,
-        fetch_review_threads,
-        head_ref_oid,
-        review_threads,
+    if result.returncode != 0:
+        detail = result.stderr.strip() if result.stderr else "no stderr captured"
+        raise RuntimeError(f"gh {' '.join(args)} failed: {detail}")
+    if result.stdout is None:
+        raise RuntimeError(f"gh {' '.join(args)}: no stdout captured (broken decoding)")
+    return result.stdout
+
+
+def fetch_review_threads(repo: str, pr: int) -> dict:
+    owner, name = repo.split("/", 1)
+    raw = run_gh(
+        [
+            "api",
+            "graphql",
+            "-f",
+            f"query={_QUERY}",
+            "-F",
+            f"owner={owner}",
+            "-F",
+            f"name={name}",
+            "-F",
+            f"number={pr}",
+        ]
     )
-    from gh_io import run_gh
+    return json.loads(raw)
+
+
+def head_ref_oid(payload: object) -> str:
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("GraphQL payload is not an object")
+    data = payload.get("data")
+    if not isinstance(data, Mapping) or not isinstance(data.get("repository"), Mapping):
+        raise RuntimeError("GraphQL payload has no repository")
+    pull = data["repository"].get("pullRequest")
+    if not isinstance(pull, Mapping):
+        raise RuntimeError("GraphQL payload has no pull request")
+    return str(pull["headRefOid"])
+
+
+def review_threads(payload: object) -> list[ReviewThread]:
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("GraphQL payload is not an object")
+    data = payload.get("data")
+    if not isinstance(data, Mapping) or not isinstance(data.get("repository"), Mapping):
+        raise RuntimeError("GraphQL payload has no repository")
+    pull = data["repository"].get("pullRequest")
+    if not isinstance(pull, Mapping) or not isinstance(pull.get("reviewThreads"), Mapping):
+        raise RuntimeError("GraphQL payload has no review threads")
+    threads = pull["reviewThreads"]
+    if isinstance(threads.get("pageInfo"), Mapping) and threads["pageInfo"].get("hasNextPage"):
+        raise RuntimeError("more than 100 review threads; refusing an incomplete merge verdict")
+    nodes = threads.get("nodes")
+    if not isinstance(nodes, list):
+        raise RuntimeError("GraphQL review threads are not a list")
+    result: list[ReviewThread] = []
+    for thread in nodes:
+        if not isinstance(thread, Mapping) or thread.get("isResolved"):
+            continue
+        comments = thread.get("comments")
+        if not isinstance(comments, Mapping):
+            raise RuntimeError("GraphQL thread has no comments")
+        if isinstance(comments.get("pageInfo"), Mapping) and comments["pageInfo"].get(
+            "hasNextPage"
+        ):
+            raise RuntimeError("a review thread has more than 100 comments")
+        records = comments.get("nodes")
+        if not isinstance(records, list):
+            raise RuntimeError("GraphQL comments are not a list")
+        for comment in records:
+            if not isinstance(comment, Mapping) or comment.get("replyTo") is not None:
+                continue
+            author = comment.get("author")
+            login = author.get("login") if isinstance(author, Mapping) else None
+            body = comment.get("body")
+            priority = _PRIORITY.search(body) if isinstance(body, str) else None
+            normalised = str(login or "").removesuffix("[bot]").lower()
+            if normalised not in _REVIEWERS or priority is None:
+                continue
+            comment_id = comment.get("databaseId")
+            if not isinstance(comment_id, int):
+                raise RuntimeError("a review comment has no database ID")
+            original = comment.get("originalCommit")
+            oid = original.get("oid") if isinstance(original, Mapping) else None
+            result.append(
+                ReviewThread(
+                    str(thread.get("id", "unknown")),
+                    comment_id,
+                    priority.group(0).upper(),
+                    str(comment.get("url", "")),
+                    priority.group("number") in {"0", "1"},
+                    str(oid) if isinstance(oid, str) else None,
+                )
+            )
+            break
+    return result
+
+
+def blocking_threads(payload: object) -> list[tuple[str, str, str]]:
+    return [
+        (thread.thread_id, thread.priority, thread.url)
+        for thread in review_threads(payload)
+        if thread.blocking
+    ]
+
 
 _MUTATION = """
 mutation($threadId: ID!) {

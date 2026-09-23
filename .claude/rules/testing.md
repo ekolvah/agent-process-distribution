@@ -16,7 +16,7 @@ only when working with `tests/**`).
 1. **RED first** — write the failing test from the issue `## Test plan` before
    code (rule and exceptions:
    [`principles.md §I`](../../.agent-process/docs/architecture/principles.md)).
-   `.agent-process/scripts/check_red.py` takes the result per test from the junit report. A
+   `skills/agent-process/scripts/check_red.py` takes the result per test from the junit report. A
    suite that did not run does not count as RED; a test for a symbol that does
    not exist yet needs a signature stub so its failure occurs in the test body.
    The contract is

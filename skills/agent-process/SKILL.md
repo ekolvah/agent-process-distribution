@@ -1,0 +1,125 @@
+---
+name: agent-process
+description: Plan, implement, review, and deliver the shared GitHub agent development process.
+---
+
+# Agent process
+
+Use this procedure for both Claude Code and Codex. Repository-specific facts remain in
+`openspec/config.yaml`; this skill owns the portable planning and delivery procedure. Run
+repository operations, and every command printed below, from the repository root, where the
+paths those commands name resolve. Placing this skill in a repository that does not carry it
+at those paths is the installer's to define.
+
+## Proposal
+
+- Read the code and prior art before writing. Ask the person when a scope decision is theirs.
+- For a bug, record the reproduction — the failing test, or the exact observation when a test
+  needs project-specific capture — and the root cause under **Why** before any design.
+- **Impact** lists every file added, edited, and removed; keep doc-only work separate.
+- When a design rests on platform behaviour — an event, a permission, a merge rule, a token
+  scope, a CLI flag — verify it before the proposal and record the observation, not the
+  inference, under **Why** or in `design.md` beside the decision: cite the reference page and
+  sentence, or a run id or exact command output — a run of a standard checker counts, a listing, a name or an inference from
+  another behaviour does not. Point to an observation already on record instead of repeating it.
+
+## Specifications
+
+- Specs contain requirements and scenarios only. Put rationale, alternatives, non-goals,
+  and open questions in `design.md` or an ADR.
+- Keep requirement titles short and stable. A rename is a RENAMED delta plus the matching
+  test rename in one change.
+- Each scenario names an observable outcome using the stock OpenSpec structural headings
+  and SHALL/MUST keywords in English.
+
+## Design
+
+- Record decisions, alternatives, risks, and the migration and rollback boundary.
+- A design that replaces a project-declared input with one the caller supplies, or drops a
+  guard, lists beside the decision the new input's failure modes, what stops proving, and for
+  each lost proof the catcher that is actually reached: which script, which run, on which head,
+  not a role or the platform in general.
+
+## Tasks
+
+Write these groups in order and end `tasks.md` with `## Scenario → test map`, mapping every
+delta scenario to a named test or `n/a: <reason>`.
+
+1. Group 0 — Delivery start: one task runs `python
+   skills/agent-process/scripts/start_change.py <change> --planner <carrier of the propose
+   run> --implementer <this carrier>` — Claude or Codex, and ask the person when the planner
+   is unknown, because the issue records the answer as provenance. Its text carries
+   `tracking issue <N>`; the propose tail
+   replaces the placeholder, and both scripts read the token there. The script reads the
+   verdict of the architect review and the Status of the issue, creates the linked branch
+   from `origin/main`, sets In Progress and posts the provenance line. On `rework`, apply
+   the findings and run the review again. It prints `propose run not finished` and exits 2
+   while the token still carries `<N>` or the issue is not a Project item in the Status the
+   propose run leaves it in: nothing is asked and nothing is created there.
+2. Group 1 — RED first: write the tests in the scenario-to-test map and run `python
+   skills/agent-process/scripts/check_red.py <node ids>`. It runs `python -m pytest` of its
+   own interpreter under its own configuration, with a report path of its own and the node
+   ids, and takes nothing else. Commit RED before implementation. When
+   the map names no test for docs-only, `skip_specs`, or a rename, record
+   `no RED: <reason>` as the task.
+3. Implementation groups: one task per scenario, design decision, or review finding, each
+   with its verification command. End each coherent group with a commit.
+4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the complete
+   quality command the repository names in the context of `openspec/config.yaml`.
+5. Deliver using the procedure below. The person merges.
+
+## Architect review
+
+After `tasks.md`, review proposal, specifications, design, and tasks against principles
+§I–VII. Claude invokes `architect-reviewer`; Codex performs a stated self-review. Write
+`architect-review.md` with three sections: `## Verdict` — a first line starting with `approve`
+or `rework`, which is what the delivery gate reads, plus one line of reasoning; `## Findings` —
+one bullet per finding, `§<principle> · <artifact>:<heading or line> — what is wrong → what to
+change`, or `none`; `## Scenario coverage` — every scenario of the spec deltas no test can
+prove, as `<capability> / <scenario> → n/a: <reason>` with the reason `tasks.md` carries.
+
+A simpler design, a missing scenario mapping, a Group 1 omission without `no RED`, a platform
+fact asserted, not observed, a replaced input or dropped guard without the Design lists, or a
+catcher the review cannot trace to a reached delivery step is a finding. Findings point at
+artifacts instead of restating them. On `rework`, answer every finding and review again. The
+propose run ends on `approve`: if the change has no issue, ask once for priority and run
+`python skills/agent-process/scripts/create_tracking_issue.py <change> --priority
+<High|Medium|Low>`; otherwise run it without priority. The issue must be `Planned` before the
+plan is ready. Artifact status is file existence only: the verdict is the gate, and Group 0
+reads it.
+
+## Delivery
+
+Start from a clean worktree. Run `python skills/agent-process/scripts/archive_change.py
+<change>` before `gh pr create --title "<change>" --body-file <report>`. The report names the
+tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
+deferrals. The archive is the head the PR opens on.
+
+After creating the PR and after every corrective push, run
+`python .agent-process/scripts/request_codex_review.py --request <PR>`. The `agent-review`
+check waits for Codex's current-head review and runs the Claude fallback only when no valid
+Codex evidence arrives. Then run `python skills/agent-process/scripts/wait_for_pr.py <PR>`;
+it waits until two reads 30 seconds apart agree that all checks on one head concluded, then
+reads unresolved threads on that head.
+
+Apply findings and repeat at most three rounds; the fourth leaves the rest to the person with
+a reply. After a push, re-request and run
+`wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
+settled review: `python skills/agent-process/scripts/resolve_review_thread.py --repo
+<owner/repo> --pr <PR> --list` prints the open threads with the `<id>` of each, then
+`python skills/agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
+--thread <id> --reply-file <path>` closes one; the script
+refuses a thread reported against the current head and refuses while the head's check is
+still running, then resolves, re-runs that check and replies last. A P2/P3 thread is
+answered, never resolved by the process. A spec correction goes through a change of its own on
+the PR branch — `npx -y @fission-ai/openspec@1.13.0 new change <name>`, the delta under its
+`specs/`, `validate --strict`, then `python skills/agent-process/scripts/archive_change.py
+<name>` — never a direct edit of `openspec/specs/`. A changed design decision amends the archived
+`design.md` and scenario map in the same push. A finding on script behavior must be closed by its class:
+test the violated invariant, the other inputs that violate it from the tool's own
+documentation, and what each switch takes away; test the class, not the reviewer's example.
+
+Run the repository review gate on the settled current head. Stop only at `ready-for-human`
+or the documented three-round escalation. Tasks after archive leave no tick in the
+repository because a pushed tick would move the reviewed head. If interrupted after archive,
+resume from `gh pr view <change>` — open the PR when there is none — not OpenSpec apply.
