@@ -129,8 +129,9 @@ def check_module_size() -> None:
     The configs enable that one pylint message only, so the two linters never
     overlap. Explicit file lists, not directories: pylint then needs no package
     layout and does not import the files. Product code is checked only when the
-    root `pyproject.toml` configures pylint: without that section pylint would
-    run its full default rule set, and a consumer gets no limit it did not set.
+    root `pyproject.toml` holds the same single-rule setup: any other pylint
+    config runs rules unrelated to module size, and a consumer gets no limit it
+    did not set.
     """
     print("==> module size")
     modules = _find_modules()
@@ -139,18 +140,21 @@ def check_module_size() -> None:
         _run([sys.executable, "-m", "pylint", "--rcfile", _PROCESS_CONFIG, *process])
     if not _has_product_scope():
         return
-    if not _configures_pylint(Path("pyproject.toml")):
-        print("product scope: no [tool.pylint] in pyproject.toml; module size not checked")
+    if not _configures_module_size(Path("pyproject.toml")):
+        print("product scope: no [tool.pylint] single-rule setup in pyproject.toml; not checked")
         return
     product = [name for name in modules if not _is_process_path(name)]
     if product:
         _run([sys.executable, "-m", "pylint", "--rcfile", "pyproject.toml", *product])
 
 
-def _configures_pylint(path: Path) -> bool:
+def _configures_module_size(path: Path) -> bool:
+    """Whether `path` enables pylint `too-many-lines` and nothing else."""
     if not path.is_file():
         return False
-    return "pylint" in tomllib.loads(path.read_text(encoding="utf-8")).get("tool", {})
+    pylint = tomllib.loads(path.read_text(encoding="utf-8")).get("tool", {}).get("pylint", {})
+    controls = pylint.get("messages control", {})
+    return controls.get("disable") == ["all"] and controls.get("enable") == ["too-many-lines"]
 
 
 # Captured third-party HTML kept as test fixtures: asset digests and cache-busting

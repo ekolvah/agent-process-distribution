@@ -575,7 +575,11 @@ class TestComplexityLimits:
 
     @pytest.mark.parametrize(
         ("config_name", "config"),
-        [("pytest.ini", "[pytest]\n"), ("pyproject.toml", "[project]\nname = 'p'\n")],
+        [
+            ("pytest.ini", "[pytest]\n"),
+            ("pyproject.toml", "[project]\nname = 'p'\n"),
+            ("pyproject.toml", "[tool.pylint.main]\njobs = 1\n"),
+        ],
     )
     def test_product_scope_without_pylint_config_is_not_size_checked(
         self,
