@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import importlib.util
+import re
+import shlex
+import sys
 from pathlib import Path
+from types import ModuleType
 
 import yaml
 
@@ -12,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "openspec" / "config.yaml"
 SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
-ARCHIVE = ROOT / "skills" / "agent-process" / "scripts" / "archive_change.py"
+SCRIPTS = ROOT / "skills" / "agent-process" / "scripts"
+ARCHIVE = SCRIPTS / "archive_change.py"
 
 
 _V1_ENTRY_POINTS = (
@@ -46,6 +52,30 @@ def _group0() -> str:
     """The Group 0 item of the `## Tasks` section."""
     tasks = _section("Tasks")
     return tasks[tasks.index("Group 0") : tasks.index("Group 1")]
+
+
+def _script(name: str) -> ModuleType:
+    """One moved script, imported from its file so no package layout is assumed."""
+    spec = importlib.util.spec_from_file_location(f"agent_process_{name}", SCRIPTS / f"{name}.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _documented_argv(script: str) -> list[str]:
+    """The arguments of the `<script>` invocation the procedure prints, placeholders filled."""
+    text = _skill()
+    start = text.index(f"{script}.py") + len(f"{script}.py")
+    tokens = shlex.split(text[start : text.index("`", start)])
+    argv: list[str] = []
+    for token in tokens:
+        if token.startswith("<"):
+            argv.append("1" if argv and argv[-1] == "--pr" else "placeholder")
+        else:
+            argv.append(token)
+    return argv
 
 
 def test_artifact_rules_point_to_shared_skill() -> None:
@@ -94,6 +124,21 @@ def test_rework_verdict() -> None:
     # The run-level `context` is what makes the review the end of the propose run.
     assert "architect-review.md" in config["context"]
     assert "reported ready" in config["context"]
+
+
+def test_verdict_line_the_gate_reads(tmp_path: Path) -> None:
+    """The procedure spells the verdict line `start_change.py` accepts, not just the heading."""
+    review = _section("Architect review")
+    assert "first line starting with `approve` or `rework`" in review
+    start_change = _script("start_change")
+    change = tmp_path / "openspec" / "changes" / "fixture"
+    change.mkdir(parents=True)
+    written = change / "architect-review.md"
+    written.write_text("## Verdict\n\napprove — the plan holds.\n", encoding="utf-8")
+    assert start_change.verdict(change).startswith("approve")
+    # A line the procedure no longer permits is the one the case-sensitive gate rejects.
+    written.write_text("## Verdict\n\nApproved: the plan holds.\n", encoding="utf-8")
+    assert not start_change.verdict(change).startswith("approve")
 
 
 def test_review_archives_with_the_change(tmp_path: Path) -> None:
@@ -158,6 +203,25 @@ def test_tasks_of_a_new_change() -> None:
         "the reply re-runs the check",
     ):
         assert absent not in text, absent
+
+
+def test_documented_resolve_command_parses() -> None:
+    """A printed command the fixer copies must satisfy the moved script's own options."""
+    module = _script("resolve_review_thread")
+    options = module._parse_options(_documented_argv("resolve_review_thread"))
+    assert options.repo and options.pr and options.thread and options.reply_file
+
+
+def test_reviewer_adapter_reads_the_shared_contract() -> None:
+    """Every file the reviewer adapter names resolves from the repository it is invoked in."""
+    text = REVIEWER.read_text(encoding="utf-8")
+    assert "skills/agent-process/SKILL.md#architect-review" in text
+    named = re.findall(r"`([\w./#-]+\.(?:md|yaml))(?:#[\w-]+)?`", text)
+    paths = [path.split("#", 1)[0] for path in named if "<" not in path]
+    assert paths
+    for path in paths:
+        assert not path.startswith(".."), path
+        assert (ROOT / path).is_file(), path
 
 
 def test_plan_approved() -> None:
