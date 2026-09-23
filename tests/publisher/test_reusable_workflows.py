@@ -23,6 +23,7 @@ def test_callees_declare_workflow_call_without_pull_request_trigger() -> None:
     for name in (
         "reusable-quality.yml",
         "reusable-agent-review.yml",
+        "quality.yml",
     ):
         trigger = _trigger(_workflow(name))
         assert "workflow_call" in trigger
@@ -38,6 +39,7 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
             "reusable-agent-review.yml",
             "agent-review",
         ),
+        ("agent-process.yml", "agent-process", "quality.yml", "quality"),
     )
     for caller_file, caller_job, callee_file, callee_job in pairs:
         caller = _workflow(caller_file)["jobs"][caller_job]
@@ -68,6 +70,7 @@ def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
     for caller_file, caller_job, callee_file in (
         ("ci.yml", "quality", "reusable-quality.yml"),
         ("agent-review.yml", "agent-review", "reusable-agent-review.yml"),
+        ("agent-process.yml", "agent-process", "quality.yml"),
     ):
         caller_permissions = _workflow(caller_file)["permissions"]
         callee_permissions = _workflow(callee_file)["permissions"]
@@ -172,6 +175,55 @@ def test_quality_verifies_the_pr_links_its_issue_before_the_driver() -> None:
     assert _workflow("ci.yml")["permissions"] == expected
     # No `edited` type: a body edit raises no run, the fixer's `gh run rerun` does.
     assert _trigger(_workflow("ci.yml"))["pull_request"] is None
+
+
+def test_quality_callee_runs_the_callers_commands() -> None:
+    """v2-2h D1: the new callee runs the caller's `setup` and `test` on the PR checkout,
+    after the v1 issue-link step; a failing command fails the job."""
+    document = _workflow("quality.yml")
+    assert set(_trigger(document)) == {"workflow_call"}
+    inputs = _trigger(document)["workflow_call"]["inputs"]
+    assert inputs["setup"]["required"] is False
+    assert inputs["setup"]["default"] == ""
+    assert inputs["test"]["required"] is True
+    assert document["permissions"] == {
+        "contents": "read",
+        "pull-requests": "read",
+        "issues": "read",
+    }
+    assert list(document["jobs"]) == ["quality"]
+
+    steps = document["jobs"]["quality"]["steps"]
+    link = _steps("reusable-quality.yml")["Verify the PR links its issue"]
+    assert steps[0] == link
+    assert steps[1]["uses"] == "actions/checkout@v4"
+    assert "with" not in steps[1]
+    assert steps[2]["uses"] == "actions/setup-python@v5"
+    assert steps[2]["with"]["python-version"] == "3.12"
+    setup, test = steps[3], steps[4]
+    assert len(steps) == 5
+    assert setup["run"] == "${{ inputs.setup }}"
+    assert setup["if"] == "inputs.setup != ''"
+    assert test["run"] == "${{ inputs.test }}"
+    assert "if" not in test
+    for step in (setup, test):
+        assert "continue-on-error" not in step
+
+
+def test_publisher_caller_reaches_callee_by_same_commit_path() -> None:
+    """v2-2h D3: the publisher caller takes the callee from its own commit, so the PR
+    that lands `quality.yml` already runs it."""
+    document = _workflow("agent-process.yml")
+    assert set(_trigger(document)) == {"pull_request"}
+    assert _trigger(document)["pull_request"] is None
+    assert list(document["jobs"]) == ["agent-process"]
+    job = document["jobs"]["agent-process"]
+    assert job["uses"] == "./.github/workflows/quality.yml"
+    assert job["with"] == {
+        "setup": "python -m pip install -r .agent-process/requirements.txt"
+        " -r .agent-process/requirements-dev.txt",
+        "test": "python .agent-process/scripts/ci_check.py",
+    }
 
 
 def test_the_pr_link_gate_is_gone() -> None:
