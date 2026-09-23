@@ -179,7 +179,10 @@ def _read(path: Path) -> str | None:
         raise Conflict(f"has a parent `{parent.name}` that is not a directory")
     if not path.is_file():
         return None
-    return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    try:
+        return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        raise Conflict("is not UTF-8") from None
 
 
 def _write(path: Path, text: str) -> None:
@@ -255,7 +258,8 @@ class Context:
     ) -> subprocess.CompletedProcess[str]:
         done = self.runner([self.exe(name), *args], cwd=cwd, env=env)
         if check and done.returncode != 0:
-            output = (done.stderr or "").strip() or (done.stdout or "").strip()
+            streams = [s.strip() for s in (done.stderr, done.stdout) if s is not None]
+            output = next((s for s in streams if s), "") if streams else "output not captured"
             raise InstallError(f"`{name} {' '.join(args)}` exited {done.returncode}: {output}")
         return done
 
@@ -404,6 +408,17 @@ def _config_text(ctx: Context) -> tuple[str | None, str]:
     lines = (text or "").splitlines()
     span = _span(lines)
     outside = lines if span is None else [*lines[: span[0]], *lines[span[1] + 1 :]]
+    # A column-0 match is the whole top-level check only for one document whose root starts
+    # at column 0; there alone the appended column-0 block also stays valid YAML.
+    content = [
+        line
+        for line in outside
+        if line.strip() and not line.lstrip().startswith("#") and not line.startswith("%")
+    ]
+    if content and content[0][0].isspace():
+        raise Conflict("has an indented root mapping")
+    if any(re.match(r"(?:---|\.\.\.)(?:\s|$)", line) for line in content[1:]):
+        raise Conflict("holds more than one YAML document")
     if any(TOP_LEVEL_RULES.match(line) for line in outside):
         raise Conflict("has a top-level `rules` outside the agent-process block")
     return text, _text(_replace_block(lines, render_config_block(ctx.test).splitlines()))
