@@ -13,12 +13,12 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify every change and spec passes
-- [ ] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify it passes; verify `git diff origin/main -- tests/publisher/test_init.py` is empty, the `--collect-only` node ids equal those of 1.1, and `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify every change and spec passes
+- [x] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify it passes; verify `git diff origin/main -- tests/publisher/test_init.py` is empty, the `--collect-only` node ids equal those of 1.1, and `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
 
 ## 4. Deliver
 
-- [ ] 4.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py refactor-init-install`; verify it commits the archive (no spec delta: `skip_specs`) and pushes the branch
+- [x] 4.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py refactor-init-install`; verify it commits the archive (no spec delta: `skip_specs`) and pushes the branch
 - [ ] 4.2 Run `gh pr create --title "refactor-init-install" --body-file <report>`; the report references issue 162 without `Closes`, and carries the scenario → test map
 - [ ] 4.3 Run `python .agent-process/scripts/request_codex_review.py --request <PR>` and `python skills/agent-process/scripts/wait_for_pr.py <PR>`; after each corrective push run both again; resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`, answer P2/P3 without resolving, run `python .agent-process/scripts/review_gate.py <PR>` on the settled head, and stop at `ready-for-human` or the three-round escalation
 
