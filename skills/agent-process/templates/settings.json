@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "agent-process-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "ekolvah/agent-process-distribution",
+        "ref": "v${version}"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "agent-process@agent-process-marketplace": true
+  }
+}

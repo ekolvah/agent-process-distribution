@@ -120,9 +120,10 @@ therefore exists only when complete. This fixes the observed `--no-checkout` def
 
 Link states: absent → create; resolves to `<checkout>/skills/agent-process` → `unchanged`;
 anything else, including a real directory → `conflict`. Unix creates it with
-`os.symlink(target, link, target_is_directory=True)`; Windows with
-`cmd /c mklink /J <link> <target>` through the runner. Every executable (`git`, `npx`,
-`cmd`) is resolved with `shutil.which` before it is run, so `npx.cmd` is found on Windows and
+`ln -s <target> <link>`; Windows with `cmd /c mklink /J <link> <target>`; both through the
+runner, so a row of the other platform emulates only that command — `os.symlink` needs a
+privilege a Windows host may lack (`WinError 1314`, observed 2026-09-23). Every executable
+(`git`, `npx`, `cmd`, `ln`) is resolved with `shutil.which` before it is run, so `npx.cmd` is found on Windows and
 a missing tool is an `error:` line with exit 1.
 
 The checkout and link exist once per user, because Codex reads user skills from one
@@ -187,8 +188,8 @@ against a local bare fixture repository (via `AGENT_PROCESS_REPOSITORY`) whose t
 this tree's `init.py` and templates at `v2.0.0` and, at `v2.1.0`, a recording stub `init.py`
 that prints its argv, `cwd`, and a marker, and exits with a chosen code — the hand-off
 contract treats the selected release as opaque. Rows whose platform is the host's use the
-real runner for the link; rows for the other platform emulate only `mklink` (creating a
-host-native link). The table emulates `npx` (writing the observed OpenSpec file set);
+real runner for the link; rows for the other platform emulate only its link command
+(`mklink` or `ln`, creating a host-native link). The table emulates `npx` (writing the observed OpenSpec file set);
 `test_installed_footprint_is_closed` runs the real pinned OpenSpec through `shutil.which`, as
 `test_openspec_valid.py` already does. CI runs on `ubuntu-latest` only, so the real junction and
 `npx.cmd` paths are proven by running `tests/publisher/test_init.py` on a Windows host during

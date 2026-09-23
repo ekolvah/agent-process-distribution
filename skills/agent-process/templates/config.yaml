@@ -1,0 +1,13 @@
+# agent-process:begin
+# openspec: ${openspec}
+rules:
+  proposal:
+    - Follow the Proposal section of the agent-process skill.
+  specs:
+    - Follow the Specifications section of the agent-process skill.
+  design:
+    - Follow the Design section of the agent-process skill.
+  tasks:
+    - Follow the Tasks, Architect review, and Delivery sections of the agent-process skill.
+    - ${quality}
+# agent-process:end

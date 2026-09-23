@@ -60,6 +60,7 @@ def _init() -> ModuleType:
     spec = importlib.util.spec_from_file_location("agent_process_init", INIT)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -300,6 +301,7 @@ def test_lifecycle(
             assert seen == {
                 "checkout": "written" if mode == "confirm" else "unchanged",
                 "link": "unchanged",
+                "hand-off": "planned",
             }
             assert _head(sandbox.checkout) == _tag(sandbox, "v2.1.0")
         return
@@ -362,7 +364,9 @@ def test_skill_link_resolves_to_selected_release(sandbox: Sandbox, platform: str
     runner = Runner(init, platform)
     target = sandbox.checkout / "skills" / "agent-process"
     for version, tag in (("2.0.0", "v2.0.0"), ("2.1.0", "v2.1.0")):
-        code = _install(init, sandbox, "--confirm", "--version", version, runner=runner)
+        code = _install(
+            init, sandbox, "--confirm", "--version", version, platform=platform, runner=runner
+        )
         assert code == 0
         assert _is_link(sandbox.link)
         assert os.path.realpath(sandbox.link) == os.path.realpath(target)

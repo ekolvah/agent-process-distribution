@@ -11,10 +11,10 @@
 
 ## 2. Templates and installer
 
-- [ ] 2.1 Add the four templates of design D4 under `skills/agent-process/templates/`; verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_plugin.py -q -k "caller_inputs or yaml_safe or package_contents"` is green
-- [ ] 2.2 Implement the release ownership of design D1 (temporary-clone dry-run, forwarded output and exit code, confirm hand-off, `--selected-release` guard, visible repository override); verify `python -m pytest tests/publisher/test_init.py -q -k "other_version_dry_run or selects_release or version_matches"` is green
-- [ ] 2.3 Implement preflight and the fixed write order of design D2 and the checkout/link reconciliation of design D3 (staged clone plus `os.replace`, `shutil.which` for every executable, symlink or junction per platform); verify `python -m pytest tests/publisher/test_init.py -q -k "skill_link or conflict_fails_closed"` is green
-- [ ] 2.4 Implement consumer ownership, rendering, and atomic writes of design D4 and the `on_write` seam of design D6; verify `python -m pytest tests/publisher/test_init.py -q` is green, including `test_lifecycle`, `test_retry_after_each_write`, `test_installed_footprint_is_closed`, and `test_no_remote_write`; then run `python -m pytest tests/publisher/test_init.py -q` on a Windows host and keep its output for the PR report (design D6); commit Group 2 as `feat(distribution): local installer lifecycle`
+- [x] 2.1 Add the four templates of design D4 under `skills/agent-process/templates/`; verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_plugin.py -q -k "caller_inputs or yaml_safe or package_contents"` is green
+- [x] 2.2 Implement the release ownership of design D1 (temporary-clone dry-run, forwarded output and exit code, confirm hand-off, `--selected-release` guard, visible repository override); verify `python -m pytest tests/publisher/test_init.py -q -k "other_version_dry_run or selects_release or version_matches"` is green
+- [x] 2.3 Implement preflight and the fixed write order of design D2 and the checkout/link reconciliation of design D3 (staged clone plus `os.replace`, `shutil.which` for every executable, symlink or junction per platform); verify `python -m pytest tests/publisher/test_init.py -q -k "skill_link or conflict_fails_closed"` is green
+- [x] 2.4 Implement consumer ownership, rendering, and atomic writes of design D4 and the `on_write` seam of design D6; verify `python -m pytest tests/publisher/test_init.py -q` is green, including `test_lifecycle`, `test_retry_after_each_write`, `test_installed_footprint_is_closed`, and `test_no_remote_write`; then run `python -m pytest tests/publisher/test_init.py -q` on a Windows host and keep its output for the PR report (design D6); commit Group 2 as `feat(distribution): local installer lifecycle`
 
 ## 3. Entry points and docs
 
