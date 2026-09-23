@@ -799,9 +799,10 @@ def test_caller_inputs() -> None:
     text = init.render_workflow("2.0.0", "", "pytest -q")
     assert text.splitlines()[0] == "# agent-process:managed"
     workflow = yaml.safe_load(text)
-    (job,) = workflow["jobs"].values()
+    assert list(workflow["jobs"]) == ["agent-process"]
+    job = workflow["jobs"]["agent-process"]
     assert job["uses"] == (
-        "ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@v2.0.0"
+        "ekolvah/agent-process-distribution/.github/workflows/quality.yml@v2.0.0"
     )
     assert set(job["with"]) == {"setup", "test"}
 

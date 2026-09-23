@@ -11,8 +11,8 @@ permissions:
   issues: read
 
 jobs:
-  quality:
-    uses: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@v${version}
+  agent-process:
+    uses: ekolvah/agent-process-distribution/.github/workflows/quality.yml@v${version}
     with:
       setup: ${setup}
       test: ${test}
