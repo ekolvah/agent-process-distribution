@@ -257,7 +257,8 @@ def test_printed_commands_run_as_printed() -> None:
 def test_group0_names_each_carrier_and_asks_when_the_planner_is_unknown() -> None:
     """The provenance the issue records is a fact: an unknown planner is asked for, not assumed."""
     group0 = _group0()
-    assert "propose run" in group0, "`--planner` does not say whose carrier it names"
+    command = next(span for span in _printed_commands(group0) if "start_change.py" in span)
+    assert "propose run" in command, "`--planner` does not say whose carrier it names"
     assert "ask" in group0 and "unknown" in group0
 
 

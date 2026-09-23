@@ -45,8 +45,10 @@ Write these groups in order and end `tasks.md` with `## Scenario → test map`, 
 delta scenario to a named test or `n/a: <reason>`.
 
 1. Group 0 — Delivery start: one task runs `python
-   skills/agent-process/scripts/start_change.py <change> --planner <Claude|Codex>
-   --implementer <Claude|Codex>`. Its text carries `tracking issue <N>`; the propose tail
+   skills/agent-process/scripts/start_change.py <change> --planner <carrier of the propose
+   run> --implementer <this carrier>` — Claude or Codex, and ask the person when the planner
+   is unknown, because the issue records the answer as provenance. Its text carries
+   `tracking issue <N>`; the propose tail
    replaces the placeholder. On `rework`, apply the findings and run the review again. A
    `propose run not finished` result stops before a branch is created.
 2. Group 1 — RED first: write the tests in the scenario-to-test map and run `python
