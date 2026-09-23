@@ -501,7 +501,8 @@ def test_rerender_replaces_only_owned_content(
         },
         "enabledPlugins": {"mine@mine": True},
     }
-    settings.write_text(json.dumps(consumer_settings), encoding="utf-8")
+    # The form `init` writes: an update re-serialises losslessly only from it (design D4).
+    settings.write_text(json.dumps(consumer_settings, indent=2) + "\n", encoding="utf-8")
     before = {path: path.read_text(encoding="utf-8") for path in (config, dependabot)}
     untouched = {
         rel: data
@@ -530,6 +531,30 @@ def test_rerender_replaces_only_owned_content(
     assert {rel: after[rel] for rel in untouched} == untouched
 
 
+def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:
+    """CRLF stays CRLF, a missing final newline stays missing, and a settings file in another
+    form that already holds both keys is not rewritten."""
+    init = _init()
+    _installed(init, sandbox)
+    config = sandbox.root / "openspec" / "config.yaml"
+    body = config.read_bytes().replace(b"\r\n", b"\n")
+    head, block = body.split(b"# agent-process:begin", 1)
+    config.write_bytes(
+        (head + b"# agent-process:begin\n# stale" + block).replace(b"\n", b"\r\n")
+        + b"# tail without newline"
+    )
+    settings = sandbox.root / ".claude" / "settings.json"
+    four_spaces = json.dumps(json.loads(settings.read_text(encoding="utf-8")), indent=4)
+    settings.write_text(four_spaces, encoding="utf-8")
+    assert _install(init, sandbox, "--confirm") == 0
+
+    after = config.read_bytes()
+    assert b"# stale" not in after and after.startswith(head.replace(b"\n", b"\r\n"))
+    assert after.count(b"\n") == after.count(b"\r\n")
+    assert after.endswith(b"\r\n# tail without newline")
+    assert settings.read_text(encoding="utf-8") == four_spaces
+
+
 def _only_block(text: str) -> str:
     match = re.search(r"# agent-process:begin\n(.*?)# agent-process:end", text, flags=re.DOTALL)
     assert match
@@ -549,6 +574,11 @@ def _write_bytes(sb: Sandbox, rel: str, data: bytes) -> None:
     path = sb.root / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
+
+
+def _home_file(sb: Sandbox, rel: str) -> None:
+    sb.home.mkdir(parents=True, exist_ok=True)
+    (sb.home / rel).write_bytes(b"")
 
 
 def _settings(repo: str = "ekolvah/agent-process-distribution", enabled: Any = True) -> str:
@@ -684,6 +714,38 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         lambda init, sb: _host_link(sb.home / "missing", sb.root / ".claude" / "settings.json"),
     ),
     "workflow-parent-file": ("workflow", lambda init, sb: _write(sb, ".github/workflows", "")),
+    # The user-profile targets have parents too (review of PR 159, round 3).
+    "checkout-parent-file": ("checkout", lambda init, sb: _home_file(sb, ".agent-process")),
+    "link-parent-file": ("link", lambda init, sb: _home_file(sb, ".agents")),
+    "config-rules-escaped": (
+        "config",
+        lambda init, sb: _write(sb, "openspec/config.yaml", '"r\\u0075les":\n  proposal: []\n'),
+    ),
+    # A write that cannot keep every consumer byte is refused (design D4).
+    "config-mixed-line-endings": (
+        "config",
+        lambda init, sb: _write_bytes(sb, "openspec/config.yaml", b"schema: a\r\ncontext: b\n"),
+    ),
+    "settings-mixed-line-endings": (
+        "settings",
+        lambda init, sb: _write_bytes(sb, ".claude/settings.json", b"{\r\n}\n"),
+    ),
+    "settings-other-form": (
+        "settings",
+        lambda init, sb: _write(sb, ".claude/settings.json", '{\n    "model": "opus"\n}\n'),
+    ),
+    "settings-repeated-key": (
+        "settings",
+        lambda init, sb: _write(sb, ".claude/settings.json", '{\n  "a": 1,\n  "a": 2\n}\n'),
+    ),
+    "settings-null-marketplace": (
+        "settings",
+        lambda init, sb: _write(
+            sb,
+            ".claude/settings.json",
+            json.dumps({"extraKnownMarketplaces": {MARKETPLACE: None}}, indent=2) + "\n",
+        ),
+    ),
     "checkout-dirty": ("checkout", _checkout_dirty),
     "checkout-other-origin": ("checkout", _checkout_other_origin),
     "checkout-not-repository": ("checkout", _checkout_not_repository),
