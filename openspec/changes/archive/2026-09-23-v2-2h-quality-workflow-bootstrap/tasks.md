@@ -22,7 +22,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py v2-2h-quality-workflow-bootstrap`; verify that it applies the `distribution` delta, commits the archive, and pushes the branch
+- [x] 4.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py v2-2h-quality-workflow-bootstrap`; verify that it applies the `distribution` delta, commits the archive, and pushes the branch
 - [ ] 4.2 Run `gh pr create --title "v2-2h-quality-workflow-bootstrap" --body-file <report>`. The report references tracking issue 153 without `Closes`. It carries the scenario → test map, the probe run ids and merge commit from design Observations, the output of 3.2's workflow diff and of 3.3, and, once they conclude, this PR's run ids for `quality / quality` and `agent-process / quality`. It names issue 154 (activation and the next-PR observation) and issue 115 (v1 deletion) as excluded ownership
 - [ ] 4.3 Run `python .agent-process/scripts/request_codex_review.py --request <PR>` and `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`, and answer P2/P3 without resolving. Run `python .agent-process/scripts/review_gate.py <PR>` on the settled head, and stop at `ready-for-human` or the three-round escalation
 
