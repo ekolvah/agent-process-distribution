@@ -275,7 +275,7 @@ def which(name: str) -> str:
     return shutil.which(name) or name
 
 
-def install(  # noqa: PLR0913 -- baseline: mirrors the keywords of init.install
+def install(  # noqa: PLR0913 -- baseline: mirrors the fields of init.Host
     init: ModuleType,
     sb: Sandbox,
     *args: str,
@@ -284,8 +284,7 @@ def install(  # noqa: PLR0913 -- baseline: mirrors the keywords of init.install
     on_write: Callable[[str], None] | None = None,
     test: str = "pytest -q",
 ) -> int:
-    return init.install(
-        ["--test", test, *args],
+    host = init.Host(
         root=sb.root,
         home=sb.home,
         platform=platform,
@@ -293,6 +292,7 @@ def install(  # noqa: PLR0913 -- baseline: mirrors the keywords of init.install
         which=which,
         on_write=on_write or (lambda label: None),
     )
+    return init.install(["--test", test, *args], host)
 
 
 def snapshot(*bases: Path) -> dict[str, Any]:

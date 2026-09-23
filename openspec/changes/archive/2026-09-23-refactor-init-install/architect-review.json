@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "A behaviour-preserving refactor down to the minimum two helpers, with observed ruff counts, a traced safety net (unchanged test_init.py and RUF100 in ci_check.py on pre-push and CI), and no replaced input or dropped guard.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 (Host) is needed: PLR0913 counts keyword-only parameters (7 > 5 observed), and its rejected alternatives are stated. D2 now keeps only _run and _perform and records the rejected _context/_preview/_plan with the reason; a scratch probe of that shape, ruff 0.15.12 --isolated --select C901,PLR0911,PLR0912,PLR0913,PLR0915, reports 'All checks passed!' (install 5/4/4, _run 7/4/7, _perform 4/2/3 complexity/returns/branches). Fewer helpers (only _run with the apply loop inline) would sit at the C901 limit with 5 returns; two is the minimum with margin. Task 2.2 and proposal What Changes / Impact name the same two.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "skip_specs: true in .openspec.yaml; no spec delta, so no scenario. tasks.md Scenario → test map carries one n/a line naming the unchanged tests/publisher/test_init.py.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 is 'no RED: skip_specs behaviour-preserving refactor' and records the green baseline and the --collect-only node ids that 3.2 compares against.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Ruff counts: proposal cites the command and output on e73fa5b; re-run here with ruff 0.15.12 gives install C901 14 > 10, PLR0911 8 > 6, PLR0912 14 > 12, PLR0913 7 > 5, and _checkout C901 11 > 10, PLR0911 7 > 6 (so 2.2's 'reports only _checkout' is the right post-state). OpenSpec skip_specs validate/archive behaviour: design.md Context records the validate and scratch archive output of @fission-ai/openspec@1.13.0.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D1 regroups the same six host values into Host; no project-declared input is replaced and no guard dropped; the selected-release guard stays in install before Context, and D2 keeps the override line before it.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Output/order regressions: tests/publisher/test_init.py run by ci_check.py via .agent-process/.githooks/pre-push on the archive push and by .github/workflows/reusable-quality.yml (ci_check.py) on the PR head. Leftover noqa or a helper over a limit: RUF100 and C901/PLR09xx are selected in pyproject.toml and run in the lint step of the same ci_check.py. The harness noqa stays required (6 parameters > 5), so RUF100 does not trip on it.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds or edits no rule or spec sentence; only code and one noqa reason string in tests/publisher/init_harness.py.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script, check or file added (proposal Impact: 'No new dependency, file, or check'); the code change closes the observed baseline tracked in #162.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
