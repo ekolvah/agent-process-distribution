@@ -62,7 +62,8 @@ None.
   `tests/publisher/test_init.py`.
 - Edited: `skills/agent-process/SKILL.md` (`## Install`), `tests/publisher/test_plugin.py`
   and `tests/publisher/test_delivery_scripts.py` (the package now holds `init.py` and the
-  four templates), and `.agent-process/docs/architecture/agent-process-installation.md`
+  four templates), `tests/publisher/test_planning_workflow.py` (its no-`--test` guard covers
+  the delivery procedure, not `## Install`), and `.agent-process/docs/architecture/agent-process-installation.md`
   (the retired note points to the Install section).
 - Removed: nothing.
 - ADR: none. ADR 0027 already decides `init` as the one-command composition; its remote
