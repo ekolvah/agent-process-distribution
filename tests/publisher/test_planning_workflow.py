@@ -350,8 +350,22 @@ def test_design_decision_changed_at_review() -> None:
 
 def test_finding_closed_by_its_class() -> None:
     deliver = _section("Delivery")
-    for part in ("closed by its class", "invariant", "takes away", "not the reviewer's example"):
+    for part in (
+        "closed by its class",
+        "invariant",
+        "takes away",
+        "not the reviewer's example",
+        # Where the other inputs come from, so the class is not the fixer's imagination.
+        "the tool's own documentation",
+    ):
         assert part in deliver, part
+
+
+def test_bug_reproduction_is_named() -> None:
+    """What counts as a reproduction, for the bug whose test the project cannot write."""
+    proposal = _section("Proposal")
+    assert "reproduction" in proposal
+    assert "the failing test, or the exact observation" in proposal
 
 
 def test_pinned_openspec() -> None:
