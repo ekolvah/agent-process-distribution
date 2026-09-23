@@ -244,7 +244,10 @@ def _snapshot(*bases: Path) -> dict[str, Any]:
                     dirs.remove(name)
             for name in files:
                 path = Path(top) / name
-                state[str(path)] = path.read_bytes()
+                if _is_link(path):
+                    state[str(path)] = ("link", os.path.realpath(path))
+                else:
+                    state[str(path)] = path.read_bytes()
     return state
 
 
@@ -622,6 +625,36 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         "settings",
         lambda init, sb: _write(sb, ".claude/settings.json", _settings(enabled=False)),
     ),
+    # YAML spellings of the same top-level key (review of PR 159).
+    **{
+        f"config-rules-{name}": (
+            "config",
+            lambda init, sb, text=text: _write(sb, "openspec/config.yaml", text),
+        )
+        for name, text in {
+            "double-quoted": '"rules":\n  proposal: []\n',
+            "single-quoted": "'rules':\n  proposal: []\n",
+            "explicit-key": "? rules\n: {}\n",
+            "tagged": "!!str rules:\n  proposal: []\n",
+            "flow-mapping": "{rules: {}}\n",
+        }.items()
+    },
+    # A managed path that is not a regular file, or a parent that is not a directory, is
+    # the person's: a write would replace a link or fail after earlier writes.
+    **{
+        f"{label}-directory": (label, lambda init, sb, rel=rel: (sb.root / rel).mkdir(parents=True))
+        for label, rel in {
+            "config": "openspec/config.yaml",
+            "workflow": ".github/workflows/agent-process.yml",
+            "dependabot": ".github/dependabot.yml",
+            "settings": ".claude/settings.json",
+        }.items()
+    },
+    "settings-dangling-link": (
+        "settings",
+        lambda init, sb: _host_link(sb.home / "missing", sb.root / ".claude" / "settings.json"),
+    ),
+    "workflow-parent-file": ("workflow", lambda init, sb: _write(sb, ".github/workflows", "")),
     "checkout-dirty": ("checkout", _checkout_dirty),
     "checkout-other-origin": ("checkout", _checkout_other_origin),
     "checkout-not-repository": ("checkout", _checkout_not_repository),
