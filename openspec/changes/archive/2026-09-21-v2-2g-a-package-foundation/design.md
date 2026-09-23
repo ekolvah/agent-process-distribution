@@ -61,6 +61,18 @@ continuation/recovery command use paths resolved from the skill directory. Sibli
 use that directory directly, without importing the remaining repository-only `scripts`
 package.
 
+Amended at review: `resolve_review_thread` read its query and thread parsing from
+`check_blocking_review_threads` — the required check, which stays in the control plane — so
+the boundary above leaves the skill no import to make. The skill therefore
+carries its own copy of `_QUERY`, `_REVIEWERS`, `_PRIORITY`, `ReviewThread`, `review_threads`
+and `blocking_threads`, and what stops proving is the single-reader invariant those functions
+documented: the merge verdict and the fixer's resolve could read one head differently without
+any step noticing. The catcher is
+`tests/publisher/test_resolve_review_thread.py::test_review_thread_parsing_does_not_drift`,
+run by the `quality` check of this PR's head: it fails when the constants, the normalised
+query or either parser's answer to one payload diverges. Returning to one reader belongs to
+the change that moves the control plane (#114).
+
 `start_change`, `create_tracking_issue`, and `archive_change` operate on the consumer
 repository in which the command is invoked; their repository root is therefore `Path.cwd()`,
 not a fixed number of parents above the installed skill. Tests import moved modules from

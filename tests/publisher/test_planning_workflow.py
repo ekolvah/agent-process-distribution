@@ -15,8 +15,37 @@ REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 ARCHIVE = ROOT / "skills" / "agent-process" / "scripts" / "archive_change.py"
 
 
+_V1_ENTRY_POINTS = (
+    "commands/plan.md",
+    "commands/implement.md",
+    "agents/discovery.md",
+    ".agents/skills/plan-issue",
+    ".agents/skills/implement-issue",
+    ".agents/orchestration/change-classes.yaml",
+    ".agent-process/scripts/validate_issue_sections.py",
+    ".agent-process/scripts/capture_external_fixture.py",
+    ".agent-process/scripts/check_fixture_ratchet.py",
+    "tests/agent_process/test_validate_issue_status.py",
+)
+
+
 def _skill() -> str:
-    return SKILL.read_text(encoding="utf-8")
+    """The shared skill as one line: it is prose, so its line breaks are not the contract."""
+    return " ".join(SKILL.read_text(encoding="utf-8").split())
+
+
+def _section(heading: str) -> str:
+    """The body of one `## <heading>` section of the shared skill, as one line."""
+    lines = SKILL.read_text(encoding="utf-8").splitlines()
+    start = lines.index(f"## {heading}") + 1
+    end = next((i for i in range(start, len(lines)) if lines[i].startswith("## ")), len(lines))
+    return " ".join(" ".join(lines[start:end]).split())
+
+
+def _group0() -> str:
+    """The Group 0 item of the `## Tasks` section."""
+    tasks = _section("Tasks")
+    return tasks[tasks.index("Group 0") : tasks.index("Group 1")]
 
 
 def test_artifact_rules_point_to_shared_skill() -> None:
@@ -43,6 +72,9 @@ def test_roles_and_carriers() -> None:
     assert yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["schema"] == "spec-driven"
     for heading in ("## Proposal", "## Specifications", "## Tasks", "## Architect review"):
         assert heading in _skill()
+    # Both carriers reach the same review contract through the shared skill.
+    for carrier in ("architect-review.md", "architect-reviewer", "self-review", "approve"):
+        assert carrier in _skill(), carrier
 
 
 def test_review_finding() -> None:
@@ -52,9 +84,16 @@ def test_review_finding() -> None:
 
 def test_rework_verdict() -> None:
     text = _skill()
+    config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     assert "review again" in text and "propose run ends on `approve`" in text
+    # The gate is `start_change.py` reading the verdict (v2-2f), not a grep in the procedure.
     assert "start_change.py" in text
-    assert "apply" not in yaml.safe_load(CONFIG.read_text(encoding="utf-8")).get("operations", {})
+    assert 'grep -q "^approve"' not in text
+    # The gate is stated once: no second copy as apply guidance.
+    assert "apply" not in config.get("operations", {})
+    # The run-level `context` is what makes the review the end of the propose run.
+    assert "architect-review.md" in config["context"]
+    assert "reported ready" in config["context"]
 
 
 def test_review_archives_with_the_change(tmp_path: Path) -> None:
@@ -97,28 +136,64 @@ def test_tasks_of_a_new_change() -> None:
         "no tick",
         "never a direct edit of `openspec/specs/`",
         "ready-for-human",
+        "A P2/P3 thread is answered, never resolved by the process",
     ):
         assert part in text, part
+    # Group 0 and the propose tail are scripts (v2-2f): the shell steps left the procedure.
+    # `check_red` owns its runner and report path (v2-2d): the procedure names neither a
+    # runner argument nor a declaration in AGENTS.md. The resolve order lives in the
+    # script, so the procedure spells no rerun and no reply step of its own.
+    for absent in (
+        "gh issue create",
+        "sed -i",
+        "gh issue develop",
+        "finish_change",
+        "--test",
+        "--report",
+        "AGENTS.md",
+        "BLOCKING",
+        "until v2-4",
+        "gh run rerun",
+        "reaches its last step",
+        "the reply re-runs the check",
+    ):
+        assert absent not in text, absent
 
 
 def test_plan_approved() -> None:
     text = _skill()
+    review = _section("Architect review")
     assert text.index("## Architect review") < text.index("create_tracking_issue.py")
-    assert "Planned" in text and "priority" in text
+    # The tail is one command: the priority is asked before the issue is created.
+    assert review.index("priority") < review.index("create_tracking_issue.py")
+    assert review.index("create_tracking_issue.py") < review.index("--priority")
+    assert "Planned" in review
+    # Group 0 asks nothing and creates nothing: the token is how the number reaches the
+    # implementer of another session, and a propose run that stopped short is a visible stop.
+    group0 = _group0()
+    assert "start_change.py" in group0
+    assert "tracking issue <N>" in group0
+    assert "propose run not finished" in group0
+    for absent in ("create_tracking_issue", "priority", "Planned", "gh issue view"):
+        assert absent not in group0, absent
 
 
 def test_design_on_a_platform_behaviour() -> None:
     for part in (
         "platform behaviour",
+        "before the proposal",
         "observation, not the inference",
         "reference page",
         "run id",
+        "instead of repeating it",
     ):
         assert part in _skill(), part
 
 
 def test_asserted_platform_fact() -> None:
-    assert "asserted, not observed" in _skill()
+    review = _section("Architect review")
+    assert "asserted, not observed" in review
+    assert review.index("asserted, not observed") < review.index("is a finding")
 
 
 def test_replaced_input_designed() -> None:
@@ -132,16 +207,23 @@ def test_replaced_input_designed() -> None:
 
 
 def test_untraceable_catcher() -> None:
-    assert "cannot trace" in _skill()
+    review = _section("Architect review")
+    for part in ("without the Design lists", "cannot trace"):
+        assert part in review, part
+        assert review.index(part) < review.index("is a finding"), part
 
 
 def test_design_decision_changed_at_review() -> None:
-    assert "amends the archived" in _skill() and "`design.md`" in _skill()
+    deliver = _section("Delivery")
+    amend = deliver.index("amends the archived `design.md`")
+    assert deliver.index("never a direct edit of `openspec/specs/`") < amend
+    assert "scenario map in the same push" in deliver
 
 
 def test_finding_closed_by_its_class() -> None:
+    deliver = _section("Delivery")
     for part in ("closed by its class", "invariant", "takes away", "not the reviewer's example"):
-        assert part in _skill(), part
+        assert part in deliver, part
 
 
 def test_pinned_openspec() -> None:
@@ -159,11 +241,5 @@ def test_one_planning_home() -> None:
 
 
 def test_label_change() -> None:
-    for path in (
-        "commands/plan.md",
-        "commands/implement.md",
-        "agents/discovery.md",
-        ".agents/skills/plan-issue",
-        ".agents/skills/implement-issue",
-    ):
-        assert not (ROOT / path).exists()
+    """Scenario: Label change — no per-label artifact sets, no discovery role, no v1 planner."""
+    assert [path for path in _V1_ENTRY_POINTS if (ROOT / path).exists()] == []

@@ -10,14 +10,11 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
 _MOVED = _ROOT / "skills" / "agent-process" / "scripts" / "resolve_review_thread.py"
-if _MOVED.is_file():
-    _spec = importlib.util.spec_from_file_location("agent_process_resolve_review_thread", _MOVED)
-    assert _spec and _spec.loader
-    _module = importlib.util.module_from_spec(_spec)
-    sys.modules[_spec.name] = _module
-    _spec.loader.exec_module(_module)
-else:  # RED commit: the source has not moved yet.
-    from scripts import resolve_review_thread as _module
+_spec = importlib.util.spec_from_file_location("agent_process_resolve_review_thread", _MOVED)
+assert _spec and _spec.loader
+_module = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = _module
+_spec.loader.exec_module(_module)
 
 close_round = _module.close_round
 list_blocking = _module.list_blocking
@@ -318,3 +315,38 @@ def test_close_round_refuses_an_empty_reply() -> None:
         close_round(payload, "thread-1", "  \n", **_round(status="completed", calls=calls))
 
     assert calls == []
+
+
+def test_review_thread_parsing_does_not_drift() -> None:
+    """The required check and the portable resolve read a review thread the same way.
+
+    The package boundary (design D2) leaves `check_blocking_review_threads.py` in the
+    repository control plane while the skill carries its own copy of the query and the
+    parsing, so nothing but this guard keeps the merge verdict and the fixer's resolve on
+    one reading. One reader again is the control-plane issue (#114).
+    """
+    from scripts import check_blocking_review_threads as required_check
+
+    assert required_check._REVIEWERS == _module._REVIEWERS
+    assert required_check._PRIORITY.pattern == _module._PRIORITY.pattern
+    assert " ".join(required_check._QUERY.split()) == " ".join(_module._QUERY.split())
+
+    payload = _payload(
+        threads=[
+            _thread("p0", priority="P0", original_commit_oid=_BEHIND),
+            _thread(
+                "p1-claude",
+                priority="P1",
+                original_commit_oid=_HEAD,
+                author="github-actions[bot]",
+            ),
+            _thread("p2", priority="P2", original_commit_oid=_BEHIND),
+            _thread("resolved", priority="P1", original_commit_oid=_BEHIND, resolved=True),
+            _thread("unlabelled", priority="", original_commit_oid=None),
+            _thread("stranger", priority="P1", original_commit_oid=_BEHIND, author="someone"),
+        ]
+    )
+
+    assert required_check.review_threads(payload) == _module.review_threads(payload)
+    assert required_check.blocking_threads(payload) == _module.blocking_threads(payload)
+    assert required_check.head_ref_oid(payload) == _module.head_ref_oid(payload)

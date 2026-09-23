@@ -47,8 +47,9 @@ delta scenario to a named test or `n/a: <reason>`.
    replaces the placeholder. On `rework`, apply the findings and run the review again. A
    `propose run not finished` result stops before a branch is created.
 2. Group 1 — RED first: write the tests in the scenario-to-test map and run `python
-   skills/agent-process/scripts/check_red.py <node ids>`. It owns the pytest runner and its
-   report path; there is no `--test` runner argument. Commit RED before implementation. When
+   skills/agent-process/scripts/check_red.py <node ids>`. It runs `python -m pytest` of its
+   own interpreter under its own configuration, with a report path of its own and the node
+   ids, and takes nothing else. Commit RED before implementation. When
    the map names no test for docs-only, `skip_specs`, or a rename, record
    `no RED: <reason>` as the task.
 3. Implementation groups: one task per scenario, design decision, or review finding, each
