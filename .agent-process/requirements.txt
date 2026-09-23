@@ -1,4 +1,5 @@
 # Generated from requirements.in with pip-compile; pins remain explicit so
 # pip-audit and the reproducible CI install have an auditable manifest.
 PyYAML==6.0.3
+jsonschema==4.26.0
 markdown-it-py==4.2.0

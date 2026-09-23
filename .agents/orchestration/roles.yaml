@@ -18,8 +18,8 @@
 # failure, exactly as for `adapter_files`.
 # `adapter_independence` says whether a carrier reviews a plan it did not write.
 # Only `architect_reviewer` declares it, because it is the one role where that
-# answer changes what the artifact means: a self-review is stated in the Verdict
-# line of `architect-review.md` (the `tasks` rule of `openspec/config.yaml`),
+# answer changes what the artifact means: a self-review is stated in the `reviewer`
+# field of `architect-review.json` (the skill's review schema),
 # so it passes the gate while staying visible. Declaring the kind here rather than
 # letting the author write it makes the contradiction ("independent" claimed for a
 # self-review carrier) impossible to state.
@@ -63,7 +63,7 @@ roles:
     adapter: "Claude /opsx:propose <change>"
     authority: "May write the artifacts of openspec/changes/<change>/; may not create an implementation branch or change production code."
     entry_evidence: "The brief of the tracking issue and repository context."
-    completion_evidence: "Every artifact of the `spec-driven` schema and `architect-review.md` exist and `openspec validate --strict` passes."
+    completion_evidence: "Every artifact of the `spec-driven` schema and `architect-review.json` exist and `openspec validate --strict` passes."
     activation: "The change has no complete artifact set."
     max_runs: 1
   architect_reviewer:
@@ -84,7 +84,7 @@ roles:
     adapter: "Claude architect-reviewer subagent"
     authority: "Read-only plan review."
     entry_evidence: "proposal, specs, design and tasks of the change exist."
-    completion_evidence: "architect-review.md whose Verdict line starts with `approve`."
+    completion_evidence: "architect-review.json valid against the review schema with verdict `approve`."
     activation: "The change has a task list and no approved review."
     max_runs: 1
   implementer:
@@ -101,7 +101,7 @@ roles:
     carrier_selection: "run_route"
     adapter: "Codex $openspec-apply-change <change>"
     authority: "May create the linked branch, commit, push, and open a PR."
-    entry_evidence: "An approved architect-review.md and the task list of the change."
+    entry_evidence: "An approved architect-review.json and the task list of the change."
     completion_evidence: "Implementation committed and local CI evidence available."
     activation: "Plan and architecture gate are complete."
     max_runs: 1

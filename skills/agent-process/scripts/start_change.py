@@ -4,8 +4,9 @@
 Usage: python skills/agent-process/scripts/start_change.py <change> --planner <Claude|Codex>
        --implementer <Claude|Codex>
 
-The gate is exit codes, not prose the agent evaluates: the first non-empty line under
-`## Verdict` of `openspec/changes/<change>/architect-review.md` starts with `approve`, and the
+The gate is exit codes, not prose the agent evaluates: `openspec/changes/<change>/
+architect-review.json` is valid against architect-review.schema.json beside this skill and
+its verdict is approve, and the
 tracking issue — the number in the first `tracking issue <N>` token of `tasks.md` (Group 0),
 which the propose run replaced — is an item of the repository's linked Project in `Planned`.
 Otherwise exit 2 and nothing is created: on `rework` the verdict is named (apply the findings,
@@ -37,6 +38,7 @@ from set_status import Gh, _linked_project, _repo, run_gh, set_status
 
 ROOT = Path.cwd()
 SCRIPT_DIR = Path(__file__).resolve().parent
+SCHEMA = SCRIPT_DIR.parent / "architect-review.schema.json"
 CARRIERS = ("Claude", "Codex")
 PLACEHOLDER = "tracking issue <N>"
 _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
@@ -48,21 +50,27 @@ NOT_FINISHED = (
 
 
 def verdict(change_dir: Path) -> str:
-    """The first non-empty line under `## Verdict` of architect-review.md."""
-    review = change_dir / "architect-review.md"
+    """The verdict of architect-review.json once the file is valid against the skill's schema;
+    every validation error is named. `jsonschema` is imported here, so the scripts that only
+    import this module run without it; its absence is an error, never a pass."""
+    try:
+        import jsonschema
+    except ModuleNotFoundError as exc:
+        raise ValueError(f"architect review not validated: {exc}") from exc
+    review = change_dir / "architect-review.json"
     if not review.is_file():
         raise FileNotFoundError(f"no architect review at {review}")
-    lines = review.read_text(encoding="utf-8").splitlines()
-    try:
-        start = next(i for i, line in enumerate(lines) if line.strip() == "## Verdict")
-    except StopIteration:
-        raise ValueError(f"{review}: no `## Verdict` section") from None
-    for line in lines[start + 1 :]:
-        if line.startswith("## "):
-            break
-        if line.strip():
-            return line.strip()
-    raise ValueError(f"{review}: `## Verdict` carries no line")
+    data = json.loads(review.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    errors = sorted(
+        jsonschema.Draft202012Validator(schema).iter_errors(data),
+        key=lambda error: [str(part) for part in error.path],
+    )
+    if errors:
+        raise ValueError(
+            "\n".join(f"{review}: {error.json_path}: {error.message}" for error in errors)
+        )
+    return str(data["verdict"])
 
 
 def tracking_issue(tasks_md: Path) -> int | None:
@@ -104,7 +112,7 @@ def start_change(
 ) -> int:
     change_dir = root / "openspec" / "changes" / change
     line = verdict(change_dir)
-    if not line.startswith("approve"):
+    if line != "approve":
         print(
             f"verdict: {line} — apply the findings, re-review (no delivery task runs)",
             file=sys.stderr,

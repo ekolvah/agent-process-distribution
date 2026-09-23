@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import re
 import shlex
 import sys
 from pathlib import Path
 from types import ModuleType
 
+import pytest
 import yaml
 
 from tests.publisher.test_openspec_valid import OPENSPEC, _openspec
@@ -19,6 +21,8 @@ SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 SCRIPTS = ROOT / "skills" / "agent-process" / "scripts"
 ARCHIVE = SCRIPTS / "archive_change.py"
+REVIEW_SCHEMA = ROOT / "skills" / "agent-process" / "architect-review.schema.json"
+_CLASSES = ["simpler", "map", "red", "platform", "replaced", "catcher", "length", "bespoke"]
 
 
 _V1_ENTRY_POINTS = (
@@ -46,6 +50,27 @@ def _section(heading: str) -> str:
     start = lines.index(f"## {heading}") + 1
     end = next((i for i in range(start, len(lines)) if lines[i].startswith("## ")), len(lines))
     return " ".join(" ".join(lines[start:end]).split())
+
+
+def _schema() -> dict:
+    """The review contract: one JSON Schema the reviewer, the scripts and these tests read."""
+    return json.loads(REVIEW_SCHEMA.read_text(encoding="utf-8"))
+
+
+def _class_description(name: str) -> str:
+    return _schema()["properties"]["classes"]["properties"][name]["description"]
+
+
+def _valid_review(verdict: str) -> str:
+    return json.dumps(
+        {
+            "verdict": verdict,
+            "reviewer": "architect-reviewer",
+            "reasoning": "the plan holds",
+            "classes": {name: {"evidence": "read", "result": "ok"} for name in _CLASSES},
+            "scenario_coverage": [],
+        }
+    )
 
 
 def _group0() -> str:
@@ -110,24 +135,47 @@ def test_roles_and_carriers() -> None:
     for heading in ("## Proposal", "## Specifications", "## Tasks", "## Architect review"):
         assert heading in _skill()
     # Both carriers reach the same review contract through the shared skill.
-    for carrier in ("architect-review.md", "architect-reviewer", "self-review", "approve"):
+    for carrier in (
+        "architect-review.json",
+        "architect-review.schema.json",
+        "architect-reviewer",
+        "self-review",
+        "approve",
+    ):
         assert carrier in _skill(), carrier
+    # The file states which carrier wrote it: a self-review stays visible past the gate.
+    schema = _schema()
+    assert "reviewer" in schema["required"]
+    assert schema["properties"]["reviewer"]["enum"] == ["architect-reviewer", "self-review"]
 
 
 def test_review_finding() -> None:
-    for part in ("Verdict", "Findings", "Scenario coverage", "§I–VII", "simpler design", "no RED"):
-        assert part in _skill(), part
+    """Every class is checked: a class left out is a validation error naming it."""
+    schema = _schema()
+    assert schema["properties"]["classes"]["required"] == _CLASSES
+    for name in _CLASSES:
+        assert _class_description(name), name
+    entry = schema["$defs"]["class"]
+    assert entry["required"] == ["evidence", "result"]
+    assert entry["properties"]["evidence"]["minLength"] == 1
+    assert entry["properties"]["result"]["enum"] == ["ok", "finding"]
+    assert entry["then"]["required"] == ["finding"]
+    assert entry["properties"]["finding"]["required"] == ["principle", "artifact", "what", "change"]
+    assert "§I–VII" in _section("Architect review")
+    assert "no RED" in _class_description("red")
 
 
 def test_review_sections_carry_their_contents() -> None:
-    """A heading without its contents is a section the reviewer may fill with `none`."""
-    review = _section("Architect review")
-    for part in (
-        "`§<principle> · <artifact>:<heading or line> — what is wrong → what to change`",
-        "`<capability> / <scenario> → n/a: <reason>`",
-        "the reason `tasks.md` carries",
-    ):
-        assert part in review, part
+    """A scenario coverage entry carries its reason, not only the scenario."""
+    coverage = _schema()["properties"]["scenario_coverage"]
+    assert coverage["items"]["required"] == ["capability", "scenario", "reason"]
+    assert "the reason tasks.md carries" in coverage["description"]
+
+
+def test_over_long_rule_or_bespoke_check() -> None:
+    """Scenario: Over-long rule or bespoke check — each is a class of its own."""
+    assert "words its tests assert" in _class_description("length")
+    assert "observed problem" in _class_description("bespoke")
 
 
 def test_fourth_round_leaves_the_rest_to_the_person() -> None:
@@ -147,23 +195,21 @@ def test_rework_verdict() -> None:
     # The gate is stated once: no second copy as apply guidance.
     assert "apply" not in config.get("operations", {})
     # The run-level `context` is what makes the review the end of the propose run.
-    assert "architect-review.md" in config["context"]
+    assert "architect-review.json" in config["context"]
     assert "reported ready" in config["context"]
 
 
 def test_verdict_line_the_gate_reads(tmp_path: Path) -> None:
-    """The procedure spells the verdict line `start_change.py` accepts, not just the heading."""
-    review = _section("Architect review")
-    assert "first line starting with `approve` or `rework`" in review
+    """The gate reads the verdict of a valid review; a verdict the schema does not permit fails."""
     start_change = _script("start_change")
     change = tmp_path / "openspec" / "changes" / "fixture"
     change.mkdir(parents=True)
-    written = change / "architect-review.md"
-    written.write_text("## Verdict\n\napprove — the plan holds.\n", encoding="utf-8")
-    assert start_change.verdict(change).startswith("approve")
-    # A line the procedure no longer permits is the one the case-sensitive gate rejects.
-    written.write_text("## Verdict\n\nApproved: the plan holds.\n", encoding="utf-8")
-    assert not start_change.verdict(change).startswith("approve")
+    written = change / "architect-review.json"
+    written.write_text(_valid_review("approve"), encoding="utf-8")
+    assert start_change.verdict(change) == "approve"
+    written.write_text(_valid_review("Approved"), encoding="utf-8")
+    with pytest.raises(ValueError, match="'Approved' is not one of"):
+        start_change.verdict(change)
 
 
 def test_review_archives_with_the_change(tmp_path: Path) -> None:
@@ -178,14 +224,14 @@ def test_review_archives_with_the_change(tmp_path: Path) -> None:
             "#### Scenario: Exists\n- **WHEN** archived\n- **THEN** it exists\n"
         ),
         "tasks.md": "## 1. Done\n\n- [x] 1.1 Nothing\n",
-        "architect-review.md": "## Verdict\n\napprove\n",
+        "architect-review.json": '{"verdict": "approve"}\n',
     }
     for name, text in files.items():
         (change / name).write_text(text, encoding="utf-8")
     completed = _openspec("archive", "fixture", "-y", cwd=tmp_path)
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert list(
-        (tmp_path / "openspec" / "changes" / "archive").glob("*-fixture/architect-review.md")
+        (tmp_path / "openspec" / "changes" / "archive").glob("*-fixture/architect-review.json")
     )
 
 
@@ -317,6 +363,9 @@ def test_reviewer_adapter_reads_the_shared_contract() -> None:
     for path in paths:
         assert not path.startswith(".."), path
         assert (ROOT / path).is_file(), path
+    # The reviewer reads the shape of its file from the schema, in the skill.
+    assert "`skills/agent-process/architect-review.schema.json`" in text
+    assert REVIEW_SCHEMA.is_file()
 
 
 def test_plan_approved() -> None:
@@ -359,9 +408,7 @@ def test_spec_correction_has_its_command() -> None:
 
 
 def test_asserted_platform_fact() -> None:
-    review = _section("Architect review")
-    assert "asserted, not observed" in review
-    assert review.index("asserted, not observed") < review.index("is a finding")
+    assert "asserted, not observed" in _class_description("platform")
 
 
 def test_replaced_input_designed() -> None:
@@ -375,10 +422,8 @@ def test_replaced_input_designed() -> None:
 
 
 def test_untraceable_catcher() -> None:
-    review = _section("Architect review")
-    for part in ("without the Design lists", "cannot trace"):
-        assert part in review, part
-        assert review.index(part) < review.index("is a finding"), part
+    assert "the Design lists" in _class_description("replaced")
+    assert "cannot trace" in _class_description("catcher")
 
 
 def test_design_decision_changed_at_review() -> None:

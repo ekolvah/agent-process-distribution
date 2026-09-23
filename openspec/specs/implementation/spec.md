@@ -109,13 +109,14 @@ reported with what was still awaited (exit 3).
 
 ### Requirement: Delivery steps are tasks of every change
 The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with `start_change
-<change>` — the gate (the verdict read and the tracking issue as a Project item in
+<change>` — the gate (the review file validated, its verdict read, and the tracking issue as a Project item in
 `Planned`), `gh issue develop -c` on that issue, `set_status "In Progress"` and the
 provenance line in one command whose conditions are exit codes — and end with `ci_check`,
 `archive_change <change>`, the PR and the `wait_for_pr` loop. No delivery task SHALL
 prompt the person or create the issue: the priority was asked by the propose run, which
 SHALL write the issue number into Group 0 of `tasks.md` (the placeholder `<N>` replaced).
-`start_change` SHALL exit 2 without creating a branch when the verdict does not start with
+`start_change` SHALL exit 2 without creating a branch when `architect-review.json` is not
+valid against `skills/agent-process/architect-review.schema.json` or its verdict is not
 `approve`, and SHALL print `propose run not finished` and exit 2 when `tasks.md` still
 reads `<N>` or the issue is not in `Planned`. The review loop after the PR SHALL be
 bounded: after three rounds of applying unresolved threads the run leaves the rest to the
@@ -152,8 +153,8 @@ issue as a plain reference, not with a `Closes` keyword: the branch from `gh iss
 - **THEN** it prints `propose run not finished` and exits 2 before any branch exists, asking nothing
 
 #### Scenario: Verdict is rework
-- **WHEN** `start_change` runs while `architect-review.md` does not start its verdict with `approve`
-- **THEN** it exits 2 before any branch exists and names the rework
+- **WHEN** `start_change` runs while `architect-review.json` is not valid against the review schema or its `verdict` is not `approve`
+- **THEN** it exits 2 before any branch exists and names the rework or the validation error
 
 #### Scenario: Blocking thread addressed
 - **WHEN** a push of the review loop addresses a `P0`/`P1` thread

@@ -52,7 +52,9 @@ def test_package_has_no_installer_state() -> None:
         for path in PACKAGE.rglob("*")
         if path.is_file() and "__pycache__" not in path.parts
     }
-    assert relative_files == {"SKILL.md"} | {f"scripts/{name}" for name in MOVED_SCRIPTS}
+    assert relative_files == {"SKILL.md", "architect-review.schema.json"} | {
+        f"scripts/{name}" for name in MOVED_SCRIPTS
+    }
     forbidden = ("init.py", "template", "hook", "workflow", "ruleset", "protection")
     assert not any(token in path.lower() for path in relative_files for token in forbidden)
 

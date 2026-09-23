@@ -3,7 +3,9 @@
 
 Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--priority <High|Medium|Low>]
 
-`tasks.md` of the change decides the branch through its `tracking issue <N>` token (Group 0;
+The architect review is validated first, as `start_change` reads it: an invalid file or a
+verdict other than approve is exit 2 and nothing is created. Then `tasks.md` of the change
+decides the branch through its `tracking issue <N>` token (Group 0;
 the same read as `start_change`): while it carries the placeholder, `--priority` is required
 — `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`, the
 number (the last path segment of the printed URL; `gh issue create` has no `--json`) is written
@@ -23,7 +25,7 @@ import sys
 from pathlib import Path
 
 from set_status import Gh, run_gh, set_status
-from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue
+from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue, verdict
 
 PRIORITIES = ("High", "Medium", "Low")
 
@@ -41,6 +43,12 @@ def create_tracking_issue(
     change: str, *, priority: str | None, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
     change_dir = root / "openspec" / "changes" / change
+    line = verdict(change_dir)
+    if line != "approve":
+        print(
+            f"verdict: {line} — apply the findings, re-review (no issue created)", file=sys.stderr
+        )
+        return 2
     tasks_md = change_dir / "tasks.md"
     number = tracking_issue(tasks_md)
     if number is not None:

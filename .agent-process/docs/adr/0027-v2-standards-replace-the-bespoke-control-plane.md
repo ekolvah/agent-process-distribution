@@ -630,3 +630,12 @@ questions of #114 in its order:
   an untraceable catcher, the fixer amends the archive in the same push and closes a script
   finding by its class. Archive after the review rejected: the reviewed head would lack the
   delta. No script.
+* The architect review is `architect-review.json`, valid against
+  `skills/agent-process/architect-review.schema.json` (issue 149): the prose finding list
+  was read past — round 1 of this change wrote `none` with `simpler` in the contract — so
+  each of the eight finding classes, `length` and `bespoke` among them, is a required entry
+  with its evidence, and the file states its `reviewer`. A plugin agent's frontmatter
+  `hooks` are ignored (sub-agents docs, 2026-09-23), so no Stop hook: the propose tail
+  (`create_tracking_issue.py`) and the apply gate (`start_change.py`) validate, importing
+  `jsonschema` on the call — absent, it is exit 2, not a pass. A consumer's `jsonschema` is
+  a prerequisite #155 names. `codex exec --output-schema` rejected: `'if' is not permitted`.

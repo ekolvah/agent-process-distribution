@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Architect review",
+  "description": "openspec/changes/<change>/architect-review.json: the review of a change's proposal, specs, design and tasks against principles §I–VII, written after tasks.md.",
+  "type": "object",
+  "required": ["verdict", "reviewer", "reasoning", "classes", "scenario_coverage"],
+  "additionalProperties": false,
+  "if": {"properties": {"verdict": {"const": "approve"}}},
+  "then": {
+    "properties": {
+      "classes": {"additionalProperties": {"properties": {"result": {"const": "ok"}}}}
+    }
+  },
+  "properties": {
+    "verdict": {
+      "description": "What the delivery gate reads: approve, or rework while any finding is open.",
+      "enum": ["approve", "rework"]
+    },
+    "reviewer": {
+      "description": "Who reviewed: the architect-reviewer subagent, or the planner's self-review.",
+      "enum": ["architect-reviewer", "self-review"]
+    },
+    "reasoning": {
+      "description": "One line on why the verdict holds.",
+      "type": "string",
+      "minLength": 1
+    },
+    "classes": {
+      "description": "One entry per finding class, each with the evidence its description names and ok or the finding.",
+      "type": "object",
+      "required": ["simpler", "map", "red", "platform", "replaced", "catcher", "length", "bespoke"],
+      "additionalProperties": false,
+      "properties": {
+        "simpler": {
+          "$ref": "#/$defs/class",
+          "description": "The simpler design considered and why the scenarios reject it."
+        },
+        "map": {
+          "$ref": "#/$defs/class",
+          "description": "Each scenario of the spec deltas and its entry of the scenario → test map."
+        },
+        "red": {
+          "$ref": "#/$defs/class",
+          "description": "Group 1's tests or its `no RED: <reason>` task."
+        },
+        "platform": {
+          "$ref": "#/$defs/class",
+          "description": "Each platform behaviour a design rests on and the observation beside it (reference page, run id or command output); asserted, not observed, is a finding."
+        },
+        "replaced": {
+          "$ref": "#/$defs/class",
+          "description": "Each replaced input or dropped guard and the Design lists beside it."
+        },
+        "catcher": {
+          "$ref": "#/$defs/class",
+          "description": "Each named catcher and the delivery step it reaches in the described case; one the review cannot trace is a finding."
+        },
+        "length": {
+          "$ref": "#/$defs/class",
+          "description": "For each rule or spec sentence the plan adds or edits, its word count and the count of the words its tests assert."
+        },
+        "bespoke": {
+          "$ref": "#/$defs/class",
+          "description": "For each script, check or file the plan adds, the observed problem it closes (issue, PR, run) or `none`."
+        }
+      }
+    },
+    "scenario_coverage": {
+      "description": "Every scenario of the spec deltas no test can prove, with the reason tasks.md carries.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["capability", "scenario", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "capability": {"type": "string", "minLength": 1},
+          "scenario": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "class": {
+      "type": "object",
+      "required": ["evidence", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {"type": "string", "minLength": 1},
+        "result": {"enum": ["ok", "finding"]},
+        "finding": {
+          "type": "object",
+          "required": ["principle", "artifact", "what", "change"],
+          "additionalProperties": false,
+          "properties": {
+            "principle": {"type": "string", "minLength": 1},
+            "artifact": {"type": "string", "minLength": 1},
+            "what": {"type": "string", "minLength": 1},
+            "change": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "if": {"properties": {"result": {"const": "finding"}}},
+      "then": {"required": ["finding"]}
+    }
+  }
+}

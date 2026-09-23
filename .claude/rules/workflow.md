@@ -16,7 +16,7 @@ process can move issue statuses.
 
 Claude is an available `planner` adapter: `/opsx:propose` runs the OpenSpec propose
 workflow with the project context and skill pointers of `openspec/config.yaml` and invokes the local
-`architect-reviewer` subagent, which writes the change's `architect-review.md`
+`architect-reviewer` subagent, which writes the change's `architect-review.json`
 ([planning](../../.agent-process/docs/architecture/agent-process.md#planning)).
 
 Claude also adapts `implementer` and `fixer` through `/opsx:apply <change>`, whose
