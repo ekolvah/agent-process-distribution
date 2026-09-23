@@ -254,6 +254,24 @@ def test_printed_commands_run_as_printed() -> None:
         assert (ROOT / command.split()[1]).is_file(), command
 
 
+def test_group0_names_what_stops_the_start() -> None:
+    """A start that refuses is visible: the procedure names both conditions and the no-op."""
+    group0 = _group0()
+    assert "propose run not finished" in group0
+    assert "Status" in group0, "the issue state the start requires is not named"
+    assert "nothing is created" in group0
+
+
+def test_the_resolve_step_names_every_refusal_the_script_has() -> None:
+    """A refusal the procedure omits reads as a step that should have worked."""
+    source = (SCRIPTS / "resolve_review_thread.py").read_text(encoding="utf-8")
+    refusals = [line for line in source.splitlines() if "refus" in line.lower()]
+    assert len(refusals) >= 2, "the script refuses in fewer places than the procedure claims"
+    delivery = _section("Delivery")
+    assert "against the current head" in delivery
+    assert "still running" in delivery
+
+
 def test_group0_names_each_carrier_and_asks_when_the_planner_is_unknown() -> None:
     """The provenance the issue records is a fact: an unknown planner is asked for, not assumed."""
     group0 = _group0()

@@ -17,9 +17,10 @@ at those paths is the installer's to define.
 - For a bug, record the reproduction — the failing test, or the exact observation when a test
   needs project-specific capture — and the root cause under **Why** before any design.
 - **Impact** lists every file added, edited, and removed; keep doc-only work separate.
-- When a design rests on platform behaviour, verify it before the proposal and record the
-  observation, not the inference: cite the reference page and sentence, or a run id or exact
-  command output — a run of a standard checker counts, a listing, a name or an inference from
+- When a design rests on platform behaviour — an event, a permission, a merge rule, a token
+  scope, a CLI flag — verify it before the proposal and record the observation, not the
+  inference, under **Why** or in `design.md` beside the decision: cite the reference page and
+  sentence, or a run id or exact command output — a run of a standard checker counts, a listing, a name or an inference from
   another behaviour does not. Point to an observation already on record instead of repeating it.
 
 ## Specifications
@@ -49,8 +50,12 @@ delta scenario to a named test or `n/a: <reason>`.
    run> --implementer <this carrier>` — Claude or Codex, and ask the person when the planner
    is unknown, because the issue records the answer as provenance. Its text carries
    `tracking issue <N>`; the propose tail
-   replaces the placeholder. On `rework`, apply the findings and run the review again. A
-   `propose run not finished` result stops before a branch is created.
+   replaces the placeholder, and both scripts read the token there. The script reads the
+   verdict of the architect review and the Status of the issue, creates the linked branch
+   from `origin/main`, sets In Progress and posts the provenance line. On `rework`, apply
+   the findings and run the review again. It prints `propose run not finished` and exits 2
+   while the token still carries `<N>` or the issue is not a Project item in the Status the
+   propose run leaves it in: nothing is asked and nothing is created there.
 2. Group 1 — RED first: write the tests in the scenario-to-test map and run `python
    skills/agent-process/scripts/check_red.py <node ids>`. It runs `python -m pytest` of its
    own interpreter under its own configuration, with a report path of its own and the node
@@ -80,7 +85,8 @@ artifacts instead of restating them. On `rework`, answer every finding and revie
 propose run ends on `approve`: if the change has no issue, ask once for priority and run
 `python skills/agent-process/scripts/create_tracking_issue.py <change> --priority
 <High|Medium|Low>`; otherwise run it without priority. The issue must be `Planned` before the
-plan is ready.
+plan is ready. Artifact status is file existence only: the verdict is the gate, and Group 0
+reads it.
 
 ## Delivery
 
@@ -103,7 +109,8 @@ settled review: `python skills/agent-process/scripts/resolve_review_thread.py --
 <owner/repo> --pr <PR> --list` prints the open threads with the `<id>` of each, then
 `python skills/agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
 --thread <id> --reply-file <path>` closes one; the script
-refuses a current-head thread, re-runs the required check, and replies last. A P2/P3 thread is
+refuses a thread reported against the current head and refuses while the head's check is
+still running, then resolves, re-runs that check and replies last. A P2/P3 thread is
 answered, never resolved by the process. A spec correction goes through a change of its own on
 the PR branch — `npx -y @fission-ai/openspec@1.13.0 new change <name>`, the delta under its
 `specs/`, `validate --strict`, then `python skills/agent-process/scripts/archive_change.py
@@ -115,4 +122,4 @@ documentation, and what each switch takes away; test the class, not the reviewer
 Run the repository review gate on the settled current head. Stop only at `ready-for-human`
 or the documented three-round escalation. Tasks after archive leave no tick in the
 repository because a pushed tick would move the reviewed head. If interrupted after archive,
-resume from `gh pr view <change>`, not OpenSpec apply.
+resume from `gh pr view <change>` — open the PR when there is none — not OpenSpec apply.
