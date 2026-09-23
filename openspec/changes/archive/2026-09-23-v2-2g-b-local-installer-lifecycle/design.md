@@ -142,14 +142,17 @@ one of them, so it adds directories without making Codex per-repository; a repos
 
 | Target | Owned when | Conflict when |
 |---|---|---|
-| `openspec/config.yaml` | the one `# agent-process:begin/end` block | several or unordered markers; an unmarked top-level `rules` in any YAML spelling (quoted, tagged, explicit `?` key, or a flow mapping opening the document); an indented root mapping or more than one YAML document, where a column-0 check is incomplete and the appended block would be invalid |
+| `openspec/config.yaml` | the one `# agent-process:begin/end` block | several or unordered markers; an unmarked top-level `rules` in any YAML spelling (quoted, tagged, explicit `?` key, a flow mapping opening the document, or a double-quoted key with an escape); an indented root mapping or more than one YAML document, where a column-0 check is incomplete and the appended block would be invalid |
 | `.github/workflows/agent-process.yml` | first line `# agent-process:managed` | the file exists without it |
 | `.github/dependabot.yml` | the one marker block | the file exists, is non-empty, and has no block |
-| `.claude/settings.json` | `extraKnownMarketplaces["agent-process-marketplace"]` whose `source.repo` is the process repository; `enabledPlugins["agent-process@agent-process-marketplace"]` absent or `true` | invalid JSON, a non-object, the key naming another repository, or the plugin set to `false` |
+| `.claude/settings.json` | `extraKnownMarketplaces["agent-process-marketplace"]` whose `source.repo` is the process repository; `enabledPlugins["agent-process@agent-process-marketplace"]` absent or `true` | invalid JSON, a non-object, the key present with another repository or `null`, or the plugin set to `false`; an update to a file not in the form `init` writes (`json.dumps(indent=2)`), since re-serialising any other form (spacing, order, escapes, repeated keys) would change the person's bytes; the conflict names both keys to add by hand |
 
 Every target above is also a conflict when it is not UTF-8, when it is a link, a directory,
 or anything but a regular file, or when an existing parent is not a directory: a write would
-replace the link or fail after earlier writes.
+replace the link or fail after earlier writes. The same parent rule covers the checkout and
+the skill link in the user profile. A target mixing LF and CRLF (or holding a lone CR) is a
+conflict; otherwise a write keeps the file's line ending and every byte outside the owned
+part, including a missing final newline.
 
 Rendering: `config.yaml` holds `rules:` with one pointer per artifact to the matching
 `agent-process` skill section, and the tasks pointer names the `--test` command as the

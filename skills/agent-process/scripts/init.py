@@ -77,9 +77,11 @@ END = "# agent-process:end"
 MANAGED = "# agent-process:managed"
 PIN = "# openspec: "
 # A top-level `rules` key in any YAML spelling: plain, quoted, tagged or anchored, an explicit
-# `?` key, or a flow mapping that opens the document (which may hold one).
+# `?` key, a flow mapping that opens the document (which may hold one), or a double-quoted key
+# with an escape (which may spell it).
 TOP_LEVEL_RULES = re.compile(
-    r"""^(?:\{|(?:\?\s*)?(?:[!&]\S*\s+)*(?:rules|"rules"|'rules')\s*(?::|$))"""
+    r"""^(?:\{|(?:\?\s*)?(?:[!&]\S*\s+)*"""
+    r"""(?:rules|"rules"|'rules'|"(?=[^"]*\\)(?:[^"\\]|\\.)*")\s*(?::|$))"""
 )
 MARKETPLACE = "agent-process-marketplace"
 PLUGIN = "agent-process@agent-process-marketplace"
@@ -157,40 +159,54 @@ def _span(lines: list[str]) -> tuple[int, int] | None:
 
 
 def _replace_block(lines: list[str], block: list[str]) -> list[str]:
+    """`lines` come from `str.split("\\n")`, so joining them back loses no byte."""
     span = _span(lines)
     if span is None:
-        return [*lines, *block]
+        head = lines[:-1] if lines[-1] == "" else lines
+        return [*head, *block, ""]
     return [*lines[: span[0]], *block, *lines[span[1] + 1 :]]
 
 
-def _text(lines: list[str]) -> str:
-    return "\n".join(lines) + "\n"
-
-
-def _read(path: Path) -> str | None:
-    """Decoded text with `\\n` line endings, `None` when absent. A link, a non-file, or a
-    non-directory parent is the person's: a write would replace it or fail mid-run."""
-    if _is_link(path) or (os.path.lexists(path) and not path.is_file()):
-        raise Conflict("is not a regular file")
+def _parent_conflict(path: Path) -> str | None:
+    """A link or non-directory as the nearest existing parent: creating `path` would fail."""
     parent = path.parent
     while not os.path.lexists(parent):
         parent = parent.parent
     if _is_link(parent) or not parent.is_dir():
-        raise Conflict(f"has a parent `{parent.name}` that is not a directory")
+        return f"has a parent `{parent.name}` that is not a directory"
+    return None
+
+
+def _read(path: Path) -> str | None:
+    """Decoded text with `\\n` line endings, `None` when absent. A link, a non-file, a
+    non-directory parent, or mixed line endings are the person's: a write would replace
+    them or fail mid-run."""
+    if _is_link(path) or (os.path.lexists(path) and not path.is_file()):
+        raise Conflict("is not a regular file")
+    if reason := _parent_conflict(path):
+        raise Conflict(reason)
     if not path.is_file():
         return None
     try:
-        return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        text = path.read_bytes().decode("utf-8")
     except UnicodeDecodeError:
         raise Conflict("is not UTF-8") from None
+    if "\r" in text and not text.count("\r") == text.count("\r\n") == text.count("\n"):
+        raise Conflict("mixes line endings")
+    return text.replace("\r\n", "\n")
 
 
-def _write(path: Path, text: str) -> None:
-    """Atomic UTF-8 write with `\\n` line endings through a sibling temporary file."""
+def _eol(path: Path) -> str:
+    """The line ending a write keeps: `_read` admits only all-LF or all-CRLF files."""
+    return "\r\n" if path.is_file() and b"\r\n" in path.read_bytes() else "\n"
+
+
+def _write(path: Path, text: str, eol: str = "\n") -> None:
+    """Atomic UTF-8 write of `\\n`-ended `text` with `eol` endings via a sibling temp file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+        with os.fdopen(fd, "w", encoding="utf-8", newline=eol) as handle:
             handle.write(text)
         os.replace(tmp, path)
     except BaseException:
@@ -272,6 +288,8 @@ class Context:
 def _checkout(ctx: Context) -> Step:
     path, tag = ctx.checkout, ctx.tag
     if not os.path.lexists(path):
+        if reason := _parent_conflict(path):
+            return Step("checkout", "conflict", f"{path} {reason}")
 
         def clone() -> bool:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -318,6 +336,8 @@ def _checkout(ctx: Context) -> Step:
 def _link(ctx: Context) -> Step:
     link, target = ctx.link, ctx.checkout / "skills" / "agent-process"
     if not os.path.lexists(link):
+        if reason := _parent_conflict(link):
+            return Step("link", "conflict", f"{link} {reason}")
 
         def create() -> bool:
             link.parent.mkdir(parents=True, exist_ok=True)
@@ -363,12 +383,12 @@ def _recorded_pin(text: str | None) -> str | None:
 
 
 def _with_pin(text: str) -> str:
-    lines = text.splitlines()
+    lines = text.split("\n")
     span = _span(lines)
     if span is None:
-        return _text([*lines, BEGIN, PIN + OPENSPEC, END])
+        return "\n".join(_replace_block(lines, [BEGIN, PIN + OPENSPEC, END]))
     inner = [line for line in lines[span[0] + 1 : span[1]] if not line.startswith(PIN)]
-    return _text([*lines[: span[0] + 1], PIN + OPENSPEC, *inner, *lines[span[1] :]])
+    return "\n".join([*lines[: span[0] + 1], PIN + OPENSPEC, *inner, *lines[span[1] :]])
 
 
 def _openspec(ctx: Context) -> Step:
@@ -397,7 +417,7 @@ def _openspec(ctx: Context) -> Step:
             cwd=ctx.root,
             env={**os.environ, "OPENSPEC_TELEMETRY": "0"},
         )
-        _write(config, _with_pin(_read(config) or ""))
+        _write(config, _with_pin(_read(config) or ""), _eol(config))
         return True
 
     return Step("openspec", "unchanged" if current() else "planned", detail, apply)
@@ -405,7 +425,7 @@ def _openspec(ctx: Context) -> Step:
 
 def _config_text(ctx: Context) -> tuple[str | None, str]:
     text = _read(ctx.root / CONFIG)
-    lines = (text or "").splitlines()
+    lines = (text or "").split("\n")
     span = _span(lines)
     outside = lines if span is None else [*lines[: span[0]], *lines[span[1] + 1 :]]
     # A column-0 match is the whole top-level check only for one document whose root starts
@@ -421,7 +441,8 @@ def _config_text(ctx: Context) -> tuple[str | None, str]:
         raise Conflict("holds more than one YAML document")
     if any(TOP_LEVEL_RULES.match(line) for line in outside):
         raise Conflict("has a top-level `rules` outside the agent-process block")
-    return text, _text(_replace_block(lines, render_config_block(ctx.test).splitlines()))
+    block = render_config_block(ctx.test).splitlines()
+    return text, "\n".join(_replace_block(lines, block))
 
 
 def _workflow_text(ctx: Context) -> tuple[str | None, str]:
@@ -436,13 +457,13 @@ def _dependabot_text(ctx: Context) -> tuple[str | None, str]:
     rendered = _template("dependabot.yml")
     if text is None or not text.strip():
         return text, rendered
-    lines = text.splitlines()
+    lines = text.split("\n")
     if _span(lines) is None:
         raise Conflict("exists without an agent-process block")
     template = rendered.splitlines()
     span = _span(template)
     assert span is not None
-    return text, _text(_replace_block(lines, template[span[0] : span[1] + 1]))
+    return text, "\n".join(_replace_block(lines, template[span[0] : span[1] + 1]))
 
 
 def _settings_text(ctx: Context) -> tuple[str | None, str]:
@@ -460,20 +481,25 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     marketplaces = data.get("extraKnownMarketplaces", {})
     plugins = data.get("enabledPlugins", {})
     market = marketplaces.get(MARKETPLACE)
-    if market is not None:
+    if MARKETPLACE in marketplaces:
         source = market.get("source") if isinstance(market, dict) else None
         repo = source.get("repo") if isinstance(source, dict) else None
         if repo != GITHUB_REPO:
             raise Conflict(f"`{MARKETPLACE}` names {repo!r}, not {GITHUB_REPO}")
     if plugins.get(PLUGIN, True) is not True:
         raise Conflict(f"`{PLUGIN}` is set to {json.dumps(plugins[PLUGIN])}")
-    if market == wanted["extraKnownMarketplaces"][MARKETPLACE] and plugins.get(PLUGIN) is True:
+    entry = wanted["extraKnownMarketplaces"][MARKETPLACE]
+    if market == entry and plugins.get(PLUGIN) is True:
         return text, text or ""
+    # Re-serialising is lossless only from the form written here; any other form (spacing,
+    # key order, escapes, repeated keys) is the person's to edit.
+    if text is not None and text != json.dumps(data, indent=2, ensure_ascii=False) + "\n":
+        raise Conflict(
+            f'is not in the form init writes; add `"extraKnownMarketplaces": {{"{MARKETPLACE}":'
+            f' {json.dumps(entry)}}}` and `"enabledPlugins": {{"{PLUGIN}": true}}` by hand'
+        )
     updated = dict(data)
-    updated["extraKnownMarketplaces"] = {
-        **marketplaces,
-        MARKETPLACE: wanted["extraKnownMarketplaces"][MARKETPLACE],
-    }
+    updated["extraKnownMarketplaces"] = {**marketplaces, MARKETPLACE: entry}
     updated["enabledPlugins"] = {**plugins, PLUGIN: True}
     return text, json.dumps(updated, indent=2, ensure_ascii=False) + "\n"
 
@@ -490,7 +516,7 @@ def _file_step(
             raise InstallError(f"{rel} {exc}") from None
         if current == wanted:
             return False
-        _write(path, wanted)
+        _write(path, wanted, _eol(path))
         return True
 
     try:
