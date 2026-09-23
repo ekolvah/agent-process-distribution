@@ -39,9 +39,9 @@ step that catches each) and the `tasks` rule, which is the delivery flow
 below as tasks of the change (`no RED: <reason>` when the map names no
 test) and ends the propose run with the architect review: the
 `architect-reviewer` subagent in Claude, a self-review in Codex, writes
-`architect-review.md` into the change directory against principles §I–VII
-(a scenario missing from the scenario → test map is a finding, and so is
-an untraceable catcher); on
+`architect-review.json` into the change directory against principles §I–VII
+(one entry per finding class of the skill's `architect-review.schema.json`;
+`create_tracking_issue.py` refuses a file the schema rejects); on
 `rework` the planner applies the findings and reviews again; on `approve`
 the run ends with `create_tracking_issue.py <change> [--priority]` — the
 tracking issue from the proposal when the change has none (the priority asked
