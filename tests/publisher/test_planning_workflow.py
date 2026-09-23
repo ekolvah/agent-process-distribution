@@ -74,13 +74,10 @@ def _printed_commands(text: str) -> list[str]:
     return [span for span in spans if ".py" in span and " " in span]
 
 
-def _documented_argv(script: str) -> list[str]:
-    """The arguments of the `<script>` invocation the procedure prints, placeholders filled."""
-    text = _skill()
-    start = text.index(f"{script}.py") + len(f"{script}.py")
-    tokens = shlex.split(text[start : text.index("`", start)])
+def _argv(command: str) -> list[str]:
+    """The arguments of a printed command, placeholders filled so the parser can read them."""
     argv: list[str] = []
-    for token in tokens:
+    for token in shlex.split(command)[2:]:  # drop `python <script path>`
         if token.startswith("<"):
             argv.append("1" if argv and argv[-1] == "--pr" else "placeholder")
         else:
@@ -120,6 +117,24 @@ def test_roles_and_carriers() -> None:
 def test_review_finding() -> None:
     for part in ("Verdict", "Findings", "Scenario coverage", "§I–VII", "simpler design", "no RED"):
         assert part in _skill(), part
+
+
+def test_review_sections_carry_their_contents() -> None:
+    """A heading without its contents is a section the reviewer may fill with `none`."""
+    review = _section("Architect review")
+    for part in (
+        "`§<principle> · <artifact>:<heading or line> — what is wrong → what to change`",
+        "`<capability> / <scenario> → n/a: <reason>`",
+        "the reason `tasks.md` carries",
+    ):
+        assert part in review, part
+
+
+def test_fourth_round_leaves_the_rest_to_the_person() -> None:
+    """The three-round limit is only a limit when the procedure says what happens after it."""
+    deliver = _section("Delivery")
+    assert "three rounds" in deliver
+    assert "the fourth leaves the rest to the person" in deliver
 
 
 def test_rework_verdict() -> None:
@@ -215,11 +230,19 @@ def test_tasks_of_a_new_change() -> None:
         assert absent not in text, absent
 
 
-def test_documented_resolve_command_parses() -> None:
-    """A printed command the fixer copies must satisfy the moved script's own options."""
+def test_documented_resolve_commands_parse() -> None:
+    """The fixer copies both steps — find the thread id, then resolve it — so both must parse."""
     module = _script("resolve_review_thread")
-    options = module._parse_options(_documented_argv("resolve_review_thread"))
-    assert options.repo and options.pr and options.thread and options.reply_file
+    printed = [
+        command
+        for command in _printed_commands(SKILL.read_text(encoding="utf-8"))
+        if "resolve_review_thread.py" in command
+    ]
+    parsed = [module._parse_options(_argv(command)) for command in printed]
+    assert [options for options in parsed if options.list], "no `--list` step prints the ids"
+    assert [options for options in parsed if options.thread and options.reply_file]
+    for options in parsed:
+        assert options.repo and options.pr
 
 
 def test_printed_commands_run_as_printed() -> None:
@@ -282,8 +305,17 @@ def test_design_on_a_platform_behaviour() -> None:
         "reference page",
         "run id",
         "instead of repeating it",
+        # What does not count is what an agent otherwise records as an observation.
+        "a listing, a name or an inference from another behaviour does not",
     ):
         assert part in _skill(), part
+
+
+def test_spec_correction_has_its_command() -> None:
+    """The delta of a spec correction is created by a command, not by describing it."""
+    deliver = _section("Delivery")
+    assert "new change" in deliver
+    assert "never a direct edit of `openspec/specs/`" in deliver
 
 
 def test_asserted_platform_fact() -> None:
