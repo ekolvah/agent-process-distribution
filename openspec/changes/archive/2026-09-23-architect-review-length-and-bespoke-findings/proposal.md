@@ -28,7 +28,7 @@ The standard for a result an LLM must not skip parts of is a contract in JSON Sc
 validated by a standard validator; no spec-driven framework (Spec Kit's `analyze`, BMAD's
 checklists, Superpowers' review gates) enforces its review output — each is a prompt.
 
-Replanned after #157 (issue comment, 2026-09-23): the contract moved into the portable
+Replanned after PR 157 (issue comment, 2026-09-23): the contract moved into the portable
 skill `skills/agent-process/`, and `.agent-process/` is the publisher's control plane, not
 delivered to a consumer — so the schema and every check of it belong in the skill. The
 earlier plan's Stop hook in `agents/architect-reviewer.md` could never run: the reviewer is
@@ -58,7 +58,7 @@ the observations the decisions rest on.
   hook.
 - `.agent-process/requirements.in` / `requirements.txt`: `jsonschema` pinned for the
   publisher's own runs and CI. A consumer's `jsonschema` is an environment prerequisite
-  the installer (#155) names, like `gh` and `npx` — not a file of its footprint.
+  the installer (issue 155) names, like `gh` and `npx` — not a file of its footprint.
 - Tests: `tests/publisher/test_planning_workflow.py` — the words of the finding list move
   to the schema (required classes, descriptions), two new tests for the two new scenarios;
   `tests/publisher/test_delivery_scripts.py` — the fixture writes the JSON, one test for the

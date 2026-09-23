@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md — Why. On `main` after #157 the review contract is `## Architect review` of
+See proposal.md — Why. On `main` after PR 157 the review contract is `## Architect review` of
 `skills/agent-process/SKILL.md`; the review is `architect-review.md` with three prose
 sections; its only machine reader is `skills/agent-process/scripts/start_change.py`
 `verdict()`, which takes the first line under `## Verdict`. `create_tracking_issue.py`, the
@@ -48,7 +48,7 @@ Observed:
 
 - Judging the evidence: whether "the rule is 41 words, the test asserts 12" is a true count
   is the person's read at solution review; the schema proves that the count was written.
-- Installing `jsonschema` in a consumer (#155) — this change names it as a prerequisite.
+- Installing `jsonschema` in a consumer (issue 155) — this change names it as a prerequisite.
 - The reviewer's reference to `.agent-process/docs/architecture/principles.md` (a
   control-plane path, as on `main` today).
 - Changing the round limit, `principles.md`, or the OpenSpec schema.
@@ -72,7 +72,7 @@ Observed:
   the file and the schema, nothing of the shape. The scripts find it as
   `SCRIPT_DIR.parent / "architect-review.schema.json"` — from the skill, wherever it is
   installed, as `SCRIPT_DIR` already is. *Alternative:* `.agent-process/` — rejected: not
-  delivered to a consumer (#157 D2). *Alternative:* keep the classes in `SKILL.md` prose and
+  delivered to a consumer (PR 157 D2). *Alternative:* keep the classes in `SKILL.md` prose and
   the schema structural only — rejected: two sources for one list, and the prose is what
   the reviewer read past.
 - **D2 — No hook: the propose tail validates.** The Claude reviewer is a plugin agent, whose
@@ -82,11 +82,11 @@ Observed:
   planner (either carrier) sends the errors back to the reviewer and reviews again, as on
   `rework`. The catchers reached: `create_tracking_issue.py` in the propose run, then
   `start_change.py` in Group 0 of the apply — both on every change, both carriers.
-  *Alternative:* a `SubagentStop` hook in the plugin's `hooks/hooks.json` — rejected: #157
+  *Alternative:* a `SubagentStop` hook in the plugin's `hooks/hooks.json` — rejected: PR 157
   keeps hooks out of the package (`test_package_has_no_installer_state`), and it would add
   a hook to every consumer session for one subagent. *Alternative:* a copy of the agent in
   `.claude/agents/` so its frontmatter hook loads — rejected: an installer-owned file
-  outside #155's footprint, and a second copy of the reviewer. *Alternative:* a
+  outside issue 155's footprint, and a second copy of the reviewer. *Alternative:* a
   `SubagentStop` hook in `.claude/settings.json` — rejected: control plane, publisher only.
 - **D3 — The validator is the `jsonschema` library, imported on the call.** `verdict()`:
   `import jsonschema` inside the function (the other scripts that import `start_change`
@@ -103,7 +103,7 @@ Observed:
   publisher pins `jsonschema` in `.agent-process/requirements.in` (its CI and the
   installation guide install `requirements.txt`). A consumer runs the skill scripts with its
   own Python; `jsonschema` there is an environment prerequisite like `gh` and `npx`, which
-  the installer (#155) names and checks — its repository footprint list is unchanged.
+  the installer (issue 155) names and checks — its repository footprint list is unchanged.
   Until then the absent library is the visible exit 2 of D3.
 - **D5 — The file is renamed, not kept beside a `.md`.** `architect-review.md` →
   `architect-review.json` in every process file that names it (proposal, Impact); the specs
@@ -127,7 +127,7 @@ Observed:
   file the person reads at solution review, one line per class; filler is visible, `none`
   on a prose list was not.
 - [A consumer without `jsonschema` cannot finish a propose run] → Exit 2 naming the missing
-  module at the tail, before any issue exists; the fix is one `pip install`, and #155 names
+  module at the tail, before any issue exists; the fix is one `pip install`, and issue 155 names
   the prerequisite.
 - [The reviewer cannot make the file valid] → The planner sees the errors at the tail and
   re-invokes the reviewer with them — a round the person sees, bounded by the propose run.
