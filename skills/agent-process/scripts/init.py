@@ -76,6 +76,11 @@ BEGIN = "# agent-process:begin"
 END = "# agent-process:end"
 MANAGED = "# agent-process:managed"
 PIN = "# openspec: "
+# A top-level `rules` key in any YAML spelling: plain, quoted, tagged or anchored, an explicit
+# `?` key, or a flow mapping that opens the document (which may hold one).
+TOP_LEVEL_RULES = re.compile(
+    r"""^(?:\{|(?:\?\s*)?(?:[!&]\S*\s+)*(?:rules|"rules"|'rules')\s*(?::|$))"""
+)
 MARKETPLACE = "agent-process-marketplace"
 PLUGIN = "agent-process@agent-process-marketplace"
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
@@ -163,7 +168,15 @@ def _text(lines: list[str]) -> str:
 
 
 def _read(path: Path) -> str | None:
-    """Decoded text with `\\n` line endings, `None` when absent."""
+    """Decoded text with `\\n` line endings, `None` when absent. A link, a non-file, or a
+    non-directory parent is the person's: a write would replace it or fail mid-run."""
+    if _is_link(path) or (os.path.lexists(path) and not path.is_file()):
+        raise Conflict("is not a regular file")
+    parent = path.parent
+    while not os.path.lexists(parent):
+        parent = parent.parent
+    if _is_link(parent) or not parent.is_dir():
+        raise Conflict(f"has a parent `{parent.name}` that is not a directory")
     if not path.is_file():
         return None
     return path.read_text(encoding="utf-8").replace("\r\n", "\n")
@@ -360,7 +373,11 @@ def _openspec(ctx: Context) -> Step:
 
     def current() -> bool:
         paths = all((ctx.root / rel).exists() for rel in OPENSPEC_OUTPUT)
-        return paths and _recorded_pin(_read(config)) == OPENSPEC
+        try:
+            text = _read(config)
+        except Conflict:  # reported by the config step, which runs before any write
+            return False
+        return paths and _recorded_pin(text) == OPENSPEC
 
     def apply() -> bool:
         if current():
@@ -387,8 +404,8 @@ def _config_text(ctx: Context) -> tuple[str | None, str]:
     lines = (text or "").splitlines()
     span = _span(lines)
     outside = lines if span is None else [*lines[: span[0]], *lines[span[1] + 1 :]]
-    if any(re.match(r"rules\s*:", line) for line in outside):
-        raise Conflict("has a top-level `rules:` outside the agent-process block")
+    if any(TOP_LEVEL_RULES.match(line) for line in outside):
+        raise Conflict("has a top-level `rules` outside the agent-process block")
     return text, _text(_replace_block(lines, render_config_block(ctx.test).splitlines()))
 
 

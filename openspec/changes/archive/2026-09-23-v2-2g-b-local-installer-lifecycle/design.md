@@ -142,10 +142,14 @@ one of them, so it adds directories without making Codex per-repository; a repos
 
 | Target | Owned when | Conflict when |
 |---|---|---|
-| `openspec/config.yaml` | the one `# agent-process:begin/end` block | several or unordered markers; an unmarked top-level `rules:` |
+| `openspec/config.yaml` | the one `# agent-process:begin/end` block | several or unordered markers; an unmarked top-level `rules` in any YAML spelling (quoted, tagged, explicit `?` key, or a flow mapping opening the document) |
 | `.github/workflows/agent-process.yml` | first line `# agent-process:managed` | the file exists without it |
 | `.github/dependabot.yml` | the one marker block | the file exists, is non-empty, and has no block |
 | `.claude/settings.json` | `extraKnownMarketplaces["agent-process-marketplace"]` whose `source.repo` is the process repository; `enabledPlugins["agent-process@agent-process-marketplace"]` absent or `true` | invalid JSON, a non-object, the key naming another repository, or the plugin set to `false` |
+
+Every target above is also a conflict when it is a link, a directory, or anything but a
+regular file, or when an existing parent is not a directory: a write would replace the link
+or fail after earlier writes.
 
 Rendering: `config.yaml` holds `rules:` with one pointer per artifact to the matching
 `agent-process` skill section, and the tasks pointer names the `--test` command as the
