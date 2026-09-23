@@ -1,7 +1,7 @@
 ## Why
 
 Nothing in this repository limits function complexity or module size: both ruff configs select
-only `E, F, I, BLE, TRY400`, and [ADR 0016](../../../.agent-process/docs/adr/0016-review-gate-blocks-on-narrow-simplicity-violations.md)
+only `E, F, I, BLE, TRY400`, and ADR 0016
 rejected a complexity-lint gate. `tests/publisher/test_init.py` reached 1216 lines with no
 check reacting (PR #160, issue #161).
 
