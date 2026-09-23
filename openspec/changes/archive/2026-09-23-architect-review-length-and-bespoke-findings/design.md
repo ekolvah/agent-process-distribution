@@ -63,8 +63,9 @@ Observed:
   (`simpler`, `map`, `red`, `platform`, `replaced`, `catcher`, `length`, `bespoke`),
   `scenario_coverage` array of `{capability, scenario, reason}`; `$defs.class` =
   `{evidence: non-empty string, result: ok|finding, finding?: {principle, artifact, what,
-  change}}` with `if result == finding then finding required`; `additionalProperties:
-  false` throughout. Each class carries a `description` saying what its evidence is — e.g.
+  change}}` with `if result == finding then finding required`; at the root, `if verdict == approve
+  then every class result is ok` — an open finding is `rework` (PR 158, Codex P1);
+  `additionalProperties: false` throughout. Each class carries a `description` saying what its evidence is — e.g.
   `length`: "for each rule or spec sentence the plan adds or edits, its word count and the
   count of the words its tests assert"; `bespoke`: "for each script, check or file the plan
   adds, the observed problem it closes (issue, PR, run) or `none`". The tests read the

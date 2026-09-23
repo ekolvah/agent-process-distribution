@@ -5,6 +5,12 @@
   "type": "object",
   "required": ["verdict", "reviewer", "reasoning", "classes", "scenario_coverage"],
   "additionalProperties": false,
+  "if": {"properties": {"verdict": {"const": "approve"}}},
+  "then": {
+    "properties": {
+      "classes": {"additionalProperties": {"properties": {"result": {"const": "ok"}}}}
+    }
+  },
   "properties": {
     "verdict": {
       "description": "What the delivery gate reads: approve, or rework while any finding is open.",

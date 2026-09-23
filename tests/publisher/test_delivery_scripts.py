@@ -469,6 +469,45 @@ def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
         assert message in err, message
 
 
+def test_review_approves_an_open_finding(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`approve` beside a class whose result is `finding` is invalid: an open finding is rework
+    (PR 158, Codex P1)."""
+    review = _review()
+    review["classes"]["length"] = {
+        "evidence": "the rule is 41 words, the test asserts 12",
+        "result": "finding",
+        "finding": {"principle": "§VII", "artifact": "tasks.md:5.1", "what": "w", "change": "c"},
+    }
+
+    start_change = _script("start_change")
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"), review=review)
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert "$.classes.length.result" in capsys.readouterr().err
+
+    create = _script("create_tracking_issue")
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    assert exc.value.code == 2 and _creates(gh) == []
+    assert "$.classes.length.result" in capsys.readouterr().err
+
+    # The same finding under `rework` is a valid file: the verdict is what stops the run.
+    review["verdict"] = "rework"
+    root = _change(tmp_path / "c", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    assert exc.value.code == 2 and _creates(gh) == []
+    err = capsys.readouterr().err
+    assert "verdict: rework" in err and "$.classes" not in err
+
+
 def test_review_validator_absent(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
