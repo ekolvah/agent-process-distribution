@@ -14,8 +14,8 @@
 
 ## 3. Existing violations
 
-- [ ] 3.1 Split `tests/publisher/test_init.py` (harness to `tests/publisher/init_harness.py`, fixtures to `tests/publisher/conftest.py`) and `tests/publisher/test_delivery_scripts.py` (`_script`, `_Gh` to `tests/publisher/delivery_fakes.py`) per design D5, moving no test; verify `python .agent-process/scripts/ci_check.py --only module-size` passes and `python -m pytest tests/publisher --collect-only -q` lists the same node ids as on `origin/main`
-- [ ] 3.2 Put `# noqa: <codes> -- baseline: <reason>` on each function design D4 lists, one reason per function (e.g. "CLI entry point mirrors its flags"); verify `python .agent-process/scripts/ci_check.py --only lint` passes; commit Group 3 as `refactor: fit existing code to the complexity limits`
+- [x] 3.1 Split `tests/publisher/test_init.py` (harness to `tests/publisher/init_harness.py`, fixtures to `tests/publisher/conftest.py`) and `tests/publisher/test_delivery_scripts.py` (`_script`, `_Gh` to `tests/publisher/delivery_fakes.py`) per design D5, moving no test; verify `python .agent-process/scripts/ci_check.py --only module-size` passes and `python -m pytest tests/publisher --collect-only -q` lists the same node ids as on `origin/main`
+- [x] 3.2 Put `# noqa: <codes> -- baseline: <reason>` on each function design D4 lists, one reason per function (e.g. "CLI entry point mirrors its flags"); verify `python .agent-process/scripts/ci_check.py --only lint` passes; commit Group 3 as `refactor: fit existing code to the complexity limits`
 
 ## 4. Decision record
 

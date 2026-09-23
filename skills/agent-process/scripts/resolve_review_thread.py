@@ -102,7 +102,7 @@ def head_ref_oid(payload: object) -> str:
     return str(pull["headRefOid"])
 
 
-def review_threads(payload: object) -> list[ReviewThread]:
+def review_threads(payload: object) -> list[ReviewThread]:  # noqa: C901, PLR0912 -- baseline: validates each field of the GraphQL payload
     if not isinstance(payload, Mapping):
         raise RuntimeError("GraphQL payload is not an object")
     data = payload.get("data")
@@ -223,7 +223,7 @@ def resolve(payload: dict, thread_id: str, *, mutate: Callable[[str], object]) -
         )
 
 
-def close_round(
+def close_round(  # noqa: PLR0913 -- baseline: one argument per input of the round
     payload: dict,
     thread_id: str,
     reply: str,
