@@ -256,6 +256,16 @@ class Step:
 
 
 @dataclass
+class Host:
+    root: Path
+    home: Path
+    platform: str
+    runner: Runner
+    which: Callable[[str], str | None]
+    on_write: Callable[[str], None]
+
+
+@dataclass
 class Context:
     root: Path
     home: Path
@@ -708,16 +718,7 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def install(  # noqa: C901, PLR0911, PLR0912, PLR0913 -- baseline: refactoring tracked in #162
-    argv: list[str],
-    *,
-    root: Path,
-    home: Path,
-    platform: str,
-    runner: Runner,
-    which: Callable[[str], str | None],
-    on_write: Callable[[str], None],
-) -> int:
+def install(argv: list[str], host: Host) -> int:
     try:
         args = _parser().parse_args(argv)
     except SystemExit as exc:
@@ -733,59 +734,71 @@ def install(  # noqa: C901, PLR0911, PLR0912, PLR0913 -- baseline: refactoring t
         )
         return 1
     ctx = Context(
-        root=root,
-        home=home,
-        platform=platform,
-        runner=runner,
-        which=which,
+        root=host.root,
+        home=host.home,
+        platform=host.platform,
+        runner=host.runner,
+        which=host.which,
         repository=override or REPOSITORY,
         version=args.version,
         setup=args.setup,
         test=args.test,
     )
     try:
-        if args.version != VERSION and args.dry_run:
-            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
-                tree = Path(tmp) / "release"
-                ctx.git(
-                    "clone",
-                    "--quiet",
-                    "--depth",
-                    "1",
-                    "--branch",
-                    ctx.tag,
-                    ctx.repository,
-                    str(tree),
-                )
-                return _hand_off(ctx, argv, tree)
-        steps = [_checkout(ctx), _link(ctx)]
-        manual: list[str] = []
-        if args.version != VERSION:
-            steps.append(Step("hand-off", "planned", f"{ctx.tag} composes the consumer files"))
-        else:
-            steps.extend(_consumer_steps(ctx))
-            project, url = _project_steps(ctx)
-            steps.extend(project)
-            manual = _manual(url)
-        for step in steps:
-            print(f"{step.status} {step.label}: {step.detail}")
-        for line in manual:
-            print(line)
-        if any(step.status == "conflict" for step in steps):
-            print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
-            return 2
-        if args.dry_run:
-            return 0
-        for step in steps:
-            if step.label == "hand-off":
-                return _hand_off(ctx, argv, ctx.checkout)
-            written = step.status == "planned" and step.apply is not None and step.apply()
-            print(f"{'written' if written else 'unchanged'} {step.label}: {step.detail}")
-            if written:
-                on_write(step.label)
+        return _run(ctx, args, argv, host.on_write)
     except InstallError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+
+def _run(
+    ctx: Context, args: argparse.Namespace, argv: list[str], on_write: Callable[[str], None]
+) -> int:
+    if args.version != VERSION and args.dry_run:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            tree = Path(tmp) / "release"
+            ctx.git(
+                "clone",
+                "--quiet",
+                "--depth",
+                "1",
+                "--branch",
+                ctx.tag,
+                ctx.repository,
+                str(tree),
+            )
+            return _hand_off(ctx, argv, tree)
+    steps = [_checkout(ctx), _link(ctx)]
+    manual: list[str] = []
+    if args.version != VERSION:
+        steps.append(Step("hand-off", "planned", f"{ctx.tag} composes the consumer files"))
+    else:
+        steps.extend(_consumer_steps(ctx))
+        project, url = _project_steps(ctx)
+        steps.extend(project)
+        manual = _manual(url)
+    for step in steps:
+        print(f"{step.status} {step.label}: {step.detail}")
+    for line in manual:
+        print(line)
+    if any(step.status == "conflict" for step in steps):
+        print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
+        return 2
+    if args.dry_run:
+        return 0
+    return _perform(ctx, steps, argv, on_write)
+
+
+def _perform(
+    ctx: Context, steps: list[Step], argv: list[str], on_write: Callable[[str], None]
+) -> int:
+    for step in steps:
+        if step.label == "hand-off":
+            return _hand_off(ctx, argv, ctx.checkout)
+        written = step.status == "planned" and step.apply is not None and step.apply()
+        print(f"{'written' if written else 'unchanged'} {step.label}: {step.detail}")
+        if written:
+            on_write(step.label)
     return 0
 
 
@@ -793,17 +806,15 @@ def main() -> None:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(errors="backslashreplace")
-    sys.exit(
-        install(
-            sys.argv[1:],
-            root=Path.cwd(),
-            home=Path.home(),
-            platform=sys.platform,
-            runner=run,
-            which=shutil.which,
-            on_write=lambda label: None,
-        )
+    host = Host(
+        root=Path.cwd(),
+        home=Path.home(),
+        platform=sys.platform,
+        runner=run,
+        which=shutil.which,
+        on_write=lambda label: None,
     )
+    sys.exit(install(sys.argv[1:], host))
 
 
 if __name__ == "__main__":
