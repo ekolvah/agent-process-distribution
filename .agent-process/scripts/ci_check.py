@@ -123,7 +123,21 @@ def check_lint() -> None:
 
 
 def check_module_size() -> None:
-    pass
+    """Module length by pylint `too-many-lines` — ruff has no module-length rule.
+
+    The configs enable that one pylint message only, so the two linters never
+    overlap. Explicit file lists, not directories: pylint then needs no package
+    layout and does not import the files.
+    """
+    print("==> module size")
+    modules = _find_modules()
+    process = [name for name in modules if _is_process_path(name)]
+    if process:
+        _run([sys.executable, "-m", "pylint", "--rcfile", _PROCESS_CONFIG, *process])
+    if _has_product_scope():
+        product = [name for name in modules if not _is_process_path(name)]
+        if product:
+            _run([sys.executable, "-m", "pylint", "--rcfile", "pyproject.toml", *product])
 
 
 # Captured third-party HTML kept as test fixtures: asset digests and cache-busting
@@ -307,6 +321,7 @@ def check_imports() -> None:
 CHECKS: dict[str, Callable[[], None]] = {
     "format": check_format,
     "lint": check_lint,
+    "module-size": check_module_size,
     "secrets": check_secrets,
     "pytest": check_pytest,
     "pip-audit": check_pip_audit,

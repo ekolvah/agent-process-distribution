@@ -2,6 +2,7 @@
 detect-secrets
 mypy
 pip-audit
+pylint
 pytest
 ruff
 types-PyYAML

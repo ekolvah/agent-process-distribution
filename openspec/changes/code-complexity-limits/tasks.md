@@ -9,8 +9,8 @@
 
 ## 2. Limits
 
-- [ ] 2.1 Add `pylint` to `.agent-process/requirements-dev.in` and regenerate `.agent-process/requirements-dev.txt` with pip-compile; implement `check_module_size` and register it as `module-size` after `lint` (design D3); add the pylint sections to both `pyproject.toml` files (design D2); verify `python -m pytest tests/agent_process/test_ci_check.py -q -k module_size` is green and `python .agent-process/scripts/ci_check.py --only requirements` passes
-- [ ] 2.2 Add `C901`, `PLR0911`, `PLR0912`, `PLR0913`, `PLR0915`, `RUF100` to `select` of both `pyproject.toml` files (design D1, D4); verify `python -m pytest tests/agent_process/test_ci_check.py -q -k "complexity or stale_baseline"` is green; commit Group 2 as `feat(implementation): complexity and module-size limits in ci_check`
+- [x] 2.1 Add `pylint` to `.agent-process/requirements-dev.in` and regenerate `.agent-process/requirements-dev.txt` with pip-compile; implement `check_module_size` and register it as `module-size` after `lint` (design D3); add the pylint sections to both `pyproject.toml` files (design D2); verify `python -m pytest tests/agent_process/test_ci_check.py -q -k module_size` is green and `python .agent-process/scripts/ci_check.py --only requirements` passes
+- [x] 2.2 Add `C901`, `PLR0911`, `PLR0912`, `PLR0913`, `PLR0915`, `RUF100` to `select` of both `pyproject.toml` files (design D1, D4); verify `python -m pytest tests/agent_process/test_ci_check.py -q -k "complexity or stale_baseline"` is green; commit Group 2 as `feat(implementation): complexity and module-size limits in ci_check`
 
 ## 3. Existing violations
 
