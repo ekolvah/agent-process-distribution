@@ -30,6 +30,7 @@ MOVED_SCRIPTS = {
     "archive_change.py",
     "check_red.py",
     "create_tracking_issue.py",
+    "init.py",
     "resolve_review_thread.py",
     "set_status.py",
     "start_change.py",
