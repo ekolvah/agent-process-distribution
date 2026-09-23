@@ -372,12 +372,32 @@ _GROUP0 = (
 )
 
 
-def _change(tmp_path: Path, *, verdict: str = "approve", tasks: str) -> Path:
+_CLASSES = ("simpler", "map", "red", "platform", "replaced", "catcher", "length", "bespoke")
+
+
+def _review(verdict: str = "approve") -> dict[str, Any]:
+    """A review valid against the skill's schema: every class checked and `ok`."""
+    return {
+        "verdict": verdict,
+        "reviewer": "architect-reviewer",
+        "reasoning": "r",
+        "classes": {name: {"evidence": "read", "result": "ok"} for name in _CLASSES},
+        "scenario_coverage": [],
+    }
+
+
+def _change(
+    tmp_path: Path,
+    *,
+    verdict: str = "approve",
+    tasks: str,
+    review: dict[str, Any] | None = None,
+) -> Path:
     """A change directory under `tmp_path` with the three files the scripts read."""
     change_dir = tmp_path / "openspec" / "changes" / _CHANGE
     change_dir.mkdir(parents=True)
-    (change_dir / "architect-review.md").write_text(
-        f"## Verdict\n\n{verdict}\nreasoning\n\n## Findings\n\nnone\n", encoding="utf-8"
+    (change_dir / "architect-review.json").write_text(
+        json.dumps(review or _review(verdict)), encoding="utf-8"
     )
     (change_dir / "tasks.md").write_text(tasks, encoding="utf-8")
     (change_dir / "proposal.md").write_text("## Why\n\nA fixture.\n", encoding="utf-8")
@@ -404,6 +424,63 @@ def test_verdict_is_rework(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert exc.value.code == 2
     assert _develops(gh) == []
     assert "rework" in capsys.readouterr().err
+
+    # The propose tail refuses the same verdict: no issue from a plan still in rework.
+    create = _script("create_tracking_issue")
+    root = _change(tmp_path / "tail", verdict="rework", tasks=_GROUP0.format(token=_PLACEHOLDER))
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    assert exc.value.code == 2 and _creates(gh) == []
+    assert "rework" in capsys.readouterr().err
+
+
+def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Review class without evidence — both scripts name each validation error and
+    create nothing, on fixtures that would create when the file is valid."""
+    review = _review()
+    del review["classes"]["length"]
+    review["classes"]["simpler"]["evidence"] = ""
+    review["classes"]["map"]["result"] = "finding"
+    messages = (
+        "'length' is a required property",
+        "should be non-empty",
+        "'finding' is a required property",
+    )
+
+    start_change = _script("start_change")
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"), review=review)
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    err = capsys.readouterr().err
+    for message in messages:
+        assert message in err, message
+
+    create = _script("create_tracking_issue")
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    assert exc.value.code == 2 and _creates(gh) == []
+    err = capsys.readouterr().err
+    for message in messages:
+        assert message in err, message
+
+
+def test_review_validator_absent(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No validator is a visible stop, not a pass."""
+    start_change = _script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    monkeypatch.setitem(sys.modules, "jsonschema", None)
+    gh = _Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert "architect review not validated" in capsys.readouterr().err
 
 
 def test_propose_run_stopped_before_its_tail(
