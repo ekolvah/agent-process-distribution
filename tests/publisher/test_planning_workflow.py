@@ -254,6 +254,20 @@ def test_printed_commands_run_as_printed() -> None:
         assert (ROOT / command.split()[1]).is_file(), command
 
 
+def test_the_header_promises_the_resolution_its_commands_use() -> None:
+    """Every printed command resolves from the repository root: the header promises no other base."""
+    skill = _skill()
+    header = skill[: skill.index("## Proposal")]
+    printed = _printed_commands(SKILL.read_text(encoding="utf-8"))
+    assert printed
+    for command in printed:
+        path = command.split()[1]
+        assert (ROOT / path).is_file(), command
+        assert not (SKILL.parent / path).is_file(), command
+    assert "repository root" in header
+    assert "skill directory" not in header
+
+
 def test_verify_runs_the_repository_quality_command() -> None:
     """The portable Verify step defers to the repository, which names a command that exists."""
     tasks = _section("Tasks")
