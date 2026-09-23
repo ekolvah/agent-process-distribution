@@ -16,8 +16,8 @@
 
 ## 3. Entry points and live read
 
-- [ ] 3.1 In `skills/agent-process/SKILL.md` `## Install`, replace "never … writes GitHub settings" with the Project copy and link as the only GitHub writes, and state that `gh` must be authenticated with the `project` scope; verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py tests/agent_process/test_doc_links.py -q` is green
-- [ ] 3.2 From this repository's root run `python skills/agent-process/scripts/init.py --test "python .agent-process/scripts/ci_check.py" --dry-run` (reads only; design D6); verify it prints `unchanged project-copy` and `unchanged project-link` for Project #4 and the two `manual` rows whatever its exit code, and keep the output for the PR report; commit Group 3 as `docs(distribution): Project write in the install procedure`
+- [x] 3.1 In `skills/agent-process/SKILL.md` `## Install`, replace "never … writes GitHub settings" with the Project copy and link as the only GitHub writes, and state that `gh` must be authenticated with the `project` scope; verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py tests/agent_process/test_doc_links.py -q` is green
+- [x] 3.2 From this repository's root run `python skills/agent-process/scripts/init.py --test "python .agent-process/scripts/ci_check.py" --dry-run` (reads only; design D6); verify it prints `unchanged project-copy` and `unchanged project-link` for Project #4 and the two `manual` rows whatever its exit code, and keep the output for the PR report; commit Group 3 as `docs(distribution): Project write in the install procedure`
 
 ## 4. Verify
 
