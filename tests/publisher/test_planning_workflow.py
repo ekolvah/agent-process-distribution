@@ -68,6 +68,12 @@ def _script(name: str) -> ModuleType:
     return module
 
 
+def _printed_commands(text: str) -> list[str]:
+    """Code spans that name a script with arguments: what an agent copies and runs."""
+    spans = re.findall(r"`([^`]+)`", " ".join(text.split()))
+    return [span for span in spans if ".py" in span and (" -" in span or " <" in span)]
+
+
 def _documented_argv(script: str) -> list[str]:
     """The arguments of the `<script>` invocation the procedure prints, placeholders filled."""
     text = _skill()
@@ -214,6 +220,27 @@ def test_documented_resolve_command_parses() -> None:
     module = _script("resolve_review_thread")
     options = module._parse_options(_documented_argv("resolve_review_thread"))
     assert options.repo and options.pr and options.thread and options.reply_file
+
+
+def test_printed_commands_run_as_printed() -> None:
+    """No script is on `PATH`: a printed command names its interpreter and a file that exists."""
+    printed = _printed_commands(SKILL.read_text(encoding="utf-8"))
+    assert len(printed) >= 6
+    for command in printed:
+        assert command.startswith("python "), command
+        assert (ROOT / command.split()[1]).is_file(), command
+
+
+def test_verify_runs_the_repository_quality_command() -> None:
+    """The portable Verify step defers to the repository, which names a command that exists."""
+    tasks = _section("Tasks")
+    assert "quality command" in tasks and "openspec/config.yaml" in tasks
+    context = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["context"]
+    printed = _printed_commands(context)
+    assert printed
+    for command in printed:
+        assert command.startswith("python "), command
+        assert (ROOT / command.split()[1]).is_file(), command
 
 
 def test_reviewer_adapter_reads_the_shared_contract() -> None:
