@@ -8,6 +8,10 @@ observed OpenSpec file set) and, for rows of the other platform, the link comman
 runs everything else for real. `test_installed_footprint_is_closed` runs the real pinned
 OpenSpec. The module is imported inside the tests so that a missing symbol fails its own
 test body.
+
+`gh` never reaches GitHub: the runner hands it to `FakeGitHub` (change
+v2-2g-c-project-provisioning, design D6), which answers the two reads in their observed
+shapes and applies `project copy` and `project link` to its own Projects.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
@@ -32,7 +36,17 @@ ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "skills" / "agent-process"
 INIT = PACKAGE / "scripts" / "init.py"
 HOST = "win32" if sys.platform == "win32" else "linux"
-LABELS = ["checkout", "link", "openspec", "config", "workflow", "dependabot", "settings"]
+LABELS = [
+    "checkout",
+    "link",
+    "openspec",
+    "config",
+    "workflow",
+    "dependabot",
+    "settings",
+    "project-copy",
+    "project-link",
+]
 CONSUMER_FILES = {
     ".github/workflows/agent-process.yml",
     ".github/dependabot.yml",
@@ -102,12 +116,117 @@ def test_fixture_tags_carry_releases(process_repo: Path) -> None:
     assert "stub-release v2.1.0" in stub
 
 
+OWNER = "ekolvah"
+REPO_NAME = "consumer"
+TITLE = f"{REPO_NAME} agent process"
+PUBLISHER = "ekolvah/agent-process-distribution"
+
+
+@dataclass
+class Project:
+    owner: str
+    number: int
+    title: str
+    closed: bool = False
+    repositories: set[str] = field(default_factory=set)
+
+    @property
+    def url(self) -> str:
+        return f"https://github.com/users/{self.owner}/projects/{self.number}"
+
+
+class FakeGitHub:
+    """GitHub behind `gh` for the consumer `ekolvah/consumer`. It starts with template
+    Project 4 linked to the publisher; `faults[command]` makes the next `copy` or `link`
+    exit 1 either before its effect or after it (the lost response)."""
+
+    def __init__(self) -> None:
+        self.projects = [Project(OWNER, 4, "agent-process-distribution agent process")]
+        self.projects[0].repositories.add(PUBLISHER)
+        self.faults: dict[str, str] = {}
+        self.hidden = 0  # Projects the owner has beyond the first page
+
+    def add(self, title: str = TITLE, *, closed: bool = False, linked: str = "") -> Project:
+        project = Project(OWNER, self._next(), title, closed)
+        if linked:
+            project.repositories.add(linked)
+        self.projects.append(project)
+        return project
+
+    def _next(self) -> int:
+        return max(p.number for p in self.projects) + 1
+
+    def state(self) -> list[tuple[str, int, str, bool, list[str]]]:
+        return [
+            (p.owner, p.number, p.title, p.closed, sorted(p.repositories)) for p in self.projects
+        ]
+
+    def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        def done(payload: Any = None, code: int = 0) -> subprocess.CompletedProcess[str]:
+            out = "" if payload is None else json.dumps(payload)
+            return subprocess.CompletedProcess(args, code, out, "fault" if code else "")
+
+        if args[:2] == ["repo", "view"]:
+            assert args[2:] == ["--json", "owner,name,projectsV2"], args
+            repo = f"{OWNER}/{REPO_NAME}"
+            linked = [
+                {
+                    "number": p.number,
+                    "title": p.title,
+                    "closed": p.closed,
+                    "url": p.url,
+                    "resourcePath": f"/users/{p.owner}/projects/{p.number}",
+                }
+                for p in self.projects
+                if repo in p.repositories
+            ]
+            return done(
+                {"name": REPO_NAME, "owner": {"login": OWNER}, "projectsV2": {"Nodes": linked}}
+            )
+        if args[:2] == ["api", "graphql"]:
+            assert f"login={OWNER}" in args, args
+            owned = [p for p in self.projects if p.owner == OWNER]
+            nodes = [
+                {
+                    "number": p.number,
+                    "title": p.title,
+                    "closed": p.closed,
+                    "url": p.url,
+                    "repositories": {"totalCount": len(p.repositories)},
+                }
+                for p in owned
+            ]
+            total = len(owned) + self.hidden
+            projects = {"totalCount": total, "nodes": nodes}
+            return done({"data": {"repositoryOwner": {"projectsV2": projects}}})
+        if args[:2] == ["project", "copy"]:
+            fault = self.faults.pop("copy", "")
+            if fault == "fail-before":
+                return done(code=1)
+            number, flags = args[2], dict(zip(args[3::2], args[4::2]))
+            assert (number, flags["--source-owner"]) == ("4", OWNER), args
+            self.projects.append(Project(flags["--target-owner"], self._next(), flags["--title"]))
+            return done(code=1 if fault else 0)
+        if args[:2] == ["project", "link"]:
+            fault = self.faults.pop("link", "")
+            if fault == "fail-before":
+                return done(code=1)
+            number, flags = int(args[2]), dict(zip(args[3::2], args[4::2]))
+            (project,) = [
+                p for p in self.projects if (p.owner, p.number) == (flags["--owner"], number)
+            ]
+            project.repositories.add(f"{flags['--owner']}/{flags['--repo']}")
+            return done(code=1 if fault else 0)
+        raise AssertionError(f"unexpected gh command: {args}")
+
+
 @dataclass
 class Sandbox:
     root: Path
     home: Path
     repo: Path
     other: Path
+    github: FakeGitHub = field(default_factory=FakeGitHub)
 
     @property
     def checkout(self) -> Path:
@@ -148,13 +267,24 @@ def _is_link(path: Path) -> bool:
 
 
 class Runner:
-    """The process boundary: logs each command, emulates `npx` and the other platform's
-    link command, and runs every other command for real through the installer's `run`."""
+    """The process boundary: logs each command, hands `gh` to the fake GitHub, emulates `npx`
+    (unless `real_npx`) and the other platform's link command, and runs every other command
+    for real through the installer's `run`."""
 
-    def __init__(self, init: ModuleType, platform: str) -> None:
+    def __init__(
+        self, init: ModuleType, platform: str, github: FakeGitHub, *, real_npx: bool = False
+    ) -> None:
         self.init = init
         self.platform = platform
+        self.github = github
+        self.real_npx = real_npx
         self.log: list[list[str]] = []
+
+    def gh(self, *prefix: str) -> list[list[str]]:
+        """The logged `gh` commands whose arguments start with `prefix`."""
+        return [
+            cmd[1:] for cmd in self.log if _is_gh(cmd) and cmd[1 : 1 + len(prefix)] == list(prefix)
+        ]
 
     def __call__(
         self,
@@ -166,7 +296,9 @@ class Runner:
     ) -> subprocess.CompletedProcess[str]:
         self.log.append([str(part) for part in cmd])
         name = Path(cmd[0]).name.lower()
-        if name.startswith("npx"):
+        if _is_gh(cmd):
+            return self.github([str(part) for part in cmd[1:]])
+        if name.startswith("npx") and not self.real_npx:
             assert cwd is not None
             for rel in self.init.OPENSPEC_OUTPUT:
                 path = Path(cwd) / rel
@@ -188,6 +320,8 @@ class Runner:
             name = Path(cmd[0]).name.lower()
             if name.startswith("npx"):
                 keys.append("npx")
+            elif _is_gh(cmd) and cmd[1:2] == ["project"]:
+                keys.append(f"gh-{cmd[2]}")
             elif _link_command(cmd):
                 keys.append("link")
             elif name.startswith("git") and cmd[1:2] != ["-C"] and "clone" in cmd:
@@ -195,6 +329,10 @@ class Runner:
             elif name.startswith("git") and ("fetch" in cmd or "checkout" in cmd):
                 keys.append(cmd[3] if cmd[1] == "-C" else cmd[1])
         return keys
+
+
+def _is_gh(cmd: list[str]) -> bool:
+    return Path(str(cmd[0])).stem.lower() == "gh"
 
 
 def _link_command(cmd: list[str]) -> tuple[Path, Path] | None:
@@ -226,7 +364,7 @@ def _install(
         root=sb.root,
         home=sb.home,
         platform=platform,
-        runner=runner or Runner(init, platform),
+        runner=runner or Runner(init, platform, sb.github),
         which=_which,
         on_write=on_write or (lambda label: None),
     )
@@ -347,7 +485,7 @@ def test_confirm_selects_release_before_composing(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
 ) -> None:
     init = _init()
-    runner = Runner(init, HOST)
+    runner = Runner(init, HOST, sandbox.github)
     code = _install(init, sandbox, "--confirm", "--version", "2.1.0", runner=runner)
     out = capfd.readouterr().out
     assert code == 0, out
@@ -364,7 +502,7 @@ def test_confirm_selects_release_before_composing(
 @pytest.mark.parametrize("platform", ["win32", "linux"])
 def test_skill_link_resolves_to_selected_release(sandbox: Sandbox, platform: str) -> None:
     init = _init()
-    runner = Runner(init, platform)
+    runner = Runner(init, platform, sandbox.github)
     target = sandbox.checkout / "skills" / "agent-process"
     for version, tag in (("2.0.0", "v2.0.0"), ("2.1.0", "v2.1.0")):
         code = _install(
@@ -400,6 +538,7 @@ def _final(sb: Sandbox) -> dict[str, Any]:
         "root": _relative(_snapshot(sb.root), sb.root),
         "head": _head(sb.checkout),
         "link": os.path.relpath(os.path.realpath(sb.link), os.path.realpath(sb.home)),
+        "github": sb.github.state(),
     }
 
 
@@ -433,7 +572,7 @@ def test_retry_after_each_write(
     for label in labels:
         sb = fresh_sandbox(f"at-{label}")
         _prepare(init, sb, scenario)
-        runner = Runner(init, HOST)
+        runner = Runner(init, HOST, sb.github)
 
         def interrupt(seen: str, at: str = label) -> None:
             if seen == at:
@@ -509,7 +648,7 @@ def test_rerender_replaces_only_owned_content(
         for rel, data in _relative(_snapshot(root), root).items()
         if Path(rel).as_posix() not in {"openspec/config.yaml", *CONSUMER_FILES}
     }
-    runner = Runner(init, HOST)
+    runner = Runner(init, HOST, sandbox.github)
     assert _install(init, sandbox, "--confirm", runner=runner) == 0, capfd.readouterr().out
 
     assert sum(Path(cmd[0]).name.lower().startswith("npx") for cmd in runner.log) == 1
@@ -785,16 +924,8 @@ def _consumer_repo(sb: Sandbox) -> None:
 def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
     init = _init()
     _consumer_repo(sandbox)
-    code = init.install(
-        ["--test", "pytest -q", "--confirm"],
-        root=sandbox.root,
-        home=sandbox.home,
-        platform=HOST,
-        runner=init.run,
-        which=shutil.which,
-        on_write=lambda label: None,
-    )
-    assert code == 0
+    runner = Runner(init, HOST, sandbox.github, real_npx=True)
+    assert _install(init, sandbox, "--confirm", runner=runner) == 0
     status = _git("status", "--porcelain", "--untracked-files=all", cwd=sandbox.root)
     changed = {line[3:] for line in status.splitlines()}
     assert changed == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
@@ -813,19 +944,157 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
     }
 
 
-def test_no_remote_write(sandbox: Sandbox) -> None:
+def _gh_kind(args: list[str]) -> str:
+    """`read`, `copy`, or `link`; any other `gh` command fails the test."""
+    if args[:2] == ["repo", "view"]:
+        return "read"
+    if args[:2] == ["api", "graphql"] and not any("mutation" in part for part in args):
+        return "read"
+    if args[:2] == ["project", "copy"]:
+        return "copy"
+    if args[:2] == ["project", "link"]:
+        return "link"
+    raise AssertionError(f"gh command that is not a read, the copy, or the link: {args}")
+
+
+def test_only_project_writes_remote(sandbox: Sandbox) -> None:
     init = _init()
     _consumer_repo(sandbox)
-    runner = Runner(init, HOST)
+    runner = Runner(init, HOST, sandbox.github)
     assert _install(init, sandbox, "--confirm", runner=runner) == 0
+    kinds = [_gh_kind(args) for args in runner.gh()]
+    assert (kinds.count("copy"), kinds.count("link")) == (1, 1), kinds
     for cmd in runner.log:
-        name = Path(cmd[0]).name.lower()
-        assert not name.startswith("gh"), cmd
         assert not any("api.github.com" in part for part in cmd), cmd
-        if name.startswith("git"):
+        if Path(cmd[0]).name.lower().startswith("git"):
             assert not {"commit", "push"} & set(cmd), cmd
     assert _git("rev-list", "--count", "HEAD", cwd=sandbox.root) == "1"
     assert _git("status", "--porcelain", cwd=sandbox.root)
+
+
+def test_dry_run_writes_nothing_remote(sandbox: Sandbox) -> None:
+    init = _init()
+    runner = Runner(init, HOST, sandbox.github)
+    before = sandbox.github.state()
+    assert _install(init, sandbox, "--dry-run", runner=runner) == 0
+    assert runner.gh("repo", "view") and runner.gh("api", "graphql")
+    assert {_gh_kind(args) for args in runner.gh()} == {"read"}
+    assert sandbox.github.state() == before
+
+
+# --- the Project phase ------------------------------------------------------------------
+
+CONSUMER = f"{OWNER}/{REPO_NAME}"
+# Each row: arrange the fake, then (project-copy, project-link) of the plan, or the exit code
+# alone when the read itself refuses (design D2 and the truncated list of D1).
+PROJECT_STATES: dict[str, tuple[Callable[[FakeGitHub], Any], tuple[str, str] | int]] = {
+    "linked-one": (lambda gh: gh.add("anything", linked=CONSUMER), ("unchanged", "unchanged")),
+    "linked-several": (
+        lambda gh: (gh.add(linked=CONSUMER), gh.add("other", linked=CONSUMER)),
+        ("conflict", "conflict"),
+    ),
+    "none": (lambda gh: gh.add("another title"), ("planned", "planned")),
+    "one-reusable": (
+        lambda gh: (gh.add(), gh.add(closed=True)),
+        ("unchanged", "planned"),
+    ),
+    "several-reusable": (lambda gh: (gh.add(), gh.add()), ("conflict", "conflict")),
+    "only-closed": (lambda gh: gh.add(closed=True), ("conflict", "conflict")),
+    "only-linked-elsewhere": (
+        lambda gh: gh.add(linked=f"{OWNER}/elsewhere"),
+        ("conflict", "conflict"),
+    ),
+    "truncated-list": (lambda gh: setattr(gh, "hidden", 1), 1),
+}
+
+
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+@pytest.mark.parametrize("case", list(PROJECT_STATES))
+def test_project_states(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str, mode: str
+) -> None:
+    init = _init()
+    arrange, expected = PROJECT_STATES[case]
+    arrange(sandbox.github)
+    runner = Runner(init, HOST, sandbox.github)
+    before = (_snapshot(sandbox.root, sandbox.home), sandbox.github.state())
+    code = _install(init, sandbox, mode, runner=runner)
+    out = capfd.readouterr().out
+    seen = _transitions(out)
+    if isinstance(expected, int):
+        assert code == expected, out
+        assert "project-copy" not in seen
+        assert (_snapshot(sandbox.root, sandbox.home), sandbox.github.state()) == before
+        return
+    plan = dict(zip(("project-copy", "project-link"), expected))
+    for label, status in plan.items():
+        assert f"{status} {label}:" in out, out
+    if "conflict" in expected:
+        assert code == 2, out
+        assert "written" not in seen.values()
+        assert (_snapshot(sandbox.root, sandbox.home), sandbox.github.state()) == before
+        return
+    assert code == 0, out
+    if case == "linked-one":
+        assert not runner.gh("api", "graphql")
+    if mode == "--confirm":
+        assert seen == dict.fromkeys(LABELS, "written") | {
+            label: "written" if status == "planned" else status for label, status in plan.items()
+        }, out
+        linked = [p for p in sandbox.github.projects if CONSUMER in p.repositories]
+        assert len(linked) == 1
+
+
+@pytest.mark.parametrize("fault", ["fail-before", "fail-after"])
+@pytest.mark.parametrize("command", ["copy", "link"])
+def test_project_command_faults(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], command: str, fault: str
+) -> None:
+    init = _init()
+    runner = Runner(init, HOST, sandbox.github)
+    sandbox.github.faults[command] = fault
+    assert _install(init, sandbox, "--confirm", runner=runner) == 1
+    capfd.readouterr()
+    assert _install(init, sandbox, "--confirm", runner=runner) == 0
+    out = capfd.readouterr().out
+    copies, links = len(runner.gh("project", "copy")), len(runner.gh("project", "link"))
+    expected = {
+        ("copy", "fail-before"): (2, 1),
+        ("copy", "fail-after"): (1, 1),
+        ("link", "fail-before"): (1, 2),
+        ("link", "fail-after"): (1, 1),
+    }[command, fault]
+    assert (copies, links) == expected
+    if (command, fault) == ("link", "fail-after"):
+        assert _transitions(out)["project-copy"] == "unchanged"
+        assert _transitions(out)["project-link"] == "unchanged"
+    titled = [p for p in sandbox.github.projects if p.title == TITLE]
+    assert len(titled) == 1 and titled[0].repositories == {CONSUMER}
+
+
+WORKFLOWS = [
+    "Auto-add to project",
+    "Item added",
+    "Item reopened",
+    "Item closed",
+    "Pull request merged",
+]
+
+
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+def test_manual_actions_are_printed(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
+) -> None:
+    init = _init()
+    runner = Runner(init, HOST, sandbox.github)
+    assert _install(init, sandbox, mode, runner=runner) == 0
+    lines = capfd.readouterr().out.splitlines()
+    visibility = [ln for ln in lines if ln.startswith("manual project-visibility: ")]
+    workflows = [ln for ln in lines if ln.startswith("manual project-workflows: ")]
+    assert len(visibility) == 1 and "visibility" in visibility[0]
+    assert len(workflows) == 1 and all(name in workflows[0] for name in WORKFLOWS)
+    for args in runner.gh():
+        _gh_kind(args)
 
 
 # --- rendering and arguments ------------------------------------------------------------
@@ -871,7 +1140,7 @@ def test_empty_test_command_is_refused(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], test: str
 ) -> None:
     init = _init()
-    runner = Runner(init, HOST)
+    runner = Runner(init, HOST, sandbox.github)
     assert _install(init, sandbox, "--confirm", runner=runner, test=test) == 2
     assert runner.log == []
     assert _snapshot(sandbox.root, sandbox.home) == {}
