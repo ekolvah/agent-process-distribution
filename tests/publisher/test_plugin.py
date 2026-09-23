@@ -1,4 +1,4 @@
-"""The shared package boundary established before installer state exists."""
+"""The shared package boundary: the procedure, its scripts, and the installer's templates."""
 
 from __future__ import annotations
 
@@ -18,11 +18,14 @@ MOVED_SCRIPTS = {
     "archive_change.py",
     "check_red.py",
     "create_tracking_issue.py",
+    "init.py",
     "resolve_review_thread.py",
     "set_status.py",
     "start_change.py",
     "wait_for_pr.py",
 }
+
+TEMPLATES = {"agent-process.yml", "config.yaml", "dependabot.yml", "settings.json"}
 
 
 def _json(path: Path) -> dict:
@@ -46,16 +49,18 @@ def test_shared_skill_owns_the_procedure_and_scripts() -> None:
         assert not (ROOT / ".agent-process" / "scripts" / name).exists()
 
 
-def test_package_has_no_installer_state() -> None:
+def test_package_contents_are_closed() -> None:
     relative_files = {
         path.relative_to(PACKAGE).as_posix()
         for path in PACKAGE.rglob("*")
         if path.is_file() and "__pycache__" not in path.parts
     }
-    assert relative_files == {"SKILL.md", "architect-review.schema.json"} | {
-        f"scripts/{name}" for name in MOVED_SCRIPTS
-    }
-    forbidden = ("init.py", "template", "hook", "workflow", "ruleset", "protection")
+    assert relative_files == (
+        {"SKILL.md", "architect-review.schema.json"}
+        | {f"scripts/{name}" for name in MOVED_SCRIPTS}
+        | {f"templates/{name}" for name in TEMPLATES}
+    )
+    forbidden = ("hook", "ruleset", "protection")
     assert not any(token in path.lower() for path in relative_files for token in forbidden)
 
 

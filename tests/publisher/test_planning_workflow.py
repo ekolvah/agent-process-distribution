@@ -258,7 +258,9 @@ def test_tasks_of_a_new_change() -> None:
     # Group 0 and the propose tail are scripts (v2-2f): the shell steps left the procedure.
     # `check_red` owns its runner and report path (v2-2d): the procedure names neither a
     # runner argument nor a declaration in AGENTS.md. The resolve order lives in the
-    # script, so the procedure spells no rerun and no reply step of its own.
+    # script, so the procedure spells no rerun and no reply step of its own. The installer's
+    # own `--test` lives in `## Install`, outside the delivery procedure.
+    procedure = text[: text.index("## Install")]
     for absent in (
         "gh issue create",
         "sed -i",
@@ -273,7 +275,7 @@ def test_tasks_of_a_new_change() -> None:
         "reaches its last step",
         "the reply re-runs the check",
     ):
-        assert absent not in text, absent
+        assert absent not in procedure, absent
 
 
 def test_documented_resolve_commands_parse() -> None:

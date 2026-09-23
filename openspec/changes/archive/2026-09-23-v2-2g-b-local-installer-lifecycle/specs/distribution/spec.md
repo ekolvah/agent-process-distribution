@@ -1,29 +1,4 @@
-# distribution Specification
-
-## Purpose
-How the agent process reaches a consumer project and this repository itself, and what
-footprint it leaves there.
-
-## Requirements
-
-### Requirement: CI runs the trusted driver, not the PR's copy
-The reusable quality workflow SHALL execute the process driver from the trusted default
-branch against the PR worktree, so a PR cannot change what checks it.
-
-#### Scenario: Quality check on a PR
-- **WHEN** the quality workflow runs for a PR
-- **THEN** the driver comes from the default branch and the PR's files are only its input
-
-### Requirement: This repository dogfoods its own process
-This repository SHALL expose and enable the shared Claude plugin/skill package that its
-installer installs in consumers. Repository sessions and publisher tests SHALL exercise the
-shared skill source, its portable scripts, its installer and templates, its OpenSpec rule
-pointers, and its package-version identity. Repository-only settings and v1 process files
-SHALL NOT be represented as part of the portable package.
-
-#### Scenario: Process change
-- **WHEN** the shared procedure, a portable script, the installer or a template, a rule pointer, or package metadata changes
-- **THEN** this repository's own sessions and publisher tests exercise the changed package source while its delivery gates remain intact
+## ADDED Requirements
 
 ### Requirement: The installed footprint is closed
 A confirmed installer run SHALL change only the pinned OpenSpec output, the marker-owned
@@ -95,3 +70,22 @@ consumer repository.
 #### Scenario: Confirmed run
 - **WHEN** a confirmed run completes
 - **THEN** it has issued no GitHub API or `gh` command and no commit or push, and the consumer's changes are left uncommitted in its worktree
+
+## MODIFIED Requirements
+
+### Requirement: This repository dogfoods its own process
+This repository SHALL expose and enable the shared Claude plugin/skill package that its
+installer installs in consumers. Repository sessions and publisher tests SHALL exercise the
+shared skill source, its portable scripts, its installer and templates, its OpenSpec rule
+pointers, and its package-version identity. Repository-only settings and v1 process files
+SHALL NOT be represented as part of the portable package.
+
+#### Scenario: Process change
+- **WHEN** the shared procedure, a portable script, the installer or a template, a rule pointer, or package metadata changes
+- **THEN** this repository's own sessions and publisher tests exercise the changed package source while its delivery gates remain intact
+
+## REMOVED Requirements
+
+### Requirement: The process footprint is one root plus a closed exception set
+**Reason**: It describes the Copier render deleted by `v2-0b-delete-copier-mirror`; ADR 0027 schedules its restatement together with `init`.
+**Migration**: `The installed footprint is closed` states what `init` may change in a consumer.

@@ -117,3 +117,26 @@ Run the repository review gate on the settled current head. Stop only at `ready-
 or the documented three-round escalation. Tasks after archive leave no tick in the
 repository because a pushed tick would move the reviewed head. If interrupted after archive,
 resume from `gh pr view <change>` — open the PR when there is none — not OpenSpec apply.
+
+## Install
+
+In a consumer repository, `skills/agent-process/` in the commands of this skill means this
+skill's own directory. Run from the consumer's root:
+
+1. Ask the person for the repository's complete quality command (`--test`) and an optional
+   dependency setup command (`--setup`).
+2. Run `python skills/agent-process/scripts/init.py --test "<command>" --dry-run` (add
+   `--setup "<command>"` and `--version <x.y.z>` when given) and show its whole output. A
+   `conflict` line names a path the installer does not own: the person resolves it, then the
+   dry-run runs again.
+3. Ask once; on yes run the same command with `--confirm` instead of `--dry-run`.
+4. Tell the person to review and commit the changed files. The installer never commits,
+   pushes, or writes GitHub settings.
+
+The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
+install of another version in any repository moves it for every repository. The Claude
+plugin is pinned per repository by `.claude/settings.json`, and Claude applies it only after
+the person trusts the folder. Codex without this skill starts from a temporary clone of the
+release tag (`git clone --depth 1 --branch v<x.y.z>
+https://github.com/ekolvah/agent-process-distribution.git <dir>`) and runs that clone's
+`skills/agent-process/scripts/init.py` from the consumer's root.
