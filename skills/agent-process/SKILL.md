@@ -7,8 +7,9 @@ description: Plan, implement, review, and deliver the shared GitHub agent develo
 
 Use this procedure for both Claude Code and Codex. Repository-specific facts remain in
 `openspec/config.yaml`; this skill owns the portable planning and delivery procedure. Run
-repository operations from the consumer repository root and resolve helper scripts relative
-to this skill directory.
+repository operations, and every command printed below, from the repository root, where the
+paths those commands name resolve. Placing this skill in a repository that does not carry it
+at those paths is the installer's to define.
 
 ## Proposal
 
