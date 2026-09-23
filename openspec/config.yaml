@@ -26,7 +26,7 @@ context: |
   pre-delivery gate run.
   A propose run does not end when the last schema artifact exists: its last step is the
   architect review of the `tasks` rule, and the artifacts are reported ready only once
-  openspec/changes/<name>/architect-review.md carries a Verdict that starts with `approve`
+  openspec/changes/<name>/architect-review.json is valid with verdict `approve`
   and the change's tracking issue is a Project item in `Planned` with its priority.
 
 rules:

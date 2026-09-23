@@ -50,8 +50,8 @@ delta scenario to a named test or `n/a: <reason>`.
    run> --implementer <this carrier>` — Claude or Codex, and ask the person when the planner
    is unknown, because the issue records the answer as provenance. Its text carries
    `tracking issue <N>`; the propose tail
-   replaces the placeholder, and both scripts read the token there. The script reads the
-   verdict of the architect review and the Status of the issue, creates the linked branch
+   replaces the placeholder, and both scripts read the token there. The script validates the
+   architect review, reads its verdict and the Status of the issue, creates the linked branch
    from `origin/main`, sets In Progress and posts the provenance line. On `rework`, apply
    the findings and run the review again. It prints `propose run not finished` and exits 2
    while the token still carries `<N>` or the issue is not a Project item in the Status the
@@ -72,19 +72,13 @@ delta scenario to a named test or `n/a: <reason>`.
 
 After `tasks.md`, review proposal, specifications, design, and tasks against principles
 §I–VII. Claude invokes `architect-reviewer`; Codex performs a stated self-review. Write
-`architect-review.md` with three sections: `## Verdict` — a first line starting with `approve`
-or `rework`, which is what the delivery gate reads, plus one line of reasoning; `## Findings` —
-one bullet per finding, `§<principle> · <artifact>:<heading or line> — what is wrong → what to
-change`, or `none`; `## Scenario coverage` — every scenario of the spec deltas no test can
-prove, as `<capability> / <scenario> → n/a: <reason>` with the reason `tasks.md` carries.
+`architect-review.json`, valid against `skills/agent-process/architect-review.schema.json`.
 
-A simpler design, a missing scenario mapping, a Group 1 omission without `no RED`, a platform
-fact asserted, not observed, a replaced input or dropped guard without the Design lists, or a
-catcher the review cannot trace to a reached delivery step is a finding. Findings point at
-artifacts instead of restating them. On `rework`, answer every finding and review again. The
-propose run ends on `approve`: if the change has no issue, ask once for priority and run
-`python skills/agent-process/scripts/create_tracking_issue.py <change> --priority
-<High|Medium|Low>`; otherwise run it without priority. The issue must be `Planned` before the
+Findings point at artifacts instead of restating them. On `rework`, answer every finding and
+review again. The propose run ends on `approve`: if the change has no issue, ask once for
+priority and run `python skills/agent-process/scripts/create_tracking_issue.py <change>
+--priority <High|Medium|Low>`; otherwise run it without priority. It validates the review
+first; send its errors back to the reviewer. The issue must be `Planned` before the
 plan is ready. Artifact status is file existence only: the verdict is the gate, and Group 0
 reads it.
 
