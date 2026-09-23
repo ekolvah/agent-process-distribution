@@ -10,9 +10,9 @@
 
 ## 2. Project phase
 
-- [ ] 2.1 Implement the two reads and the classification of design D1–D2 as steps 9–10 in the preflight (the truncated list is an `InstallError`); verify `python -m pytest tests/publisher/test_init.py -q -k "project_states or dry_run_writes_nothing"` is green
-- [ ] 2.2 Implement copy and link with the re-read of design D3; verify `python -m pytest tests/publisher/test_init.py -q -k "project_command_faults or retry_after_each_write or only_project_writes_remote"` is green
-- [ ] 2.3 Implement the `manual` rows of design D4 and update the module docstring's step list and remote-write sentence; verify `python -m pytest tests/publisher/test_init.py -q` is green; commit Group 2 as `feat(distribution): recoverable Project provisioning`
+- [x] 2.1 Implement the two reads and the classification of design D1–D2 as steps 9–10 in the preflight (the truncated list is an `InstallError`); verify `python -m pytest tests/publisher/test_init.py -q -k "project_states or dry_run_writes_nothing"` is green
+- [x] 2.2 Implement copy and link with the re-read of design D3; verify `python -m pytest tests/publisher/test_init.py -q -k "project_command_faults or retry_after_each_write or only_project_writes_remote"` is green
+- [x] 2.3 Implement the `manual` rows of design D4 and update the module docstring's step list and remote-write sentence; verify `python -m pytest tests/publisher/test_init.py -q` is green; commit Group 2 as `feat(distribution): recoverable Project provisioning`
 
 ## 3. Entry points and live read
 

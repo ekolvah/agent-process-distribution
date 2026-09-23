@@ -17,6 +17,8 @@ read:org, repo, workflow`):
 - `gh api graphql -f query='query($login:String!){repositoryOwner(login:$login){... on ProjectV2Owner{projectsV2(first:100){totalCount nodes{number title closed repositories{totalCount}}}}}}' -f login=ekolvah`
   printed `{"data":{"repositoryOwner":{"projectsV2":{"totalCount":2,"nodes":[{"number":4,"title":"agent-process-distribution agent process","closed":false,"repositories":{"totalCount":1}},{"number":1,…,"repositories":{"totalCount":1}}]}}}}`;
   the same query with `login=github` (an organization) printed `{"data":{"repositoryOwner":{"projectsV2":{"totalCount":16}}}}`.
+  The implemented query adds `url` to the nodes (for the `manual` rows of D4); run live on
+  2026-09-23 it printed `…{"number":4,…,"closed":false,"url":"https://github.com/users/ekolvah/projects/4","repositories":{"totalCount":1}}…`.
   `gh project list --format json` carries `totalCount` but no linked repositories, so it
   cannot tell an unlinked copy from one linked elsewhere.
 - `gh project copy --help`: `--source-owner`, `--target-owner`, `--title`, `--format json`;
