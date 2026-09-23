@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Rework applied: the spec now claims only what the three tests assert, and task 1.1 names the tests/agent_process/ fixture dir and capfd; design, RED, map, platform observations (re-observed on 8a2552c) and catchers hold.",
+  "classes": {
+    "simpler": {
+      "evidence": "Considered: (a) a line counter in ci_check.py — rejected by #161's 'standard tool' acceptance (design D2); (b) per-file-ignores or a baseline file instead of inline noqa — rejected in D4 because they exempt future functions or add a second file to sync; (c) one pylint run over all `_find_modules()` with the process rcfile instead of two scopes — rejected because every other check lints the product scope under the root config (ci_check.py check_lint/check_format), and a single rcfile would make module-size the one check that breaks that split. No scenario is served by anything smaller than D1–D4.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Three delta scenarios (Function over the complexity limit, Module over the size limit, Stale baseline entry) each map to one named test of `TestComplexityLimits` in tasks.md § Scenario → test map; scenario_coverage is empty.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 writes the three tests against a copy of the real `.agent-process/pyproject.toml`, a tracked module and an existing `tests/agent_process/` (so ruff's E902 on a missing lint path, observed, cannot mask the result), reads output with capfd, and adds an unregistered `check_module_size` stub; 1.2 runs check_red.py and commits RED. On main each fails on its assertion (no C901/RUF100 in output; the stub never exits).",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "ruff default limits and noqa-with-trailing-reason: proposal Why (ruff 0.15.12 run); re-run here: same 20 findings, 12 functions matching D4's list. RUF100 on a stale `# noqa: C901 -- baseline: x`: observed here (`RUF100 [*] Unused noqa directive (unused: C901)`), and `--extend-select RUF100` over both scopes reports nothing on existing noqa. pylint `too-many-lines` via toml `--rcfile`, `disable=all`, exit 16: proposal Why (pylint 4.0.9). CI driver from default branch and PR's requirements-dev: `.github/workflows/reusable-quality.yml` lines 37-64, 82.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard dropped: the plan only adds rules, a check and a dependency; moved test scaffolding keeps every node id (task 3.1 verifies with --collect-only).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Design Risks names three catchers for module-size on this PR's head: the pre-push hook (`.agent-process/.githooks/pre-push` line 39 runs the local ci_check.py, reached by the push of task 6.1), the test of task 2.1 (run by CI's pytest step on the PR worktree), and main's driver from the first PR after merge. pylint's supply chain: `pip-audit-dev` in CHECKS, run in this PR's CI. All traced.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec delta adds one requirement of 2 sentences, 30 words. Sentence 1 (20 words: function over complexity limits or module over size limit fails) is asserted by test_function_over_complexity_limit_fails_lint and test_module_over_size_limit_fails_module_size; sentence 2 (10 words: a suppression that no longer suppresses anything fails) by test_stale_baseline_fails_lint. Every word is asserted; the reason convention lives only in design D4 and task 3.2.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Added: `check_module_size`/`module-size` and the pylint dependency — observed problem: tests/publisher/test_init.py at 1216 lines unflagged in PR #160 (issue #161), ruff has no module-length rule; RUF100 selection — issue #161 acceptance (visible baseline stays honest), not a script; tests/publisher/conftest.py, init_harness.py, delivery_fakes.py — the two modules over the limit (proposal Why pylint run); ADR 0028 — #161 acceptance.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
