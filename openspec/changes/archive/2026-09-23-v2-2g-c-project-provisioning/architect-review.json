@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "All findings of both rounds are applied: RED nodes fail on main, read 2 runs only when no Project is linked, and every platform assumption and catcher is observed or traced to a named run or issue.",
+  "classes": {
+    "simpler": {
+      "evidence": "Considered alternatives, all rejected with a reason: classifying at apply time (D1, PR 151), parsing the copy response (D3), and reading back after the link (D3). D1 now issues read 2 only when read 1 shows no linked Project, so a repository whose board is already linked never depends on its owner's Project count; the linked rows of test_project_states assert it (D6, task 1.2).",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "All 8 delta scenarios map to a named test: No Project yet, Unlinked copy exists, Ambiguous Projects -> test_project_states; Link failed after the copy, Link output lost -> test_project_command_faults; Manual actions -> test_manual_actions_are_printed; Confirmed run -> test_only_project_writes_remote (the rename that matches the RENAMED requirement); Dry-run -> test_dry_run_writes_nothing_remote.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.3 lists only the nodes of 1.2. test_only_project_writes_remote asserts exactly one copy and one link, and test_dry_run_writes_nothing_remote asserts both reads were issued; both fail on main, which issues no gh (D6). test_project_states, test_project_command_faults and test_manual_actions_are_printed exercise behaviour that does not exist yet. test_retry_after_each_write is excluded with its reason and turns green in 2.2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design.md Context observes: the read 1 shape (with ADR 0027), the read 2 GraphQL output for a user and an organization, the help text of `gh project copy` and `gh project link`, and Project 4 `public:true` (with ADR 0027 for the copy's properties). Whether a fresh copy is listed by read 2 at once is now a Risks row. It is marked unobserved, gives its visible outcome (exit 1, retry reuses the copy), and is observed at issue 117.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced. The dropped `no gh at all` guard is narrowed in D5, which gives the new input (`gh` on PATH, its scopes, a GitHub remote), its failure modes (exit 1 in preflight, before any write), and the replacing proof (test_only_project_writes_remote).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "D5: test_only_project_writes_remote is caught by ci_check (task 4.2) on the PR head. Concurrent run: the D3 re-read InstallError, then the D2 conflict on rerun. Copy visibility: issue 117. Fake drift: task 3.2's live dry-run in this repository (Project 4 linked) runs read 1 on this head. Read 2's shape rests on the command output recorded in Context, and its first live run is issue 117. The closing paragraph of D6 and Risks row 1 now say exactly this.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec sentences are unchanged since the last round: about 87, 30, 30 and 60 words, each clause asserted by test_project_states, test_project_command_faults, test_manual_actions_are_printed, and the allow-list plus count assertions of test_only_project_writes_remote. The SKILL.md ## Install edit (task 3.1) is about 25 words of procedure that no test asserts, like the rest of that section.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The project-copy/project-link transitions close PR 151's observed Codex P2 and issue 112's scope. The manual rows come from ADR 0027 (v2-2a). FakeGitHub is a process-boundary test double (§II). The truncation InstallError now guards only the zero-linked path, where D2's uniqueness proof needs a full list. No new script or file.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

@@ -124,14 +124,16 @@ In a consumer repository, `skills/agent-process/` in the commands of this skill 
 skill's own directory. Run from the consumer's root:
 
 1. Ask the person for the repository's complete quality command (`--test`) and an optional
-   dependency setup command (`--setup`).
+   dependency setup command (`--setup`). `gh` must be authenticated with the `project`
+   scope: even the dry-run reads the repository's Projects.
 2. Run `python skills/agent-process/scripts/init.py --test "<command>" --dry-run` (add
    `--setup "<command>"` and `--version <x.y.z>` when given) and show its whole output. A
-   `conflict` line names a path the installer does not own: the person resolves it, then the
-   dry-run runs again.
+   `conflict` line names a path or Project the installer does not own: the person resolves
+   it, then the dry-run runs again.
 3. Ask once; on yes run the same command with `--confirm` instead of `--dry-run`.
-4. Tell the person to review and commit the changed files. The installer never commits,
-   pushes, or writes GitHub settings.
+4. Tell the person to review and commit the changed files and to do the `manual` rows in
+   the Project's UI. The installer never commits or pushes; its only GitHub writes are the
+   copy of the template Project and its link to the repository.
 
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
 install of another version in any repository moves it for every repository. The Claude

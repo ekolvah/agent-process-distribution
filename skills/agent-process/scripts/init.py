@@ -24,9 +24,16 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 6. workflow  the managed `.github/workflows/agent-process.yml`
 7. dependabot  the marker block of `.github/dependabot.yml`
 8. settings  two keys of `.claude/settings.json`
+9. project-copy  `gh project copy` of the template Project as `<repository> agent process`,
+                 unless the repository has a linked Project or its owner an unlinked copy
+10. project-link `gh project link` of that one unlinked copy to the repository
 
-Nothing is committed or pushed, and no GitHub state is written. `AGENT_PROCESS_REPOSITORY`
-overrides the process repository; the plan then prints it as its first line.
+Steps 9-10 are classified from `gh` reads of the repository's linked Projects and its
+owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
+The plan ends with `manual` rows — the Project's visibility and built-in workflows — that
+only its UI can change. Nothing is committed or pushed, and the Project copy and link are
+the only GitHub writes. `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
+plan then prints it as its first line.
 """
 
 from __future__ import annotations
@@ -90,6 +97,20 @@ CONFIG = "openspec/config.yaml"
 WORKFLOW = ".github/workflows/agent-process.yml"
 DEPENDABOT = ".github/dependabot.yml"
 SETTINGS = ".claude/settings.json"
+TEMPLATE_OWNER = "ekolvah"
+TEMPLATE_PROJECT = "4"
+# The owner's Projects with what tells a reusable copy from one linked elsewhere; `gh project
+# list` carries no linked repositories (observed 2026-09-23).
+PROJECTS_QUERY = (
+    "query($login:String!){repositoryOwner(login:$login){... on ProjectV2Owner{"
+    "projectsV2(first:100){totalCount nodes{number title closed url repositories{totalCount}}}"
+    "}}}"
+)
+# The built-in workflows of the template (the `state` spec's template requirement).
+WORKFLOWS = (
+    "Auto-add to project (this repository), Item added -> Todo, Item reopened -> Todo, "
+    "Item closed -> Done, Pull request merged -> Done"
+)
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
@@ -536,6 +557,130 @@ def _consumer_steps(ctx: Context) -> list[Step]:
     ]
 
 
+def _gh_json(ctx: Context, *args: str) -> Any:
+    done = ctx.call("gh", *args, cwd=ctx.root)
+    if done.stdout is None:
+        raise InstallError(f"`gh {args[0]} {args[1]}` output not captured")
+    try:
+        return json.loads(done.stdout)
+    except json.JSONDecodeError:
+        raise InstallError(f"`gh {args[0]} {args[1]}` printed no JSON") from None
+
+
+def _repository(ctx: Context) -> tuple[str, str, list[dict[str, Any]]]:
+    """Owner, name, and the Projects linked to the repository (gh prints them under `Nodes`)."""
+    data = _gh_json(ctx, "repo", "view", "--json", "owner,name,projectsV2")
+    try:
+        linked = data.get("projectsV2") or {}
+        nodes = linked.get("Nodes", linked.get("nodes")) or []
+        return str(data["owner"]["login"]), str(data["name"]), list(nodes)
+    except (AttributeError, KeyError, TypeError):
+        raise InstallError(f"`gh repo view` printed an unexpected shape: {data}") from None
+
+
+def _reusable(ctx: Context, owner: str, title: str) -> tuple[list[dict[str, Any]], list[str]]:
+    """The owner's open, unlinked Projects titled `title`, and every one so titled, named."""
+    data = _gh_json(ctx, "api", "graphql", "-f", f"query={PROJECTS_QUERY}", "-f", f"login={owner}")
+    try:
+        projects = data["data"]["repositoryOwner"]["projectsV2"]
+        nodes, total = list(projects["nodes"]), int(projects["totalCount"])
+    except (KeyError, TypeError, ValueError):
+        raise InstallError(f"the Projects of {owner} have an unexpected shape: {data}") from None
+    if total > len(nodes):
+        raise InstallError(
+            f"{owner} has {total} Projects and init reads {len(nodes)}; "
+            f"it cannot prove `{title}` unique"
+        )
+    same = [node for node in nodes if node.get("title") == title]
+    reusable = [
+        node
+        for node in same
+        if not node.get("closed") and node.get("repositories", {}).get("totalCount") == 0
+    ]
+    named = [
+        f"#{node.get('number')}"
+        + (" closed" if node.get("closed") else "")
+        + (" linked" if node.get("repositories", {}).get("totalCount") else "")
+        for node in same
+    ]
+    return reusable, named
+
+
+def _project_steps(ctx: Context) -> tuple[list[Step], str | None]:
+    """Steps 9-10 from the remote state alone, and the Project's URL when one is decided."""
+    owner, name, linked = _repository(ctx)
+    repo = f"{owner}/{name}"
+    title = f"{name} agent process"
+    if len(linked) == 1:
+        detail = f"#{linked[0].get('number')} {linked[0].get('title')!r} linked to {repo}"
+        return [
+            Step("project-copy", "unchanged", detail),
+            Step("project-link", "unchanged", detail),
+        ], linked[0].get("url")
+    if len(linked) > 1:
+        numbers = ", ".join(f"#{node.get('number')}" for node in linked)
+        return [
+            Step("project-copy", "conflict", f"{numbers} are linked to {repo}; keep one"),
+            Step("project-link", "conflict", f"several Projects are linked to {repo}"),
+        ], None
+    reusable, named = _reusable(ctx, owner, title)
+
+    def link() -> bool:
+        found, names = _reusable(ctx, owner, title)
+        if len(found) != 1:
+            listed = ", ".join(names) or "none"
+            raise InstallError(f"expected one unlinked Project `{title}` of {owner}: {listed}")
+        number = str(found[0].get("number"))
+        ctx.call("gh", "project", "link", number, "--owner", owner, "--repo", name, cwd=ctx.root)
+        return True
+
+    if len(reusable) == 1:
+        number = reusable[0].get("number")
+        return [
+            Step("project-copy", "unchanged", f"#{number} {title!r} of {owner}"),
+            Step("project-link", "planned", f"#{number} -> {repo}", link),
+        ], reusable[0].get("url")
+    if named:
+        why = "several" if reusable else "none of them open and unlinked"
+        detail = f"Projects `{title}` of {owner}: {', '.join(named)} ({why})"
+        return [
+            Step("project-copy", "conflict", detail),
+            Step("project-link", "conflict", "no single Project to link"),
+        ], None
+
+    def copy() -> bool:
+        ctx.call(
+            "gh",
+            "project",
+            "copy",
+            TEMPLATE_PROJECT,
+            "--source-owner",
+            TEMPLATE_OWNER,
+            "--target-owner",
+            owner,
+            "--title",
+            title,
+            cwd=ctx.root,
+        )
+        return True
+
+    source = f"{TEMPLATE_OWNER} #{TEMPLATE_PROJECT}"
+    return [
+        Step("project-copy", "planned", f"{source} -> {owner} as {title!r}", copy),
+        Step("project-link", "planned", f"the copy -> {repo}", link),
+    ], None
+
+
+def _manual(url: str | None) -> list[str]:
+    """What only the Project's UI can do; `init` prints it and never performs it."""
+    where = url or "the new copy"
+    return [
+        f"manual project-visibility: {where}/settings -- a copy is private; "
+        "set its visibility as intended",
+        f"manual project-workflows: {where}/workflows -- check {WORKFLOWS}",
+    ]
+
+
 # --- the run ----------------------------------------------------------------------------
 
 
@@ -614,12 +759,18 @@ def install(
                 )
                 return _hand_off(ctx, argv, tree)
         steps = [_checkout(ctx), _link(ctx)]
+        manual: list[str] = []
         if args.version != VERSION:
             steps.append(Step("hand-off", "planned", f"{ctx.tag} composes the consumer files"))
         else:
             steps.extend(_consumer_steps(ctx))
+            project, url = _project_steps(ctx)
+            steps.extend(project)
+            manual = _manual(url)
         for step in steps:
             print(f"{step.status} {step.label}: {step.detail}")
+        for line in manual:
+            print(line)
         if any(step.status == "conflict" for step in steps):
             print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
             return 2
