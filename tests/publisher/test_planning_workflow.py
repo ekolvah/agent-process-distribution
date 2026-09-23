@@ -254,6 +254,13 @@ def test_printed_commands_run_as_printed() -> None:
         assert (ROOT / command.split()[1]).is_file(), command
 
 
+def test_group0_names_each_carrier_and_asks_when_the_planner_is_unknown() -> None:
+    """The provenance the issue records is a fact: an unknown planner is asked for, not assumed."""
+    group0 = _group0()
+    assert "propose run" in group0, "`--planner` does not say whose carrier it names"
+    assert "ask" in group0 and "unknown" in group0
+
+
 def test_the_header_promises_the_resolution_its_commands_use() -> None:
     """Every printed command resolves from the repository root: the header promises no other base."""
     skill = _skill()
