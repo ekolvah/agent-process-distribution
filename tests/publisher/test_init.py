@@ -545,6 +545,12 @@ def _write(sb: Sandbox, rel: str, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _write_bytes(sb: Sandbox, rel: str, data: bytes) -> None:
+    path = sb.root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
 def _settings(repo: str = "ekolvah/agent-process-distribution", enabled: Any = True) -> str:
     return json.dumps(
         {
@@ -637,6 +643,29 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
             "explicit-key": "? rules\n: {}\n",
             "tagged": "!!str rules:\n  proposal: []\n",
             "flow-mapping": "{rules: {}}\n",
+            "indented": "  rules:\n    proposal: []\n",
+        }.items()
+    },
+    # Only a single document whose root starts at column 0 makes a column-0 `rules` key the
+    # whole top-level check, and only there does the appended block stay valid YAML.
+    "config-indented-root": (
+        "config",
+        lambda init, sb: _write(sb, "openspec/config.yaml", "  schema: spec-driven\n"),
+    ),
+    "config-several-documents": (
+        "config",
+        lambda init, sb: _write(sb, "openspec/config.yaml", "schema: a\n---\nschema: b\n"),
+    ),
+    **{
+        f"{label}-not-utf8": (
+            label,
+            lambda init, sb, rel=rel: _write_bytes(sb, rel, b"\xff\xfe\x00"),
+        )
+        for label, rel in {
+            "config": "openspec/config.yaml",
+            "workflow": ".github/workflows/agent-process.yml",
+            "dependabot": ".github/dependabot.yml",
+            "settings": ".claude/settings.json",
         }.items()
     },
     # A managed path that is not a regular file, or a parent that is not a directory, is
@@ -800,3 +829,35 @@ def test_capture_contract() -> None:
     assert captured.stdout == "é✓"
     inherited = init.run([sys.executable, "-c", "pass"], capture=False)
     assert inherited.stdout is None and inherited.stderr is None
+
+
+@pytest.mark.parametrize(
+    ("stdout", "stderr", "present", "absent"),
+    [
+        (None, None, "output not captured", None),
+        (None, "boom", "boom", "not captured"),
+        ("out", None, "out", "not captured"),
+        ("", "", "exited 1", "not captured"),
+    ],
+)
+def test_failure_keeps_absent_streams_visible(
+    tmp_path: Path, stdout: str | None, stderr: str | None, present: str, absent: str | None
+) -> None:
+    """An uncaptured stream is not captured empty output: the diagnostic says which it was."""
+    init = _init()
+    ctx = init.Context(
+        root=tmp_path,
+        home=tmp_path,
+        platform=HOST,
+        runner=lambda cmd, **_: subprocess.CompletedProcess(cmd, 1, stdout, stderr),
+        which=lambda name: name,
+        repository="",
+        version="",
+        setup="",
+        test="",
+    )
+    with pytest.raises(init.InstallError) as raised:
+        ctx.call("tool", "arg")
+    assert present in str(raised.value)
+    if absent:
+        assert absent not in str(raised.value)
