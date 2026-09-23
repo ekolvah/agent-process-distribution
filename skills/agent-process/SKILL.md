@@ -54,8 +54,8 @@ delta scenario to a named test or `n/a: <reason>`.
    `no RED: <reason>` as the task.
 3. Implementation groups: one task per scenario, design decision, or review finding, each
    with its verification command. End each coherent group with a commit.
-4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the
-   repository's complete quality command.
+4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the complete
+   quality command the repository names in the context of `openspec/config.yaml`.
 5. Deliver using the procedure below. The person merges.
 
 ## Architect review
@@ -91,8 +91,8 @@ reads unresolved threads on that head.
 
 Apply findings and repeat at most three rounds. After a push, re-request and run
 `wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
-settled review, with `resolve_review_thread.py --repo <owner/repo> --pr <PR> --thread <id>
---reply-file <path>`; the script
+settled review, with `python skills/agent-process/scripts/resolve_review_thread.py --repo
+<owner/repo> --pr <PR> --thread <id> --reply-file <path>`; the script
 refuses a current-head thread, re-runs the required check, and replies last. A P2/P3 thread is
 answered, never resolved by the process. A spec correction uses and archives its own delta,
 never a direct edit of `openspec/specs/`. A changed design decision amends the archived

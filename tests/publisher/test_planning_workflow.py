@@ -69,9 +69,9 @@ def _script(name: str) -> ModuleType:
 
 
 def _printed_commands(text: str) -> list[str]:
-    """Code spans that name a script with arguments: what an agent copies and runs."""
+    """Code spans that invoke a script: what an agent copies and runs, not a bare mention."""
     spans = re.findall(r"`([^`]+)`", " ".join(text.split()))
-    return [span for span in spans if ".py" in span and (" -" in span or " <" in span)]
+    return [span for span in spans if ".py" in span and " " in span]
 
 
 def _documented_argv(script: str) -> list[str]:
