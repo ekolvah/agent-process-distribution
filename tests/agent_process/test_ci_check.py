@@ -573,6 +573,28 @@ class TestComplexityLimits:
 
         assert "subject.py" in capfd.readouterr().out
 
+    @pytest.mark.parametrize(
+        ("config_name", "config"),
+        [("pytest.ini", "[pytest]\n"), ("pyproject.toml", "[project]\nname = 'p'\n")],
+    )
+    def test_product_scope_without_pylint_config_is_not_size_checked(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+        config_name: str,
+        config: str,
+    ) -> None:
+        """A consumer's product code gets no limit it did not configure."""
+        self._process_repo(tmp_path, monkeypatch, "x = 1\n")
+        (tmp_path / config_name).write_text(config, encoding="utf-8")
+        (tmp_path / "product.py").write_text("x = 1\n" * 1001, encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+
+        ci_check.check_module_size()
+
+        assert "product scope: no [tool.pylint]" in capfd.readouterr().out
+
     def test_stale_baseline_fails_lint(
         self,
         tmp_path: Path,

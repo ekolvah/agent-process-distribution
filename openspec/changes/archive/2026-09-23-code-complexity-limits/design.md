@@ -32,9 +32,11 @@ none of them a de-facto standard).
 
 **D3 — `check_module_size` mirrors `check_lint`.** Registered as `module-size` after `lint`. It
 runs `python -m pylint --rcfile .agent-process/pyproject.toml` on the `_find_modules()` files
-under `_PROCESS_PATHS`, and, when `_has_product_scope()`, `python -m pylint --rcfile
-pyproject.toml` on the remaining files; an empty product list skips that run, as
-`check_mypy` does. Any non-zero pylint exit (a bit mask; 16 = convention) fails through
+under `_PROCESS_PATHS`, and, when `_has_product_scope()` and the root `pyproject.toml` has a
+`[tool.pylint]` section, `python -m pylint --rcfile pyproject.toml` on the remaining files. An
+empty product list skips that run, as `check_mypy` does. A product scope without that section
+prints that it is not checked: without it pylint would run its full default rule set, and a
+consumer would get limits it did not configure (D6). Any non-zero pylint exit (a bit mask; 16 = convention) fails through
 `_run`. Explicit file lists, not directories: pylint needs no package layout and never imports
 the files.
 
