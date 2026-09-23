@@ -7,11 +7,13 @@ footprint it leaves there.
 ## Requirements
 
 ### Requirement: CI runs the trusted driver, not the PR's copy
-The reusable quality workflow SHALL execute the process driver from the trusted default
-branch against the PR worktree, so a PR cannot change what checks it.
+A required quality context SHALL execute the process driver from the trusted default
+branch against the PR worktree, so a PR cannot change what checks it. A context that runs
+the PR's own driver SHALL NOT become required until its change names what catches a PR
+that weakens that driver.
 
 #### Scenario: Quality check on a PR
-- **WHEN** the quality workflow runs for a PR
+- **WHEN** a required quality context runs for a PR
 - **THEN** the driver comes from the default branch and the PR's files are only its input
 
 ### Requirement: This repository dogfoods its own process

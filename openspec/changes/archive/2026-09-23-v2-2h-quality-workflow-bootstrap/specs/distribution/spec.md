@@ -23,3 +23,15 @@ takes caller and callee from the same commit.
 #### Scenario: Publisher PR
 - **WHEN** a PR of this repository runs its workflows
 - **THEN** `agent-process / quality` runs `python .agent-process/scripts/ci_check.py` from the callee at the PR's own commit
+
+## MODIFIED Requirements
+
+### Requirement: CI runs the trusted driver, not the PR's copy
+A required quality context SHALL execute the process driver from the trusted default
+branch against the PR worktree, so a PR cannot change what checks it. A context that runs
+the PR's own driver SHALL NOT become required until its change names what catches a PR
+that weakens that driver.
+
+#### Scenario: Quality check on a PR
+- **WHEN** a required quality context runs for a PR
+- **THEN** the driver comes from the default branch and the PR's files are only its input

@@ -94,6 +94,8 @@ A PR that weakens the checks `agent-process / quality` runs is caught by the req
 `quality / quality` run on the same head (v1 `reusable-quality.yml`, driver from the
 default branch). Whether this stays a proof once the new context becomes required is issue
 154's decision, and its design must list the catcher.
+The `distribution` delta states this as a modified requirement: the trusted driver binds a
+required context, and a PR-owned driver stays non-required until its catcher is named.
 
 ### D4. The template follows
 

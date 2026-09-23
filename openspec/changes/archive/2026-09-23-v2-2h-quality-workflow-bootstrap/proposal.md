@@ -51,6 +51,8 @@ None.
 
 - `distribution`: add `The quality callee runs the caller's commands` and `Callers reach the
   quality callee` (consumer pin versus publisher same-commit path, one context name).
+  Modify `CI runs the trusted driver, not the PR's copy` to bind the required context, so
+  the new context's PR-owned driver stays non-required until issue 154 names its catcher.
 
 ## Impact
 
