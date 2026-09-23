@@ -13,11 +13,13 @@ to this skill directory.
 ## Proposal
 
 - Read the code and prior art before writing. Ask the person when a scope decision is theirs.
-- For a bug, record the reproduction and root cause under **Why** before any design.
+- For a bug, record the reproduction — the failing test, or the exact observation when a test
+  needs project-specific capture — and the root cause under **Why** before any design.
 - **Impact** lists every file added, edited, and removed; keep doc-only work separate.
 - When a design rests on platform behaviour, verify it before the proposal and record the
   observation, not the inference: cite the reference page and sentence, or a run id or exact
-  command output. Point to an observation already on record instead of repeating it.
+  command output — a run of a standard checker counts, a listing, a name or an inference from
+  another behaviour does not. Point to an observation already on record instead of repeating it.
 
 ## Specifications
 
@@ -62,9 +64,11 @@ delta scenario to a named test or `n/a: <reason>`.
 
 After `tasks.md`, review proposal, specifications, design, and tasks against principles
 §I–VII. Claude invokes `architect-reviewer`; Codex performs a stated self-review. Write
-`architect-review.md` with `## Verdict` — a first line starting with `approve` or `rework`,
-which is what the delivery gate reads, plus one line of reasoning — `## Findings`, and
-`## Scenario coverage`.
+`architect-review.md` with three sections: `## Verdict` — a first line starting with `approve`
+or `rework`, which is what the delivery gate reads, plus one line of reasoning; `## Findings` —
+one bullet per finding, `§<principle> · <artifact>:<heading or line> — what is wrong → what to
+change`, or `none`; `## Scenario coverage` — every scenario of the spec deltas no test can
+prove, as `<capability> / <scenario> → n/a: <reason>` with the reason `tasks.md` carries.
 
 A simpler design, a missing scenario mapping, a Group 1 omission without `no RED`, a platform
 fact asserted, not observed, a replaced input or dropped guard without the Design lists, or a
@@ -89,16 +93,21 @@ Codex evidence arrives. Then run `python skills/agent-process/scripts/wait_for_p
 it waits until two reads 30 seconds apart agree that all checks on one head concluded, then
 reads unresolved threads on that head.
 
-Apply findings and repeat at most three rounds. After a push, re-request and run
+Apply findings and repeat at most three rounds; the fourth leaves the rest to the person with
+a reply. After a push, re-request and run
 `wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
-settled review, with `python skills/agent-process/scripts/resolve_review_thread.py --repo
-<owner/repo> --pr <PR> --thread <id> --reply-file <path>`; the script
+settled review: `python skills/agent-process/scripts/resolve_review_thread.py --repo
+<owner/repo> --pr <PR> --list` prints the open threads with the `<id>` of each, then
+`python skills/agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
+--thread <id> --reply-file <path>` closes one; the script
 refuses a current-head thread, re-runs the required check, and replies last. A P2/P3 thread is
-answered, never resolved by the process. A spec correction uses and archives its own delta,
-never a direct edit of `openspec/specs/`. A changed design decision amends the archived
+answered, never resolved by the process. A spec correction goes through a change of its own on
+the PR branch — `npx -y @fission-ai/openspec@1.13.0 new change <name>`, the delta under its
+`specs/`, `validate --strict`, then `python skills/agent-process/scripts/archive_change.py
+<name>` — never a direct edit of `openspec/specs/`. A changed design decision amends the archived
 `design.md` and scenario map in the same push. A finding on script behavior must be closed by its class:
-test the violated invariant and relevant inputs, including what each switch takes away; test
-the class, not the reviewer's example.
+test the violated invariant, the other inputs that violate it from the tool's own
+documentation, and what each switch takes away; test the class, not the reviewer's example.
 
 Run the repository review gate on the settled current head. Stop only at `ready-for-human`
 or the documented three-round escalation. Tasks after archive leave no tick in the
