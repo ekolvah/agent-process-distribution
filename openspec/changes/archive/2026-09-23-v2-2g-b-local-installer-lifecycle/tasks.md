@@ -27,7 +27,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py v2-2g-b-local-installer-lifecycle`; verify it applies the `distribution` delta, commits the archive, and pushes the branch
+- [x] 5.1 With a clean worktree run `python skills/agent-process/scripts/archive_change.py v2-2g-b-local-installer-lifecycle`; verify it applies the `distribution` delta, commits the archive, and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "v2-2g-b-local-installer-lifecycle" --body-file <report>`; the report references issue 155 without `Closes`, carries the scenario → test map, names issues 156, 153, 154, 114 as excluded ownership, and carries the Windows-host run of task 2.4, and records under deferrals that issue 153 must declare exactly the `setup` and `test` inputs the caller template passes (design D5)
 - [ ] 5.3 Run `python .agent-process/scripts/request_codex_review.py --request <PR>` and `python skills/agent-process/scripts/wait_for_pr.py <PR>`; after each corrective push run both again; resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`, answer P2/P3 without resolving, run `python .agent-process/scripts/review_gate.py <PR>` on the settled head, and stop at `ready-for-human` or the three-round escalation
 
