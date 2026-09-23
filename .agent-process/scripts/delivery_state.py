@@ -99,7 +99,7 @@ def _decision(action: str, reason: str, next_action: str = "") -> Decision:
     return Decision(action=action, reason=reason, next_action=next_action)
 
 
-def decide(
+def decide(  # noqa: PLR0911 -- baseline: v1 control plane that v2 removes (ADR 0027)
     branch: str,
     head: str,
     ci_stamp: str | None,

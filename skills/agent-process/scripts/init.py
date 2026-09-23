@@ -306,7 +306,7 @@ class Context:
         return self.call("git", *args, env=env, check=check)
 
 
-def _checkout(ctx: Context) -> Step:
+def _checkout(ctx: Context) -> Step:  # noqa: C901, PLR0911 -- baseline: one outcome per checkout state
     path, tag = ctx.checkout, ctx.tag
     if not os.path.lexists(path):
         if reason := _parent_conflict(path):
@@ -708,7 +708,7 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def install(
+def install(  # noqa: C901, PLR0911, PLR0912, PLR0913 -- baseline: refactoring tracked in #162
     argv: list[str],
     *,
     root: Path,

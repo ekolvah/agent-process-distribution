@@ -94,7 +94,7 @@ def head_ref_oid(payload: object) -> str:
     return str(pull["headRefOid"])
 
 
-def review_threads(payload: object) -> list[ReviewThread]:
+def review_threads(payload: object) -> list[ReviewThread]:  # noqa: C901, PLR0912 -- baseline: validates each field of the GraphQL payload
     """Return the open threads whose first comment is a labelled reviewer finding."""
     if not isinstance(payload, Mapping):
         raise RuntimeError("GraphQL payload is not an object")

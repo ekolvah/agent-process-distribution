@@ -212,7 +212,7 @@ def _completed_roles(state: WorkflowState) -> tuple[str, ...]:
     return tuple(completed)
 
 
-def _decision(
+def _decision(  # noqa: PLR0913 -- baseline: v1 control plane that v2 removes (ADR 0027)
     role: str,
     catalogue: Mapping[str, Any],
     state: WorkflowState,
@@ -267,7 +267,7 @@ def _discovery_decision(state: WorkflowState, catalogue: dict[str, Any]) -> Rout
     return _decision("discovery", catalogue, state)
 
 
-def _planning_decision(state: WorkflowState, catalogue: dict[str, Any]) -> RouteDecision | None:
+def _planning_decision(state: WorkflowState, catalogue: dict[str, Any]) -> RouteDecision | None:  # noqa: PLR0911 -- baseline: v1 control plane that v2 removes (ADR 0027)
     roles = catalogue["roles"]
     if not state.plan_completed:
         if state.planner_runs >= roles["planner"]["max_runs"]:
@@ -333,7 +333,7 @@ def _implementation_decision(
     return None
 
 
-def _review_decision(state: WorkflowState, catalogue: dict[str, Any]) -> RouteDecision:
+def _review_decision(state: WorkflowState, catalogue: dict[str, Any]) -> RouteDecision:  # noqa: PLR0911 -- baseline: v1 control plane that v2 removes (ADR 0027)
     roles = catalogue["roles"]
     if not state.head_sha:
         return _decision(

@@ -130,7 +130,7 @@ def reviewed(
     return False
 
 
-def wait_for_review(
+def wait_for_review(  # noqa: PLR0913 -- baseline: polling clock and limits are injected for tests
     repo: str,
     pr: str,
     head: str,

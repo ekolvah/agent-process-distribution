@@ -16,15 +16,12 @@ shapes and applies `project copy` and `project link` to its own Projects.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
@@ -32,10 +29,28 @@ from typing import Any, Callable
 import pytest
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
-PACKAGE = ROOT / "skills" / "agent-process"
-INIT = PACKAGE / "scripts" / "init.py"
-HOST = "win32" if sys.platform == "win32" else "linux"
+from tests.publisher.init_harness import (
+    HOST,
+    OWNER,
+    REPO_NAME,
+    ROOT,
+    TITLE,
+    FakeGitHub,
+    Runner,
+    Sandbox,
+    git,
+    head_commit,
+    host_link,
+    install,
+    is_link,
+    link_command,
+    load_init,
+    relative,
+    snapshot,
+    tag_commit,
+    transitions,
+)
+
 LABELS = [
     "checkout",
     "link",
@@ -54,357 +69,13 @@ CONSUMER_FILES = {
 }
 MARKETPLACE = "agent-process-marketplace"
 PLUGIN = "agent-process@agent-process-marketplace"
-_LINE = re.compile(r"^(planned|unchanged|written|conflict) ([a-z-]+):", re.MULTILINE)
-_GIT = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
-STUB = """\
-import json
-import os
-import sys
-from pathlib import Path
-
-print("stub-release v2.1.0")
-print("argv " + json.dumps(sys.argv[1:]))
-print("cwd " + os.getcwd())
-print("file " + str(Path(__file__).resolve()))
-sys.exit(int(os.environ.get("STUB_EXIT", "0")))
-"""
-
-
-def _init() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("agent_process_init", INIT)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def _git(*args: str, cwd: Path | None = None) -> str:
-    done = subprocess.run(
-        [*_GIT, *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8", check=True
-    )
-    return done.stdout.strip()
-
-
-# --- the fixture repository -------------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def process_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A bare repository: `v2.0.0` carries this tree's skill, `v2.1.0` the recording stub."""
-    base = tmp_path_factory.mktemp("process")
-    work = base / "work"
-    shutil.copytree(
-        PACKAGE, work / "skills" / "agent-process", ignore=shutil.ignore_patterns("__pycache__")
-    )
-    _git("init", "-q", str(work))
-    _git("add", "-A", cwd=work)
-    _git("commit", "-q", "-m", "v2.0.0", cwd=work)
-    _git("tag", "v2.0.0", cwd=work)
-    (work / "skills" / "agent-process" / "scripts" / "init.py").write_text(STUB, encoding="utf-8")
-    _git("commit", "-q", "-am", "v2.1.0", cwd=work)
-    _git("tag", "v2.1.0", cwd=work)
-    bare = base / "process.git"
-    _git("clone", "-q", "--bare", str(work), str(bare))
-    return bare
 
 
 def test_fixture_tags_carry_releases(process_repo: Path) -> None:
-    released = _git("show", "v2.0.0:skills/agent-process/SKILL.md", cwd=process_repo)
+    released = git("show", "v2.0.0:skills/agent-process/SKILL.md", cwd=process_repo)
     assert released.startswith("---\nname: agent-process")
-    stub = _git("show", "v2.1.0:skills/agent-process/scripts/init.py", cwd=process_repo)
+    stub = git("show", "v2.1.0:skills/agent-process/scripts/init.py", cwd=process_repo)
     assert "stub-release v2.1.0" in stub
-
-
-OWNER = "ekolvah"
-REPO_NAME = "consumer"
-TITLE = f"{REPO_NAME} agent process"
-PUBLISHER = "ekolvah/agent-process-distribution"
-
-
-@dataclass
-class Project:
-    owner: str
-    number: int
-    title: str
-    closed: bool = False
-    repositories: set[str] = field(default_factory=set)
-
-    @property
-    def url(self) -> str:
-        return f"https://github.com/users/{self.owner}/projects/{self.number}"
-
-
-class FakeGitHub:
-    """GitHub behind `gh` for the consumer `ekolvah/consumer`. It starts with template
-    Project 4 linked to the publisher; `faults[command]` makes the next `copy` or `link`
-    exit 1 either before its effect or after it (the lost response)."""
-
-    def __init__(self) -> None:
-        self.projects = [Project(OWNER, 4, "agent-process-distribution agent process")]
-        self.projects[0].repositories.add(PUBLISHER)
-        self.faults: dict[str, str] = {}
-        self.hidden = 0  # Projects the owner has beyond the first page
-
-    def add(self, title: str = TITLE, *, closed: bool = False, linked: str = "") -> Project:
-        project = Project(OWNER, self._next(), title, closed)
-        if linked:
-            project.repositories.add(linked)
-        self.projects.append(project)
-        return project
-
-    def _next(self) -> int:
-        return max(p.number for p in self.projects) + 1
-
-    def state(self) -> list[tuple[str, int, str, bool, list[str]]]:
-        return [
-            (p.owner, p.number, p.title, p.closed, sorted(p.repositories)) for p in self.projects
-        ]
-
-    def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
-        def done(payload: Any = None, code: int = 0) -> subprocess.CompletedProcess[str]:
-            out = "" if payload is None else json.dumps(payload)
-            return subprocess.CompletedProcess(args, code, out, "fault" if code else "")
-
-        if args[:2] == ["repo", "view"]:
-            assert args[2:] == ["--json", "owner,name,projectsV2"], args
-            repo = f"{OWNER}/{REPO_NAME}"
-            linked = [
-                {
-                    "number": p.number,
-                    "title": p.title,
-                    "closed": p.closed,
-                    "url": p.url,
-                    "resourcePath": f"/users/{p.owner}/projects/{p.number}",
-                }
-                for p in self.projects
-                if repo in p.repositories
-            ]
-            return done(
-                {"name": REPO_NAME, "owner": {"login": OWNER}, "projectsV2": {"Nodes": linked}}
-            )
-        if args[:2] == ["api", "graphql"]:
-            assert f"login={OWNER}" in args, args
-            owned = [p for p in self.projects if p.owner == OWNER]
-            nodes = [
-                {
-                    "number": p.number,
-                    "title": p.title,
-                    "closed": p.closed,
-                    "url": p.url,
-                    "repositories": {"totalCount": len(p.repositories)},
-                }
-                for p in owned
-            ]
-            total = len(owned) + self.hidden
-            projects = {"totalCount": total, "nodes": nodes}
-            return done({"data": {"repositoryOwner": {"projectsV2": projects}}})
-        if args[:2] == ["project", "copy"]:
-            fault = self.faults.pop("copy", "")
-            if fault == "fail-before":
-                return done(code=1)
-            number, flags = args[2], dict(zip(args[3::2], args[4::2]))
-            assert (number, flags["--source-owner"]) == ("4", OWNER), args
-            self.projects.append(Project(flags["--target-owner"], self._next(), flags["--title"]))
-            return done(code=1 if fault else 0)
-        if args[:2] == ["project", "link"]:
-            fault = self.faults.pop("link", "")
-            if fault == "fail-before":
-                return done(code=1)
-            number, flags = int(args[2]), dict(zip(args[3::2], args[4::2]))
-            (project,) = [
-                p for p in self.projects if (p.owner, p.number) == (flags["--owner"], number)
-            ]
-            project.repositories.add(f"{flags['--owner']}/{flags['--repo']}")
-            return done(code=1 if fault else 0)
-        raise AssertionError(f"unexpected gh command: {args}")
-
-
-@dataclass
-class Sandbox:
-    root: Path
-    home: Path
-    repo: Path
-    other: Path
-    github: FakeGitHub = field(default_factory=FakeGitHub)
-
-    @property
-    def checkout(self) -> Path:
-        return self.home / ".agent-process" / "distribution"
-
-    @property
-    def link(self) -> Path:
-        return self.home / ".agents" / "skills" / "agent-process"
-
-
-@pytest.fixture
-def sandbox(tmp_path: Path, process_repo: Path, monkeypatch: pytest.MonkeyPatch) -> Sandbox:
-    root, home, other = tmp_path / "consumer", tmp_path / "home", tmp_path / "other"
-    for path in (root, home, other):
-        path.mkdir()
-    monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("USERPROFILE", str(home))
-    monkeypatch.setenv("AGENT_PROCESS_REPOSITORY", str(process_repo))
-    monkeypatch.delenv("STUB_EXIT", raising=False)
-    return Sandbox(root, home, process_repo, other)
-
-
-def _host_link(target: Path, link: Path) -> None:
-    """A link the host can create without privilege: a junction on Windows, else a symlink."""
-    link.parent.mkdir(parents=True, exist_ok=True)
-    if HOST == "win32":
-        subprocess.run(
-            ["cmd", "/c", "mklink", "/J", str(link), str(target)],
-            capture_output=True,
-            check=True,
-        )
-    else:
-        os.symlink(target, link, target_is_directory=True)
-
-
-def _is_link(path: Path) -> bool:
-    return os.path.islink(path) or os.path.isjunction(path)
-
-
-class Runner:
-    """The process boundary: logs each command, hands `gh` to the fake GitHub, emulates `npx`
-    (unless `real_npx`) and the other platform's link command, and runs every other command
-    for real through the installer's `run`."""
-
-    def __init__(
-        self, init: ModuleType, platform: str, github: FakeGitHub, *, real_npx: bool = False
-    ) -> None:
-        self.init = init
-        self.platform = platform
-        self.github = github
-        self.real_npx = real_npx
-        self.log: list[list[str]] = []
-
-    def gh(self, *prefix: str) -> list[list[str]]:
-        """The logged `gh` commands whose arguments start with `prefix`."""
-        return [
-            cmd[1:] for cmd in self.log if _is_gh(cmd) and cmd[1 : 1 + len(prefix)] == list(prefix)
-        ]
-
-    def __call__(
-        self,
-        cmd: list[str],
-        *,
-        cwd: Path | None = None,
-        env: dict[str, str] | None = None,
-        capture: bool = True,
-    ) -> subprocess.CompletedProcess[str]:
-        self.log.append([str(part) for part in cmd])
-        name = Path(cmd[0]).name.lower()
-        if _is_gh(cmd):
-            return self.github([str(part) for part in cmd[1:]])
-        if name.startswith("npx") and not self.real_npx:
-            assert cwd is not None
-            for rel in self.init.OPENSPEC_OUTPUT:
-                path = Path(cwd) / rel
-                if not path.exists():
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    text = "schema: spec-driven\n" if rel == "openspec/config.yaml" else "x\n"
-                    path.write_text(text, encoding="utf-8")
-            return subprocess.CompletedProcess(cmd, 0, "", "")
-        if self.platform != HOST and _link_command(cmd):
-            link, target = _link_command(cmd)
-            _host_link(target, link)
-            return subprocess.CompletedProcess(cmd, 0, "", "")
-        return self.init.run(cmd, cwd=cwd, env=env, capture=capture)
-
-    def state_changing(self) -> list[str]:
-        """One key per command that changes persistent state."""
-        keys = []
-        for cmd in self.log:
-            name = Path(cmd[0]).name.lower()
-            if name.startswith("npx"):
-                keys.append("npx")
-            elif _is_gh(cmd) and cmd[1:2] == ["project"]:
-                keys.append(f"gh-{cmd[2]}")
-            elif _link_command(cmd):
-                keys.append("link")
-            elif name.startswith("git") and cmd[1:2] != ["-C"] and "clone" in cmd:
-                keys.append("clone")
-            elif name.startswith("git") and ("fetch" in cmd or "checkout" in cmd):
-                keys.append(cmd[3] if cmd[1] == "-C" else cmd[1])
-        return keys
-
-
-def _is_gh(cmd: list[str]) -> bool:
-    return Path(str(cmd[0])).stem.lower() == "gh"
-
-
-def _link_command(cmd: list[str]) -> tuple[Path, Path] | None:
-    """(link, target) of `cmd /c mklink /J <link> <target>` or `ln -s <target> <link>`."""
-    parts = [str(part) for part in cmd]
-    name = Path(parts[0]).name.lower()
-    if name.startswith("cmd") and parts[1:4] == ["/c", "mklink", "/J"]:
-        return Path(parts[4]), Path(parts[5])
-    if name.startswith("ln") and parts[1:2] == ["-s"]:
-        return Path(parts[-1]), Path(parts[-2])
-    return None
-
-
-def _which(name: str) -> str:
-    return shutil.which(name) or name
-
-
-def _install(
-    init: ModuleType,
-    sb: Sandbox,
-    *args: str,
-    platform: str = HOST,
-    runner: Runner | None = None,
-    on_write: Callable[[str], None] | None = None,
-    test: str = "pytest -q",
-) -> int:
-    return init.install(
-        ["--test", test, *args],
-        root=sb.root,
-        home=sb.home,
-        platform=platform,
-        runner=runner or Runner(init, platform, sb.github),
-        which=_which,
-        on_write=on_write or (lambda label: None),
-    )
-
-
-def _snapshot(*bases: Path) -> dict[str, Any]:
-    """Every file's bytes and every link's resolved target, keyed by path."""
-    state: dict[str, Any] = {}
-    for base in bases:
-        for top, dirs, files in os.walk(base):
-            for name in list(dirs):
-                path = Path(top) / name
-                if _is_link(path):
-                    state[str(path)] = ("link", os.path.realpath(path))
-                    dirs.remove(name)
-            for name in files:
-                path = Path(top) / name
-                if _is_link(path):
-                    state[str(path)] = ("link", os.path.realpath(path))
-                else:
-                    state[str(path)] = path.read_bytes()
-    return state
-
-
-def _relative(state: dict[str, Any], base: Path) -> dict[str, Any]:
-    prefix = str(base) + os.sep
-    return {key[len(prefix) :]: value for key, value in state.items() if key.startswith(prefix)}
-
-
-def _transitions(out: str) -> dict[str, str]:
-    """The last status each label printed."""
-    return {label: status for status, label in _LINE.findall(out)}
-
-
-def _head(path: Path) -> str:
-    return _git("rev-parse", "HEAD", cwd=path)
-
-
-def _tag(sb: Sandbox, tag: str) -> str:
-    return _git("rev-parse", f"{tag}^{{commit}}", cwd=sb.repo)
 
 
 # --- the lifecycle table ----------------------------------------------------------------
@@ -416,22 +87,22 @@ def _tag(sb: Sandbox, tag: str) -> str:
 def test_lifecycle(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], scenario: str, mode: str, platform: str
 ) -> None:
-    init = _init()
+    init = load_init()
     if scenario != "fresh":
-        assert _install(init, sandbox, "--confirm", platform=platform) == 0
+        assert install(init, sandbox, "--confirm", platform=platform) == 0
     if mode == "retry":
         version = "2.1.0" if scenario == "upgrade" else "2.0.0"
-        assert _install(init, sandbox, "--confirm", "--version", version, platform=platform) == 0
+        assert install(init, sandbox, "--confirm", "--version", version, platform=platform) == 0
     capfd.readouterr()
-    before = _snapshot(sandbox.root, sandbox.home)
+    before = snapshot(sandbox.root, sandbox.home)
     version = ["--version", "2.1.0"] if scenario == "upgrade" else []
     flag = "--dry-run" if mode == "dry-run" else "--confirm"
-    code = _install(init, sandbox, flag, *version, platform=platform)
+    code = install(init, sandbox, flag, *version, platform=platform)
     out = capfd.readouterr().out
-    after = _snapshot(sandbox.root, sandbox.home)
+    after = snapshot(sandbox.root, sandbox.home)
     assert code == 0, out
     assert out.splitlines()[0] == f"repository: {sandbox.repo}"
-    seen = _transitions(out)
+    seen = transitions(out)
     if scenario == "upgrade":
         assert "stub-release v2.1.0" in out
         argv = json.loads(next(ln for ln in out.splitlines() if ln.startswith("argv "))[5:])
@@ -444,7 +115,7 @@ def test_lifecycle(
                 "link": "unchanged",
                 "hand-off": "planned",
             }
-            assert _head(sandbox.checkout) == _tag(sandbox, "v2.1.0")
+            assert head_commit(sandbox.checkout) == tag_commit(sandbox, "v2.1.0")
         return
     if scenario == "fresh" and mode != "retry":
         expected = "planned" if mode == "dry-run" else "written"
@@ -454,7 +125,7 @@ def test_lifecycle(
     if expected != "written":
         assert after == before
     else:
-        assert _head(sandbox.checkout) == _tag(sandbox, "v2.0.0")
+        assert head_commit(sandbox.checkout) == tag_commit(sandbox, "v2.0.0")
 
 
 def test_other_version_dry_run_leaves_no_state(
@@ -463,13 +134,13 @@ def test_other_version_dry_run_leaves_no_state(
     capfd: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    init = _init()
+    init = load_init()
     scratch = tmp_path / "scratch"
     scratch.mkdir()
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     monkeypatch.setenv("STUB_EXIT", "3")
-    before = _snapshot(sandbox.root, sandbox.home)
-    code = _install(init, sandbox, "--dry-run", "--version", "2.1.0")
+    before = snapshot(sandbox.root, sandbox.home)
+    code = install(init, sandbox, "--dry-run", "--version", "2.1.0")
     out = capfd.readouterr().out
     assert code == 3
     assert "stub-release v2.1.0" in out
@@ -477,42 +148,42 @@ def test_other_version_dry_run_leaves_no_state(
     argv = json.loads(next(ln for ln in lines if ln.startswith("argv "))[5:])
     assert argv == ["--test", "pytest -q", "--dry-run", "--version", "2.1.0", "--selected-release"]
     assert f"cwd {sandbox.root}" in lines
-    assert _snapshot(sandbox.root, sandbox.home) == before
+    assert snapshot(sandbox.root, sandbox.home) == before
     assert list(scratch.iterdir()) == []
 
 
 def test_confirm_selects_release_before_composing(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
 ) -> None:
-    init = _init()
+    init = load_init()
     runner = Runner(init, HOST, sandbox.github)
-    code = _install(init, sandbox, "--confirm", "--version", "2.1.0", runner=runner)
+    code = install(init, sandbox, "--confirm", "--version", "2.1.0", runner=runner)
     out = capfd.readouterr().out
     assert code == 0, out
     ran = next(line[5:] for line in out.splitlines() if line.startswith("file "))
     selected = sandbox.checkout / "skills" / "agent-process" / "scripts" / "init.py"
     assert os.path.realpath(ran) == os.path.realpath(selected)
-    assert _head(sandbox.checkout) == _tag(sandbox, "v2.1.0")
+    assert head_commit(sandbox.checkout) == tag_commit(sandbox, "v2.1.0")
     handoff = next(i for i, cmd in enumerate(runner.log) if cmd[0] == sys.executable)
     assert any("clone" in cmd for cmd in runner.log[:handoff])
     assert not any(Path(cmd[0]).name.lower().startswith("npx") for cmd in runner.log)
-    assert _snapshot(sandbox.root) == {}
+    assert snapshot(sandbox.root) == {}
 
 
 @pytest.mark.parametrize("platform", ["win32", "linux"])
 def test_skill_link_resolves_to_selected_release(sandbox: Sandbox, platform: str) -> None:
-    init = _init()
+    init = load_init()
     runner = Runner(init, platform, sandbox.github)
     target = sandbox.checkout / "skills" / "agent-process"
     for version, tag in (("2.0.0", "v2.0.0"), ("2.1.0", "v2.1.0")):
-        code = _install(
+        code = install(
             init, sandbox, "--confirm", "--version", version, platform=platform, runner=runner
         )
         assert code == 0
-        assert _is_link(sandbox.link)
+        assert is_link(sandbox.link)
         assert os.path.realpath(sandbox.link) == os.path.realpath(target)
-        assert _head(sandbox.checkout) == _tag(sandbox, tag)
-    links = [cmd for cmd in runner.log if _link_command(cmd)]
+        assert head_commit(sandbox.checkout) == tag_commit(sandbox, tag)
+    links = [cmd for cmd in runner.log if link_command(cmd)]
     assert len(links) == 1
     name = Path(links[0][0]).name.lower()
     assert name.startswith("cmd" if platform == "win32" else "ln")
@@ -528,15 +199,15 @@ class Interrupted(Exception):
 def _prepare(init: ModuleType, sb: Sandbox, scenario: str) -> list[str]:
     """Bring the sandbox to the scenario's starting state; return the requested version."""
     if scenario == "upgrade":
-        assert _install(init, sb, "--confirm") == 0
+        assert install(init, sb, "--confirm") == 0
         return ["--version", "2.1.0"]
     return []
 
 
 def _final(sb: Sandbox) -> dict[str, Any]:
     return {
-        "root": _relative(_snapshot(sb.root), sb.root),
-        "head": _head(sb.checkout),
+        "root": relative(snapshot(sb.root), sb.root),
+        "head": head_commit(sb.checkout),
         "link": os.path.relpath(os.path.realpath(sb.link), os.path.realpath(sb.home)),
         "github": sb.github.state(),
     }
@@ -550,7 +221,7 @@ def test_retry_after_each_write(
     capfd: pytest.CaptureFixture[str],
     scenario: str,
 ) -> None:
-    init = _init()
+    init = load_init()
     monkeypatch.setenv("AGENT_PROCESS_REPOSITORY", str(process_repo))
 
     def fresh_sandbox(name: str) -> Sandbox:
@@ -565,7 +236,7 @@ def test_retry_after_each_write(
     reference = fresh_sandbox("reference")
     version = _prepare(init, reference, scenario)
     labels: list[str] = []
-    assert _install(init, reference, "--confirm", *version, on_write=labels.append) == 0
+    assert install(init, reference, "--confirm", *version, on_write=labels.append) == 0
     expected = _final(reference)
     assert labels, "an uninterrupted run reports its writes"
 
@@ -579,11 +250,11 @@ def test_retry_after_each_write(
                 raise Interrupted(at)
 
         with pytest.raises(Interrupted):
-            _install(init, sb, "--confirm", *version, runner=runner, on_write=interrupt)
+            install(init, sb, "--confirm", *version, runner=runner, on_write=interrupt)
         capfd.readouterr()
-        assert _install(init, sb, "--confirm", *version, runner=runner) == 0
+        assert install(init, sb, "--confirm", *version, runner=runner) == 0
         out = capfd.readouterr().out
-        assert _transitions(out)[label] == "unchanged", (label, out)
+        assert transitions(out)[label] == "unchanged", (label, out)
         assert _final(sb) == expected, label
         keys = runner.state_changing()
         assert len(keys) == len(set(keys)), (label, keys)
@@ -602,7 +273,7 @@ def _block(text: str) -> str:
 def test_rerender_replaces_only_owned_content(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
 ) -> None:
-    init = _init()
+    init = load_init()
     root = sandbox.root
     for rel in init.OPENSPEC_OUTPUT:
         path = root / rel
@@ -645,11 +316,11 @@ def test_rerender_replaces_only_owned_content(
     before = {path: path.read_text(encoding="utf-8") for path in (config, dependabot)}
     untouched = {
         rel: data
-        for rel, data in _relative(_snapshot(root), root).items()
+        for rel, data in relative(snapshot(root), root).items()
         if Path(rel).as_posix() not in {"openspec/config.yaml", *CONSUMER_FILES}
     }
     runner = Runner(init, HOST, sandbox.github)
-    assert _install(init, sandbox, "--confirm", runner=runner) == 0, capfd.readouterr().out
+    assert install(init, sandbox, "--confirm", runner=runner) == 0, capfd.readouterr().out
 
     assert sum(Path(cmd[0]).name.lower().startswith("npx") for cmd in runner.log) == 1
     for path in (config, dependabot):
@@ -666,14 +337,14 @@ def test_rerender_replaces_only_owned_content(
     )
     assert data["extraKnownMarketplaces"][MARKETPLACE]["source"]["ref"] == "v2.0.0"
     assert data["enabledPlugins"] == {"mine@mine": True, PLUGIN: True}
-    after = _relative(_snapshot(root), root)
+    after = relative(snapshot(root), root)
     assert {rel: after[rel] for rel in untouched} == untouched
 
 
 def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:
     """CRLF stays CRLF, a missing final newline stays missing, and a settings file in another
     form that already holds both keys is not rewritten."""
-    init = _init()
+    init = load_init()
     _installed(init, sandbox)
     config = sandbox.root / "openspec" / "config.yaml"
     body = config.read_bytes().replace(b"\r\n", b"\n")
@@ -685,7 +356,7 @@ def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:
     settings = sandbox.root / ".claude" / "settings.json"
     four_spaces = json.dumps(json.loads(settings.read_text(encoding="utf-8")), indent=4)
     settings.write_text(four_spaces, encoding="utf-8")
-    assert _install(init, sandbox, "--confirm") == 0
+    assert install(init, sandbox, "--confirm") == 0
 
     after = config.read_bytes()
     assert b"# stale" not in after and after.startswith(head.replace(b"\n", b"\r\n"))
@@ -730,7 +401,7 @@ def _settings(repo: str = "ekolvah/agent-process-distribution", enabled: Any = T
 
 
 def _installed(init: ModuleType, sb: Sandbox) -> None:
-    assert _install(init, sb, "--confirm") == 0
+    assert install(init, sb, "--confirm") == 0
 
 
 def _checkout_dirty(init: ModuleType, sb: Sandbox) -> None:
@@ -741,7 +412,7 @@ def _checkout_dirty(init: ModuleType, sb: Sandbox) -> None:
 
 def _checkout_other_origin(init: ModuleType, sb: Sandbox) -> None:
     _installed(init, sb)
-    _git("remote", "set-url", "origin", "https://example.invalid/other.git", cwd=sb.checkout)
+    git("remote", "set-url", "origin", "https://example.invalid/other.git", cwd=sb.checkout)
 
 
 def _checkout_not_repository(init: ModuleType, sb: Sandbox) -> None:
@@ -754,7 +425,7 @@ def _link_real_directory(init: ModuleType, sb: Sandbox) -> None:
 
 
 def _link_elsewhere(init: ModuleType, sb: Sandbox) -> None:
-    _host_link(sb.other, sb.link)
+    host_link(sb.other, sb.link)
 
 
 CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
@@ -850,7 +521,7 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
     },
     "settings-dangling-link": (
         "settings",
-        lambda init, sb: _host_link(sb.home / "missing", sb.root / ".claude" / "settings.json"),
+        lambda init, sb: host_link(sb.home / "missing", sb.root / ".claude" / "settings.json"),
     ),
     "workflow-parent-file": ("workflow", lambda init, sb: _write(sb, ".github/workflows", "")),
     # The user-profile targets have parents too (review of PR 159, round 3).
@@ -898,17 +569,17 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
 def test_conflict_fails_closed(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str, mode: str
 ) -> None:
-    init = _init()
+    init = load_init()
     label, arrange = CONFLICTS[case]
     arrange(init, sandbox)
     capfd.readouterr()
-    before = _snapshot(sandbox.root, sandbox.home)
-    code = _install(init, sandbox, mode)
+    before = snapshot(sandbox.root, sandbox.home)
+    code = install(init, sandbox, mode)
     out = capfd.readouterr().out
     assert code == 2, out
-    assert _transitions(out)[label] == "conflict", out
-    assert "written" not in _transitions(out).values()
-    assert _snapshot(sandbox.root, sandbox.home) == before
+    assert transitions(out)[label] == "conflict", out
+    assert "written" not in transitions(out).values()
+    assert snapshot(sandbox.root, sandbox.home) == before
 
 
 # --- footprint and remote writes --------------------------------------------------------
@@ -916,17 +587,17 @@ def test_conflict_fails_closed(
 
 def _consumer_repo(sb: Sandbox) -> None:
     (sb.root / "README.md").write_text("consumer\n", encoding="utf-8")
-    _git("init", "-q", cwd=sb.root)
-    _git("add", "-A", cwd=sb.root)
-    _git("commit", "-q", "-m", "initial", cwd=sb.root)
+    git("init", "-q", cwd=sb.root)
+    git("add", "-A", cwd=sb.root)
+    git("commit", "-q", "-m", "initial", cwd=sb.root)
 
 
 def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
-    init = _init()
+    init = load_init()
     _consumer_repo(sandbox)
     runner = Runner(init, HOST, sandbox.github, real_npx=True)
-    assert _install(init, sandbox, "--confirm", runner=runner) == 0
-    status = _git("status", "--porcelain", "--untracked-files=all", cwd=sandbox.root)
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
+    status = git("status", "--porcelain", "--untracked-files=all", cwd=sandbox.root)
     changed = {line[3:] for line in status.splitlines()}
     assert changed == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
     settings = json.loads((sandbox.root / ".claude" / "settings.json").read_text(encoding="utf-8"))
@@ -958,25 +629,25 @@ def _gh_kind(args: list[str]) -> str:
 
 
 def test_only_project_writes_remote(sandbox: Sandbox) -> None:
-    init = _init()
+    init = load_init()
     _consumer_repo(sandbox)
     runner = Runner(init, HOST, sandbox.github)
-    assert _install(init, sandbox, "--confirm", runner=runner) == 0
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
     kinds = [_gh_kind(args) for args in runner.gh()]
     assert (kinds.count("copy"), kinds.count("link")) == (1, 1), kinds
     for cmd in runner.log:
         assert not any("api.github.com" in part for part in cmd), cmd
         if Path(cmd[0]).name.lower().startswith("git"):
             assert not {"commit", "push"} & set(cmd), cmd
-    assert _git("rev-list", "--count", "HEAD", cwd=sandbox.root) == "1"
-    assert _git("status", "--porcelain", cwd=sandbox.root)
+    assert git("rev-list", "--count", "HEAD", cwd=sandbox.root) == "1"
+    assert git("status", "--porcelain", cwd=sandbox.root)
 
 
 def test_dry_run_writes_nothing_remote(sandbox: Sandbox) -> None:
-    init = _init()
+    init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     before = sandbox.github.state()
-    assert _install(init, sandbox, "--dry-run", runner=runner) == 0
+    assert install(init, sandbox, "--dry-run", runner=runner) == 0
     assert runner.gh("repo", "view") and runner.gh("api", "graphql")
     assert {_gh_kind(args) for args in runner.gh()} == {"read"}
     assert sandbox.github.state() == before
@@ -1013,18 +684,18 @@ PROJECT_STATES: dict[str, tuple[Callable[[FakeGitHub], Any], tuple[str, str] | i
 def test_project_states(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str, mode: str
 ) -> None:
-    init = _init()
+    init = load_init()
     arrange, expected = PROJECT_STATES[case]
     arrange(sandbox.github)
     runner = Runner(init, HOST, sandbox.github)
-    before = (_snapshot(sandbox.root, sandbox.home), sandbox.github.state())
-    code = _install(init, sandbox, mode, runner=runner)
+    before = (snapshot(sandbox.root, sandbox.home), sandbox.github.state())
+    code = install(init, sandbox, mode, runner=runner)
     out = capfd.readouterr().out
-    seen = _transitions(out)
+    seen = transitions(out)
     if isinstance(expected, int):
         assert code == expected, out
         assert "project-copy" not in seen
-        assert (_snapshot(sandbox.root, sandbox.home), sandbox.github.state()) == before
+        assert (snapshot(sandbox.root, sandbox.home), sandbox.github.state()) == before
         return
     plan = dict(zip(("project-copy", "project-link"), expected))
     for label, status in plan.items():
@@ -1032,7 +703,7 @@ def test_project_states(
     if "conflict" in expected:
         assert code == 2, out
         assert "written" not in seen.values()
-        assert (_snapshot(sandbox.root, sandbox.home), sandbox.github.state()) == before
+        assert (snapshot(sandbox.root, sandbox.home), sandbox.github.state()) == before
         return
     assert code == 0, out
     if case == "linked-one":
@@ -1050,12 +721,12 @@ def test_project_states(
 def test_project_command_faults(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], command: str, fault: str
 ) -> None:
-    init = _init()
+    init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     sandbox.github.faults[command] = fault
-    assert _install(init, sandbox, "--confirm", runner=runner) == 1
+    assert install(init, sandbox, "--confirm", runner=runner) == 1
     capfd.readouterr()
-    assert _install(init, sandbox, "--confirm", runner=runner) == 0
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
     out = capfd.readouterr().out
     copies, links = len(runner.gh("project", "copy")), len(runner.gh("project", "link"))
     expected = {
@@ -1066,8 +737,8 @@ def test_project_command_faults(
     }[command, fault]
     assert (copies, links) == expected
     if (command, fault) == ("link", "fail-after"):
-        assert _transitions(out)["project-copy"] == "unchanged"
-        assert _transitions(out)["project-link"] == "unchanged"
+        assert transitions(out)["project-copy"] == "unchanged"
+        assert transitions(out)["project-link"] == "unchanged"
     titled = [p for p in sandbox.github.projects if p.title == TITLE]
     assert len(titled) == 1 and titled[0].repositories == {CONSUMER}
 
@@ -1085,9 +756,9 @@ WORKFLOWS = [
 def test_manual_actions_are_printed(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
 ) -> None:
-    init = _init()
+    init = load_init()
     runner = Runner(init, HOST, sandbox.github)
-    assert _install(init, sandbox, mode, runner=runner) == 0
+    assert install(init, sandbox, mode, runner=runner) == 0
     lines = capfd.readouterr().out.splitlines()
     visibility = [ln for ln in lines if ln.startswith("manual project-visibility: ")]
     workflows = [ln for ln in lines if ln.startswith("manual project-workflows: ")]
@@ -1115,7 +786,7 @@ LITERALS = [
 
 @pytest.mark.parametrize("literal", LITERALS)
 def test_literal_commands_are_yaml_safe(literal: str) -> None:
-    init = _init()
+    init = load_init()
     workflow = yaml.safe_load(init.render_workflow("2.0.0", literal, literal))
     (job,) = workflow["jobs"].values()
     assert job["with"] == {"setup": literal, "test": literal}
@@ -1124,7 +795,7 @@ def test_literal_commands_are_yaml_safe(literal: str) -> None:
 
 
 def test_caller_inputs() -> None:
-    init = _init()
+    init = load_init()
     text = init.render_workflow("2.0.0", "", "pytest -q")
     assert text.splitlines()[0] == "# agent-process:managed"
     workflow = yaml.safe_load(text)
@@ -1139,21 +810,21 @@ def test_caller_inputs() -> None:
 def test_empty_test_command_is_refused(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], test: str
 ) -> None:
-    init = _init()
+    init = load_init()
     runner = Runner(init, HOST, sandbox.github)
-    assert _install(init, sandbox, "--confirm", runner=runner, test=test) == 2
+    assert install(init, sandbox, "--confirm", runner=runner, test=test) == 2
     assert runner.log == []
-    assert _snapshot(sandbox.root, sandbox.home) == {}
+    assert snapshot(sandbox.root, sandbox.home) == {}
 
 
 def test_version_matches_plugin() -> None:
-    init = _init()
+    init = load_init()
     plugin = json.loads((ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
     assert init.VERSION == plugin["version"]
 
 
 def test_capture_contract() -> None:
-    init = _init()
+    init = load_init()
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     code = "import sys; sys.stdout.buffer.write('é✓'.encode('utf-8'))"
     captured = init.run([sys.executable, "-c", code], env=env)
@@ -1175,7 +846,7 @@ def test_failure_keeps_absent_streams_visible(
     tmp_path: Path, stdout: str | None, stderr: str | None, present: str, absent: str | None
 ) -> None:
     """An uncaptured stream is not captured empty output: the diagnostic says which it was."""
-    init = _init()
+    init = load_init()
     ctx = init.Context(
         root=tmp_path,
         home=tmp_path,
@@ -1199,7 +870,7 @@ def test_gh_read_keeps_absent_stdout_visible(
     tmp_path: Path, stdout: str | None, present: str
 ) -> None:
     """A read whose stdout was not captured says so, not that `gh` printed nothing (PR 160)."""
-    init = _init()
+    init = load_init()
     ctx = init.Context(
         root=tmp_path,
         home=tmp_path,

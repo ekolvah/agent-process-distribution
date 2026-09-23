@@ -17,6 +17,9 @@ from scripts import ci_check
 from scripts.ci_check import _find_modules, _has_product_scope, _run, _tracked_files, run_selected
 
 _CI_YML = Path(__file__).resolve().parent.parent.parent / ".github" / "workflows" / "ci.yml"
+_PROCESS_PYPROJECT = (
+    Path(__file__).resolve().parent.parent.parent / ".agent-process" / "pyproject.toml"
+)
 
 
 def _init_repo(tmp_path: Path) -> None:
@@ -517,3 +520,95 @@ class TestTrackedFilesCaptureFailure:
 
         assert exc.value.code == 2
         assert "git ls-files failed" in capsys.readouterr().out
+
+
+class TestComplexityLimits:
+    """Function complexity and module size are limited by standard linters; a
+    complexity suppression that no longer suppresses anything fails too."""
+
+    @staticmethod
+    def _process_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, module: str) -> None:
+        subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+        scripts = tmp_path / ".agent-process" / "scripts"
+        scripts.mkdir(parents=True)
+        (tmp_path / ".agent-process" / "pyproject.toml").write_text(
+            _PROCESS_PYPROJECT.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        (scripts / "subject.py").write_text(module, encoding="utf-8")
+        (tmp_path / "tests" / "agent_process").mkdir(parents=True)
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+        monkeypatch.chdir(tmp_path)
+
+    def test_function_over_complexity_limit_fails_lint(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+    ) -> None:
+        branches = "".join(f"    if x == {i}:\n        y += {i}\n" for i in range(11))
+        module = f"def tangled(x: int) -> int:\n    y = 0\n{branches}    return y\n"
+        self._process_repo(tmp_path, monkeypatch, module)
+
+        with pytest.raises(SystemExit):
+            ci_check.check_lint()
+
+        out = capfd.readouterr().out
+        assert "C901" in out
+        assert "tangled" in out
+
+    def test_module_over_size_limit_fails_module_size(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+    ) -> None:
+        self._process_repo(tmp_path, monkeypatch, "x = 1\n" * 1000)
+        ci_check.check_module_size()
+
+        (tmp_path / ".agent-process" / "scripts" / "subject.py").write_text(
+            "x = 1\n" * 1001, encoding="utf-8"
+        )
+        with pytest.raises(SystemExit):
+            ci_check.check_module_size()
+
+        assert "subject.py" in capfd.readouterr().out
+
+    @pytest.mark.parametrize(
+        ("config_name", "config"),
+        [
+            ("pytest.ini", "[pytest]\n"),
+            ("pyproject.toml", "[project]\nname = 'p'\n"),
+            ("pyproject.toml", "[tool.pylint.main]\njobs = 1\n"),
+        ],
+    )
+    def test_product_scope_without_pylint_config_is_not_size_checked(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+        config_name: str,
+        config: str,
+    ) -> None:
+        """A consumer's product code gets no limit it did not configure."""
+        self._process_repo(tmp_path, monkeypatch, "x = 1\n")
+        (tmp_path / config_name).write_text(config, encoding="utf-8")
+        (tmp_path / "product.py").write_text("x = 1\n" * 1001, encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+
+        ci_check.check_module_size()
+
+        assert "product scope: no [tool.pylint]" in capfd.readouterr().out
+
+    def test_stale_baseline_fails_lint(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+    ) -> None:
+        module = "def simple() -> int:  # noqa: C901 -- baseline: x\n    return 1\n"
+        self._process_repo(tmp_path, monkeypatch, module)
+
+        with pytest.raises(SystemExit):
+            ci_check.check_lint()
+
+        assert "RUF100" in capfd.readouterr().out

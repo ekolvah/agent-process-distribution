@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Callable, Iterable
 from pathlib import Path, PurePosixPath
 
@@ -120,6 +121,40 @@ def check_lint() -> None:
     _run([sys.executable, "-m", "ruff", "check", "--config", _PROCESS_CONFIG, *_PROCESS_PATHS])
     if _has_product_scope():
         _run([sys.executable, "-m", "ruff", "check", ".", *_product_scope_excludes("--exclude")])
+
+
+def check_module_size() -> None:
+    """Module length by pylint `too-many-lines` — ruff has no module-length rule.
+
+    The configs enable that one pylint message only, so the two linters never
+    overlap. Explicit file lists, not directories: pylint then needs no package
+    layout and does not import the files. Product code is checked only when the
+    root `pyproject.toml` holds the same single-rule setup: any other pylint
+    config runs rules unrelated to module size, and a consumer gets no limit it
+    did not set.
+    """
+    print("==> module size")
+    modules = _find_modules()
+    process = [name for name in modules if _is_process_path(name)]
+    if process:
+        _run([sys.executable, "-m", "pylint", "--rcfile", _PROCESS_CONFIG, *process])
+    if not _has_product_scope():
+        return
+    if not _configures_module_size(Path("pyproject.toml")):
+        print("product scope: no [tool.pylint] single-rule setup in pyproject.toml; not checked")
+        return
+    product = [name for name in modules if not _is_process_path(name)]
+    if product:
+        _run([sys.executable, "-m", "pylint", "--rcfile", "pyproject.toml", *product])
+
+
+def _configures_module_size(path: Path) -> bool:
+    """Whether `path` enables pylint `too-many-lines` and nothing else."""
+    if not path.is_file():
+        return False
+    pylint = tomllib.loads(path.read_text(encoding="utf-8")).get("tool", {}).get("pylint", {})
+    controls = pylint.get("messages control", {})
+    return controls.get("disable") == ["all"] and controls.get("enable") == ["too-many-lines"]
 
 
 # Captured third-party HTML kept as test fixtures: asset digests and cache-busting
@@ -303,6 +338,7 @@ def check_imports() -> None:
 CHECKS: dict[str, Callable[[], None]] = {
     "format": check_format,
     "lint": check_lint,
+    "module-size": check_module_size,
     "secrets": check_secrets,
     "pytest": check_pytest,
     "pip-audit": check_pip_audit,
