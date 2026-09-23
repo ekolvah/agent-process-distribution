@@ -5,7 +5,8 @@ the agent process before its first issue delivery?
 
 > **Retired.** The Copier installation and update path described below was deleted
 > with the template mirror (#119, `v2-0b-delete-copier-mirror`); the scripts it names no
-> longer exist. Installation returns as `init` in `v2-2-delivery` (#112). The text is kept
+> longer exist. Installation is now `init`: see the `## Install` section of
+> [the shared skill](../../../skills/agent-process/SKILL.md#install). The text is kept
 > as history and for its trust-boundary paragraphs, which `reusable-quality.yml` still
 > follows.
 

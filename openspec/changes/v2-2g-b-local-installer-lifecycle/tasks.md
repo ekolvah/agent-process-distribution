@@ -18,7 +18,7 @@
 
 ## 3. Entry points and docs
 
-- [ ] 3.1 Add `commands/init.md` and the `## Install` section of `skills/agent-process/SKILL.md` (design D7), and point the retired note of `.agent-process/docs/architecture/agent-process-installation.md` at that section; verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py tests/agent_process/test_doc_links.py tests/agent_process/test_doc_headers.py -q` is green; commit as `docs(distribution): install entry points`
+- [x] 3.1 Add `commands/init.md` and the `## Install` section of `skills/agent-process/SKILL.md` (design D7), and point the retired note of `.agent-process/docs/architecture/agent-process-installation.md` at that section; verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py tests/agent_process/test_doc_links.py tests/agent_process/test_doc_headers.py -q` is green; commit as `docs(distribution): install entry points`
 
 ## 4. Verify
 
