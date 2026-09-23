@@ -60,7 +60,11 @@ def _script(name: str) -> ModuleType:
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    sys.path.insert(0, str(SCRIPTS))  # the skill dir resolves its own sibling imports
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(SCRIPTS))
     return module
 
 
@@ -215,9 +219,10 @@ def test_documented_resolve_command_parses() -> None:
 def test_reviewer_adapter_reads_the_shared_contract() -> None:
     """Every file the reviewer adapter names resolves from the repository it is invoked in."""
     text = REVIEWER.read_text(encoding="utf-8")
-    assert "skills/agent-process/SKILL.md#architect-review" in text
-    named = re.findall(r"`([\w./#-]+\.(?:md|yaml))(?:#[\w-]+)?`", text)
-    paths = [path.split("#", 1)[0] for path in named if "<" not in path]
+    assert "`skills/agent-process/SKILL.md`" in text
+    assert "`## Architect review`" in text and "## Architect review" in SKILL.read_text("utf-8")
+    named = re.findall(r"`([\w.<>-]+(?:/[\w.<>-]+)+\.(?:md|yaml))(?:#[\w-]+)?`", text)
+    paths = [path for path in named if "<" not in path]
     assert paths
     for path in paths:
         assert not path.startswith(".."), path

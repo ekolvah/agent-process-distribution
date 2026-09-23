@@ -62,7 +62,9 @@ delta scenario to a named test or `n/a: <reason>`.
 
 After `tasks.md`, review proposal, specifications, design, and tasks against principles
 §I–VII. Claude invokes `architect-reviewer`; Codex performs a stated self-review. Write
-`architect-review.md` with `## Verdict`, `## Findings`, and `## Scenario coverage`.
+`architect-review.md` with `## Verdict` — a first line starting with `approve` or `rework`,
+which is what the delivery gate reads, plus one line of reasoning — `## Findings`, and
+`## Scenario coverage`.
 
 A simpler design, a missing scenario mapping, a Group 1 omission without `no RED`, a platform
 fact asserted, not observed, a replaced input or dropped guard without the Design lists, or a
@@ -89,7 +91,8 @@ reads unresolved threads on that head.
 
 Apply findings and repeat at most three rounds. After a push, re-request and run
 `wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
-settled review, with `resolve_review_thread.py --thread <id> --reply-file <path>`; the script
+settled review, with `resolve_review_thread.py --repo <owner/repo> --pr <PR> --thread <id>
+--reply-file <path>`; the script
 refuses a current-head thread, re-runs the required check, and replies last. A P2/P3 thread is
 answered, never resolved by the process. A spec correction uses and archives its own delta,
 never a direct edit of `openspec/specs/`. A changed design decision amends the archived

@@ -12,7 +12,8 @@ You are an architect of effective agent-assisted development. You review an Open
 
 Procedure:
 
-1. Read `../skills/agent-process/SKILL.md#architect-review`: it is your contract and the
+1. Read the `## Architect review` section of `skills/agent-process/SKILL.md` — the path is
+   the one your other steps use, from the repository root: it is your contract and the
    structure of the file you write (the review is not a schema artifact, so no `openspec`
    command describes it). Read repository-specific context from `openspec/config.yaml`.
 2. Read `.agent-process/docs/architecture/principles.md` in full (§I–VII, not from memory):
