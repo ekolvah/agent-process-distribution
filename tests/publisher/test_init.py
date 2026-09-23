@@ -1192,3 +1192,25 @@ def test_failure_keeps_absent_streams_visible(
     assert present in str(raised.value)
     if absent:
         assert absent not in str(raised.value)
+
+
+@pytest.mark.parametrize(("stdout", "present"), [(None, "not captured"), ("", "no JSON")])
+def test_gh_read_keeps_absent_stdout_visible(
+    tmp_path: Path, stdout: str | None, present: str
+) -> None:
+    """A read whose stdout was not captured says so, not that `gh` printed nothing (PR 160)."""
+    init = _init()
+    ctx = init.Context(
+        root=tmp_path,
+        home=tmp_path,
+        platform=HOST,
+        runner=lambda cmd, **_: subprocess.CompletedProcess(cmd, 0, stdout, None),
+        which=lambda name: name,
+        repository="",
+        version="",
+        setup="",
+        test="",
+    )
+    with pytest.raises(init.InstallError) as raised:
+        init._gh_json(ctx, "repo", "view", "--json", "owner,name,projectsV2")
+    assert present in str(raised.value)

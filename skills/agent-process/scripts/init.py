@@ -559,8 +559,10 @@ def _consumer_steps(ctx: Context) -> list[Step]:
 
 def _gh_json(ctx: Context, *args: str) -> Any:
     done = ctx.call("gh", *args, cwd=ctx.root)
+    if done.stdout is None:
+        raise InstallError(f"`gh {args[0]} {args[1]}` output not captured")
     try:
-        return json.loads(done.stdout or "")
+        return json.loads(done.stdout)
     except json.JSONDecodeError:
         raise InstallError(f"`gh {args[0]} {args[1]}` printed no JSON") from None
 
