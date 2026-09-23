@@ -55,7 +55,9 @@ REQUIRED_CONTEXTS: tuple[str, ...] = (
 
 # PR jobs deliberately NOT required, with reasons. An empty reason is a forgotten decision,
 # not an accepted one, so the guard rejects it.
-NOT_REQUIRED: dict[str, str] = {}
+NOT_REQUIRED: dict[str, str] = {
+    "agent-process": "bootstrap: required only after issue 154 activates it",
+}
 
 
 # `gh` substitutes `{owner}`/`{repo}` placeholders; no leading slash, or Windows MSYS
