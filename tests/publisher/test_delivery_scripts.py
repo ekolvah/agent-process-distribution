@@ -372,6 +372,8 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
         "standard-none": ({"standard": "none"}, "'none' should not be valid under"),
         "standard-capital": ({"standard": "None"}, "'None' should not be valid under"),
         "standard-na": ({"standard": "N/A"}, "'N/A' should not be valid under"),
+        "standard-dash": ({"standard": "-"}, "'-' should not be valid under"),
+        "standard-padded": ({"standard": " n/a "}, "' n/a ' should not be valid under"),
         "absent": (None, "'additions' is a required property"),
     }
     for name, (fields, message) in cases.items():
