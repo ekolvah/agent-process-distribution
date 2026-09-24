@@ -1,4 +1,4 @@
-"""The Codex transport: post the request, read whether a review of the head exists."""
+"""The Codex transport: read whether a review of the head exists."""
 
 from __future__ import annotations
 
@@ -13,27 +13,6 @@ from scripts import request_codex_review
 
 _HEAD = "a" * 40
 _REVIEWER = "chatgpt-codex-connector[bot]"
-
-
-def test_request_command_posts_the_exact_codex_trigger(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[list[str]] = []
-    monkeypatch.setattr(request_codex_review, "run_gh", lambda args: calls.append(args) or "")
-
-    request_codex_review.main(["--request", "37"])
-
-    assert calls == [["pr", "comment", "37", "--body", "@codex review"]]
-
-
-def test_request_command_surfaces_a_github_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    def fail(_args: list[str]) -> str:
-        raise RuntimeError("gh pr comment failed: permission denied")
-
-    monkeypatch.setattr(request_codex_review, "run_gh", fail)
-
-    with pytest.raises(RuntimeError, match="permission denied"):
-        request_codex_review.request_review("37")
 
 
 def _payload(
@@ -244,5 +223,5 @@ def test_module_entry_point_runs_the_cli() -> None:
     )
 
     assert result.returncode == 0
-    assert "--request" in result.stdout
+    assert "--request" not in result.stdout
     assert "--wait" in result.stdout

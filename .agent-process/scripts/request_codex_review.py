@@ -2,8 +2,8 @@
 
 Codex's supported GitHub flow is an author comment, ``@codex review``; the
 integration then posts a normal GitHub review, or a clean comment naming the
-reviewed commit. ``--request`` posts the exact trigger from the authenticated
-local PR-author session. ``--wait`` runs in the review job and reads *whether*
+reviewed commit. The PR author posts that comment with ``gh pr comment``.
+``--wait`` runs in the review job and reads *whether*
 a review of the head by any ``--reviewer`` (Codex alone by default) exists — a
 native review on that head, or the reviewer's clean comment naming that head —
 never what it says (ADR 0027). An error or usage-limit message from the app is
@@ -40,7 +40,6 @@ CODEX_REVIEWER = "chatgpt-codex-connector[bot]"
 FALLBACK_REVIEWER = "github-actions[bot]"
 DEFAULT_TIMEOUT_SECONDS = 600
 DEFAULT_POLL_SECONDS = 20
-REQUEST_BODY = "@codex review"
 # The clean publication names the reviewed head: Codex by a 10-hex prefix
 # (`**Reviewed commit:** \`abcdef0123\``), the Claude review job by the contract's
 # `Reviewed head SHA: <sha>`. Both are read for presence on this head only.
@@ -58,11 +57,6 @@ query($owner: String!, $name: String!, $number: Int!) {
   }
 }
 """
-
-
-def request_review(pr_number: str) -> None:
-    """Ask Codex to review ``pr_number`` through the authenticated local session."""
-    run_gh(["pr", "comment", pr_number, "--body", REQUEST_BODY])
 
 
 def _normalise_login(value: object) -> str:
@@ -151,10 +145,11 @@ def wait_for_review(  # noqa: PLR0913 -- baseline: polling clock and limits are 
 
 def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--request", metavar="PR", help="post the Codex trigger to this PR")
-    mode.add_argument(
-        "--wait", action="store_true", help="wait for a Codex review of --head-sha to exist"
+    parser.add_argument(
+        "--wait",
+        action="store_true",
+        required=True,
+        help="wait for a Codex review of --head-sha to exist",
     )
     parser.add_argument("--repo", dest="repository", metavar="OWNER/REPO")
     parser.add_argument("--pr", dest="pr_number", metavar="NUMBER")
@@ -174,26 +169,22 @@ def _parse_options(argv: Sequence[str] | None) -> argparse.Namespace:
     options = parser.parse_args(argv)
     if options.reviewers is None:
         options.reviewers = [CODEX_REVIEWER]
-    if options.wait:
-        missing = [
-            flag
-            for flag, value in (
-                ("--repo", options.repository),
-                ("--pr", options.pr_number),
-                ("--head-sha", options.head_sha),
-            )
-            if value is None
-        ]
-        if missing:
-            parser.error("--wait requires " + ", ".join(missing))
+    missing = [
+        flag
+        for flag, value in (
+            ("--repo", options.repository),
+            ("--pr", options.pr_number),
+            ("--head-sha", options.head_sha),
+        )
+        if value is None
+    ]
+    if missing:
+        parser.error("--wait requires " + ", ".join(missing))
     return options
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     options = _parse_options(argv)
-    if options.request is not None:
-        request_review(options.request)
-        return
     try:
         present = wait_for_review(
             options.repository,

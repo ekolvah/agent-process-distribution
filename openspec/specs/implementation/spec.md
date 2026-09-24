@@ -1,8 +1,7 @@
 # implementation Specification
 
 ## Purpose
-What an implementing agent runs, what feedback it gets while working, and what stops it
-from ending a turn with unfinished delivery.
+What an implementing agent runs and what feedback it gets while working.
 
 ## Requirements
 

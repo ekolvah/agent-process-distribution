@@ -85,14 +85,16 @@ None.
   `tests/publisher/test_codex_hooks.py`, `tests/publisher/test_request_codex_review.py`,
   `tests/publisher/test_reusable_workflows.py` (its `REQUIRED_CONTEXTS` pin),
   `tests/publisher/test_planning_workflow.py` (the Deliver-rule order),
-  `tests/agent_process/test_delivery_gate_wiring.py` (Stop wiring).
+  `tests/agent_process/test_delivery_gate_wiring.py` (Stop wiring),
+  `tests/agent_process/test_codex_project_trust.py` (a docstring that names the Stop gate).
 - Docs: `skills/agent-process/SKILL.md` (Delivery, Install step 5),
   `.agent-process/docs/architecture/agent-process.md` (review loop, terminal state,
   Review-gate verdicts), `.agent-process/docs/architecture/agent-process-installation.md` (the
   classic-protection install step), ADR 0027 (one Observations bullet),
   `openspec/specs/implementation/spec.md` (the Purpose names the Stop gate).
-- Unchanged, and left to issue 115: `agent_orchestrator.py`, `.agents/orchestration/roles.yaml`,
-  `.agent-process/copier-answers.yml`. Left to `v2-4b`: `issue_branch.py`, `new_branch.py`,
+- Left to issue 115: `agent_orchestrator.py`, `.agents/orchestration/roles.yaml`,
+  `.agent-process/copier-answers.yml`. The only edit is the `contract` anchors of the `fixer` and
+  `human_merge` roles in `roles.yaml`, which pointed at the deleted `#review-gate-verdicts`. Left to `v2-4b`: `issue_branch.py`, `new_branch.py`,
   `open_pr.py`, `update_pr_body.py`, `set_issue_status.py`, `set_issue_priority.py`,
   `project_settings.py`.
 - External systems: the ruleset of this repository gains `agent-review / agent-review`, and the

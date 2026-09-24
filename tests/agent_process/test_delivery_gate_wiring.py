@@ -1,10 +1,8 @@
-"""The delivery turn-boundary gate's Claude `Stop` wiring (issue #56).
+"""The hook wiring of `.claude/settings.json` and `.codex/hooks.json`.
 
-The decision logic itself (`scripts.delivery_state`) and its adapter
-(`scripts.hooks.stop_response`) are covered in `tests/publisher/test_hooks.py`
-and `tests/publisher/test_delivery_state.py`; this file only asserts the
-`.claude/settings.json` wiring, mirroring `TestClaudeHookWiring` in
-`test_navigation_policy.py`.
+The turn-boundary `Stop` gate was removed (change v2-4a-review-protection, design D2), so
+neither adapter wires a `Stop` event. The hooks' logic is covered in
+`tests/publisher/test_hooks.py` and `tests/publisher/test_codex_hooks.py`.
 """
 
 from __future__ import annotations
@@ -53,12 +51,8 @@ def _codex_hooks() -> Any:
     not _CLAUDE_SETTINGS.is_file(),
     reason="the generated project does not include the optional Claude adapter",
 )
-class TestStopHookWiring:
-    def test_stop_hook_is_wired_exactly_once(self) -> None:
-        entries = _settings()["hooks"]["Stop"]
-        assert len(entries) == 1
-        commands = [hook["command"] for hook in entries[0]["hooks"]]
-        assert any(re.search(r"hooks\.py stop", command) for command in commands)
+def test_claude_wires_no_stop_hook() -> None:
+    assert "Stop" not in _settings()["hooks"]
 
 
 @pytest.mark.skipif(
@@ -76,8 +70,7 @@ class TestTelemetryAttribution:
     asserts that a *live* Claude Code session emits these attributes. That crosses
     a process boundary into the harness and a third-party exporter; issue #97's
     AC1(a) covers it as a one-shot observation with captured evidence, following
-    the convention in `tests/publisher/test_test_suite_ownership.py` and
-    `tests/agent_process/test_branch_protection.py`.
+    the convention in `tests/publisher/test_test_suite_ownership.py`.
     """
 
     def test_settings_carry_the_project_as_a_resource_attribute(self) -> None:
@@ -109,7 +102,7 @@ class TestTelemetryAttribution:
 
 class TestCodexHookWiring:
     """`.codex/hooks.json` is mandatory in every render (issue #75, AC 6): unlike
-    `TestStopHookWiring` above, this class takes no `skipif` — a missing file here
+    the Claude tests above, this class takes no `skipif` — a missing file here
     must fail loudly, not skip silently (§IV)."""
 
     def test_every_event_group_maps_to_its_subcommand(self) -> None:
@@ -127,8 +120,4 @@ class TestCodexHookWiring:
         post_tool_commands = [hook["command"] for hook in post_tool_use[0]["hooks"]]
         assert any(re.search(r"codex_hooks\.py on-edit", command) for command in post_tool_commands)
 
-        stop = hooks["Stop"]
-        assert len(stop) == 1
-        assert "matcher" not in stop[0]
-        stop_commands = [hook["command"] for hook in stop[0]["hooks"]]
-        assert any(re.search(r"codex_hooks\.py stop", command) for command in stop_commands)
+        assert "Stop" not in hooks

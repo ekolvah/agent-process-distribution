@@ -150,7 +150,7 @@ def test_stale_home_dot_codex_trust_does_not_produce_a_false_positive(
 ) -> None:
     """The dangerous false positive the reviewer named: `$HOME/.codex/config.toml` trusts
     this path but the actual `$CODEX_HOME/config.toml` does not, so the preflight must not
-    exit 0 while the Stop gate remains disabled."""
+    exit 0 while the repository hooks remain disabled."""
     _fake_git_toplevel(monkeypatch, _ROOT)
     root = Path(_ROOT).resolve()
 

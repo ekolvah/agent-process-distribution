@@ -34,13 +34,13 @@
 
 ## 4. No review gate, no Stop gate
 
-- [ ] 4.1 Delete `.agent-process/scripts/review_gate.py` and `tests/agent_process/test_review_gate.py` (design D1). Also remove:
+- [x] 4.1 Delete `.agent-process/scripts/review_gate.py` and `tests/agent_process/test_review_gate.py` (design D1). Also remove:
   - the `.review_gate_stamp` line from `.gitignore`;
   - the review-gate verdict line from `.github/pull_request_template.md`;
   - the `review_gate.py` sentence from the `.agent-process/scripts/gh_io.py` docstring.
 
   Verify that `git grep -n review_gate -- ':!openspec/changes' ':!**/adr/**'` prints only `roles.yaml` and `test_agent_orchestrator.py`, which issue 115 owns
-- [ ] 4.2 Delete `.agent-process/scripts/delivery_state.py` and `tests/publisher/test_delivery_state.py`, and remove the Stop gate (design D2):
+- [x] 4.2 Delete `.agent-process/scripts/delivery_state.py` and `tests/publisher/test_delivery_state.py`, and remove the Stop gate (design D2):
   - the `stop` subcommand, `stop_response` and the stamp and budget helpers in `hooks.py`;
   - the `stop` branch in `codex_hooks.py`;
   - the `Stop` entries in `.claude/settings.json` and `.codex/hooks.json`;
@@ -48,12 +48,12 @@
   - the Stop tests in `tests/publisher/test_hooks.py` and `tests/publisher/test_codex_hooks.py`, and the Stop assertions in `tests/agent_process/test_delivery_gate_wiring.py`.
 
   Verify that `git grep -n -i "delivery_state\|stop_response" -- ':!openspec/changes' ':!**/adr/**'` is empty and `python -m pytest tests -q` is green
-- [ ] 4.3 Remove `--request` from `.agent-process/scripts/request_codex_review.py` and its tests in `tests/publisher/test_request_codex_review.py` (design D5). In `skills/agent-process/SKILL.md` Delivery:
+- [x] 4.3 Remove `--request` from `.agent-process/scripts/request_codex_review.py` and its tests in `tests/publisher/test_request_codex_review.py` (design D5). In `skills/agent-process/SKILL.md` Delivery:
   - replace the `request_codex_review.py --request` command with `gh pr comment <PR> --body "@codex review"`;
   - replace "Run the repository review gate … `ready-for-human`" with stopping once `wait_for_pr.py` settles a head with no open `P0`/`P1` thread, or at the three-round escalation.
 
   In `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change`, assert `@codex review` in place of `request_codex_review.py`, and drop `ready-for-human`. Verify that `python -m pytest tests/publisher -q` is green
-- [ ] 4.4 In `.agent-process/docs/architecture/agent-process.md`:
+- [x] 4.4 In `.agent-process/docs/architecture/agent-process.md`:
   - replace `request_codex_review.py --request` with `gh pr comment <PR> --body "@codex review"`;
   - replace the `review_gate.py` step with `wait_for_pr.py`;
   - delete the terminal-state paragraph and `### Review-gate verdicts`.
