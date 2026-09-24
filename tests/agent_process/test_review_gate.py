@@ -15,6 +15,7 @@ import pytest
 from scripts.agent_orchestrator import load_catalog
 from scripts.check_branch_protection import (
     REQUIRED_CONTEXTS,
+    RULESET_CONTEXTS,
 )
 from scripts.check_branch_protection import (
     REVIEW_CONTEXT as PROTECTION_REVIEW_CONTEXT,
@@ -32,6 +33,9 @@ from scripts.review_gate import (
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+# Every context GitHub requires on the default branch: classic protection plus the ruleset.
+_JUDGED = (*REQUIRED_CONTEXTS, *RULESET_CONTEXTS)
 
 # The four heads in this synthetic sequence: round 1 was `blocking`, rounds 2-4
 # green — the run the gate would have stopped two rounds earlier. Only the
@@ -51,7 +55,7 @@ def _checks(
     """Every required context COMPLETED/SUCCESS unless overridden."""
     graded = overrides or {}
     return tuple(
-        CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS"))) for name in REQUIRED_CONTEXTS
+        CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS"))) for name in _JUDGED
     )
 
 
@@ -108,32 +112,42 @@ class TestVerdict:
         assert "resolve_review_thread.py" in verdict.reason
         assert "no push, no budget" in verdict.reason
 
-    def test_red_deterministic_check_is_fix_blocking_and_names_it(self) -> None:
-        evidence = _evidence(checks=_checks({"quality / quality": ("COMPLETED", "FAILURE")}))
+    def test_red_ruleset_context_is_fix_blocking_and_names_it(self) -> None:
+        evidence = _evidence(
+            checks=_checks({"agent-process / quality": ("COMPLETED", "FAILURE")})
+        )
 
         verdict = evaluate(evidence, fixer_budget=3)
 
         assert verdict.name == "fix-blocking"
-        assert "quality" in verdict.reason
+        assert "agent-process / quality" in verdict.reason
 
     @pytest.mark.parametrize(
-        "checks",
+        ("checks", "named"),
         [
-            pytest.param(_checks({REVIEW_CONTEXT: ("IN_PROGRESS", "")}), id="pending"),
+            pytest.param(
+                _checks({REVIEW_CONTEXT: ("IN_PROGRESS", "")}), REVIEW_CONTEXT, id="pending"
+            ),
             pytest.param(
                 tuple(check for check in _checks() if check.name != REVIEW_CONTEXT),
+                REVIEW_CONTEXT,
                 id="absent",
+            ),
+            pytest.param(
+                tuple(check for check in _checks() if check.name != "agent-process / quality"),
+                "agent-process / quality",
+                id="absent-ruleset-context",
             ),
         ],
     )
     def test_pending_or_absent_required_context_is_review_pending(
-        self, checks: tuple[CheckRun, ...]
+        self, checks: tuple[CheckRun, ...], named: str
     ) -> None:
         verdict = evaluate(_evidence(checks=checks), fixer_budget=3)
 
         assert verdict.name == "review-pending"
         assert verdict.exit_code == 30
-        assert REVIEW_CONTEXT in verdict.reason
+        assert named in verdict.reason
 
     def test_exhausted_fixer_budget_escalates(self) -> None:
         """Three spent fixer revisions prevent routing a fourth revision."""
@@ -206,7 +220,7 @@ def _pr_payload(**overrides: Any) -> dict[str, Any]:
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS",
             }
-            for name in REQUIRED_CONTEXTS
+            for name in _JUDGED
         ],
         "files": [{"path": "src/kinozal_scraper/app.py"}],
     }
@@ -252,7 +266,7 @@ class TestEvidence:
 
         evidence = collect_evidence("465")
 
-        assert {check.name for check in evidence.checks} == set(REQUIRED_CONTEXTS)
+        assert {check.name for check in evidence.checks} == set(_JUDGED)
 
     def test_controller_paths_are_not_special_in_the_verdict(
         self, monkeypatch: pytest.MonkeyPatch

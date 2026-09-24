@@ -111,7 +111,21 @@ def test_publisher_driver_keeps_a_same_head_catcher() -> None:
     declaration (design D5 of v2-2i-protection-activation)."""
     from scripts.check_branch_protection import REQUIRED_CONTEXTS
 
-    assert {"quality / quality", "agent-review / agent-review"} & set(REQUIRED_CONTEXTS)
+    assert "agent-review / agent-review" in REQUIRED_CONTEXTS
+
+
+def test_quality_runs_once_per_pr() -> None:
+    """v2-2j D1: `agent-process / quality` is the only `pull_request` job that runs the
+    quality driver."""
+    callers = {
+        (path.name, name)
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        if "pull_request" in (_trigger(_workflow(path.name)) or {})
+        for name, job in _workflow(path.name).get("jobs", {}).items()
+        if Path(job.get("uses", "").split("@")[0]).name in {"quality.yml", "reusable-quality.yml"}
+    }
+
+    assert callers == {("agent-process.yml", "agent-process")}
 
 
 def test_quality_installs_product_dependencies_when_present() -> None:
