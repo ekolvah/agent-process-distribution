@@ -28,7 +28,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py review-bespoke-standard`. Verify that it applies the `planning` delta, commits the archive, and pushes the branch.
+- [x] 4.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py review-bespoke-standard`. Verify that it applies the `planning` delta, commits the archive, and pushes the branch.
 - [ ] 4.2 Run `gh pr create --title "review-bespoke-standard" --body-file <report>`. The report references the tracking issue without `Closes`, carries the scenario → test map, and names issues 113 and 169 as context.
 - [ ] 4.3 Run `python .agent-process/scripts/request_codex_review.py --request <PR>` and `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread, with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 threads without resolving them.
 - [ ] 4.4 Run `python .agent-process/scripts/review_gate.py <PR>` on the settled head. Stop at `ready-for-human` or at the three-round escalation.
