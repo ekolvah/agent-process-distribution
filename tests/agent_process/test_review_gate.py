@@ -54,9 +54,7 @@ def _checks(
 ) -> tuple[CheckRun, ...]:
     """Every required context COMPLETED/SUCCESS unless overridden."""
     graded = overrides or {}
-    return tuple(
-        CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS"))) for name in _JUDGED
-    )
+    return tuple(CheckRun(name, *graded.get(name, ("COMPLETED", "SUCCESS"))) for name in _JUDGED)
 
 
 def _evidence(**overrides: Any) -> ReviewEvidence:
@@ -113,9 +111,7 @@ class TestVerdict:
         assert "no push, no budget" in verdict.reason
 
     def test_red_ruleset_context_is_fix_blocking_and_names_it(self) -> None:
-        evidence = _evidence(
-            checks=_checks({"agent-process / quality": ("COMPLETED", "FAILURE")})
-        )
+        evidence = _evidence(checks=_checks({"agent-process / quality": ("COMPLETED", "FAILURE")}))
 
         verdict = evaluate(evidence, fixer_budget=3)
 
