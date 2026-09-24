@@ -18,7 +18,7 @@
 
 ## 3. Pointers
 
-- [ ] 3.1 Add step 5 to `## Install` in `skills/agent-process/SKILL.md` per design D6. Update the reason of `NOT_REQUIRED["agent-process"]` in `.agent-process/scripts/check_branch_protection.py` per design D5. Add the ADR 0027 row and the deletion condition per design D6. Verify that `python -m pytest tests/publisher tests/agent_process/test_branch_protection.py -q` is green, then commit as `docs(distribution): install step and ADR row for protection activation`
+- [x] 3.1 Add step 5 to `## Install` in `skills/agent-process/SKILL.md` per design D6. Update the reason of `NOT_REQUIRED["agent-process"]` in `.agent-process/scripts/check_branch_protection.py` per design D5. Add the ADR 0027 row and the deletion condition per design D6. Verify that `python -m pytest tests/publisher tests/agent_process/test_branch_protection.py -q` is green, then commit as `docs(distribution): install step and ADR row for protection activation`
 
 ## 4. Verify
 

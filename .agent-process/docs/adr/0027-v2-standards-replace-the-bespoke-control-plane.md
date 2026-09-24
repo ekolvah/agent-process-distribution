@@ -133,6 +133,7 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 | `finish_change` | `openspec archive` + `git push` + `gh pr checks --watch` | The sequence must be the last task in both agents identically; OpenSpec has no post-archive hook |
 | `check_coverage` | `openspec validate`; a required check | `validate` knows scenarios, not test results; the check needs the scenario → test mapping |
 | `init` | `openspec init --tools claude,codex`; `/plugin`; `gh api` rulesets; `gh secret set` | Each step is native; the script is the one-command composition a ≤ 10-minute install needs |
+| `activate_protection` | `gh api` rulesets `POST`/`PUT` | A raw write of a context never observed blocks every merge (PR 151, run `35523639249`); the preflight, the convergence of one ruleset by name and the read-back are the composition |
 
 ## Deletion condition
 
@@ -146,6 +147,8 @@ Scripts v2 keeps or adds, and why the native feature falls short:
   deleted.
 * `gh pr checks --watch` learns the empty rollup and review threads → `wait_for_pr` is deleted.
 * `openspec validate` learns test results → `check_coverage` is deleted.
+* GitHub refuses to require a check that has not reported on the repository →
+  `activate_protection` is deleted.
 * Telemetry shows v2 no better than v1 on the same task types after the minimum comparable
   sample (`v2-6`) → the decision is revisited in a new record, not patched here.
 

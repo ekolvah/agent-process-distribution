@@ -134,6 +134,11 @@ skill's own directory. Run from the consumer's root:
 4. Tell the person to review and commit the changed files and to do the `manual` rows in
    the Project's UI. The installer never commits or pushes; its only GitHub writes are the
    copy of the template Project and its link to the repository.
+5. Once the first PR shows `agent-process / quality`, run `python
+   skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run` (admin rights on
+   the repository) and show its whole output. Ask once; on yes run it with `--confirm`
+   instead of `--dry-run`. It makes the check required through one ruleset and never
+   writes classic branch protection.
 
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
 install of another version in any repository moves it for every repository. The Claude
