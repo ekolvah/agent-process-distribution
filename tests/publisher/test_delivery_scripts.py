@@ -27,6 +27,7 @@ import pytest
 from tests.publisher.delivery_fakes import PROJECT, ROOT, SKILL_SCRIPTS, Gh, load_script
 
 MOVED_SCRIPTS = {
+    "activate_protection.py",
     "archive_change.py",
     "check_red.py",
     "create_tracking_issue.py",
