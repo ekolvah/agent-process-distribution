@@ -642,3 +642,10 @@ questions of #114 in its order:
   (`create_tracking_issue.py`) and the apply gate (`start_change.py`) validate, importing
   `jsonschema` on the call — absent, it is exit 2, not a pass. A consumer's `jsonschema` is
   a prerequisite #155 names. `codex exec --output-schema` rejected: `'if' is not permitted`.
+* The `bespoke` evidence is a structured `additions` list (issue 170): the free-text class
+  accepted `none` and an ADR decision as the observed problem, and asked for no standard —
+  the plan of issue 113 passed with its own coverage map, parser and pytest run, pytest-bdd
+  and traceability markers unweighed. Each added script, check or non-test file has
+  `path`, `problem`, `standard` and `why_not`; under `approve` the schema rejects a
+  `problem` that is not an issue, PR or run reference and a `standard` of none, n/a or a
+  dash. Completeness and truth stay the `bespoke` judgement. No script.

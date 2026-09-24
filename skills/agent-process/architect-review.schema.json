@@ -3,12 +3,20 @@
   "title": "Architect review",
   "description": "openspec/changes/<change>/architect-review.json: the review of a change's proposal, specs, design and tasks against principles §I–VII, written after tasks.md.",
   "type": "object",
-  "required": ["verdict", "reviewer", "reasoning", "classes", "scenario_coverage"],
+  "required": ["verdict", "reviewer", "reasoning", "classes", "scenario_coverage", "additions"],
   "additionalProperties": false,
   "if": {"properties": {"verdict": {"const": "approve"}}},
   "then": {
     "properties": {
-      "classes": {"additionalProperties": {"properties": {"result": {"const": "ok"}}}}
+      "classes": {"additionalProperties": {"properties": {"result": {"const": "ok"}}}},
+      "additions": {
+        "items": {
+          "properties": {
+            "problem": {"pattern": "^(#[0-9]+|https://github\\.com/[^/\\s]+/[^/\\s]+/(issues|pull|actions/runs)/[0-9]+)$"},
+            "standard": {"not": {"pattern": "^\\s*([Nn][Oo][Nn][Ee]|[Nn]/?[Aa]|-)\\s*$"}}
+          }
+        }
+      }
     }
   },
   "properties": {
@@ -61,7 +69,7 @@
         },
         "bespoke": {
           "$ref": "#/$defs/class",
-          "description": "For each script, check or file the plan adds, the observed problem it closes (issue, PR, run) or `none`."
+          "description": "The list names every script, check or non-test file of the proposal's Impact and the design. For each entry, the problem is one the addition closes, and the standard is the one for its job and does not fit."
         }
       }
     },
@@ -76,6 +84,21 @@
           "capability": {"type": "string", "minLength": 1},
           "scenario": {"type": "string", "minLength": 1},
           "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "additions": {
+      "description": "One entry per script, check or non-test file the plan adds; under approve, problem is an issue, PR or run reference and standard is named.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "problem", "standard", "why_not"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "problem": {"type": "string", "minLength": 1},
+          "standard": {"type": "string", "minLength": 1},
+          "why_not": {"type": "string", "minLength": 1}
         }
       }
     }

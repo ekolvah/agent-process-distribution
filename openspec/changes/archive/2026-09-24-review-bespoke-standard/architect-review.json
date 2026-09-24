@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Round 4: all three round-3 findings are applied. The standard check is case-insensitive and observed, the bespoke class judges completeness against Impact and design with an asserted clause, and the spec sentence and WHEN match the schema. Every class is ok.",
+  "classes": {
+    "simpler": {
+      "evidence": "Rejected alternatives: the prose-only fix (person rejected; proposal Why), fields inside `classes.bespoke` (needs a second class def, `$defs.class` additionalProperties false), and a ninth class (free text again, D1). A diff cross-check script is rejected (Non-Goals: no omission observed). The design adds one property and two `then` constraints to the schema that start_change.verdict (start_change.py:52-73, Draft202012Validator) already runs in create_tracking_issue and start_change. No new script.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "8 delta scenarios and 8 map entries in tasks.md. 'Addition without evidence' -> test_delivery_scripts.py::test_addition_without_evidence (1.1). It covers problem 'none' and 'ADR 0027', standard 'none', 'None' and 'N/A', and additions removed, each exiting 2 in both scripts with nothing created, plus positive '#113' and rework cases. The other 7 targets exist (test_planning_workflow.py:152,175,188,215,373; test_delivery_scripts.py:324,549,602).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "1.3 runs check_red.py on test_addition_without_evidence and test_over_long_rule_or_bespoke_check. Under the current schema the 'additions removed' approve case creates the issue, and the D2 messages are absent. The bespoke description lacks the completeness clause. Both fail in their bodies. Adding `additions: []` to the two fixtures makes other valid-review tests fail on top-level additionalProperties false until 2.1. No commit hook runs tests (.githooks absent), and 2.1 runs both files green.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The D2 table observes jsonschema 4.26.0 on a prototype. The problem pattern accepts '#113' and the runs URL and rejects 'none' and 'ADR 0027'. The `not pattern` on standard rejects none, None, N/A, NA, - and ' n/a ', and accepts 'pytest-bdd'. Rework with 'none' is valid, and the missing list is required. The case-sensitivity gap of round 3 is closed by the pattern. Other refusals ('not applicable', 'TBD') still pass the format and fall to the bespoke judgement, which D2/D3 and the Non-Goals state.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Free-text bespoke evidence is replaced by `additions` plus the D3 judgement (proposal Why, D1, D3). The two valid-review fixtures are edited in RED (Risks). The `then` merge: D2's constraints go beside `classes` under the existing `then.properties` (schema.json:9-13). A clobbered `then` would drop the all-ok rule, but test_review_approves_an_open_finding (test_delivery_scripts.py:358) fails in 2.1's run. An in-flight approved review without `additions` fails loudly at start_change (exit 2, 'additions is a required property'), not silently. Migration covers archived files.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Format: the schema under approve in create_tracking_issue and start_change, exit 2 before any issue or branch (test_addition_without_evidence). Approve-only enforcement leaves no delivery path, since rework never reaches delivery (test_verdict_is_rework). Completeness: D3's bespoke description checks the list against the proposal's Impact and design, so `[]` beside a new script is a bespoke finding (D3 bullet 2), asserted by 1.2. The person's solution review catches the rest (Risks). A wrong reference or standard: the bespoke judgement, then the solution review.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Words, with the words its tests assert in parentheses. Spec added sentence: ~50 (~35). The rejection half, 'an approve with an entry whose problem is not an issue, PR or run reference, or whose standard is none, SHALL NOT validate', is asserted by test_addition_without_evidence. The 'each … SHALL be an entry … why it does not fit' half is asserted through the bespoke description by 1.2 and by required `why_not` (D1). Scenario WHEN ~30: 'lacks the `additions` key' now matches the removed-key test. D3 description ~40 (~15): 1.2 asserts 'names every script, check or non-test file of the proposal's Impact', 'closes' and 'does not fit'. The unasserted rest is connective.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Additions of this plan: none. There is no new script, check or non-test file (proposal Impact 'Added: none'). The schema, two test files and an ADR bullet are edited. Observed problem: the v2-3-coverage-gate bespoke entry quoted in proposal Why, traceable to the issue 113 comment 'approved by the architect review but is bespoke' and to issue 169's body. Standard for the job: JSON Schema on the existing validator (design, after D4). Nothing bespoke is added.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
