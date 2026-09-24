@@ -67,7 +67,7 @@
 
 ## 6. Deliver
 
-- [ ] 6.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-4a-review-protection`. Verify that it applies the `review-and-merge`, `implementation` and `distribution` deltas, commits the archive, and pushes the branch
+- [x] 6.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-4a-review-protection`. Verify that it applies the `review-and-merge`, `implementation` and `distribution` deltas, commits the archive, and pushes the branch
 - [ ] 6.2 Run `gh pr create --title "v2-4a-review-protection" --body-file <report>`. The report references tracking issue 172 and issue 114 without `Closes`. It carries the scenario → test map and the design's Migration Plan, and names `v2-4b` and issue 115 as excluded ownership
 - [ ] 6.3 Run `gh pr comment <PR> --body "@codex review"`, then `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 6.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, hand the design's Migration Plan to the person, who runs steps 1–3. Paste the step-3 dry-run output (`unchanged`, `classic: none (not written)`) into the PR body, and report the PR ready
