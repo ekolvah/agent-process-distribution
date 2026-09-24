@@ -17,7 +17,7 @@ import pytest
 from tests.publisher.delivery_fakes import load_script
 
 REPO = "owner/repo"
-HEAD = "9be0cbb0123456789abcdef0123456789abcdef0"
+HEAD = "f" * 40
 CONTEXT = "agent-process / quality"
 NAME = "agent-process default branch"
 LIVE_ID = 23732345
