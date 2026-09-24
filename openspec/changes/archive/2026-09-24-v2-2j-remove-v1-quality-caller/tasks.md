@@ -22,7 +22,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-2j-remove-v1-quality-caller`. Verify that it applies the `distribution` and `review-and-merge` deltas, commits the archive, and pushes the branch
+- [x] 4.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-2j-remove-v1-quality-caller`. Verify that it applies the `distribution` and `review-and-merge` deltas, commits the archive, and pushes the branch
 - [ ] 4.2 Run `gh pr create --title "v2-2j-remove-v1-quality-caller" --body-file <report>`. The report references tracking issue 166 without `Closes`. It carries the scenario → test map and the design's Observations, and names issues 114, 115, and 117 as excluded ownership
 - [ ] 4.3 Run `python .agent-process/scripts/request_codex_review.py --request <PR>` and `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving
 - [ ] 4.4 Once `wait_for_pr` has settled a head with `agent-process / quality` and `agent-review / agent-review` green, follow the design's Migration Plan. Show the person the `DELETE` command and its rollback, and let them run it. Then verify that `gh api repos/ekolvah/agent-process-distribution/branches/main/protection --jq '.required_status_checks.checks'` lists only `agent-review / agent-review`, and add that output to the PR body
