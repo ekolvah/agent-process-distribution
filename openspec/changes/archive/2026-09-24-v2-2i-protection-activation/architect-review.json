@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Round 2: both round-1 findings are applied (tasks.md 1.1 parametrization plus the spec's Context not observed WHEN, and D5 'Accepted divergence'). Every class is ok, and the design stays observed and traced.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simpler option 1: PR 151's upsert_ruleset in init. D1 rejects it because a first install cannot have observed the context, and it would reverse 'Init writes only the Project remotely'. Simpler option 2: a one-off manual `gh api -X PUT` on this repository with no script. Issue 154's acceptance rejects it (preflight, dry-run, idempotence, read-back), and so do consumers (issue 117). Simpler option 3: also writing classic protection. The person's decision (2) of 2026-09-23 excludes it. The script reuses set_status.run_gh/Gh (set_status.py:27-38) and adds no new abstraction.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The 10 delta scenarios map one-to-one (tasks.md, Scenario → test map): Quality check on a PR -> existing test_quality_executes_a_trusted_driver_against_the_pr_worktree; PR weakens its own driver -> test_publisher_driver_keeps_a_same_head_catcher; Caller absent, Context not observed, Dry-run, No ruleset yet, Live ruleset differs, Rerun, Ambiguous rulesets, Read-back mismatch -> test_activate_protection.py::test_<name>. No scenario is unmapped. Whether each mapped test is sufficient is judged under length.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "In Group 1, 1.1 adds a signature stub whose main raises NotImplementedError, so each test fails in its body. 1.3 extends MOVED_SCRIPTS/TEMPLATES and narrows the forbidden tokens (test_plugin.py:17,28,63). 1.4 runs check_red.py on 1.1+1.3 before the RED commit. 1.2 pins the existing REQUIRED_CONTEXTS (check_branch_protection.py:51) with a stated `no RED: pins the live declaration the activation relies on`. Round 2: the parametrized cases stay under the same stub, so each fails in its body.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design.md Observations cover the behaviours the design rests on. Ruleset list/GET shape and server-added keys: I re-read ruleset 23732345, which matches, and also shows server-added `required_reviewers []`, not owned per D3. Classic protection has strict checks quality/quality and agent-review/agent-review with app_id 15368 (re-read, matches). The check_name filter and app github-actions/15368 were read on the PR 165 head. GraphQL HEAD:path returns Blob/null. A merged PR keeps headRefOid. PUT by id keeping the id, and owned fields surviving a server round-trip: the live ruleset created from PR 151's template holds the template's owned values, and task 5.4's `written: ruleset 23732345` plus the second `unchanged` dry-run observe it on the real write. D4's read-back fails closed otherwise.",
+      "result": "ok"
+    },
+    "replaced": {
+      "result": "ok",
+      "evidence": "D5 lists the replaced ruleset context (quality / quality -> agent-process / quality) and what stops proving. Context/D1 list the package-name boundary ruleset/protection from v2-2g-a. D5 'Accepted divergence' now lists that review_gate.py's input REQUIRED_CONTEXTS lacks agent-process / quality. It names the catchers, which are the ruleset merge block on the same head and wait_for_pr waiting for all checks, and the owners, which are the follow-up issue and issue 115. It adds no new check."
+    },
+    "catcher": {
+      "evidence": "D5 failure mode (PR edits ci_check.py/quality.yml/the caller's test). Catcher until the follow-up is classic strict quality / quality, app 15368, enforce_admins true (re-read live). It runs reusable-quality.yml's default-branch driver on the same head, and GitHub enforces it at merge. Drift of that classic state is caught by check_branch_protection.py on .githooks/pre-push against REQUIRED_CONTEXTS, pinned by test 1.2. The catcher after the follow-up is agent-review / agent-review, a review not a re-run, accepted by the person on 2026-09-23 (decision 1). Issue 151's never-reporting-context failure is caught by D2's preflight before any write (scenarios Caller absent / Context not observed). An interrupted write is caught by list-then-decide in D3. Every catcher reaches a named delivery step.",
+      "result": "ok"
+    },
+    "length": {
+      "result": "ok",
+      "evidence": "Spec sentences, with their words and (words asserted by the tests of tasks.md 1.1). 'Protection activation observes quality first' ~70 (~70): test_context_not_observed is parametrized over base ≠ default, no run, non-success, and other app, and the scenario WHEN now names the base case. 'Activation previews every remote write' ~45 (~45): the update rollback is asserted in test_dry_run and the create rollback in test_no_ruleset_yet. 'Activation converges one ruleset' ~75 (~75): Ambiguous is parametrized {two named, not repository-owned} × {--dry-run, --confirm}. 'Activation reads back what it wrote' ~50 (~50): one case per D4 field. The modified 'CI runs the trusted driver' requirement ~60 (~60). SKILL.md install step 5 is procedure prose that no test asserts, which is acceptable for an install step."
+    },
+    "bespoke": {
+      "evidence": "activate_protection.py closes issue 154 (acceptance: preflight, dry-run, idempotence, read-back) and PR 151 run 35523639249 (a never-reported strict context). templates/ruleset.json is PR 151's body, the same observed problem. test_publisher_driver_keeps_a_same_head_catcher: the D5 pin, no separate observed problem, and it is a test, not a new check. The classic read line closes issue 154's 'fails closed on ambiguous ... protection' and the issue 112 vs live discrepancy (Observations). ADR 0027 row: the ADR's own native-alternative rule. No other script or checker is added.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

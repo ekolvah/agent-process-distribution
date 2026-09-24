@@ -15,6 +15,7 @@ SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 PACKAGE = SKILL.parent
 SCRIPTS = PACKAGE / "scripts"
 MOVED_SCRIPTS = {
+    "activate_protection.py",
     "archive_change.py",
     "check_red.py",
     "create_tracking_issue.py",
@@ -25,7 +26,13 @@ MOVED_SCRIPTS = {
     "wait_for_pr.py",
 }
 
-TEMPLATES = {"agent-process.yml", "config.yaml", "dependabot.yml", "settings.json"}
+TEMPLATES = {
+    "agent-process.yml",
+    "config.yaml",
+    "dependabot.yml",
+    "ruleset.json",
+    "settings.json",
+}
 
 
 def _json(path: Path) -> dict:
@@ -60,7 +67,7 @@ def test_package_contents_are_closed() -> None:
         | {f"scripts/{name}" for name in MOVED_SCRIPTS}
         | {f"templates/{name}" for name in TEMPLATES}
     )
-    forbidden = ("hook", "ruleset", "protection")
+    forbidden = ("hook",)
     assert not any(token in path.lower() for path in relative_files for token in forbidden)
 
 

@@ -105,6 +105,15 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
     assert 'echo "path=pr"' in steps["Select quality driver"]["run"]
 
 
+def test_publisher_driver_keeps_a_same_head_catcher() -> None:
+    """`agent-process / quality` runs the PR's own driver, so a context the PR cannot change
+    stays required beside it; the pre-push guard proves classic protection matches this
+    declaration (design D5 of v2-2i-protection-activation)."""
+    from scripts.check_branch_protection import REQUIRED_CONTEXTS
+
+    assert {"quality / quality", "agent-review / agent-review"} & set(REQUIRED_CONTEXTS)
+
+
 def test_quality_installs_product_dependencies_when_present() -> None:
     """A consumer's own product dependencies must be installed before its
     checks run — the trusted-driver step only ever installed the process's
