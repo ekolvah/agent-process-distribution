@@ -11,10 +11,10 @@
 
 ## 2. Activation script
 
-- [ ] 2.1 Add `skills/agent-process/templates/ruleset.json` per design D3 (PR 151's body with the `__DEFAULT_BRANCH__`, `__CONTEXT__` and `__INTEGRATION__` placeholders); verify that `python -m pytest tests/publisher/test_plugin.py -q` is green
-- [ ] 2.2 Implement the preflight per design D2; verify that `python -m pytest tests/publisher/test_activate_protection.py -k "caller_absent or context_not_observed" -q` is green
-- [ ] 2.3 Implement the plan, the owned-field comparison, the conflict refusal, and the classic read per design D3; verify that `python -m pytest tests/publisher/test_activate_protection.py -k "dry_run or ambiguous or rerun" -q` is green
-- [ ] 2.4 Implement the confirmed `POST`/`PUT` with its temporary input and the read-back per design D3–D4; verify that `python -m pytest tests/publisher/test_activate_protection.py tests/publisher/test_delivery_scripts.py -q` is green; commit Group 2 as `feat(distribution): activate protection after observed quality`
+- [x] 2.1 Add `skills/agent-process/templates/ruleset.json` per design D3 (PR 151's body with the `__DEFAULT_BRANCH__`, `__CONTEXT__` and `__INTEGRATION__` placeholders); verify that `python -m pytest tests/publisher/test_plugin.py -q` is green
+- [x] 2.2 Implement the preflight per design D2; verify that `python -m pytest tests/publisher/test_activate_protection.py -k "caller_absent or context_not_observed" -q` is green
+- [x] 2.3 Implement the plan, the owned-field comparison, the conflict refusal, and the classic read per design D3; verify that `python -m pytest tests/publisher/test_activate_protection.py -k "dry_run or ambiguous or rerun" -q` is green
+- [x] 2.4 Implement the confirmed `POST`/`PUT` with its temporary input and the read-back per design D3–D4; verify that `python -m pytest tests/publisher/test_activate_protection.py tests/publisher/test_delivery_scripts.py -q` is green; commit Group 2 as `feat(distribution): activate protection after observed quality`
 
 ## 3. Pointers
 
