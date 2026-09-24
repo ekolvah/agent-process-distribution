@@ -370,7 +370,7 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
         "problem-none": ({"problem": "none"}, "'none' does not match"),
         "problem-adr": ({"problem": "ADR 0027"}, "'ADR 0027' does not match"),
         "standard-none": ({"standard": "none"}, "'none' should not be valid under"),
-        "standard-None": ({"standard": "None"}, "'None' should not be valid under"),
+        "standard-capital": ({"standard": "None"}, "'None' should not be valid under"),
         "standard-na": ({"standard": "N/A"}, "'N/A' should not be valid under"),
         "absent": (None, "'additions' is a required property"),
     }
