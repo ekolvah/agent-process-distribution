@@ -1,4 +1,5 @@
-"""`activate_protection.py` (change v2-2i-protection-activation, design D2–D4).
+"""`activate_protection.py` (changes v2-2i-protection-activation, design D2–D4, and
+v2-4a-review-protection, design D3).
 
 One test per scenario of the `distribution` delta; the scenario name is the test name.
 The script is loaded inside each test, so that a missing script fails its own scenario.
@@ -11,6 +12,7 @@ import copy
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 import pytest
 
@@ -19,6 +21,8 @@ from tests.publisher.delivery_fakes import load_script
 REPO = "owner/repo"
 HEAD = "f" * 40
 CONTEXT = "agent-process / quality"
+REVIEW = "agent-review / agent-review"
+REVIEW_APP = 15369  # distinct from quality's app id, so each context's binding is observable
 NAME = "agent-process default branch"
 LIVE_ID = 23732345
 NEW_ID = 99
@@ -72,12 +76,25 @@ def _served(ruleset_id: int, context: str) -> dict[str, Any]:
     }
 
 
-def _run(conclusion: str = "success", slug: str = "github-actions") -> dict[str, Any]:
+def _run(
+    conclusion: str = "success",
+    slug: str = "github-actions",
+    name: str = CONTEXT,
+    app_id: int = 15368,
+) -> dict[str, Any]:
     return {
-        "name": CONTEXT,
+        "name": name,
         "conclusion": conclusion,
-        "app": {"slug": slug, "id": 15368 if slug == "github-actions" else 777},
+        "app": {"slug": slug, "id": app_id if slug == "github-actions" else 777},
     }
+
+
+def _review_run(conclusion: str = "success", slug: str = "github-actions") -> dict[str, Any]:
+    return _run(conclusion, slug, name=REVIEW, app_id=REVIEW_APP)
+
+
+def _pair(context: str, integration: int) -> dict[str, Any]:
+    return {"context": context, "integration_id": integration}
 
 
 class FakeGh:
@@ -86,14 +103,14 @@ class FakeGh:
     def __init__(
         self,
         *,
-        caller: bool = True,
+        callers: tuple[str, ...] = ("agent-process",),
         base: str = "main",
         runs: list[dict[str, Any]] | None = None,
         rulesets: list[dict[str, Any]] | None = None,
         classic: list[str] | None = ("quality / quality", "agent-review / agent-review"),
     ) -> None:
         self.calls: list[list[str]] = []
-        self.caller = caller
+        self.callers = callers  # the `.github/workflows/<name>.yml` on the default branch
         self.base = base
         self.runs = [_run()] if runs is None else runs
         self.rulesets = (
@@ -118,8 +135,13 @@ class FakeGh:
     def __call__(self, cmd: list[str]) -> str:
         self.calls.append(cmd)
         if cmd[:3] == ["gh", "api", "graphql"]:
-            obj = {"__typename": "Blob"} if self.caller else None
-            repo = {"nameWithOwner": REPO, "defaultBranchRef": {"name": "main"}, "object": obj}
+            blob = {"__typename": "Blob"}
+            repo = {
+                "nameWithOwner": REPO,
+                "defaultBranchRef": {"name": "main"},
+                "object": blob if "agent-process" in self.callers else None,
+                "review": blob if "agent-review" in self.callers else None,
+            }
             return json.dumps({"data": {"repository": repo}})
         if cmd[:3] == ["gh", "pr", "view"]:
             return json.dumps({"headRefOid": HEAD, "baseRefName": self.base})
@@ -137,11 +159,11 @@ class FakeGh:
 
     def _read(self, cmd: list[str]) -> str:
         endpoint = next(arg for arg in cmd[2:] if not arg.startswith("-"))
-        if (
-            endpoint
-            == f"repos/{REPO}/commits/{HEAD}/check-runs?check_name=agent-process%20/%20quality"
-        ):
-            return json.dumps({"total_count": len(self.runs), "check_runs": self.runs})
+        prefix = f"repos/{REPO}/commits/{HEAD}/check-runs?check_name="
+        if endpoint.startswith(prefix):
+            name = unquote(endpoint.removeprefix(prefix))
+            runs = [run for run in self.runs if run["name"] == name]
+            return json.dumps({"total_count": len(runs), "check_runs": runs})
         if endpoint == f"repos/{REPO}/rulesets":
             listed = [
                 {"id": r["id"], "name": r["name"], "source_type": r["source_type"]}
@@ -172,7 +194,7 @@ def _activate(gh: FakeGh, mode: str, capsys: pytest.CaptureFixture[str]) -> tupl
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
 def test_caller_absent(mode: str, capsys: pytest.CaptureFixture[str]) -> None:
-    gh = FakeGh(caller=False)
+    gh = FakeGh(callers=())
     code, out = _activate(gh, mode, capsys)
     assert code == 2
     assert "caller absent on main: .github/workflows/agent-process.yml" in out
@@ -195,6 +217,49 @@ def test_context_not_observed(
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 2
     assert observed in out
+    assert gh.writes() == []
+
+
+def test_review_caller_present(capsys: pytest.CaptureFixture[str]) -> None:
+    gh = FakeGh(
+        callers=("agent-process", "agent-review"),
+        runs=[_run(), _review_run()],
+        rulesets=[],
+        classic=None,
+    )
+    code, out = _activate(gh, "--confirm", capsys)
+    assert code == 0, out
+    assert f"written: ruleset {NEW_ID}" in out
+    (body,) = gh.inputs
+    rule = next(r for r in body["rules"] if r["type"] == "required_status_checks")
+    assert rule["parameters"]["required_status_checks"] == [
+        _pair(CONTEXT, 15368),
+        _pair(REVIEW, REVIEW_APP),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("review_runs", "observed"),
+    [
+        ([], "none"),
+        ([_review_run(conclusion="failure")], f"{REVIEW} github-actions failure"),
+        ([_review_run(slug="other-app")], f"{REVIEW} other-app success"),
+    ],
+    ids=["no-run", "not-success", "other-app"],
+)
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+def test_review_context_not_observed(
+    review_runs: list[dict[str, Any]],
+    observed: str,
+    mode: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    gh = FakeGh(callers=("agent-process", "agent-review"), runs=[_run(), *review_runs])
+    code, out = _activate(gh, mode, capsys)
+    assert code == 2
+    (line,) = [line for line in out.splitlines() if line.startswith("refused:")]
+    assert f"no successful {REVIEW} from github-actions" in line
+    assert line.endswith(observed)
     assert gh.writes() == []
 
 
@@ -298,6 +363,16 @@ def _check(key: str, value: Any):
     return mutate
 
 
+def _contexts(change):
+    def mutate(body: dict[str, Any]) -> dict[str, Any]:
+        rule = next(r for r in body["rules"] if r["type"] == "required_status_checks")
+        checks = rule["parameters"]["required_status_checks"]
+        rule["parameters"]["required_status_checks"] = change(checks)
+        return body
+
+    return mutate
+
+
 def _set(path: tuple[str, ...], value: Any):
     def mutate(body: dict[str, Any]) -> dict[str, Any]:
         node = body
@@ -333,8 +408,13 @@ def _set(path: tuple[str, ...], value: Any):
             _check("strict_required_status_checks_policy", False),
             "strict_required_status_checks_policy",
         ),
-        (_check("context", "quality / quality"), "required_status_checks.context"),
-        (_check("integration_id", 1), "required_status_checks.integration_id"),
+        (_check("context", "quality / quality"), "required_status_checks"),
+        (_check("integration_id", 1), "required_status_checks"),
+        (_contexts(lambda checks: checks[:-1]), "required_status_checks"),
+        (
+            _contexts(lambda checks: [*checks, _pair("other / other", 15368)]),
+            "required_status_checks",
+        ),
     ],
     ids=[
         "enforcement",
@@ -348,6 +428,8 @@ def _set(path: tuple[str, ...], value: Any):
         "strict",
         "context",
         "integration",
+        "lacks-context",
+        "adds-context",
     ],
 )
 @pytest.mark.parametrize(
@@ -356,7 +438,9 @@ def _set(path: tuple[str, ...], value: Any):
 def test_read_back_mismatch(
     mutate, field: str, rulesets: list | None, written: int, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    gh = FakeGh(rulesets=rulesets)
+    gh = FakeGh(
+        callers=("agent-process", "agent-review"), runs=[_run(), _review_run()], rulesets=rulesets
+    )
     gh.read_back = mutate
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 1
@@ -365,3 +449,23 @@ def test_read_back_mismatch(
     wrote = lines.index(f"wrote ruleset {written}; reading it back")
     assert any(line.startswith(f"error: read-back: {field} is ") for line in lines[wrote:])
     assert "written:" not in out
+
+
+def test_read_back_reordered(capsys: pytest.CaptureFixture[str]) -> None:
+    gh = FakeGh(callers=("agent-process", "agent-review"), runs=[_run(), _review_run()])
+    gh.read_back = _contexts(lambda checks: checks[::-1])
+    code, out = _activate(gh, "--confirm", capsys)
+    assert code == 0, out
+    assert f"written: ruleset {LIVE_ID}" in out
+    served = gh.rulesets[LIVE_ID]
+    rule = next(r for r in served["rules"] if r["type"] == "required_status_checks")
+    assert [c["context"] for c in rule["parameters"]["required_status_checks"]] == [
+        REVIEW,
+        CONTEXT,
+    ]
+    rerun = FakeGh(
+        callers=("agent-process", "agent-review"), runs=[_run(), _review_run()], rulesets=[served]
+    )
+    code, out = _activate(rerun, "--dry-run", capsys)
+    assert code == 0, out
+    assert f"unchanged {LIVE_ID}" in out.splitlines()
