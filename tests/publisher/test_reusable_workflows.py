@@ -32,7 +32,6 @@ def test_callees_declare_workflow_call_without_pull_request_trigger() -> None:
 
 def test_callee_schema_matches_local_callers_in_both_directions() -> None:
     pairs = (
-        ("ci.yml", "quality", "reusable-quality.yml", "quality"),
         (
             "agent-review.yml",
             "agent-review",
@@ -68,7 +67,6 @@ def test_source_review_caller_passes_only_the_claude_fallback_secret() -> None:
 
 def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
     for caller_file, caller_job, callee_file in (
-        ("ci.yml", "quality", "reusable-quality.yml"),
         ("agent-review.yml", "agent-review", "reusable-agent-review.yml"),
         ("agent-process.yml", "agent-process", "quality.yml"),
     ):
@@ -95,7 +93,6 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
     }
     assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
     assert _trigger(_workflow("reusable-quality.yml"))["workflow_call"] is None
-    assert "reusable-quality.yml@" in _workflow("ci.yml")["jobs"]["quality"]["uses"]
     assert steps["Install consumer dependencies"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["working-directory"] == "pr"
     assert steps["Run trusted quality checks"]["run"] == (
@@ -195,9 +192,6 @@ def test_quality_verifies_the_pr_links_its_issue_before_the_driver() -> None:
 
     expected = {"contents": "read", "pull-requests": "read", "issues": "read"}
     assert document["permissions"] == expected
-    assert _workflow("ci.yml")["permissions"] == expected
-    # No `edited` type: a body edit raises no run, the fixer's `gh run rerun` does.
-    assert _trigger(_workflow("ci.yml"))["pull_request"] is None
 
 
 def test_quality_callee_runs_the_callers_commands() -> None:

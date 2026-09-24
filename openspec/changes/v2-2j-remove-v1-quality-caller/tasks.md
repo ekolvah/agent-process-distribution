@@ -11,9 +11,9 @@
 
 ## 2. One quality run, gate on both lists
 
-- [ ] 2.1 Delete `.github/workflows/ci.yml`. Remove the `ci.yml` reads from `tests/publisher/test_reusable_workflows.py` and `tests/agent_process/test_ci_check.py` (design D1). Set `REQUIRED_CONTEXTS = ("agent-review / agent-review",)` (design D2). Verify that `python -m pytest tests/publisher/test_reusable_workflows.py tests/agent_process/test_ci_check.py tests/agent_process/test_branch_protection.py -q` is green
-- [ ] 2.2 Make `review_gate.evaluate` judge `(*REQUIRED_CONTEXTS, *RULESET_CONTEXTS)` (design D2), import `RULESET_CONTEXTS` on both import paths, and update the module docstring's shared-data sentence. Verify that `python -m pytest tests/agent_process/test_review_gate.py -q` is green
-- [ ] 2.3 Edit the `agent-process.yml` header comment and the `check_secrets` docstring (design D4). Verify that `python -m pytest tests/publisher tests/agent_process -q` is green, then commit Group 2 as `feat(distribution): run quality once per PR`
+- [x] 2.1 Delete `.github/workflows/ci.yml`. Remove the `ci.yml` reads from `tests/publisher/test_reusable_workflows.py` and `tests/agent_process/test_ci_check.py` (design D1). Set `REQUIRED_CONTEXTS = ("agent-review / agent-review",)` (design D2). Verify that `python -m pytest tests/publisher/test_reusable_workflows.py tests/agent_process/test_ci_check.py tests/agent_process/test_branch_protection.py -q` is green
+- [x] 2.2 Make `review_gate.evaluate` judge `(*REQUIRED_CONTEXTS, *RULESET_CONTEXTS)` (design D2), import `RULESET_CONTEXTS` on both import paths, and update the module docstring's shared-data sentence. Verify that `python -m pytest tests/agent_process/test_review_gate.py -q` is green
+- [x] 2.3 Edit the `agent-process.yml` header comment and the `check_secrets` docstring (design D4). Verify that `python -m pytest tests/publisher tests/agent_process -q` is green, then commit Group 2 as `feat(distribution): run quality once per PR`
 
 ## 3. Verify
 
