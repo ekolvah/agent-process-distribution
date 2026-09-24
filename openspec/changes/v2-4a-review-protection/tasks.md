@@ -28,9 +28,9 @@
 
 ## 3. No classic protection
 
-- [ ] 3.1 Delete `.agent-process/scripts/check_branch_protection.py`, `.agent-process/scripts/install_branch_protection.py` and `tests/agent_process/test_branch_protection.py`. Remove the probe `if`/`else` from `.agent-process/.githooks/pre-push`, so the hook runs `ci_check.py` alone (design D4). Verify that `python -m pytest tests/agent_process/test_pre_push_hook.py -q` is green
-- [ ] 3.2 Rewrite `tests/publisher/test_reusable_workflows.py::test_publisher_driver_keeps_a_same_head_catcher` so that it no longer imports `REQUIRED_CONTEXTS`. It asserts that `.github/workflows/agent-review.yml` exists and that `activate_protection.contexts(True)` includes `agent-review / agent-review`. Verify that the test is green
-- [ ] 3.3 In `.agent-process/docs/architecture/agent-process-installation.md`, replace the `install_branch_protection.py` step with `activate_protection.py`. Verify that `python -m pytest tests/agent_process/test_doc_links.py tests/agent_process/test_doc_narrative.py -q` is green, then commit Group 3 as `refactor(review-and-merge): drop classic protection scripts and the pre-push probe`
+- [x] 3.1 Delete `.agent-process/scripts/check_branch_protection.py`, `.agent-process/scripts/install_branch_protection.py` and `tests/agent_process/test_branch_protection.py`. Remove the probe `if`/`else` from `.agent-process/.githooks/pre-push`, so the hook runs `ci_check.py` alone (design D4). Verify that `python -m pytest tests/agent_process/test_pre_push_hook.py -q` is green
+- [x] 3.2 Rewrite `tests/publisher/test_reusable_workflows.py::test_publisher_driver_keeps_a_same_head_catcher` so that it no longer imports `REQUIRED_CONTEXTS`. It asserts that `.github/workflows/agent-review.yml` exists and that `activate_protection.contexts(True)` includes `agent-review / agent-review`. Verify that the test is green
+- [x] 3.3 In `.agent-process/docs/architecture/agent-process-installation.md`, replace the `install_branch_protection.py` step with `activate_protection.py`. Verify that `python -m pytest tests/agent_process/test_doc_links.py tests/agent_process/test_doc_narrative.py -q` is green, then commit Group 3 as `refactor(review-and-merge): drop classic protection scripts and the pre-push probe`
 
 ## 4. No review gate, no Stop gate
 

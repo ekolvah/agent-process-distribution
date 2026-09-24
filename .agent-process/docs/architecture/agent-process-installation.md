@@ -114,34 +114,25 @@ workflows run on every pull request.
    unearned green result.
 5. Activate the GitHub Project with the bootstrap command below. It may write
    remote Project configuration only in `create` mode with `--confirm-create`.
-6. Inspect the branch-protection plan. This command authenticates with `gh`, resolves
-   the repository's real default branch, validates the local workflow declaration,
-   and reads live classic protection, but performs no remote write:
+6. Once a PR shows `agent-process / quality` (and `agent-review / agent-review` when
+   `.github/workflows/agent-review.yml` exists) green on its head, inspect the protection
+   plan. It reads only:
 
    ```bash
-   python .agent-process/scripts/install_branch_protection.py
+   python skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run
    ```
 
-   After reviewing the exact actions, authorize this installation explicitly:
+   After reviewing the printed plan and its rollback line, authorize the write explicitly:
 
    ```bash
-   python .agent-process/scripts/install_branch_protection.py --confirm-write
+   python skills/agent-process/scripts/activate_protection.py --pr <N> --confirm
    ```
 
-   On an already protected branch, the installer adds only missing process contexts
-   and changes only strict checking or administrator enforcement when either is off.
-   Existing checks and App bindings, review policy, push restrictions, and every other
-   consumer-owned field remain in place. If protection is absent, the confirmed command
-   creates one baseline: strict process checks, administrator enforcement, no invented
-   review or push restriction, and force-push/deletion disabled. Every confirmed run
-   re-reads GitHub and verifies those postconditions.
+   It writes one repository ruleset that requires those contexts, reads it back, and never
+   writes classic branch protection
+   ([`SKILL.md`](../../../skills/agent-process/SKILL.md), Install step 5).
 
-   Several narrow API writes cannot be atomic. If a later call fails after an earlier
-   one succeeded, the command exits non-zero, prints observed progress, and asks you to
-   rerun the same idempotent command. Do not replace that recovery with a full-list
-   branch-protection update: it can remove consumer policy.
-
-Enable the copied local pre-push probe after reviewing it:
+Enable the copied local pre-push hook, which runs `ci_check.py`, after reviewing it:
 
 ```bash
 git config core.hooksPath .agent-process/.githooks

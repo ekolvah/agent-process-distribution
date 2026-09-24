@@ -1,7 +1,8 @@
 ## Why
 
-Step 4 of #107 ([issue 114](https://github.com/ekolvah/agent-process-distribution/issues/114))
-removes the v1 review control plane. It was split into two changes during planning on
+This change removes the v1 review control plane, step 4 of the v2 plan
+([#107](https://github.com/ekolvah/agent-process-distribution/issues/107),
+[issue 114](https://github.com/ekolvah/agent-process-distribution/issues/114)). It was split into two changes during planning on
 2026-09-24: this one covers review and protection, and `v2-4b` covers the v1 issue and state
 scripts. The v2 review loop already exists: `v2-2b` made the `agent-review` check the review,
 and `wait_for_pr.py` is its wait. Four v1 mechanisms still run beside it:
