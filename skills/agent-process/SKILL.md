@@ -138,7 +138,9 @@ skill's own directory. Run from the consumer's root:
    skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run` (admin rights on
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never
-   writes classic branch protection.
+   writes classic branch protection. When the repository has
+   `.github/workflows/agent-review.yml`, it requires `agent-review / agent-review` too, so
+   the PR must also show that check green.
 
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
 install of another version in any repository moves it for every repository. The Claude

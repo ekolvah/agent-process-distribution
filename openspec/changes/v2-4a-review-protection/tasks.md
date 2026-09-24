@@ -14,7 +14,7 @@
 
 ## 2. Activation requires both contexts
 
-- [ ] 2.1 Implement design D3 in `skills/agent-process/scripts/activate_protection.py`:
+- [x] 2.1 Implement design D3 in `skills/agent-process/scripts/activate_protection.py`:
   - The preflight's GraphQL read also asks for `HEAD:.github/workflows/agent-review.yml`.
   - A pure `contexts(review_caller: bool)` returns the list.
   - The preflight checks each context's run and returns `(context, integration)` pairs.
@@ -24,7 +24,7 @@
   - Update the module docstring.
 
   Verify that `python -m pytest tests/publisher/test_activate_protection.py -q` is green
-- [ ] 2.2 In `skills/agent-process/SKILL.md` Install step 5, say that the run requires `agent-review / agent-review` too when the repository has that caller. Verify with `python -m pytest tests/publisher -q -k "skill or install"`, then commit Group 2 as `feat(distribution): activation requires the review context when its caller exists`
+- [x] 2.2 In `skills/agent-process/SKILL.md` Install step 5, say that the run requires `agent-review / agent-review` too when the repository has that caller. Verify with `python -m pytest tests/publisher -q -k "skill or install"`, then commit Group 2 as `feat(distribution): activation requires the review context when its caller exists`
 
 ## 3. No classic protection
 

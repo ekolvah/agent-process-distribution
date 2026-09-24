@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Make `agent-process / quality` required on the default branch once it has been observed.
+"""Make the process's checks required on the default branch once they have been observed.
 
 Usage: python skills/agent-process/scripts/activate_protection.py --pr <N> (--dry-run | --confirm)
 
+The required contexts follow the callers on the default branch: `agent-process / quality`
+always, and `agent-review / agent-review` when `.github/workflows/agent-review.yml` exists.
 A required check that never reported blocks every merge (PR 151, run 35523639249), so the
-run first reads two facts and refuses (exit 2) without them: the default branch carries
+run first reads these facts and refuses (exit 2) without them: the default branch carries
 `.github/workflows/agent-process.yml`, and the current head of PR <N> against that branch
-has an `agent-process / quality` check run that GitHub Actions concluded `success`. That
-app's id becomes the required check's `integration_id`.
+has, for each context, a check run that GitHub Actions concluded `success`. That run's app
+id becomes the context's `integration_id`.
 
 Then it plans one repository ruleset named `agent-process default branch` from
 `templates/ruleset.json`: `planned create`, `planned update <id>` with one line per differing
@@ -16,7 +18,8 @@ Only the fields the template sets are owned — keys the server adds are neither
 written. Several rulesets of that name, or one the repository does not own, are a
 `conflict` (exit 2) before any write. Classic branch protection is read and printed, never
 written. `--dry-run` stops there with reads only; `--confirm` writes the one `POST` or
-`PUT`, then reads the ruleset back and exits 1 naming the first field that differs. A `gh`
+`PUT`, then reads the ruleset back and exits 1 naming the first field that differs. The
+required contexts are compared sorted by context, whatever order the server returns. A `gh`
 failure is exit 1.
 """
 
@@ -35,6 +38,8 @@ from set_status import Gh, _json, run_gh
 
 CALLER = ".github/workflows/agent-process.yml"
 CONTEXT = "agent-process / quality"
+REVIEW_CALLER = ".github/workflows/agent-review.yml"
+REVIEW_CONTEXT = "agent-review / agent-review"
 APP = "github-actions"
 NAME = "agent-process default branch"
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "ruleset.json"
@@ -42,16 +47,41 @@ BARRIERS = ("pull_request", "deletion", "non_fast_forward", "required_status_che
 QUERY = (
     "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){"
     "nameWithOwner defaultBranchRef{name} "
-    f'object(expression:"HEAD:{CALLER}"){{__typename}}}}}}'
+    f'object(expression:"HEAD:{CALLER}"){{__typename}} '
+    f'review:object(expression:"HEAD:{REVIEW_CALLER}"){{__typename}}}}}}'
 )
+Check = tuple[str, int]  # a required context and the integration id bound to it
 
 
 class Refusal(Exception):
     """A precondition or a conflict: exit 2, nothing written."""
 
 
-def preflight(gh: Gh, pr: int) -> tuple[str, str, int]:
-    """The repository, its default branch and the integration id that reported the context."""
+def contexts(review_caller: bool) -> list[str]:
+    """The required contexts, given whether the default branch carries the review caller."""
+    return [CONTEXT, REVIEW_CONTEXT] if review_caller else [CONTEXT]
+
+
+def _observed(gh: Gh, repo: str, pr: int, head: str, context: str) -> Check:
+    """The context bound to the app of its successful GitHub Actions run on `head`."""
+    runs = _json(
+        gh, ["gh", "api", f"repos/{repo}/commits/{head}/check-runs?check_name={quote(context)}"]
+    )["check_runs"]
+    for run in runs:
+        app = run.get("app") or {}
+        if (run.get("name"), app.get("slug"), run.get("conclusion")) == (context, APP, "success"):
+            return context, int(app["id"])
+    seen = "; ".join(
+        f"{run.get('name')} {(run.get('app') or {}).get('slug')} {run.get('conclusion')}"
+        for run in runs
+    )
+    raise Refusal(
+        f"refused: no successful {context} from {APP} on {head[:8]} of PR {pr}: {seen or 'none'}"
+    )
+
+
+def preflight(gh: Gh, pr: int) -> tuple[str, str, list[Check]]:
+    """The repository, its default branch and each required context with its integration id."""
     data = _json(
         gh,
         [
@@ -75,20 +105,8 @@ def preflight(gh: Gh, pr: int) -> tuple[str, str, int]:
             f"refused: PR {pr} has base {view['baseRefName']}, not the default branch {branch}"
         )
     head = str(view["headRefOid"])
-    runs = _json(
-        gh, ["gh", "api", f"repos/{repo}/commits/{head}/check-runs?check_name={quote(CONTEXT)}"]
-    )["check_runs"]
-    for run in runs:
-        app = run.get("app") or {}
-        if (run.get("name"), app.get("slug"), run.get("conclusion")) == (CONTEXT, APP, "success"):
-            return repo, branch, int(app["id"])
-    seen = "; ".join(
-        f"{run.get('name')} {(run.get('app') or {}).get('slug')} {run.get('conclusion')}"
-        for run in runs
-    )
-    raise Refusal(
-        f"refused: no successful {CONTEXT} from {APP} on {head[:8]} of PR {pr}: {seen or 'none'}"
-    )
+    wanted = contexts(data["review"] is not None)
+    return repo, branch, [_observed(gh, repo, pr, head, context) for context in wanted]
 
 
 def _fill(node: Any, values: dict[str, Any]) -> Any:
@@ -105,9 +123,20 @@ def _fill(node: Any, values: dict[str, Any]) -> Any:
     return node
 
 
-def desired(branch: str, integration: int) -> dict[str, Any]:
+def _required(checks: list[Check]) -> list[dict[str, Any]]:
+    return [{"context": context, "integration_id": integration} for context, integration in checks]
+
+
+def _by_context(required: Any) -> Any:
+    """A required-checks list sorted by context: the server's order is not compared."""
+    if not isinstance(required, list):
+        return required
+    return sorted(required, key=lambda check: str((check or {}).get("context")))
+
+
+def desired(branch: str, checks: list[Check]) -> dict[str, Any]:
     template = json.loads(TEMPLATE.read_text(encoding="utf-8"))
-    values = {"__DEFAULT_BRANCH__": branch, "__CONTEXT__": CONTEXT, "__INTEGRATION__": integration}
+    values = {"__DEFAULT_BRANCH__": branch, "__REQUIRED_CHECKS__": _required(checks)}
     return _fill(template, values)
 
 
@@ -126,7 +155,10 @@ def owned_fields(body: dict[str, Any], want: dict[str, Any]) -> dict[str, Any]:
     fields["rules"] = sorted(str(kind) for kind in rules)
     for kind, keys in _parameter_keys(want).items():
         for key in keys:
-            fields[f"{kind}.{key}"] = rules.get(kind, {}).get(key)
+            value = rules.get(kind, {}).get(key)
+            if key == "required_status_checks":
+                value = _by_context(value)
+            fields[f"{kind}.{key}"] = value
     return fields
 
 
@@ -211,14 +243,13 @@ def write(gh: Gh, repo: str, ruleset_id: int | None, body: dict[str, Any]) -> in
         os.unlink(path)
 
 
-def read_back(gh: Gh, repo: str, ruleset_id: int, branch: str, integration: int) -> None:
+def read_back(gh: Gh, repo: str, ruleset_id: int, branch: str, written: list[Check]) -> None:
     """Raise on the first field of the written ruleset that differs, in design D4's order."""
     live = _json(gh, ["gh", "api", f"repos/{repo}/rulesets/{ruleset_id}"])
     ref = (live.get("conditions") or {}).get("ref_name") or {}
     rules = {rule.get("type"): rule.get("parameters") or {} for rule in live.get("rules") or []}
     checks = rules.get("required_status_checks", {})
-    required = checks.get("required_status_checks") or []
-    only = required[0] if len(required) == 1 else {}
+    required = checks.get("required_status_checks")
     expected: list[tuple[str, Any, bool]] = [
         ("enforcement", live.get("enforcement"), live.get("enforcement") == "active"),
         (
@@ -234,12 +265,10 @@ def read_back(gh: Gh, repo: str, ruleset_id: int, branch: str, integration: int)
             checks.get("strict_required_status_checks_policy"),
             checks.get("strict_required_status_checks_policy") is True,
         ),
-        ("required_status_checks", required, len(required) == 1),
-        ("required_status_checks.context", only.get("context"), only.get("context") == CONTEXT),
         (
-            "required_status_checks.integration_id",
-            only.get("integration_id"),
-            only.get("integration_id") == integration,
+            "required_status_checks",
+            required,
+            _by_context(required) == _by_context(_required(written)),
         ),
     ]
     for field, observed, ok in expected:
@@ -248,8 +277,8 @@ def read_back(gh: Gh, repo: str, ruleset_id: int, branch: str, integration: int)
 
 
 def activate(pr: int, *, confirm: bool, gh: Gh) -> None:
-    repo, branch, integration = preflight(gh, pr)
-    want = desired(branch, integration)
+    repo, branch, checks = preflight(gh, pr)
+    want = desired(branch, checks)
     action, ruleset_id, lines = plan(gh, repo, want)
     lines.append(classic(gh, repo, branch))
     print("\n".join(lines))
@@ -258,7 +287,7 @@ def activate(pr: int, *, confirm: bool, gh: Gh) -> None:
     written = write(gh, repo, ruleset_id, want)
     # Printed before the read-back: a created ruleset's rollback needs this id.
     print(f"wrote ruleset {written}; reading it back", flush=True)
-    read_back(gh, repo, written, branch, integration)
+    read_back(gh, repo, written, branch, checks)
     print(f"written: ruleset {written}")
 
 
