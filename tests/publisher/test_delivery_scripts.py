@@ -269,6 +269,7 @@ def _review(verdict: str = "approve") -> dict[str, Any]:
         "reasoning": "r",
         "classes": {name: {"evidence": "read", "result": "ok"} for name in _CLASSES},
         "scenario_coverage": [],
+        "additions": [],
     }
 
 
@@ -353,6 +354,71 @@ def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     err = capsys.readouterr().err
     for message in messages:
         assert message in err, message
+
+
+def _addition(**fields: str) -> dict[str, str]:
+    entry = {"path": "check.py", "problem": "#113", "standard": "pytest-bdd", "why_not": "w"}
+    return {**entry, **fields}
+
+
+def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Addition without evidence — under `approve` both scripts refuse an addition
+    without a problem reference or a standard, and create nothing."""
+    start_change = load_script("start_change")
+    create = load_script("create_tracking_issue")
+    cases = {
+        "problem-none": ({"problem": "none"}, "'none' does not match"),
+        "problem-adr": ({"problem": "ADR 0027"}, "'ADR 0027' does not match"),
+        "standard-none": ({"standard": "none"}, "'none' should not be valid under"),
+        "standard-None": ({"standard": "None"}, "'None' should not be valid under"),
+        "standard-na": ({"standard": "N/A"}, "'N/A' should not be valid under"),
+        "absent": (None, "'additions' is a required property"),
+    }
+    for name, (fields, message) in cases.items():
+        review = _review()
+        if fields is None:
+            del review["additions"]
+        else:
+            review["additions"] = [_addition(**fields)]
+
+        root = _change(
+            tmp_path / name / "a", tasks=_GROUP0.format(token="tracking issue 7"), review=review
+        )
+        gh = Gh()
+        with pytest.raises(SystemExit) as exc:
+            start_change.main(_START, gh=gh, root=root)
+        assert exc.value.code == 2 and _develops(gh) == [], name
+        assert message in capsys.readouterr().err, name
+
+        root = _change(
+            tmp_path / name / "b", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review
+        )
+        gh = Gh()
+        with pytest.raises(SystemExit) as exc:
+            create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+        assert exc.value.code == 2 and _creates(gh) == [], name
+        assert message in capsys.readouterr().err, name
+
+    # An approve with a reference and a standard creates the issue.
+    review = _review()
+    review["additions"] = [_addition()]
+    root = _change(tmp_path / "ok", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
+    gh = Gh()
+    create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    assert len(_creates(gh)) == 1
+
+    # A rework records the gap as found: valid, refused only for being rework.
+    review = _review("rework")
+    review["additions"] = [_addition(problem="none")]
+    root = _change(
+        tmp_path / "rework", tasks=_GROUP0.format(token="tracking issue 7"), review=review
+    )
+    gh = Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    err = capsys.readouterr().err
+    assert "rework" in err and "does not match" not in err
 
 
 def test_review_approves_an_open_finding(
