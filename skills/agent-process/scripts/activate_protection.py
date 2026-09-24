@@ -151,7 +151,9 @@ def _compact(value: Any) -> str:
 
 def plan(gh: Gh, repo: str, want: dict[str, Any]) -> tuple[str, int | None, list[str]]:
     """`create`, `update` or `unchanged`, the ruleset id, and the lines to print."""
-    named = [r for r in _json(gh, ["gh", "api", f"repos/{repo}/rulesets"]) if r.get("name") == NAME]
+    # Every page: a ruleset of that name past the first page must not look absent (create).
+    pages = _json(gh, ["gh", "api", "--paginate", "--slurp", f"repos/{repo}/rulesets"])
+    named = [r for page in pages for r in page if r.get("name") == NAME]
     if len(named) > 1 or (named and named[0].get("source_type") != "Repository"):
         listed = ", ".join(f"{r.get('id')} {r.get('source_type')}" for r in named)
         raise Refusal(f'conflict: rulesets named "{NAME}": {listed}')
@@ -254,6 +256,8 @@ def activate(pr: int, *, confirm: bool, gh: Gh) -> None:
     if not confirm or action == "unchanged":
         return
     written = write(gh, repo, ruleset_id, want)
+    # Printed before the read-back: a created ruleset's rollback needs this id.
+    print(f"wrote ruleset {written}; reading it back", flush=True)
     read_back(gh, repo, written, branch, integration)
     print(f"written: ruleset {written}")
 

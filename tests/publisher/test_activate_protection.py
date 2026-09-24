@@ -23,6 +23,7 @@ NAME = "agent-process default branch"
 LIVE_ID = 23732345
 NEW_ID = 99
 WRITES = ("POST", "PUT", "PATCH", "DELETE")
+PAGE = 30  # the REST default page size of the ruleset list
 
 
 def _rules(context: str, integration: int = 15368) -> list[dict[str, Any]]:
@@ -135,19 +136,20 @@ class FakeGh:
         raise AssertionError(f"unexpected write: {cmd}")
 
     def _read(self, cmd: list[str]) -> str:
-        endpoint = cmd[2]
+        endpoint = next(arg for arg in cmd[2:] if not arg.startswith("-"))
         if (
             endpoint
             == f"repos/{REPO}/commits/{HEAD}/check-runs?check_name=agent-process%20/%20quality"
         ):
             return json.dumps({"total_count": len(self.runs), "check_runs": self.runs})
         if endpoint == f"repos/{REPO}/rulesets":
-            return json.dumps(
-                [
-                    {"id": r["id"], "name": r["name"], "source_type": r["source_type"]}
-                    for r in self.rulesets.values()
-                ]
-            )
+            listed = [
+                {"id": r["id"], "name": r["name"], "source_type": r["source_type"]}
+                for r in self.rulesets.values()
+            ]
+            pages = [listed[i : i + PAGE] for i in range(0, len(listed), PAGE)] or [[]]
+            # `--paginate --slurp` prints every page wrapped in one array; without it, page 1.
+            return json.dumps(pages if "--slurp" in cmd else pages[0])
         if endpoint.startswith(f"repos/{REPO}/rulesets/"):
             return json.dumps(self.rulesets[int(endpoint.rsplit("/", 1)[1])])
         if endpoint == f"repos/{REPO}/branches/main/protection":
@@ -227,8 +229,14 @@ def test_no_ruleset_yet(capsys: pytest.CaptureFixture[str]) -> None:
     assert body["rules"] == _rules(CONTEXT)
 
 
-def test_live_ruleset_differs(capsys: pytest.CaptureFixture[str]) -> None:
-    gh = FakeGh()
+def _other(ruleset_id: int) -> dict[str, Any]:
+    return {"id": ruleset_id, "name": f"other {ruleset_id}", "source_type": "Repository"}
+
+
+@pytest.mark.parametrize("before", [0, PAGE], ids=["first-page", "later-page"])
+def test_live_ruleset_differs(before: int, capsys: pytest.CaptureFixture[str]) -> None:
+    others = [_other(i) for i in range(1, before + 1)]
+    gh = FakeGh(rulesets=[*others, _served(LIVE_ID, "quality / quality")])
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 0, out
     assert f"written: ruleset {LIVE_ID}" in out
@@ -342,10 +350,18 @@ def _set(path: tuple[str, ...], value: Any):
         "integration",
     ],
 )
-def test_read_back_mismatch(mutate, field: str, capsys: pytest.CaptureFixture[str]) -> None:
-    gh = FakeGh()
+@pytest.mark.parametrize(
+    ("rulesets", "written"), [(None, LIVE_ID), ([], NEW_ID)], ids=["update", "create"]
+)
+def test_read_back_mismatch(
+    mutate, field: str, rulesets: list | None, written: int, capsys: pytest.CaptureFixture[str]
+) -> None:
+    gh = FakeGh(rulesets=rulesets)
     gh.read_back = mutate
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 1
-    assert f"read-back: {field} is " in out
+    # The id is printed before the read-back, so a created ruleset can be rolled back.
+    lines = out.splitlines()
+    wrote = lines.index(f"wrote ruleset {written}; reading it back")
+    assert any(line.startswith(f"error: read-back: {field} is ") for line in lines[wrote:])
     assert "written:" not in out
