@@ -2,8 +2,8 @@ name: agent-process
 
 # Publisher caller of quality.yml. The `./` path takes the callee from this
 # commit, so the PR that changes quality.yml runs its own version; consumers
-# pin `@v<version>` instead. Not required yet: issue 154 activates the context
-# `agent-process / quality`; until then `quality / quality` (ci.yml) gates.
+# pin `@v<version>` instead. Ruleset `agent-process default branch` requires
+# the context `agent-process / quality` (issue 154).
 on:
   pull_request:
 

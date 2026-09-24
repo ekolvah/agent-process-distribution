@@ -117,7 +117,6 @@ def _protected_policy(*, strict: bool = True, admins: bool = True) -> dict[str, 
             "strict": strict,
             "checks": [
                 {"context": "consumer / test", "app_id": 71},
-                {"context": REQUIRED_CONTEXTS[0], "app_id": 15368},
             ],
         },
         "enforce_admins": {"enabled": admins},
@@ -142,8 +141,7 @@ class TestProtectionInstallation:
 
         report = install_branch_protection(client, confirm_write=True, workflows_dir=_WORKFLOWS)
 
-        missing = tuple(context for context in REQUIRED_CONTEXTS if context != REQUIRED_CONTEXTS[0])
-        assert client.writes == [("add_contexts", "main", missing)]
+        assert client.writes == [("add_contexts", "main", REQUIRED_CONTEXTS)]
         assert report.changed is True
         assert client.protection_reads == 2
         assert (
@@ -173,7 +171,7 @@ class TestProtectionInstallation:
     def test_protected_branch_enables_strict_and_admin_through_narrow_subresources(self) -> None:
         policy = _protected_policy(strict=False, admins=False)
         policy["required_status_checks"]["checks"].extend(
-            {"context": context, "app_id": 15368} for context in REQUIRED_CONTEXTS[1:]
+            {"context": context, "app_id": 15368} for context in REQUIRED_CONTEXTS
         )
         client = _MemoryProtectionClient(policy)
 
@@ -263,7 +261,7 @@ class TestProtectionInstallation:
     def test_configured_rerun_is_a_noop(self) -> None:
         policy = _protected_policy()
         policy["required_status_checks"]["checks"].extend(
-            {"context": context, "app_id": 15368} for context in REQUIRED_CONTEXTS[1:]
+            {"context": context, "app_id": 15368} for context in REQUIRED_CONTEXTS
         )
         client = _MemoryProtectionClient(policy)
 
@@ -277,10 +275,7 @@ class TestProtectionInstallation:
 
 class TestDriftDetection:
     def test_controller_gate_is_not_a_required_context(self) -> None:
-        assert REQUIRED_CONTEXTS == (
-            "quality / quality",
-            "agent-review / agent-review",
-        )
+        assert REQUIRED_CONTEXTS == ("agent-review / agent-review",)
 
     """Чистое сравнение объявленного состава контекстов с фактическим."""
 

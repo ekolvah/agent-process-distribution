@@ -169,7 +169,7 @@ _CAPTURED_HTML_FIXTURES = re.compile(r"^tests/fixtures/.*\.html$")
 def check_secrets() -> None:
     """Block a secret from reaching a commit.
 
-    Run this gate from the one registry that `pre-push` and `ci.yml` both
+    Run this gate from the one registry that `pre-push` and `agent-process.yml` both
     execute — a hook config that lives outside that registry, or a baseline
     with an empty `plugins_used`, can look wired up while never actually
     running or matching anything.

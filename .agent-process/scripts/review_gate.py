@@ -24,7 +24,7 @@ relevant branch (`fixer_revisions >= max_runs`) would require synthesising
 `plan_completed` / `architect_completed` / `implementation_completed` and a
 stand-in `review_outcome` — factoids this gate never verified (§V) — plus three
 dead route branches that would silently move the verdict whenever the router
-changes. What is shared is *data*: the role catalogue and `REQUIRED_CONTEXTS`.
+changes. What is shared is *data*: the role catalogue, `REQUIRED_CONTEXTS`, and `RULESET_CONTEXTS`.
 No policy gets a second home.
 
 A PR touching the review controller is no longer a special case: the
@@ -51,10 +51,14 @@ from urllib.parse import quote
 
 try:
     from scripts.agent_orchestrator import load_catalog
-    from scripts.check_branch_protection import REQUIRED_CONTEXTS, REVIEW_CONTEXT
+    from scripts.check_branch_protection import (
+        REQUIRED_CONTEXTS,
+        REVIEW_CONTEXT,
+        RULESET_CONTEXTS,
+    )
 except ModuleNotFoundError:  # documented direct script entry point
     from agent_orchestrator import load_catalog
-    from check_branch_protection import REQUIRED_CONTEXTS, REVIEW_CONTEXT
+    from check_branch_protection import REQUIRED_CONTEXTS, REVIEW_CONTEXT, RULESET_CONTEXTS
 
 REVIEW_WORKFLOW_FILE = "agent-review.yml"
 
@@ -165,7 +169,7 @@ def evaluate(evidence: ReviewEvidence, fixer_budget: int) -> Verdict:
     by_name = {check.name: check for check in evidence.checks}
     pending = [
         name
-        for name in REQUIRED_CONTEXTS
+        for name in (*REQUIRED_CONTEXTS, *RULESET_CONTEXTS)
         if name not in by_name or by_name[name].status != "COMPLETED"
     ]
     if pending:
@@ -173,7 +177,11 @@ def evaluate(evidence: ReviewEvidence, fixer_budget: int) -> Verdict:
             "review-pending",
             f"required checks are not final on {evidence.head_sha[:8]}: {', '.join(pending)}",
         )
-    red = [name for name in REQUIRED_CONTEXTS if by_name[name].conclusion != "SUCCESS"]
+    red = [
+        name
+        for name in (*REQUIRED_CONTEXTS, *RULESET_CONTEXTS)
+        if by_name[name].conclusion != "SUCCESS"
+    ]
     if red:
         spent = fixer_revisions(evidence)
         if spent >= fixer_budget:

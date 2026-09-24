@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The design is minimal and traced: ci.yml goes, the gate judges the classic and ruleset lists, the same-head catcher stays pinned, and tasks.md 1.1 now moves every review-gate fixture onto both lists in the RED commit.",
+  "classes": {
+    "simpler": {
+      "evidence": "design D2 weighs the two simpler alternatives: `agent-process / quality` in REQUIRED_CONTEXTS (rejected: the classic-only guard would report drift on every push) and a live rules read in review_gate (rejected: remote read plus parser in a script issue 115 deletes). Leaving review_gate untouched is rejected by proposal Why (ready-for-human on a red `agent-process / quality`). D1 deletes ci.yml alone and keeps reusable-quality.yml for v1 consumers.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Four delta scenarios, four entries in tasks.md Scenario → test map: `PR weakens its own driver` → test_publisher_driver_keeps_a_same_head_catcher (tightened in 1.3); `Quality runs once per PR` → test_quality_runs_once_per_pr (new, 1.2; it proxies 'executes the quality driver' by `uses` of quality.yml/reusable-quality.yml, which covers every current caller); `Missing required context` → TestPrePushHook::test_drift_blocks_push_without_running_ci_check (exists, test_branch_protection.py:801); `Ruleset context red` → test_red_ruleset_context_is_fix_blocking_and_names_it (renamed, 1.1). `openspec validate --strict` passes.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "1.1/1.2 tests are RED on main: review_gate.evaluate reads only REQUIRED_CONTEXTS, so the red and absent `agent-process / quality` cases give ready-for-human; ci.yml's `quality` job makes test_quality_runs_once_per_pr fail; REQUIRED_CONTEXTS still has two entries. 1.1 also moves `_checks`, `_pr_payload`'s rollup and the expected set of test_non_checkrun_rollup_entries_are_ignored onto both lists, green on the RED head because the gate ignores extra contexts, so the evidence-path tests at lines 272, 358 and 407 stay green after 2.2. 1.3 records `no RED` with a reason.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design Observations: classic protection read (`quality / quality`, `agent-review / agent-review`, app_id 15368, strict, enforce_admins), ruleset 23732345 read (`agent-process / quality`, integration 15368, strict), PR 167 statusCheckRollup with the three composed CheckRun names review_gate compares. The DELETE/PATCH protection calls are reference endpoints that cannot be dry-run; 4.4 follows the DELETE with a read of the live checks recorded in the PR body.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Dropped guard: the trusted-driver context `quality / quality` — design D3 names failure mode, what stops proving, catcher and pin, carrying D5 of v2-2i unchanged. Dropped tests: TestStepParity::test_ci_yml_cannot_select_a_subset_of_checks (D1: test_publisher_caller_reaches_callee_by_same_commit_path pins `test` to ci_check.py); ci.yml permission/trigger/link assertions in test_reusable_workflows.py have agent-process.yml equivalents (lines 42, 73, 225-227) and quality.yml keeps the issue-link step. Replaced input: review_gate's context list (D2).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "D3: classic `agent-review / agent-review`, strict, enforce_admins, app_id 15368 (observed) — GitHub enforces it at merge on the same head; the person's 2026-09-23 acceptance of a missed weakening is recorded and issue 114 owns its successor. Risks: a RULESET_CONTEXTS drift reaches the person in the merge box or as visible review-pending (4.5). The window between the person's DELETE and merge makes pre-push on other branches report drift for `quality / quality` — loud, with `--allow-drift`, not silent.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "distribution ADDED: S1 23 words / ~4 asserted (`agent-review / agent-review` in REQUIRED_CONTEXTS); S2 17 / 0 directly, implied by the S1 pin; S3 8 / 5 (test_quality_runs_once_per_pr). REMOVED Reason 20 + Migration 16, not behavioural. review-and-merge MODIFIED: S1 17 / ~8 (REQUIRED_CONTEXTS tuple test, literal `agent-process / quality` in review-gate tests); S2 7 / 0 (the constants exist); S3 17 / existing pre-push test; S4 19 / ~10 (Ruleset context red, absent case). No rule prose added outside specs.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "RULESET_CONTEXTS: closes D5's accepted divergence of v2-2i, which becomes a live hole once `quality / quality` leaves the classic set (proposal Why). test_quality_runs_once_per_pr: issue 166, observed double run on PR 167's rollup. No script or file added; ci.yml is removed.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

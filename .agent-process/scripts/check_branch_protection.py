@@ -48,10 +48,10 @@ import yaml
 
 # Canonical required-context composition for the repository's default branch.
 REVIEW_CONTEXT = "agent-review / agent-review"
-REQUIRED_CONTEXTS: tuple[str, ...] = (
-    "quality / quality",
-    "agent-review / agent-review",
-)
+REQUIRED_CONTEXTS: tuple[str, ...] = ("agent-review / agent-review",)
+# Contexts ruleset `agent-process default branch` requires. The review gate judges them;
+# this guard compares only REQUIRED_CONTEXTS with classic protection.
+RULESET_CONTEXTS: tuple[str, ...] = ("agent-process / quality",)
 
 # PR jobs deliberately NOT required, with reasons. An empty reason is a forgotten decision,
 # not an accepted one, so the guard rejects it.
