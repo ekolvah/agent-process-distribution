@@ -19,8 +19,9 @@ confirmation. When that step came to be planned on 2026-09-25, two facts no long
   parallel. With v1 gone, no new v1 task runs, so "no worse than v1" has no v1 side to
   measure.
 
-This record supersedes, in ADR 0027, the telemetry bullet of Decision Outcome, the telemetry
-clause of Confirmation and the telemetry item of Deletion condition. The rest of ADR 0027
+This record supersedes, in ADR 0027, the scope sentence of Decision Outcome ("delivered by
+the changes `v2-1` … `v2-6`"), its telemetry bullet, the telemetry clause of Confirmation
+and the telemetry item of Deletion condition. The rest of ADR 0027
 stays in force, and ADR 0027 remains `accepted`.
 
 ## Considered Options
