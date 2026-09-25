@@ -13,7 +13,7 @@
 
 ## 3. Prose
 
-- [ ] 3.1 Apply design D4:
+- [x] 3.1 Apply design D4:
   - `.agent-process/docs/architecture/agent-process.md`: delivery steps 3 and 4, the `## Out of scope` paragraph, and governance item 5;
   - `AGENTS.md` and `.claude/rules/workflow.md`: the activation sentences;
   - the `skills/agent-process/scripts/set_status.py` docstring;

@@ -59,7 +59,8 @@ or option IDs.
   and step 3 loses the v1 `issue-*` fallback. The `## Out of scope` paragraph is deleted, and so
   is the last sentence of governance item 5.
 - `AGENTS.md` and `.claude/rules/workflow.md`: the activation sentence about
-  `project_settings.py` and `issue_branch.py` points to `SKILL.md#install`.
+  `project_settings.py` and `issue_branch.py` points to the `## Install` section of
+  `skills/agent-process/SKILL.md`.
 - The `set_status.py` docstring no longer says that the duplicated helpers go in `v2-4`.
 - ADR 0027 gains one Observations bullet: the caller search of the proposal and PR 104.
 

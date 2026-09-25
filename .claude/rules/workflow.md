@@ -10,9 +10,7 @@ workflow, roles, issue contract, delivery gates, and provenance remain in
 either contract here.
 
 Before invoking a planner or implementer in a newly adopted repository, follow
-[the installation guide](../../.agent-process/docs/architecture/agent-process-installation.md).
-The generated `.agent-process/scripts/project_settings.py` must be committed before the
-process can move issue statuses.
+[Install](../../skills/agent-process/SKILL.md#install).
 
 Claude is an available `planner` adapter: `/opsx:propose` runs the OpenSpec propose
 workflow with the project context and skill pointers of `openspec/config.yaml` and invokes the local

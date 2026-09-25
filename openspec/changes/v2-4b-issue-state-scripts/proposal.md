@@ -1,6 +1,6 @@
 ## Why
 
-Step 4 of #107 (issue 114) was split on 2026-09-24. `v2-4a-review-protection` (PR 173) removed
+Step 4 of issue 107 (issue 114) was split on 2026-09-24. `v2-4a-review-protection` (PR 173) removed
 the v1 review control plane. This change removes the v1 issue and state scripts, so that the
 Project `Status` field is the only delivery state and no v1 script can be run in place of a
 v2 step.

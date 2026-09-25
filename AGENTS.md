@@ -14,10 +14,9 @@ above stays the enforced contract.
 
 ## Codex adapter
 
-- A repository must be activated once before its first delivery. Follow
-  [the installation guide](.agent-process/docs/architecture/agent-process-installation.md),
-  then commit its generated `.agent-process/scripts/project_settings.py`. Until activation
-  succeeds, `issue_branch.py` refuses to create a branch.
+- A repository must be installed once before its first delivery
+  ([Install](skills/agent-process/SKILL.md#install)). Until then, `start_change.py` refuses
+  to create a branch.
 - Follow the canonical [per-issue delivery flow](.agent-process/docs/architecture/agent-process.md#deterministic-delivery-flow).
   That document is the sole source of task gates, commands, and status
   transitions; this file does not restate them.
