@@ -72,7 +72,7 @@ of many. OpenSpec is chosen.
 
 Chosen option: **OpenSpec as the spec, plan and procedure carrier, and standards instead of
 bespoke code wherever a standard exists.** The v2 target is the set of decisions below,
-delivered by the changes `v2-1` … `v2-6` (#107); until each archives, v1 stays the enforced
+delivered by the changes `v2-1` … `v2-5` (#107); until each archives, v1 stays the enforced
 process.
 
 * **Specs and planning = OpenSpec.** Living spec in `openspec/specs/`, changes as deltas
@@ -92,7 +92,8 @@ process.
 * **State lives in the GitHub Project.** The built-in `Status` field is the only delivery
   state (ADR 0024); `set_status` resolves IDs by name at run time.
 * **Telemetry is owner-side.** OTLP from both agents through one collector with
-  project/task/attempt labels; comparisons per merged PR.
+  project/task/attempt labels. Delivered after v2 (issue 116), not by it; see More
+  Information.
 
 Two rules bind every later addition to the core; they enter `openspec/specs/maintenance/`
 with this record: a process script exists only when GitHub, `gh`, OpenSpec, Claude Code or
@@ -116,7 +117,7 @@ every ADR that adds to the core states its *Deletion condition*.
 
 v2 is accepted as a whole when: the size budget of `openspec/specs/maintenance/` holds; a new
 project is installed in ≤ 10 minutes; an update never needs a three-way merge of process
-files; the `telemetry` metrics are no worse than v1 on the same task types. Structure is
+files. Structure is
 guarded by `test_adr_records` and `openspec validate --strict`.
 
 ## Native alternatives considered
@@ -149,8 +150,8 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 * `openspec validate` learns test results → `check_coverage` is deleted.
 * GitHub refuses to require a check that has not reported on the repository →
   `activate_protection` is deleted.
-* Telemetry shows v2 no better than v1 on the same task types after the minimum comparable
-  sample (`v2-6`) → the decision is revisited in a new record, not patched here.
+* A replay of one fixed task set under v1 and v2 (issue 99) shows v2 worse → the decision
+  is revisited in a new record, not patched here.
 
 ## More Information
 
@@ -681,3 +682,14 @@ Observations from v2-5 (`v2-5-delete-control-plane`, issue 115):
   ADR 0004 already records.
 * Comparing review rounds via telemetry moves to step 6 (issue 116), which provides the
   telemetry.
+
+Step 6 moved out of v2 (issue 116, 2026-09-25):
+
+* Its backend waits for the Langfuse spike (issue 103), whose outcome is not on record; a
+  plan written before it would fix the collector route the spike may replace.
+* The owner chose a forward-only comparison: v1 PRs carry no `task_id`, and PR time windows
+  do not separate parallel sessions. After the migration no v1 task runs, so "no worse than
+  v1" leaves the confirmation of v2; the deletion condition keeps only the replay of a fixed
+  task set (issue 99), the one comparison that stays possible.
+* v2 closes with step 7 (issue 117). Telemetry, with issues 99, 101 and 103, is tracked in
+  the process roadmap (issue 169); issue 116 absorbs issue 101 and supersedes PR 104.
