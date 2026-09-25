@@ -18,12 +18,12 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory, and that `git diff --shortstat origin/main` shows more deletions than insertions
+- [x] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory, and that `git diff --shortstat origin/main` shows more deletions than insertions
 
 ## 5. Deliver
 
-- [ ] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-5-delete-control-plane`. Verify that it applies the `maintenance` delta, commits the archive, and pushes the branch
+- [x] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-5-delete-control-plane`. Verify that it applies the `maintenance` delta, commits the archive, and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "v2-5-delete-control-plane" --body-file <report>`. The report references tracking issue 115 and issue 107 without `Closes`, carries the scenario → test map, and names the open rest of the Codex deletion condition (design D3)
 - [ ] 5.3 Run `gh pr comment <PR> --body "@codex review"`, then `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. A fix that changes a spec goes through a change of its own on the PR branch; a changed design decision amends the archived `design.md` and this map in the same push. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 5.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, report the PR ready. The person merges it
