@@ -50,12 +50,13 @@ ask the person for the priority before it creates the tracking issue; no deliver
 - **THEN** the run names them and changes nothing
 
 ### Requirement: Branch creation moves the issue to In Progress
-Creating the `issue-N-<slug>` branch SHALL move the issue's Status to `In Progress`; a
-board failure stops delivery visibly instead of leaving the branch without a status.
+Creating the linked branch of a change's tracking issue (`start_change <change>`) SHALL move
+the issue's Status to `In Progress`; a board failure stops delivery visibly instead of leaving
+the branch without a status.
 
 #### Scenario: Board failure
 - **WHEN** the status move fails after the branch is created
-- **THEN** the delivery stops with the error, not with a silent branch
+- **THEN** the delivery stops with a non-zero exit whose message names the steps left, not with a silent branch
 
 ### Requirement: The board is a copy of the template Project
 Project 4 of this repository SHALL be the template a consumer's board is copied from: it
