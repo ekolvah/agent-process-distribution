@@ -8,8 +8,8 @@
 
 ## 2. Delete the control plane and its orphans
 
-- [ ] 2.1 Delete `.agent-process/scripts/agent_orchestrator.py`, `.agents/orchestration/roles.yaml`, `.agents/orchestration/state.example.json` and `tests/agent_process/test_agent_orchestrator.py` (design D1). Verify that `python -m pytest tests -q` is green
-- [ ] 2.2 Delete `.agent-process/scripts/check_review_credentials.py`, `tests/agent_process/test_review_credentials.py`, `.github/pull_request_template.md`, and `test_installation_documents_the_caller_workflow_trust_boundary` in `tests/publisher/test_reusable_workflows.py` (design D2). Verify that `python -m pytest tests -q` is green, then commit Group 2 as `refactor(maintenance): delete the v1 control plane`
+- [x] 2.1 Delete `.agent-process/scripts/agent_orchestrator.py`, `.agents/orchestration/roles.yaml`, `.agents/orchestration/state.example.json` and `tests/agent_process/test_agent_orchestrator.py` (design D1). Verify that `python -m pytest tests -q` is green
+- [x] 2.2 Delete `.agent-process/scripts/check_review_credentials.py`, `tests/agent_process/test_review_credentials.py`, `.github/pull_request_template.md`, and `test_installation_documents_the_caller_workflow_trust_boundary` in `tests/publisher/test_reusable_workflows.py` (design D2). Verify that `python -m pytest tests -q` is green, then commit Group 2 as `refactor(maintenance): delete the v1 control plane`
 
 ## 3. Documents
 

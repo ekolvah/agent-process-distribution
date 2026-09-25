@@ -13,7 +13,7 @@ Observed on `main` at `9432f10` (2026-09-25), with archived changes and ADRs exc
 - `delivery_state.py` no longer exists (deleted in `v2-4a`); `max_runs` occurs only in the
   orchestrator, `roles.yaml` and their test.
 - `agent-process-installation.md` is the only reader of `check_review_credentials.py`; install
-  is `skills/agent-process/SKILL.md#install`.
+  is `skills/agent-process/SKILL.md` §Install.
 - `.github/pull_request_template.md` asks for `Closes #` and for the orchestrator's route and
   invocation counts. The PR body comes from `gh pr create --body-file <report>`, which names the
   issue as a plain reference (`implementation / Delivery steps are tasks of every change`).

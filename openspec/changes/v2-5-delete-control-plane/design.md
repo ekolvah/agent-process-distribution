@@ -24,7 +24,7 @@ the size driver of an incident.
 - It printed advice and authorized nothing (`AGENTS.md`: "It never authorizes bypassing its
   required delivery gates"). No proof is lost. What it described has a v2 home that is already
   enforced: roles and carriers in `openspec/specs/roles/`; the bound of three review rounds in
-  `SKILL.md#delivery` and `implementation / Delivery steps are tasks of every change`; route
+  `SKILL.md` §Delivery and `implementation / Delivery steps are tasks of every change`; route
   selection is the person's (`roles / Route selection is the person's`).
 - `AGENTS.md` loses its advisory-control-plane bullet.
 - Alternative: keep `roles.yaml` as a machine-readable role list. Rejected: a second home for
@@ -33,17 +33,17 @@ the size driver of an incident.
 **D2. `agent-process.md` and `agent-process-installation.md` are deleted; nothing moves.**
 - Pointers are retargeted, not rewritten:
   - `AGENTS.md`: the source-of-truth sentence names `openspec/specs/` and
-    `skills/agent-process/SKILL.md`; the delivery-flow link goes to `SKILL.md#delivery`.
+    `skills/agent-process/SKILL.md`; the delivery-flow link goes to `SKILL.md` §Delivery.
   - `.claude/rules/workflow.md`: the enforced contract is `openspec/specs/`, the procedure is
-    the skill; the planning and delivery links go to `SKILL.md#architect-review` and
-    `SKILL.md#delivery`.
+    the skill; the planning and delivery links go to `SKILL.md` §Architect review and
+    `SKILL.md` §Delivery.
   - `.claude/rules/mindset.md`: the "Procedure" pointer goes to `SKILL.md`.
-  - `.claude/rules/testing.md`: the RED contract link goes to `SKILL.md#tasks`.
+  - `.claude/rules/testing.md`: the RED contract link goes to `SKILL.md` §Tasks.
   - `openspec/config.yaml` `context`: the sentence "until they archive, the enforced process is
     v1 (`.agent-process/docs/architecture/`)" names `openspec/specs/` and the skill instead; every
     propose and apply run reads it.
   - `principles.md`: its six links to "the agent process" go to `SKILL.md` (the architect-review
-    link to `SKILL.md#architect-review`); the header and §Governance drop "the other
+    link to `SKILL.md` §Architect review); the header and §Governance drop "the other
     architecture docs" and name the skill and `openspec/specs/` as the home of the delegated
     procedure.
   - The link guard does not see folder-level mentions; task 3.1 greps for them.
@@ -108,7 +108,7 @@ rounds via telemetry) moves to step 6 (issue 116), which provides the telemetry.
 - [A reader follows a v1 link from outside the repository] → the link 404s; the v2 homes are
   named in `AGENTS.md`, the first file an agent reads.
 - [The trust-boundary prose is gone] → the enforced boundary is still tested (D2); prose for a
-  consumer is `SKILL.md#install`.
+  consumer is `SKILL.md` §Install.
 - [A consumer lacks the review secret] → caught by the red `agent-review` check, not ahead of
   time (D2).
 - Rollback: `git revert` of the PR. No external state changes.
