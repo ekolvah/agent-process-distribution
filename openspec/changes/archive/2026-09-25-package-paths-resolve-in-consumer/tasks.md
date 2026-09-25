@@ -24,7 +24,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py package-paths-resolve-in-consumer`. Verify that it commits the archive and pushes the branch
+- [x] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py package-paths-resolve-in-consumer`. Verify that it commits the archive and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "package-paths-resolve-in-consumer" --body-file <report>`. The report references tracking issue 185 without `Closes` and carries the scenario → test map
 - [ ] 5.3 Run `gh pr comment <PR> --body "@codex review"`, then `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and both again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`; answer P2/P3 without resolving. After the third reviewed head with an open P0/P1 thread, stop and escalate to the person
 - [ ] 5.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, report the PR ready. The person merges it
