@@ -62,14 +62,6 @@ the branch `gh issue develop` created, or `Closes #N` in the body. A step of
 the required `quality` check reads the field once; a missing link fails the
 check, and the fixer links the issue and re-runs the check (`gh run rerun`).
 
-**`## Out of scope`** carries a v1 export that is inert: a top-level bullet
-that begins with the literal marker `deferred:`, carries a `#N` reference, and
-is not a `wontfix`/`won't fix`/YAGNI rejection is still exported by
-`open_pr.py`/`update_pr_body.py` into the PR body's generated `## Deferred
-scope` section, but nothing verifies that block since `v2-2c` and no reviewer
-reads it — the downgrade rule left `REVIEW_CONTRACT.md` in `v2-2b`. The block
-goes with `open_pr.py` (issue 114).
-
 Because `REVIEW_CONTRACT.md` is read from the default branch, every
 already-open PR picks up a changed contract on its next review with no PR-side
 action.
@@ -102,14 +94,8 @@ This is the per-change flow. It applies only after the one-time repository
    loop (`gh pr comment <PR> --body "@codex review"` after every push,
    `wait_for_pr.py <PR>` — it reads `gh pr checks --json` until two reads 30 s apart
    agree, on one head, that nothing is pending, retrying the empty rollup after a push,
-   then the review threads on that head — at most three rounds). On an
-   `issue-*` branch of a repository still on the v1 issue contract, the v1
-   steps below apply instead.
-4. Create the PR only with `python .agent-process/scripts/open_pr.py --body-file <report>`;
-   a substantive UTF-8 report verifies the issue closing reference. Replace an
-   existing PR body only with
-   `python .agent-process/scripts/update_pr_body.py <PR> --body-file <path>`. Fix CI
-   findings for up to three iterations, then loop: after creating the PR and
+   then the review threads on that head — at most three rounds).
+4. Fix CI findings for up to three iterations, then loop: after creating the PR and
    after every successful push run
    `gh pr comment <PR> --body "@codex review"` through the local
    authenticated PR-author session. If that push addressed a `P0`/`P1` review
@@ -245,9 +231,7 @@ runs).
    review entry of the `tasks` rule) and `In Progress` in Group 0 of the same
    rule (`start_change.py`). `Todo` and `Done` belong
    to the Project's workflows (*Auto-add*, *Item added*, *Item reopened*; *Item
-   closed*, *Pull request merged*). The v1 scripts `issue_branch.py`, `set_issue_priority.py` and
-   `set_issue_status.py` are not part of the delivery flow; they go with the
-   control plane in `v2-4`/`v2-5`.
+   closed*, *Pull request merged*).
 6. If a `requirements*.in` file changes, run `pip-compile` for its matching
    lockfile in the same commit.
 7. Trivial non-behavioural one-line changes may skip the issue workflow only

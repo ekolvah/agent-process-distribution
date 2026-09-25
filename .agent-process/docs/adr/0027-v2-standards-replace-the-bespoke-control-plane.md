@@ -658,3 +658,9 @@ questions of #114 in its order:
   `agent-process / quality`. `review_gate.py`, the Stop hook, `delivery_state.py` and the
   classic-protection scripts go; `activate_protection.py` puts both contexts in the ruleset,
   and the delivery waits with `wait_for_pr.py` alone.
+* The v1 issue and state scripts are deleted (`v2-4b-issue-state-scripts`, tracking issue
+  174, issue 114). Observed 2026-09-25 on `main` at `a04859a`: no workflow, hook or skill
+  script named `issue_branch.py`, `new_branch.py`, `open_pr.py`, `update_pr_body.py`,
+  `check_orphan_scope.py`, `set_issue_status.py`, `set_issue_priority.py` or
+  `project_settings.py`; only the scripts themselves, their tests and prose did. Open PR 104
+  on `issue-101-bug-telemetry-marks-no` keeps its own copies on its head.

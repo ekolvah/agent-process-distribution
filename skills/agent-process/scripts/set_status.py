@@ -9,10 +9,6 @@ the single one linked to the repository; field and option ids are resolved from 
 on every run, so no generated settings file is needed. Exit 2 when neither field is given,
 when a name does not resolve (the options are listed; nothing is changed) or when zero or
 several Projects are linked (they are named); exit 1 when `gh` fails.
-
-The `gh project` helpers are duplicated from `set_issue_status.py` / `set_issue_priority.py`
-on purpose: those scripts and their `project_settings.py` are deleted in `v2-4`, and this
-survivor must not import what dies. Delete the duplication when they are gone.
 """
 
 from __future__ import annotations

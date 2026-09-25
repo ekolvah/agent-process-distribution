@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "A pure deletion of v1 scripts that nothing calls (confirmed by a name search on main: only the scripts, their two tests, the prose D4 edits and ADRs), with each lost guard given a catcher that exists and is reached, and one spec requirement realigned to start_change behaviour already pinned by a green test; nothing is added.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 and D2 reject keeping the scripts until issue 115, a second unused way to branch, set status and write the PR body. The change is itself the minimal form: deletions plus prose edits, the spec touched only where it names the v1 branch; the retired installation guide and PR template stay with issue 115 (Non-Goals). No simpler design satisfies the goal that the Project Status be the only delivery state.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "One delta scenario, state / Board failure, maps in tasks.md to tests/publisher/test_delivery_scripts.py::test_interrupted_start_names_the_continuation (line 569), which asserts exit 1 and that stderr names `set_status.py 7 \"In Progress\"` and the provenance comment after the branch exists.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 records `no RED` with a reason: the only behavioural text is realigned to start_change behaviour already present (start_change.py:139-153 prints the continuation; the mapped test is green), and the rest deletes unused code. Task 1.1 verifies the mapped test is green instead.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "D2 rests on a `gh issue develop` branch filling closingIssuesReferences without a `Closes` keyword: observed on record in v2-2c (its proposal line 8) and ADR 0027 (2026-09-18, PRs 133-141; PR 148 -> 144), which D2 cites through v2-2c. D1 rests on start_change's exit 2 before the branch and set_status's name resolution, both repository scripts with tests, not platform behaviour.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D1 lists the dropped guards: project_settings.require_configured (catcher start_change exit 2 `propose run not finished` before any branch; set_status refusing zero or several Projects), is_valid_branch_name (its only reader, the Stop gate, left in v2-4a), stored Project/field/option IDs (resolved by name per call; a search for PVT_ ids finds them only in project_settings.py and test fakes). D2 lists the forced `Closes #N`, the `## Deferred scope` block (unread since v2-2c) and the post-create reference re-check.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Unlinked PR: the required `quality` check's closingIssuesReferences step (reusable-quality.yml:28, quality.yml:35) on every PR head, required by the ruleset since v2-4a, reached at delivery step 5.3 via wait_for_pr.py. Branch before activation or planning: start_change.py exit 2 at task 0.1, before any branch. Stale IDs: none stored after deletion. Leftover references: task 3.1's git grep and task 4.2's ci_check.py.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "state / Branch creation moves the issue to In Progress: about 33 words, edited only in the branch clause (`issue-N-<slug>` -> the linked branch of `start_change <change>`); the scenario's THEN grows from about 9 to 18 words, adding 'non-zero exit whose message names the steps left', which test_interrupted_start_names_the_continuation asserts (exit code 1, set_status and comment commands in stderr). No rule text is added; D4 only removes sentences and redirects two activation sentences to SKILL.md#install.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Impact and design add no script, check or non-test file: eight scripts and two tests are removed; set_status.py (docstring), agent-process.md, AGENTS.md, .claude/rules/workflow.md and ADR 0027 (one Observations bullet) are edited. Nothing enters additions.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": []
+}
