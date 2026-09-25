@@ -23,12 +23,12 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
+- [x] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
 
 ## 5. Deliver
 
-- [ ] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-4b-issue-state-scripts`. Verify that it applies the `state` delta, commits the archive, and pushes the branch
+- [x] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-4b-issue-state-scripts`. Verify that it applies the `state` delta, commits the archive, and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "v2-4b-issue-state-scripts" --body-file <report>`. The report references the tracking issue of task 0.1 and issue 114 without `Closes`. It carries the scenario → test map, and it names issue 115 as the owner of the retired installation guide and the PR template
 - [ ] 5.3 Run `gh pr comment <PR> --body "@codex review"`, then `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 5.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, report the PR ready. The person merges it
