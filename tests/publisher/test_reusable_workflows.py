@@ -400,14 +400,6 @@ def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_trigge
     assert "deferred-scope" not in contract
 
 
-def test_install_documents_the_caller_workflow_trust_boundary() -> None:
-    document = (ROOT / "skills" / "agent-process" / "SKILL.md").read_text(encoding="utf-8")
-
-    assert "platform trust anchor" in document
-    assert "not a security boundary" in document
-    assert "`pull_request_target` as a" in document
-
-
 def test_no_workflow_step_resolves_a_review_thread() -> None:
     """ADR 0022/0027: only the fixer's local session resolves a thread, and no
     workflow step classifies one or reads a review outcome (v2-2b)."""
@@ -423,14 +415,3 @@ def test_no_workflow_step_resolves_a_review_thread() -> None:
                 ):
                     assert forbidden not in (step.get("run") or "")
                     assert forbidden not in (step.get("uses") or "")
-
-
-def test_workflows_stay_within_the_size_budget() -> None:
-    """maintenance / Size budget: a workflow stays within 150 lines."""
-    sizes = {
-        path.name: len(path.read_text(encoding="utf-8").splitlines())
-        for path in sorted(WORKFLOWS.iterdir())
-        if path.suffix in {".yml", ".yaml"}
-    }
-    over = {name: lines for name, lines in sizes.items() if lines > 150}
-    assert not over, f"workflows over 150 lines: {over}"

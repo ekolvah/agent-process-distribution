@@ -9,7 +9,7 @@ principles §I–VII, quality gates). ADRs keep the why.
 ## Goals / Non-Goals
 
 **Goals:** no v1 process document or control-plane file remains; every pointer to one resolves
-to a v2 home or is gone; the size budget is part of the spec and guarded.
+to a v2 home or is gone.
 
 **Non-Goals:** the Codex self-review artifact and the `wait_for_pr`-only guard, which ADR 0027
 also ties to stable Codex subagents (D3); `copier-answers.yml` and the telemetry attribution test
@@ -56,9 +56,8 @@ the size driver of an incident.
   - Type labels and the trivial-change skip: no script or check ever read them; dropped.
   - `pip-compile` in the same commit: the `requirements` step of `ci_check` fails on lockfile
     drift, and the `hooks.py` reminder stays.
-  - The caller-workflow trust boundary text moves to `SKILL.md` §Install (PR 178 review: it
-    was the only step naming the workflow-definition trust anchor); its test becomes
-    `test_install_documents_the_caller_workflow_trust_boundary`. The boundary itself stays tested by
+  - The caller-workflow trust boundary text is dropped (PR 178 review): one person commits,
+    the revisit condition of ADR 0004. The boundary itself stays tested by
     `test_quality_executes_a_trusted_driver_against_the_pr_worktree`,
     `test_callees_declare_workflow_call_without_pull_request_trigger` and
     `test_caller_permissions_are_a_superset_of_callee_permissions`.
@@ -85,19 +84,13 @@ the size driver of an incident.
   guard) is not in this change: it changes `roles` and `implementation` requirements and needs its
   own observation of Codex subagents. ADR 0027 records it as open.
 
-**D4. The workflow half of the size budget is a spec requirement, guarded by a test
-(`maintenance / Size budget`).**
-- Open question of issue 115, settled: "enforced by a test". The script half is already the
-  requirement `implementation / ci_check limits code complexity` (scenario "Module over the size
-  limit": pylint `max-module-lines = 1000`, tested by
-  `test_ci_check.py::TestComplexityLimits::test_module_over_size_limit_fails_module_size`); it is
-  not restated. The workflow half gets one test in `test_reusable_workflows.py` that fails and names each file under
-  `.github/workflows/` over 150 lines.
-- Alternative: review workflows by hand. Rejected: a SHALL without a check is prose the agent has
-  to remember (principles, "scripts over instructions"); the test is a few lines in an existing
-  file, not a new script.
-- The test is green on `main` (largest workflow 125 lines), so there is no RED commit; its failing
-  branch is shown once by running it against a padded copy (task 1.1).
+**D4. The size budget is enforced only by a standard tool.**
+- Open question of issue 115, settled. The script half is already the requirement
+  `implementation / ci_check limits code complexity` (pylint `max-module-lines = 1000`).
+- The workflow half (150 lines) gets no check. No standard linter bounds a workflow's length,
+  the largest workflow is 125 lines, and a check of our own without an observed problem is the
+  bespoke this step removes. The planned requirement and its test were dropped in PR 178
+  review; ADR 0027 records the answer.
 
 **D5. ADR 0027 gets one Observations block for step 5:** the D3 observation and the open rest of
 its deletion condition; the D4 answer; the second open question of issue 115 (compare review
@@ -107,8 +100,7 @@ rounds via telemetry) moves to step 6 (issue 116), which provides the telemetry.
 
 - [A reader follows a v1 link from outside the repository] → the link 404s; the v2 homes are
   named in `AGENTS.md`, the first file an agent reads.
-- [A PR replaces a caller with a job reporting the same context] → `SKILL.md` §Install names
-  the external trust anchor (D2).
+- [A second committer joins] → ADR 0004's revisit condition brings the trust anchor back.
 - [A consumer lacks the review secret] → caught by the red `agent-review` check, not ahead of
   time (D2).
 - Rollback: `git revert` of the PR. No external state changes.

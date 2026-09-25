@@ -4,7 +4,7 @@
 
 ## 1. RED first
 
-- [x] 1.1 Add `test_workflows_stay_within_the_size_budget` to `tests/publisher/test_reusable_workflows.py`: for every file under `.github/workflows/`, fail and name each one over 150 lines (design D4). no RED: the budget holds on `main` (largest workflow 125 lines), so the test is born green; show its failing branch once by appending 30 comment lines to `.github/workflows/reusable-agent-review.yml`, running `python -m pytest "tests/publisher/test_reusable_workflows.py::test_workflows_stay_within_the_size_budget" -q` (verify it fails and names `reusable-agent-review.yml`), then `git checkout -- .github/workflows/reusable-agent-review.yml` and re-run it green. Commit as `test(maintenance): workflow size budget`
+- [x] 1.1 Add `test_workflows_stay_within_the_size_budget` to `tests/publisher/test_reusable_workflows.py`: for every file under `.github/workflows/`, fail and name each one over 150 lines (design D4). no RED: the budget holds on `main` (largest workflow 125 lines), so the test is born green; show its failing branch once by appending 30 comment lines to `.github/workflows/reusable-agent-review.yml`, running `python -m pytest "tests/publisher/test_reusable_workflows.py::test_workflows_stay_within_the_size_budget" -q` (verify it fails and names `reusable-agent-review.yml`), then `git checkout -- .github/workflows/reusable-agent-review.yml` and re-run it green. Commit as `test(maintenance): workflow size budget` (reverted in PR 178 review, design D4)
 
 ## 2. Delete the control plane and its orphans
 
@@ -23,11 +23,11 @@
 
 ## 5. Deliver
 
-- [x] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-5-delete-control-plane`. Verify that it applies the `maintenance` delta, commits the archive, and pushes the branch
+- [x] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py v2-5-delete-control-plane`. Verify that it commits the archive, and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "v2-5-delete-control-plane" --body-file <report>`. The report references tracking issue 115 and issue 107 without `Closes`, carries the scenario → test map, and names the open rest of the Codex deletion condition (design D3)
 - [ ] 5.3 Run `gh pr comment <PR> --body "@codex review"`, then `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. A fix that changes a spec goes through a change of its own on the PR branch; a changed design decision amends the archived `design.md` and this map in the same push. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 5.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, report the PR ready. The person merges it
 
 ## Scenario → test map
 
-- `maintenance / Workflow over the budget` → `tests/publisher/test_reusable_workflows.py::test_workflows_stay_within_the_size_budget`
+None: the change adds no requirement (design D4).

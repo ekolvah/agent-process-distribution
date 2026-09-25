@@ -37,8 +37,6 @@ Observed on `main` at `9432f10` (2026-09-25), with archived changes and ADRs exc
 - Delete the advisory control plane: `agent_orchestrator.py`, `.agents/orchestration/roles.yaml`,
   `state.example.json` and their test. `openspec/specs/roles/` is the only home of roles.
 - Delete `check_review_credentials.py` and its test, and the PR template.
-- `maintenance`: add the workflow size budget, guarded by a test; the script half is already
-  `implementation / ci_check limits code complexity`.
 - `openspec/config.yaml` `context` stops naming v1 as the enforced process.
 - ADR 0027: one Observations block for this step (Codex hooks stable; the size-budget question
   settled).
@@ -51,7 +49,8 @@ None.
 
 ### Modified Capabilities
 
-- `maintenance`: adds `Size budget` (workflows).
+None. The workflow size budget and the trust-anchor paragraph were dropped in PR 178 review
+(design D2, D4).
 
 `implementation` (named in the brief) is unchanged: its only planned edit was the removal of
 Codex hooks, which is not made (design D3).
@@ -66,11 +65,10 @@ Codex hooks, which is not made (design D3).
   `.github/pull_request_template.md`, `tests/agent_process/test_agent_orchestrator.py`,
   `tests/agent_process/test_review_credentials.py`.
 - Edited: `AGENTS.md`, `openspec/config.yaml` (one `context` sentence), `.claude/rules/workflow.md`, `.claude/rules/mindset.md`,
-  `.claude/rules/testing.md`, `skills/agent-process/SKILL.md` (Install: the trust-anchor
-  paragraph, PR 178 review), `.agent-process/docs/architecture/principles.md` (header, six
+  `.claude/rules/testing.md`, `.agent-process/docs/architecture/principles.md` (header, six
   links, §Governance),
   `.agent-process/scripts/hooks.py` (one message string),
-  `tests/publisher/test_reusable_workflows.py` (one test removed, one added), ADR 0003, 0004 and
+  `tests/publisher/test_reusable_workflows.py` (one test removed), ADR 0003, 0004 and
   0009 (one link each, as ADR 0009 was edited in `v2-1c`), ADR 0027 (Observations).
 - Unchanged: `codex_hooks.py`, `.codex/hooks.json`, `agent_policy.py`,
   `check_codex_project_trust.py` and their tests (design D3; the trust preflight's instruction
