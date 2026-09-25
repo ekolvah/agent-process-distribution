@@ -108,6 +108,10 @@ def _agent_package_path_findings(name: str, text: str) -> list[str]:
     if "skills/agent-process/" in text:
         if "${CLAUDE_PLUGIN_ROOT}/skills/agent-process/" not in text:
             findings.append(f"{name}: skills/agent-process/ without ${{CLAUDE_PLUGIN_ROOT}}")
+    # The whole skill directory ships, so a named package file resolves in either root.
+    for tail in re.findall(r"skills/agent-process/([\w./-]*[\w-])", text):
+        if not (PACKAGE / tail).is_file():
+            findings.append(f"{name}: skills/agent-process/{tail} is not a package file")
     return findings
 
 
