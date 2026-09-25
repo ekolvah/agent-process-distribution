@@ -1,6 +1,6 @@
 ## Why
 
-Issue #185. Observation (#117 step 7a, `ekolvah/agent-process-sandbox`): after a clean
+A sandbox run observed the defect (#185; #117 step 7a, `ekolvah/agent-process-sandbox`): after a clean
 `init --confirm` the consumer has no `.agent-process/` directory, as the `distribution`
 requirement "The installed footprint is closed" demands, yet the package points into it:
 

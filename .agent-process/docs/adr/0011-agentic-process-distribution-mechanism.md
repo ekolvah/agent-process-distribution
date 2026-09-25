@@ -27,7 +27,7 @@ contract and stays in sync — so a separate export follow-up does not reopen it
 
 * A vendored copy needs a **built-in** drift check, not a "remember to
   re-sync" discipline — an unenforced sync script is exactly the silent-skip
-  design [`principles.md` §IV](../architecture/principles.md#iv-visibility-over-silence) forbids.
+  design [`principles.md` §IV](../../../skills/agent-process/principles.md#iv-visibility-over-silence) forbids.
 * Part of the core is **not** verbatim-portable: `.agent-process/scripts/set_issue_priority.py`
   and `.agent-process/scripts/set_issue_status.py` embed this repository's GitHub Project
   IDs, and `.agent-process/scripts/check_branch_protection.py` embeds this repository's

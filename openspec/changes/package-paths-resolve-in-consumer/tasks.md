@@ -14,8 +14,8 @@
 
 ## 3. Repository follows the move
 
-- [ ] 3.1 Retarget this repository's live links to the old path: `AGENTS.md`, `openspec/config.yaml` context, `.claude/rules/mindset.md`, `.claude/rules/testing.md`, and the links of ADR 0011 and ADR 0021. Verify that `git grep -n "docs/architecture/principles" -- ':!openspec/changes/archive'` prints nothing
-- [ ] 3.2 Move the doc-guard scope per design D5: `.agent-process/docs/architecture` → `skills/agent-process` in `_EXPECTED_SCOPE_DIRS` of `tests/agent_process/test_doc_links.py` and `tests/agent_process/test_doc_narrative.py`; in `tests/agent_process/test_doc_headers.py` replace the architecture directory with the file `skills/agent-process/principles.md` in the header scope and its non-vacuity check. Verify that `python -m pytest tests -q` is green, then commit Group 3 as `docs(maintenance): follow the principles move`
+- [x] 3.1 Retarget this repository's live links to the old path: `AGENTS.md`, `openspec/config.yaml` context, `.claude/rules/mindset.md`, `.claude/rules/testing.md`, and the links of ADR 0011 and ADR 0021. Verify that `git grep -n "docs/architecture/principles" -- ':!openspec/changes/archive'` prints nothing
+- [x] 3.2 Move the doc-guard scope per design D5: `.agent-process/docs/architecture` → `skills/agent-process` in `_EXPECTED_SCOPE_DIRS` of `tests/agent_process/test_doc_links.py` and `tests/agent_process/test_doc_narrative.py`; in `tests/agent_process/test_doc_headers.py` replace the architecture directory with the file `skills/agent-process/principles.md` in the header scope and its non-vacuity check. Verify that `python -m pytest tests -q` is green, then commit Group 3 as `docs(maintenance): follow the principles move`
 
 ## 4. Verify
 

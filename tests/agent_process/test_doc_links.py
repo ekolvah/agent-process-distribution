@@ -82,7 +82,7 @@ _CODE_SPAN_REF = re.compile(r"^[\w./-]+\.md#\S+$", re.UNICODE)
 # Claude adapter directory: it only exists, and is only in scope, when that adapter is
 # installed.
 _EXPECTED_SCOPE_DIRS = (
-    ".agent-process/docs/architecture",
+    "skills/agent-process",
     ".agent-process/docs/adr",
     ".claude/rules",
 )
