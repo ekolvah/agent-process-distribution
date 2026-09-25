@@ -18,7 +18,7 @@ workflow with the project context and skill pointers of `openspec/config.yaml` a
 
 Claude also adapts `implementer` and `fixer` through `/opsx:apply <change>`, whose
 task list carries the delivery steps
-([delivery](../../skills/agent-process/SKILL.md#delivery)),
+([tasks](../../skills/agent-process/SKILL.md#tasks), [delivery](../../skills/agent-process/SKILL.md#delivery)),
 so one agent carries a change from approved plan to archived PR.
 
 When creating an issue, ask the user for priority and set the GitHub Project

@@ -430,7 +430,7 @@ def test_workflows_stay_within_the_size_budget() -> None:
     sizes = {
         path.name: len(path.read_text(encoding="utf-8").splitlines())
         for path in sorted(WORKFLOWS.iterdir())
-        if path.is_file()
+        if path.suffix in {".yml", ".yaml"}
     }
     over = {name: lines for name, lines in sizes.items() if lines > 150}
     assert not over, f"workflows over 150 lines: {over}"

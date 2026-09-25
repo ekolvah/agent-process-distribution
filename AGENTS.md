@@ -15,7 +15,8 @@ Claude or Codex adapter is the only permitted executor.
   to create a branch.
 - Codex loads `.codex/hooks.json` only for a trusted project;
   `python .agent-process/scripts/check_codex_project_trust.py` checks that trust.
-- Follow the [delivery flow](skills/agent-process/SKILL.md#delivery). It is the sole
+- Follow the [tasks](skills/agent-process/SKILL.md#tasks) and [delivery](skills/agent-process/SKILL.md#delivery)
+  of the skill. They are the sole
   source of task gates, commands, and status transitions; this file does not restate them.
 - Use `$openspec-propose` for the Codex planner entry point and
   `$openspec-apply-change` for the Codex implementer entry point. The project context and

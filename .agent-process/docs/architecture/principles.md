@@ -7,7 +7,7 @@ runtime guidance and reference implementation detail — where they conflict wit
 document, this document wins.
 
 **Not here.** The *procedural* half of the workflow (branch creation, PR discipline,
-labels, role hand-offs, the architect-review gate) is delegated to
+role hand-offs, the architect-review gate) is delegated to
 [the agent process](../../../skills/agent-process/SKILL.md) — see §Governance. How each gate is
 implemented and configured, and which coverage gaps are consciously accepted, are
 this project's own docs to author.
@@ -192,7 +192,7 @@ more dev + runtime tokens (goal 2).
 
 ## Development Workflow
 
-The procedural workflow rules (branch creation, PR discipline, labels,
+The procedural workflow rules (branch creation, PR discipline,
 plan→implement flow, pre-commit gate, dependency consistency, architect-review
 gate) are an **operational procedure**, delegated to their canonical home
 [the agent process](../../../skills/agent-process/SKILL.md). They
