@@ -1,0 +1,48 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Round 2: the reviewer path now rests on a cited manifest-reference sentence and an observed cache path (D2), the emptied doc-guard scope moves with the file (D5, maintenance delta, task 3.2), and D4 keeps only the link check test_doc_links lacks; no finding remains open.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 rejects a copy (drift) and a consumer-declared principles file (planning spec binds §I–VII). D2 rejects ${CLAUDE_PLUGIN_ROOT} alone because here it resolves to the cached release. D4 drops the missing-target half, leaving it to test_doc_links::test_every_internal_link_resolves.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "distribution / Package paths resolve in a consumer / Publisher-only path in the package → tests/publisher/test_plugin.py::test_package_paths_resolve_in_a_consumer; maintenance / Documents are guarded / Narrative issue reference → existing test_doc_narrative.py::TestDocsCarryNoNarrative::test_no_narrative_issue_ref, with the header-scope edit covered by test_doc_headers.py::TestMappedDocsCarryHeader (D5).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.1 runs check_red.py on both node ids. RED holds today: agents/architect-reviewer.md:19 and SKILL.md:137 name .agent-process/ paths, the reviewer has no ${CLAUDE_PLUGIN_ROOT}, and principles.md is not in the package set.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design.md Context cites code.claude.com/docs/en/plugins/manifest-reference.md §'Where each variable resolves' (row 'Skill, command, and agent content | Anywhere in the Markdown body' and the substitution sentence), plus the observed cache path ~/.claude/plugins/cache/agent-process-marketplace/agent-process/<version>/. Codex reads principles.md beside SKILL.md from ~/.agents/skills/agent-process, which init.py links.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D3 lists the dropped consumer pre-push sentence, what stops (local ci_check before push) and its catcher. D5 lists the emptied .agent-process/docs/architecture scope: the non-vacuity entry becomes skills/agent-process in test_doc_links/test_doc_narrative, and test_doc_headers scopes the file skills/agent-process/principles.md, so principles.md stays under the header, link and narrative guards. D2 replaces the repo path with a repo-or-plugin-root rule and names its failure mode (a consumer-owned skills/agent-process/) in Risks.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "D3's catcher is agent-process / quality on the PR head. It runs from the managed .github/workflows/agent-process.yml on every consumer PR, and the ruleset activate_protection writes makes it required, so a push without local ci_check reaches it.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The distribution requirement (~60 words, 4 clauses) maps to the three lists the new test asserts plus the principles.md entry of test_package_contents_are_closed. The maintenance MODIFIED sentence changes one clause (~12 words), asserted by the header scope of test_doc_headers. The SKILL.md edit removes a sentence; the reviewer steps 1–2 are rewritten without adding new rules.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Impact adds no script or check file. The guard is a pytest test in the existing tests/publisher/test_plugin.py, and the scope edits change existing test tuples. The only non-test file added to the package is the moved skills/agent-process/principles.md.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": [
+    {
+      "path": "skills/agent-process/principles.md",
+      "problem": "#185",
+      "standard": "Agent Skills supporting file inside the skill directory",
+      "why_not": "It is that standard: the file moves into the skill's own directory and no bespoke carrier is added."
+    }
+  ]
+}

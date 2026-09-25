@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -63,12 +64,44 @@ def test_package_contents_are_closed() -> None:
         if path.is_file() and "__pycache__" not in path.parts
     }
     assert relative_files == (
-        {"SKILL.md", "architect-review.schema.json"}
+        {"SKILL.md", "architect-review.schema.json", "principles.md"}
         | {f"scripts/{name}" for name in MOVED_SCRIPTS}
         | {f"templates/{name}" for name in TEMPLATES}
     )
     forbidden = ("hook",)
     assert not any(token in path.lower() for path in relative_files for token in forbidden)
+
+
+def _package_text_files() -> list[Path]:
+    roots = (PACKAGE, ROOT / "agents", ROOT / "commands")
+    return sorted(
+        path
+        for root in roots
+        for path in root.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts
+    )
+
+
+def test_package_paths_resolve_in_a_consumer() -> None:
+    """A consumer has no `.agent-process/`; the plugin lives outside its repository."""
+    findings = []
+    for path in _package_text_files():
+        text = path.read_text(encoding="utf-8")
+        name = path.relative_to(ROOT).as_posix()
+        # `~/.agent-process/` is the installer's user-profile checkout, not a repository path.
+        findings += [
+            f"{name}: {m.group()}" for m in re.finditer(r"(?<!~/)\.agent-process/\S*", text)
+        ]
+        if path.suffix == ".md" and PACKAGE in path.parents:
+            for target in re.findall(r"\]\(([^)#\s]+)", text):
+                if "://" in target:
+                    continue
+                if PACKAGE.resolve() not in (path.parent / target).resolve().parents:
+                    findings.append(f"{name}: link {target} leaves the skill directory")
+        if path.parent == ROOT / "agents" and "skills/agent-process/" in text:
+            if "${CLAUDE_PLUGIN_ROOT}/skills/agent-process/" not in text:
+                findings.append(f"{name}: skills/agent-process/ without ${{CLAUDE_PLUGIN_ROOT}}")
+    assert not findings, "\n".join(findings)
 
 
 def test_publisher_dogfoods_process() -> None:
