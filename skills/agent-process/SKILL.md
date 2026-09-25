@@ -133,7 +133,8 @@ skill's own directory. Run from the consumer's root:
 3. Ask once; on yes run the same command with `--confirm` instead of `--dry-run`.
 4. Tell the person to review and commit the changed files and to do the `manual` rows in
    the Project's UI. The installer never commits or pushes; its only GitHub writes are the
-   copy of the template Project and its link to the repository.
+   copy of the template Project and its link to the repository. Each clone enables the
+   pre-push hook that runs `ci_check` with `git config core.hooksPath .agent-process/.githooks`.
 5. Once the first PR shows `agent-process / quality`, run `python
    skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run` (admin rights on
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
