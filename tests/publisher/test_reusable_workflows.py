@@ -376,9 +376,7 @@ def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
 
 def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:
     contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
-    principles = (ROOT / ".agent-process" / "docs" / "architecture" / "principles.md").read_text(
-        encoding="utf-8"
-    )
+    principles = (ROOT / "skills" / "agent-process" / "principles.md").read_text(encoding="utf-8")
 
     indirection_marker = "single call site and no stated reason"
     duplication_marker = "names an existing symbol and its repository-relative path"

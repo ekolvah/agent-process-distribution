@@ -10,8 +10,8 @@ only when working with tests.
 ## Where things live
 
 - **Goal function** (three priorities) and “scripts > instructions” —
-  [`principles.md`](../../.agent-process/docs/architecture/principles.md#goal-function).
-- **Principles §I–VII** — [`principles.md`](../../.agent-process/docs/architecture/principles.md):
+  [`principles.md`](../../skills/agent-process/principles.md#goal-function).
+- **Principles §I–VII** — [`principles.md`](../../skills/agent-process/principles.md):
   root cause → §V, visibility → §IV, test-first → §I, simplicity/minimal-diff → §VII.
 - **Procedure** (roles, branch, PR discipline, gates, planner runbook, and
   architect-review contract) —

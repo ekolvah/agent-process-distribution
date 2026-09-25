@@ -19,7 +19,7 @@ context: |
   The v2 target is delivered by the changes v2-0 … v2-5, each proposed when its step of
   the tracking issue #107 starts (telemetry, v2-6, moved out to #169); the enforced process is openspec/specs/ and the procedure
   is skills/agent-process/SKILL.md.
-  Principles §I–VII (.agent-process/docs/architecture/principles.md) bind every artifact:
+  Principles §I–VII (skills/agent-process/principles.md) bind every artifact:
   test-first, protocol boundaries, root cause before fix, visible degradation, minimal diff.
   The complete quality command of this repository is `python .agent-process/scripts/ci_check.py`
   (format, lint, secrets, tests, dependency audit); it is what the Verify group and the

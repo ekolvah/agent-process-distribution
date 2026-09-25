@@ -87,7 +87,7 @@ _ISSUE_REF = re.compile(r"(?<!\w)#\d+\b")
 _OPAQUE = "\x00"
 
 _EXPECTED_SCOPE_DIRS = (
-    ".agent-process/docs/architecture",
+    "skills/agent-process",
     ".claude/rules",
 )
 # Non-issue uses of the sigil: rule number and board number. The dictionary is **closed**—the exact

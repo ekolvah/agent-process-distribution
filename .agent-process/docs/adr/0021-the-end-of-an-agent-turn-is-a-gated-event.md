@@ -25,7 +25,7 @@ handed off with no PR, no checks, and no verdict.
 Every other step of the flow is already a script with an exit code
 (`check_red.py`, `ci_check.py`, `open_pr.py`, `review_gate.py`). The turn
 boundary was the last prose-only step — exactly the case
-[principles.md §Scripts over instructions](../architecture/principles.md#scripts-over-instructions)
+[principles.md §Scripts over instructions](../../../skills/agent-process/principles.md#scripts-over-instructions)
 names: a rule phrased as "must not forget to stay active" belongs in a gate,
 not in a sentence an agent skips at the end of a long pipeline. A stronger
 sentence is not a fix — the sentence already existed and was already skipped.
