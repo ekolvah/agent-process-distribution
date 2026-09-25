@@ -124,7 +124,7 @@ roles:
     # describes that contract rather than a repository-wide invocation counter.
     max_runs: 1
   fixer:
-    contract: ".agent-process/docs/architecture/agent-process.md#review-gate-verdicts"
+    contract: ".agent-process/docs/architecture/agent-process.md#deterministic-delivery-flow"
     adapters:
       - "Codex $openspec-apply-change <change> review/fix loop"
       - "Claude /opsx:apply <change> review/fix loop"
@@ -142,7 +142,7 @@ roles:
     activation: "Only after actionable PR-review feedback."
     max_runs: 3
   human_merge:
-    contract: ".agent-process/docs/architecture/agent-process.md#review-gate-verdicts"
+    contract: ".agent-process/docs/architecture/agent-process.md#review-outcome-enforcement"
     adapters:
       - "Human reviewer"
     adapter_files:

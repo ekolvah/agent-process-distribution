@@ -27,9 +27,7 @@
       "parameters": {
         "strict_required_status_checks_policy": true,
         "do_not_enforce_on_create": false,
-        "required_status_checks": [
-          {"context": "__CONTEXT__", "integration_id": "__INTEGRATION__"}
-        ]
+        "required_status_checks": "__REQUIRED_CHECKS__"
       }
     }
   ]

@@ -90,7 +90,7 @@ tracking issue as a plain reference, never `Closes`, and carries the scenario-to
 deferrals. The archive is the head the PR opens on.
 
 After creating the PR and after every corrective push, run
-`python .agent-process/scripts/request_codex_review.py --request <PR>`. The `agent-review`
+`gh pr comment <PR> --body "@codex review"`. The `agent-review`
 check waits for Codex's current-head review and runs the Claude fallback only when no valid
 Codex evidence arrives. Then run `python skills/agent-process/scripts/wait_for_pr.py <PR>`;
 it waits until two reads 30 seconds apart agree that all checks on one head concluded, then
@@ -113,8 +113,8 @@ the PR branch — `npx -y @fission-ai/openspec@1.13.0 new change <name>`, the de
 test the violated invariant, the other inputs that violate it from the tool's own
 documentation, and what each switch takes away; test the class, not the reviewer's example.
 
-Run the repository review gate on the settled current head. Stop only at `ready-for-human`
-or the documented three-round escalation. Tasks after archive leave no tick in the
+Stop once `wait_for_pr.py` settles a head with no open P0/P1 thread, or at the three-round
+escalation. Tasks after archive leave no tick in the
 repository because a pushed tick would move the reviewed head. If interrupted after archive,
 resume from `gh pr view <change>` — open the PR when there is none — not OpenSpec apply.
 
@@ -138,7 +138,9 @@ skill's own directory. Run from the consumer's root:
    skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run` (admin rights on
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never
-   writes classic branch protection.
+   writes classic branch protection. When the repository has
+   `.github/workflows/agent-review.yml`, it requires `agent-review / agent-review` too, so
+   the PR must also show that check green.
 
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
 install of another version in any repository moves it for every repository. The Claude

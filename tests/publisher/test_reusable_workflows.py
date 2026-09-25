@@ -104,11 +104,13 @@ def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
 
 def test_publisher_driver_keeps_a_same_head_catcher() -> None:
     """`agent-process / quality` runs the PR's own driver, so a context the PR cannot change
-    stays required beside it; the pre-push guard proves classic protection matches this
-    declaration (design D5 of v2-2i-protection-activation)."""
-    from scripts.check_branch_protection import REQUIRED_CONTEXTS
+    stays required beside it: this repository carries the review caller, and activation
+    requires its context then (design D5 of v2-2i-protection-activation, D3 of
+    v2-4a-review-protection)."""
+    from tests.publisher.delivery_fakes import load_script
 
-    assert "agent-review / agent-review" in REQUIRED_CONTEXTS
+    assert (ROOT / ".github" / "workflows" / "agent-review.yml").is_file()
+    assert "agent-review / agent-review" in load_script("activate_protection").contexts(True)
 
 
 def test_quality_runs_once_per_pr() -> None:

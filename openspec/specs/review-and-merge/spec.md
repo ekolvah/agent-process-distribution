@@ -6,21 +6,6 @@ mistakes.
 
 ## Requirements
 
-### Requirement: Required checks protect the default branch
-The default branch SHALL require `agent-process / quality` through the repository ruleset
-and `agent-review / agent-review` through classic protection. Both lists are declared in the
-repository. Drift between the declared and the installed classic protection SHALL block a
-push before `ci_check` runs. The review gate SHALL report a head ready only when every
-context of both lists is green on it.
-
-#### Scenario: Missing required context
-- **WHEN** an installed protection lacks a declared context
-- **THEN** the pre-push hook reports drift and does not run `ci_check`
-
-#### Scenario: Ruleset context red
-- **WHEN** `agent-process / quality` is red on the PR head and `agent-review / agent-review` is green
-- **THEN** the review gate reports `fix-blocking` and names `agent-process / quality`
-
 ### Requirement: Local safety on both carriers
 Push to the default branch, force push and `gh pr merge` SHALL be denied locally on both
 carriers: a deny-list in Claude Code, a pre-tool hook in Codex. Merging is the person's.
@@ -135,3 +120,11 @@ or the PR body for the link, and no other check carries it.
 #### Scenario: PR without an issue
 - **WHEN** a PR links no issue
 - **THEN** `quality` fails naming the two ways to link and `gh run rerun` of the run, and the driver's checks do not run
+
+### Requirement: No local hook reads protection
+No local hook SHALL read the installed branch protection or rulesets: a push is gated by
+`ci_check` alone, and a merge by the ruleset that protection activation writes.
+
+#### Scenario: Push reads no protection
+- **WHEN** a branch is pushed through the pre-push hook
+- **THEN** the hook runs `ci_check` and issues no read of branch protection or rulesets

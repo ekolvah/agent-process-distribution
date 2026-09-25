@@ -29,7 +29,6 @@ Brief provenance record, without prompts or chain-of-thought.
 - Route: <roles selected by the control plane>
 - Model invocations: <role=count; completed run-count proxy at the time this record is written, not invented token totals; exclude a review triggered by a later push>
 - Fixer revisions: <count>
-- Review gate verdict: <`python .agent-process/scripts/review_gate.py <PR>` verdict on the head being merged; a missing one means the loop ended on an agent's opinion>
 - Conditional skips / escalations: <reason or none>
 -->
 
@@ -39,7 +38,6 @@ Brief provenance record, without prompts or chain-of-thought.
 - Route:
 - Model invocations:
 - Fixer revisions:
-- Review gate verdict:
 - Conditional skips / escalations:
 
 ## Test plan

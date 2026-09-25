@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local enforcement is supplementary: GitHub branch protection is the final
+# Local enforcement is supplementary: the default branch's ruleset is the final
 # barrier. `core.hooksPath .agent-process/.githooks` activates this hook after installation.
 set -u
 
@@ -28,12 +28,5 @@ if [ -z "$PY" ]; then
     exit 1
 fi
 
-if [ "${BRANCH_PROTECTION_ALLOW_DRIFT+x}" = x ]; then
-    # shellcheck disable=SC2086
-    $PY .agent-process/scripts/check_branch_protection.py --allow-drift "$BRANCH_PROTECTION_ALLOW_DRIFT" || exit $?
-else
-    # shellcheck disable=SC2086
-    $PY .agent-process/scripts/check_branch_protection.py || exit $?
-fi
 # shellcheck disable=SC2086
 $PY .agent-process/scripts/ci_check.py || exit $?

@@ -245,7 +245,7 @@ def test_tasks_of_a_new_change() -> None:
         < text.index("check_red.py")
         < text.index("archive_change.py")
         < text.index("gh pr create")
-        < text.index("request_codex_review.py")
+        < text.index("@codex review")
         < text.index("wait_for_pr.py")
     )
     for part in (
@@ -254,7 +254,6 @@ def test_tasks_of_a_new_change() -> None:
         "three rounds",
         "no tick",
         "never a direct edit of `openspec/specs/`",
-        "ready-for-human",
         "A P2/P3 thread is answered, never resolved by the process",
     ):
         assert part in text, part

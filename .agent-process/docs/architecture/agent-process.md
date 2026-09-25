@@ -99,7 +99,7 @@ This is the per-change flow. It applies only after the one-time repository
    implementation, `ci_check.py`, the archive
    (`archive_change.py <change>`, before the PR so the reviewed head is the
    archived one), the PR (`gh pr create --body-file <report>`), and the review
-   loop (`request_codex_review.py --request <PR>` after every push,
+   loop (`gh pr comment <PR> --body "@codex review"` after every push,
    `wait_for_pr.py <PR>` — it reads `gh pr checks --json` until two reads 30 s apart
    agree, on one head, that nothing is pending, retrying the empty rollup after a push,
    then the review threads on that head — at most three rounds). On an
@@ -111,7 +111,7 @@ This is the per-change flow. It applies only after the one-time repository
    `python .agent-process/scripts/update_pr_body.py <PR> --body-file <path>`. Fix CI
    findings for up to three iterations, then loop: after creating the PR and
    after every successful push run
-   `python .agent-process/scripts/request_codex_review.py --request <PR>` through the local
+   `gh pr comment <PR> --body "@codex review"` through the local
    authenticated PR-author session. If that push addressed a `P0`/`P1` review
    thread, after `wait_for_pr.py <PR>` run
    `python skills/agent-process/scripts/resolve_review_thread.py --repo OWNER/REPO
@@ -127,59 +127,25 @@ This is the per-change flow. It applies only after the one-time repository
    [0027](../adr/0027-v2-standards-replace-the-bespoke-control-plane.md). A fix that changes
    a spec goes through a change of its own on the PR branch (delta,
    `validate --strict`, `archive_change`), never a direct edit of
-   `openspec/specs/`. Then run `gh pr checks <PR> --watch`,
-   inspect a failed run with
-   `gh run view <run-id> --log-failed`, and ask
-   `python .agent-process/scripts/review_gate.py <PR>` whether to continue — its verdict
-   decides, not the agent's own reading. `should-fix` findings are the
+   `openspec/specs/`. Then run `python skills/agent-process/scripts/wait_for_pr.py <PR>`,
+   inspect a failed run with `gh run view <run-id> --log-failed`, and stop once it
+   settles a head with no open `P0`/`P1` thread, or at the three-round escalation.
+   `should-fix` findings are the
    maintainer's call and don't gate the loop. A PR is ready once the
    current head has no blocking finding and every required check passes.
 
-A delivery is **terminal** once `review_gate.py` reaches `ready-for-human` or
-`escalate` on the current head; every other state — no CI stamp, no PR yet, a
-`fix-blocking`/`review-pending`/capture-failure verdict, or a verdict recorded
-against an older head — is progress, not a stopping point. A turn-boundary gate
-enforces this instead of the agent's own reading of the loop: on an issue
-branch, the end of an agent turn is a gated event (ADR
-[0021](../adr/0021-the-end-of-an-agent-turn-is-a-gated-event.md)), blocking the
-turn while the delivery is non-terminal and naming the exact next command,
-bounded so an unchanged state escalates with a visible marker rather than
-trapping the session. Both carriers wire this to their `Stop` hook
-(`hooks.py stop`, `.agent-process/scripts/delivery_state.py`): Claude via
-`.claude/settings.json`, Codex via `.codex/hooks.json`'s `Stop` group
-(`codex_hooks.py stop`). Codex only loads `.codex/hooks.json` for a project
-the operator has recorded as trusted; confirm that with
-`check_codex_project_trust.py` per
-[the installation guide](agent-process-installation.md#installation-order)
-before relying on this gate on the Codex adapter — that preflight covers
-project trust only, and Codex separately requires per-hook trust before it
-will run one, which the installation guide's hook-trust note covers.
+Codex only loads `.codex/hooks.json` for a project the operator has recorded as
+trusted; confirm that with `check_codex_project_trust.py` per
+[the installation guide](agent-process-installation.md#installation-order) before
+relying on the repository hooks on the Codex adapter — that preflight covers project
+trust only, and Codex separately requires per-hook trust before it will run one, which
+the installation guide's hook-trust note covers.
 
 One PR is one logical unit. Do not bypass hooks, push to `main`, force-push,
 reset hard, delete branches forcefully, self-merge, or replace these gates
 with an agent assertion. GitHub branch protection is authoritative; a
 review check that is skipped, missing, malformed, or still pending leaves
 the PR `not ready`.
-
-### Review-gate verdicts
-
-`python .agent-process/scripts/review_gate.py <PR>` reads the live PR — required contexts on
-the current head, and how many distinct heads `agent-review` has reviewed. It
-records its verdict for the judged head to `.review_gate_stamp`, for the
-turn-boundary gate above to read, but changes nothing and posts nothing **on
-the PR**.
-
-| Verdict | Exit code | Meaning |
-| --- | --- | --- |
-| `ready-for-human` | `0` | Loop over. Report the PR ready; remaining findings are the maintainer's call. |
-| `fix-blocking` | `10` | One minimal fixer commit, push, resolve any `P0`/`P1` thread it addresses, run the gate again. |
-| `escalate` | `20` | Loop over with a named anomaly: the fixer budget is spent. |
-| `review-pending` | `30` | Evidence is not final. Wait once with `gh pr checks <PR> --watch`, then re-run the gate; a second `review-pending` goes to the maintainer, never a polling loop. |
-
-Exit `2` is not a verdict — a `gh`, argument, or capture failure, leaving
-the PR `not ready`. The fixer budget is `fixer.max_runs` in the role
-catalogue: distinct heads reviewed minus the first, so a re-run on an
-unchanged head spends none of it. The verdict goes into `## Agent record`.
 
 ## Review outcome enforcement
 

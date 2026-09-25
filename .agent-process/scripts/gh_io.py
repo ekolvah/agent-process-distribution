@@ -1,14 +1,10 @@
-"""The GitHub boundary the review gate talks across: `gh` reads and step outputs.
+"""The GitHub boundary the review check talks across: `gh` reads and step outputs.
 
 Nothing here is policy. How a `gh` call fails (non-zero exit, or `stdout is None`
 because the reader died on decoding), how `--paginate --slurp` shapes a
 collection, and how a step publishes `key=value` for the next step are all
 contracts GitHub owns, not this repo. Carrier 2 was about to make a second
 copy of each; a second copy is a place for them to drift apart silently.
-
-`.agent-process/scripts/review_gate.py` keeps its own reader on purpose: it answers a transport
-failure with `SystemExit(2)` because there such a failure must never be reported
-as a loop verdict, while callers here want the failure as a value to wrap.
 """
 
 from __future__ import annotations

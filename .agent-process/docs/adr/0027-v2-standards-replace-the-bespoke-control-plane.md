@@ -649,3 +649,12 @@ questions of #114 in its order:
   `path`, `problem`, `standard` and `why_not`; under `approve` the schema rejects a
   `problem` that is not an issue, PR or run reference and a `standard` of none, n/a or a
   dash. Completeness and truth stay the `bespoke` judgement. No script.
+* The v1 review control plane is deleted (`v2-4a-review-protection`, tracking issue 172,
+  issue 114). Observed 2026-09-24: `is_valid_branch_name` printed `False False True` for
+  `review-bespoke-standard`, `v2-2j-remove-v1-quality-caller` and
+  `issue-101-bug-telemetry-marks-no`, so the Stop gate allowed every v2 turn, whose branch
+  is named after its change, without reading anything; classic protection of `main`
+  required `agent-review / agent-review` while ruleset `23732345` required only
+  `agent-process / quality`. `review_gate.py`, the Stop hook, `delivery_state.py` and the
+  classic-protection scripts go; `activate_protection.py` puts both contexts in the ruleset,
+  and the delivery waits with `wait_for_pr.py` alone.
