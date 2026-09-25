@@ -91,9 +91,9 @@ process.
   Scenario coverage is deterministic, so it is a required check, not a review comment.
 * **State lives in the GitHub Project.** The built-in `Status` field is the only delivery
   state (ADR 0024); `set_status` resolves IDs by name at run time.
-* **Telemetry is owner-side.** OTLP from both agents through one collector with
-  project/task/attempt labels. Delivered after v2 (issue 116), not by it; see More
-  Information.
+* **Telemetry is owner-side** with project/task/attempt identity. Its backend (the OTLP
+  collector in place, or Langfuse) is chosen by issue 103 and delivered after v2 (issue
+  116), not by it; see More Information.
 
 Two rules bind every later addition to the core; they enter `openspec/specs/maintenance/`
 with this record: a process script exists only when GitHub, `gh`, OpenSpec, Claude Code or
