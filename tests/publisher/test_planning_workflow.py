@@ -390,6 +390,24 @@ def test_plan_approved() -> None:
         assert absent not in group0, absent
 
 
+def test_plan_is_explained_for_solution_review() -> None:
+    """Scenario: Plan ready — the explanation follows `Planned` and never goes silent."""
+    review = _section("Architect review")
+    explained = review.index("plain words")
+    assert review.index("Planned") < explained
+    for part in ("what the person decides", "final message", "cannot publish"):
+        assert part in review[explained:], part
+
+
+def test_delivered_change_is_explained_for_solution_review() -> None:
+    """Scenario: Run ends — the delivered change is explained at the stop."""
+    deliver = _section("Delivery")
+    explained = deliver.index("plain words")
+    assert deliver.index("Stop once") < explained
+    for part in ("final message", "cannot publish"):
+        assert part in deliver[explained:], part
+
+
 def test_design_on_a_platform_behaviour() -> None:
     for part in (
         "platform behaviour",
