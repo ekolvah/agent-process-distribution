@@ -98,10 +98,27 @@ def test_package_paths_resolve_in_a_consumer() -> None:
                     continue
                 if PACKAGE.resolve() not in (path.parent / target).resolve().parents:
                     findings.append(f"{name}: link {target} leaves the skill directory")
-        if path.parent == ROOT / "agents" and "skills/agent-process/" in text:
-            if "${CLAUDE_PLUGIN_ROOT}/skills/agent-process/" not in text:
-                findings.append(f"{name}: skills/agent-process/ without ${{CLAUDE_PLUGIN_ROOT}}")
+        if path.parent == ROOT / "agents":
+            findings += _agent_package_path_findings(name, text)
     assert not findings, "\n".join(findings)
+
+
+def _agent_package_path_findings(name: str, text: str) -> list[str]:
+    findings = []
+    if "skills/agent-process/" in text:
+        if "${CLAUDE_PLUGIN_ROOT}/skills/agent-process/" not in text:
+            findings.append(f"{name}: skills/agent-process/ without ${{CLAUDE_PLUGIN_ROOT}}")
+    return findings
+
+
+def test_agent_package_paths_are_checked_per_occurrence() -> None:
+    """One valid fallback does not cover another package path of the same agent."""
+    text = (ROOT / "agents" / "architect-reviewer.md").read_text(encoding="utf-8")
+    assert not _agent_package_path_findings("reviewer", text)
+    added = text + "\nRead `skills/agent-process/new.md`.\n"
+    assert _agent_package_path_findings("reviewer", added) == [
+        "reviewer: skills/agent-process/new.md is not a package file"
+    ]
 
 
 def test_publisher_dogfoods_process() -> None:
