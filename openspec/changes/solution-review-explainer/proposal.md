@@ -16,7 +16,6 @@ linked or written in the final message — and lets the carrier choose the mediu
   a page linked in its final message, or in that message when the carrier cannot publish one.
 - `## Delivery`: at the stop, the implementer explains the delivered change the same way and
   links it in its final message.
-- `.agent-process/docs/architecture/agent-process.md` (the enforced contract) names both steps.
 
 No script, check or validator is added: the explanation is judged by the person.
 
@@ -30,8 +29,7 @@ No script, check or validator is added: the explanation is judged by the person.
 
 ## Impact
 
-- Edited: `skills/agent-process/SKILL.md`, `.agent-process/docs/architecture/agent-process.md`,
-  `tests/publisher/test_planning_workflow.py`.
+- Edited: `skills/agent-process/SKILL.md`, `tests/publisher/test_planning_workflow.py`.
 - Added: none. Removed: none.
 - `.claude/commands/opsx/*` and the OpenSpec skills stay generated and untouched: both carriers
   reach the step through the `tasks` rule's pointer to the shared skill.

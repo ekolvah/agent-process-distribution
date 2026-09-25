@@ -79,7 +79,9 @@ review again. The propose run ends on `approve`: if the change has no issue, ask
 priority and run `python skills/agent-process/scripts/create_tracking_issue.py <change>
 --priority <High|Medium|Low>`; otherwise run it without priority. It validates the review
 first; send its errors back to the reviewer. The issue must be `Planned` before the
-plan is ready. Artifact status is file existence only: the verdict is the gate, and Group 0
+plan is ready. Then explain the plan in plain words — what changes, why, what the person
+decides — as a page linked in the final message, or in that message when the carrier cannot
+publish one. Artifact status is file existence only: the verdict is the gate, and Group 0
 reads it.
 
 ## Delivery
@@ -114,8 +116,9 @@ test the violated invariant, the other inputs that violate it from the tool's ow
 documentation, and what each switch takes away; test the class, not the reviewer's example.
 
 Stop once `wait_for_pr.py` settles a head with no open P0/P1 thread, or at the three-round
-escalation. Tasks after archive leave no tick in the
-repository because a pushed tick would move the reviewed head. If interrupted after archive,
+escalation, then explain the delivered change in plain words as a page linked in the final
+message, or in that message when the carrier cannot publish one. Tasks after archive leave
+no tick in the repository because a pushed tick would move the reviewed head. If interrupted after archive,
 resume from `gh pr view <change>` — open the PR when there is none — not OpenSpec apply.
 
 ## Install

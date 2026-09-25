@@ -10,7 +10,7 @@
 
 - [ ] 2.1 `skills/agent-process/SKILL.md` `## Architect review`: after "The issue must be `Planned` before the plan is ready.", add one sentence — then explain the plan in plain words (what changes, why, what the person decides) as a page linked in the final message, or in that message when the carrier cannot publish one (design: Name the outcome). Verify that test 1.1 `test_plan_is_explained_for_solution_review` is green
 - [ ] 2.2 `skills/agent-process/SKILL.md` `## Delivery`: after the "Stop once …" sentence, add one sentence — then explain the delivered change in plain words as a page linked in the final message, or in that message when the carrier cannot publish one. Verify that `test_delivered_change_is_explained_for_solution_review` and `python -m pytest tests/publisher/test_planning_workflow.py -q` are green
-- [ ] 2.3 `.agent-process/docs/architecture/agent-process.md`: one clause at the end of the §Planning propose-run sentence (after `Planned` on the board) and one at the stop of delivery step 4 naming the plain-words explanation (design: The enforced doc names both steps). Verify that `python -m pytest tests/agent_process/test_doc_links.py tests/agent_process/test_doc_narrative.py -q` is green, commit Group 2 as `feat(process): explain plan and delivery in plain words for solution review`
+- [x] 2.3 No clause outside the shared skill: `v2-5-delete-control-plane` deleted `.agent-process/docs/architecture/agent-process.md` after the plan (design: The shared skill is the only document edited). Verify that `python -m pytest tests/agent_process/test_doc_links.py tests/agent_process/test_doc_narrative.py -q` is green, commit Group 2 as `feat(process): explain plan and delivery in plain words for solution review`
 
 ## 3. Verify
 
