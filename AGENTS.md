@@ -1,33 +1,27 @@
 # Repository agent guidance
 
-Use [the agent development process](.agent-process/docs/architecture/agent-process.md) as the
-source of truth. Roles are interchangeable: do not assume that the current
+The process is specified with [OpenSpec](https://github.com/Fission-AI/OpenSpec) and is the
+source of truth: `openspec/specs/` holds what is implemented, `openspec/changes/` what is
+pending (the tracking issue #107 lists the v2 changes), `openspec/config.yaml` the repository
+context, and [`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md) the portable
+procedure. A PR that changes behaviour carries its change's spec delta
+(`openspec validate --strict`). Roles are interchangeable: do not assume that the current
 Claude or Codex adapter is the only permitted executor.
-
-The **target** process is specified with [OpenSpec](https://github.com/Fission-AI/OpenSpec):
-`openspec/specs/` holds what is implemented, `openspec/changes/` what is pending (the
-tracking issue #107 lists the v2 changes), `openspec/config.yaml` the repository context,
-and [`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md) the portable procedure. A PR that
-changes target behaviour carries its change's spec delta (`openspec validate --strict`); a
-PR that only touches a v1 mechanism the target drops does not. Until v2 lands the document
-above stays the enforced contract.
 
 ## Codex adapter
 
 - A repository must be installed once before its first delivery
   ([Install](skills/agent-process/SKILL.md#install)). Until then, `start_change.py` refuses
   to create a branch.
-- Follow the canonical [per-issue delivery flow](.agent-process/docs/architecture/agent-process.md#deterministic-delivery-flow).
-  That document is the sole source of task gates, commands, and status
-  transitions; this file does not restate them.
+- Codex loads `.codex/hooks.json` only for a trusted project;
+  `python .agent-process/scripts/check_codex_project_trust.py` checks that trust.
+- Follow the [delivery flow](skills/agent-process/SKILL.md#delivery). It is the sole
+  source of task gates, commands, and status transitions; this file does not restate them.
 - Use `$openspec-propose` for the Codex planner entry point and
   `$openspec-apply-change` for the Codex implementer entry point. The project context and
   shared-skill pointers they follow are in `openspec/config.yaml`; the architect review is written as
   `architect-review.json` by the planner as a self-review in Codex; they do not
-  replace any gate in that document.
-- The advisory control plane (`.agent-process/scripts/agent_orchestrator.py` plus
-  `.agents/orchestration/roles.yaml`) reports evidence-based routing and budget
-  escalation. It never authorizes bypassing its required delivery gates.
+  replace any gate of the delivery flow.
 
 ## Repository conventions
 

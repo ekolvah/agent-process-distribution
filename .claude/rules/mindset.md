@@ -15,7 +15,7 @@ only when working with tests.
   root cause → §V, visibility → §IV, test-first → §I, simplicity/minimal-diff → §VII.
 - **Procedure** (roles, branch, PR discipline, gates, planner runbook, and
   architect-review contract) —
-  [`agent-process.md`](../../.agent-process/docs/architecture/agent-process.md).
+  [`SKILL.md`](../../skills/agent-process/SKILL.md).
 - **Tests**: consult [`testing.md`](testing.md) before choosing the test level;
   it is path-scoped (`tests/**`) and may load only after the strategy is chosen.
 
