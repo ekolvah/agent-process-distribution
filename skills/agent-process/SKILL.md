@@ -142,6 +142,13 @@ skill's own directory. Run from the consumer's root:
    `.github/workflows/agent-review.yml`, it requires `agent-review / agent-review` too, so
    the PR must also show that check green.
 
+The callers of these checks are part of the PR head, so a PR can replace one with a job
+that reports the same context. Where untrusted contributors open PRs, require the intended
+workflow definition through an organisation or platform trust anchor (a Ruleset Required
+Workflow where GitHub offers it); until then the required contexts are delivery evidence,
+not a security boundary. Do not switch the review workflows to `pull_request_target` as a
+shortcut: the review carrier holds a credential and reads untrusted PR material.
+
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
 install of another version in any repository moves it for every repository. The Claude
 plugin is pinned per repository by `.claude/settings.json`, and Claude applies it only after

@@ -66,7 +66,8 @@ Codex hooks, which is not made (design D3).
   `.github/pull_request_template.md`, `tests/agent_process/test_agent_orchestrator.py`,
   `tests/agent_process/test_review_credentials.py`.
 - Edited: `AGENTS.md`, `openspec/config.yaml` (one `context` sentence), `.claude/rules/workflow.md`, `.claude/rules/mindset.md`,
-  `.claude/rules/testing.md`, `.agent-process/docs/architecture/principles.md` (header, six
+  `.claude/rules/testing.md`, `skills/agent-process/SKILL.md` (Install: the trust-anchor
+  paragraph, PR 178 review), `.agent-process/docs/architecture/principles.md` (header, six
   links, §Governance),
   `.agent-process/scripts/hooks.py` (one message string),
   `tests/publisher/test_reusable_workflows.py` (one test removed, one added), ADR 0003, 0004 and

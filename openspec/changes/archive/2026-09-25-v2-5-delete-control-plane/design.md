@@ -56,9 +56,9 @@ the size driver of an incident.
   - Type labels and the trivial-change skip: no script or check ever read them; dropped.
   - `pip-compile` in the same commit: the `requirements` step of `ci_check` fails on lockfile
     drift, and the `hooks.py` reminder stays.
-  - The caller-workflow trust boundary text (tested by
-    `test_installation_documents_the_caller_workflow_trust_boundary`, removed with the document):
-    the boundary itself stays tested by
+  - The caller-workflow trust boundary text moves to `SKILL.md` §Install (PR 178 review: it
+    was the only step naming the workflow-definition trust anchor); its test becomes
+    `test_install_documents_the_caller_workflow_trust_boundary`. The boundary itself stays tested by
     `test_quality_executes_a_trusted_driver_against_the_pr_worktree`,
     `test_callees_declare_workflow_call_without_pull_request_trigger` and
     `test_caller_permissions_are_a_superset_of_callee_permissions`.
@@ -107,8 +107,8 @@ rounds via telemetry) moves to step 6 (issue 116), which provides the telemetry.
 
 - [A reader follows a v1 link from outside the repository] → the link 404s; the v2 homes are
   named in `AGENTS.md`, the first file an agent reads.
-- [The trust-boundary prose is gone] → the enforced boundary is still tested (D2); prose for a
-  consumer is `SKILL.md` §Install.
+- [A PR replaces a caller with a job reporting the same context] → `SKILL.md` §Install names
+  the external trust anchor (D2).
 - [A consumer lacks the review secret] → caught by the red `agent-review` check, not ahead of
   time (D2).
 - Rollback: `git revert` of the PR. No external state changes.
