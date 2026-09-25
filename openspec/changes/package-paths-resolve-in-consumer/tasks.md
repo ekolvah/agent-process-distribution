@@ -8,9 +8,9 @@
 
 ## 2. Package
 
-- [ ] 2.1 `git mv .agent-process/docs/architecture/principles.md skills/agent-process/principles.md` (design D1); rewrite its `../../../skills/agent-process/SKILL.md` links to `SKILL.md` and drop the `[REVIEW_CONTRACT.md](../../REVIEW_CONTRACT.md)` parenthetical of §VII. Verify that `python -m pytest tests/publisher/test_plugin.py::test_package_contents_are_closed tests/publisher/test_reusable_workflows.py -q` is green after the path update of `test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers`
-- [ ] 2.2 Rewrite steps 1–2 of `agents/architect-reviewer.md` per design D2: read `SKILL.md`, `architect-review.schema.json` and `principles.md` from `skills/agent-process/` at the repository root when it exists, otherwise from `${CLAUDE_PLUGIN_ROOT}/skills/agent-process/`. Verify that `python -m pytest tests/publisher/test_planning_workflow.py -q` stays green
-- [ ] 2.3 Remove the pre-push hook sentence from Install step 4 of `skills/agent-process/SKILL.md` (design D3). Verify that `python -m pytest tests/publisher/test_plugin.py -q` is green, then commit Group 2 as `fix(distribution): ship principles in the skill, drop publisher-only paths`
+- [x] 2.1 `git mv .agent-process/docs/architecture/principles.md skills/agent-process/principles.md` (design D1); rewrite its `../../../skills/agent-process/SKILL.md` links to `SKILL.md` and drop the `[REVIEW_CONTRACT.md](../../REVIEW_CONTRACT.md)` parenthetical of §VII. Verify that `python -m pytest tests/publisher/test_plugin.py::test_package_contents_are_closed tests/publisher/test_reusable_workflows.py -q` is green after the path update of `test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers`
+- [x] 2.2 Rewrite steps 1–2 of `agents/architect-reviewer.md` per design D2: read `SKILL.md`, `architect-review.schema.json` and `principles.md` from `skills/agent-process/` at the repository root when it exists, otherwise from `${CLAUDE_PLUGIN_ROOT}/skills/agent-process/`. Verify that `python -m pytest tests/publisher/test_planning_workflow.py -q` stays green
+- [x] 2.3 Remove the pre-push hook sentence from Install step 4 of `skills/agent-process/SKILL.md` (design D3). Verify that `python -m pytest tests/publisher/test_plugin.py -q` is green, then commit Group 2 as `fix(distribution): ship principles in the skill, drop publisher-only paths`
 
 ## 3. Repository follows the move
 

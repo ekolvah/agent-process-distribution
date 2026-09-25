@@ -8,7 +8,7 @@ document, this document wins.
 
 **Not here.** The *procedural* half of the workflow (branch creation, PR discipline,
 role hand-offs, the architect-review gate) is delegated to
-[the agent process](../../../skills/agent-process/SKILL.md) — see §Governance. How each gate is
+[the agent process](SKILL.md) — see §Governance. How each gate is
 implemented and configured, and which coverage gaps are consciously accepted, are
 this project's own docs to author.
 
@@ -29,7 +29,7 @@ different directions, the higher goal decides.
 3. **Preserve predictability and user control.** One PR is one logical unit;
    risky or shared-state actions are confirmed with the user even when they are
    technically permitted. The procedural half of this goal lives in
-   [the agent process](../../../skills/agent-process/SKILL.md).
+   [the agent process](SKILL.md).
 
 ### Scripts over instructions
 
@@ -173,14 +173,14 @@ length, rewrite it; an abstraction with a single caller is inlined, not introduc
 **Surgical changes:** touch only what the task requires and match the surrounding style;
 do NOT "improve" or refactor adjacent unbroken code inside an unrelated diff. Removing
 dead code is a separate, deliberate unit (one-PR-one-unit,
-[the agent process](../../../skills/agent-process/SKILL.md)), not silently widened scope. New
+[the agent process](SKILL.md)), not silently widened scope. New
 dependencies / packages / build steps are not added without asking first — prefer stdlib
 and existing repo packages.
 
 Mostly not machine-gated: "over-complicated" is a semantic judgement, enforced at
-**plan stage** by the [architect review](../../../skills/agent-process/SKILL.md#architect-review),
+**plan stage** by the [architect review](SKILL.md#architect-review),
 whose reviewer reads the [goal function](#goal-function) above. The diff-stage
-automated review ([`REVIEW_CONTRACT.md`](../../REVIEW_CONTRACT.md)) blocks only two
+automated review blocks only two
 narrow, worktree-verifiable triggers as a second pass: an added indirection with a
 single call site and no stated reason, and duplicated logic whose finding
 names an existing symbol and its repository-relative path. Every broader
@@ -195,7 +195,7 @@ more dev + runtime tokens (goal 2).
 The procedural workflow rules (branch creation, PR discipline,
 plan→implement flow, pre-commit gate, dependency consistency, architect-review
 gate) are an **operational procedure**, delegated to their canonical home
-[the agent process](../../../skills/agent-process/SKILL.md). They
+[the agent process](SKILL.md). They
 supplement the principles above and are **equally binding**. This file does not
 restate them — edit them there.
 
@@ -227,7 +227,7 @@ of truth on principles.
 **goal function**, the **principles §I–VII**, the **Quality Gates**, and this
 **Governance** section as its canon. The *operational procedural rules* (the
 former §Development Workflow) are delegated to
-[the agent process](../../../skills/agent-process/SKILL.md). Delegation does **not** weaken their
+[the agent process](SKILL.md). Delegation does **not** weaken their
 authority: those rules bind equally; the skill, with `openspec/specs/`, is their
 single source of truth (other mentions are links only). Amending them happens
 in the skill and the specs; amending the *delegation itself* (what is canon vs. delegated) is
