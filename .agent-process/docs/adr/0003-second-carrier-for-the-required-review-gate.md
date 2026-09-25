@@ -152,7 +152,8 @@ one live run; until then the record has unverified execution
 
 * Gate mechanics and step order belong in the target project's branch-protection
   documentation; the `carrier_selection` field in the role catalog —
-  [`agent-process.md`](../architecture/agent-process.md#roles-and-hand-offs).
+  `agent-process.md` §Roles and hand-offs (removed with the document,
+  [ADR 0027](0027-v2-standards-replace-the-bespoke-control-plane.md)).
 * Provider-neutral names (`check_agent_review_outcome.py`, `agent-review` context)
   are process vocabulary; renaming a required context requires a PATCH
   migration of branch protection and is therefore outside this record.

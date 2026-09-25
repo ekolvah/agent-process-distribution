@@ -138,7 +138,8 @@ fabrication limit above, and it is not testable from inside the repository.
 ## More Information
 
 * The `## Evidence` contract's runbook, field set, and capture table are in
-  [`agent-process.md`](../architecture/agent-process.md#issue-contract).
+  `agent-process.md` §Issue contract (removed with the document,
+  [ADR 0027](0027-v2-standards-replace-the-bespoke-control-plane.md)).
 * Precedent for a second carrier of a required artifact and for the `carrier_selection` field:
   [ADR-0003](0003-second-carrier-for-the-required-review-gate.md).
 * Naming: the catalogue key stays `discovery` rather than `discoverer`/`observer`, so it matches the

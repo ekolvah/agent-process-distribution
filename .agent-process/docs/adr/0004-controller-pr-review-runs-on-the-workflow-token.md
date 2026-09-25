@@ -137,7 +137,8 @@ add the missing scope in the same PR.
   meaning successful completion without work.
 * Defect observation is recorded in the source repository's issue history.
 * State-document consequences: the target project's branch-protection documentation
-  and [`agent-process.md`](../architecture/agent-process.md#review-outcome-enforcement).
+  and `agent-process.md` §Review outcome enforcement (removed with the document,
+  [ADR 0027](0027-v2-standards-replace-the-bespoke-control-plane.md)).
 * Revisit the record if the repository gains a second maintainer or external contributors with permission to push
   repository branches: then the residual self-verification assumption will become unacceptable and require a reviewer
   not taken from head.

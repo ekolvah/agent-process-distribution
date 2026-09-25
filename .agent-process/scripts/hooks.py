@@ -156,7 +156,7 @@ def pipcompile_signal(path: str) -> Signal:
         kind="pipcompile",
         message=(
             f"{path} changed — run `pip-compile {path}` in the SAME commit "
-            "(see `.agent-process/docs/architecture/agent-process.md`) or CI will red on lockfile drift."
+            "or CI will red on lockfile drift."
         ),
     )
 

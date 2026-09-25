@@ -664,3 +664,20 @@ questions of #114 in its order:
   `check_orphan_scope.py`, `set_issue_status.py`, `set_issue_priority.py` or
   `project_settings.py`; only the scripts themselves, their tests and prose did. Open PR 104
   on `issue-101-bug-telemetry-marks-no` keeps its own copies on its head.
+
+Observations from v2-5 (`v2-5-delete-control-plane`, issue 115):
+
+* `codex features list` on `codex-cli 0.153.4` (2026-09-25) prints `hooks  stable  true`
+  and `multi_agent  stable  true`. The hooks half of the deletion condition is met, so
+  `codex_hooks.py` and `.codex/hooks.json` stay instead of being deleted and restored. The
+  rest of it stays open: the Codex self-review artifact and the `wait_for_pr`-only guard
+  change `roles` and `implementation` and need an observation of Codex subagents.
+* The size budget is enforced only where a standard tool enforces it: a script over 1 000
+  lines fails pylint `max-module-lines` in `ci_check`. No standard linter bounds the length
+  of a workflow file (`yamllint` bounds lines, `actionlint` neither), and no workflow came
+  near 150 lines (largest 125), so the workflow half gets no bespoke check until one does.
+* The workflow-definition trust anchor of the v1 installation guide is not carried over:
+  one person commits to the repositories that use this process, the revisit condition
+  ADR 0004 already records.
+* Comparing review rounds via telemetry moves to step 6 (issue 116), which provides the
+  telemetry.

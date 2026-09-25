@@ -20,7 +20,7 @@ only when working with `tests/**`).
    suite that did not run does not count as RED; a test for a symbol that does
    not exist yet needs a signature stub so its failure occurs in the test body.
    The contract is
-   [`agent-process.md`](../../.agent-process/docs/architecture/agent-process.md).
+   [`SKILL.md`](../../skills/agent-process/SKILL.md#tasks).
 2. **No mocks of internal logic** —
    [`principles.md §II`](../../.agent-process/docs/architecture/principles.md) applies.
 3. Choose the test level from the target project's testing strategy.
