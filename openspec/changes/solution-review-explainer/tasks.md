@@ -8,14 +8,14 @@
 
 ## 2. Procedure
 
-- [ ] 2.1 `skills/agent-process/SKILL.md` `## Architect review`: after "The issue must be `Planned` before the plan is ready.", add one sentence — then explain the plan in plain words (what changes, why, what the person decides) as a page linked in the final message, or in that message when the carrier cannot publish one (design: Name the outcome). Verify that test 1.1 `test_plan_is_explained_for_solution_review` is green
-- [ ] 2.2 `skills/agent-process/SKILL.md` `## Delivery`: after the "Stop once …" sentence, add one sentence — then explain the delivered change in plain words as a page linked in the final message, or in that message when the carrier cannot publish one. Verify that `test_delivered_change_is_explained_for_solution_review` and `python -m pytest tests/publisher/test_planning_workflow.py -q` are green
+- [x] 2.1 `skills/agent-process/SKILL.md` `## Architect review`: after "The issue must be `Planned` before the plan is ready.", add one sentence — then explain the plan in plain words (what changes, why, what the person decides) as a page linked in the final message, or in that message when the carrier cannot publish one (design: Name the outcome). Verify that test 1.1 `test_plan_is_explained_for_solution_review` is green
+- [x] 2.2 `skills/agent-process/SKILL.md` `## Delivery`: after the "Stop once …" sentence, add one sentence — then explain the delivered change in plain words as a page linked in the final message, or in that message when the carrier cannot publish one. Verify that `test_delivered_change_is_explained_for_solution_review` and `python -m pytest tests/publisher/test_planning_workflow.py -q` are green
 - [x] 2.3 No clause outside the shared skill: `v2-5-delete-control-plane` deleted `.agent-process/docs/architecture/agent-process.md` after the plan (design: The shared skill is the only document edited). Verify that `python -m pytest tests/agent_process/test_doc_links.py tests/agent_process/test_doc_narrative.py -q` is green, commit Group 2 as `feat(process): explain plan and delivery in plain words for solution review`
 
 ## 3. Verify
 
-- [ ] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
 
 ## 4. Deliver
 
