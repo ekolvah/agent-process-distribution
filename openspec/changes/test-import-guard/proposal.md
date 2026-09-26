@@ -38,7 +38,8 @@ per Principle V:
 
 ## Impact
 
-- Edited: `pyproject.toml` (`[tool.tach]`), `.agent-process/scripts/ci_check.py`,
+- Edited: `pyproject.toml` (`[tool.tach]`, `addopts`), `.agent-process/pyproject.toml`
+  (`addopts`: design, Risks), `.agent-process/scripts/ci_check.py`,
   `.agent-process/requirements-dev.in`, `.agent-process/requirements-dev.txt`,
   `tests/agent_process/test_ci_check.py`.
 - Added, removed: none. No doc edit: the rule, the alternatives and the observations live in

@@ -10,7 +10,7 @@
 
 ## 2. Check
 
-- [ ] 2.1 `ci_check.py`: `check_test_imports` runs `[sys.executable, "-m", "tach", "check"]` through `_run` (design: D3). Verify `python -m pytest tests/agent_process/test_ci_check.py -q` is green (including `test_full_runner_visits_every_registered_check`), commit as `feat(implementation): ci_check forbids test-to-test imports`
+- [x] 2.1 `ci_check.py`: `check_test_imports` runs `[sys.executable, "-m", "tach", "check"]` through `_run` (design: D3). Verify `python -m pytest tests/agent_process/test_ci_check.py -q` is green (including `test_full_runner_visits_every_registered_check`), commit as `feat(implementation): ci_check forbids test-to-test imports`
 
 ## 3. Verify
 

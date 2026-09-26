@@ -48,8 +48,10 @@ run.
 ## Risks / Trade-offs
 
 - [tach installs a `pytest11` plugin that loads whenever `[tool.tach]` exists] → without its
-  `--tach*` flags it skips nothing: a scratch `pytest` run printed the same result with and
-  without `-p no:tach`. If it ever changes a run, add `-p no:tach` to `addopts`.
+  `--tach*` flags it skips nothing, but it still runs impact analysis: the RED run of this
+  change printed `[Tach] WARNING: 1 test(s) failed that would be skipped by impact analysis!`
+  (a passing scratch run had printed nothing). Both `pyproject.toml` files therefore set
+  `addopts = ["-p", "no:tach"]`; `check_red.py` reads the same `addopts`.
 - [A new test module named outside `test_*`] → not a test to pytest either
   (`python_files = ["test_*.py"]`), so the glob matches what pytest collects.
 - [tach's transitive dependencies join the dev environment] → dev-only, audited by
