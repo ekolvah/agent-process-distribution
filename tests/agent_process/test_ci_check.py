@@ -653,5 +653,3 @@ class TestTestImports:
         assert "tests.publisher.test_b" in out
         assert "tests.publisher.test_a" in out
         assert "test_c" not in out
-
-_FORMAT_PROBE = 'x'
