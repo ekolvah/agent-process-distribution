@@ -14,8 +14,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `python -m pytest tests/publisher --collect-only -q` reports `384 tests collected` and its stripped node ids equal the 1.1 baseline, that no `tests/publisher/*.py` exceeds 700 lines, that a search for `from tests\.\w+\.test_|import tests\.\w+\.test_` under `tests/` finds nothing, and that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes. Verify that `python -m pytest tests/publisher --collect-only -q` reports `384 tests collected` and its stripped node ids equal the 1.1 baseline, that no `tests/publisher/*.py` exceeds 700 lines, that a search for `from tests\.\w+\.test_|import tests\.\w+\.test_` under `tests/` finds nothing, and that `git diff --name-only origin/main` lists only the proposal's Impact paths and the change directory
 
 ## 4. Deliver
 

@@ -1,9 +1,9 @@
 ## Why
 
-Issue #193. Observed on `main` at `340fa3f`: `tests/publisher/test_init.py` is 1000 lines, the
+Observed on `main` at `340fa3f`: `tests/publisher/test_init.py` is 1000 lines, the
 `max-module-lines` of `pyproject.toml` that `ci_check.py` enforces through pylint
 `too-many-lines`, so the next test of `init.py` fails the lint step; `test_delivery_scripts.py`
-is 969. Two test modules import from other test modules:
+is 969 (#193). Two test modules import from other test modules:
 `test_release_drift.py` ← `test_delivery_scripts.py` (`_CHANGE`, `_GROUP0`, `_START`,
 `_change`) and `test_planning_workflow.py` ← `test_openspec_valid.py` (`OPENSPEC`,
 `_openspec`) — the second is not named in the issue but falls under its acceptance.
