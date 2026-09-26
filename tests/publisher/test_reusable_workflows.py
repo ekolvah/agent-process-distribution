@@ -413,3 +413,17 @@ def test_no_workflow_step_resolves_a_review_thread() -> None:
                 ):
                     assert forbidden not in (step.get("run") or "")
                     assert forbidden not in (step.get("uses") or "")
+
+
+def test_pr_title_requires_a_conventional_commit_type() -> None:
+    """ADR 0030: the `pr-title` job is the context the `pr-title` ruleset requires."""
+    document = _workflow("pr-title.yml")
+    assert _trigger(document) == {
+        "pull_request": {"types": ["opened", "edited", "synchronize", "reopened"]}
+    }
+    assert list(document["jobs"]) == ["pr-title"]
+    job = document["jobs"]["pr-title"]
+    assert job["permissions"] == {"pull-requests": "read"}
+    (step,) = job["steps"]
+    assert step["uses"] == "amannn/action-semantic-pull-request@v6"
+    assert step["with"]["types"].split() == ["feat", "fix", "docs", "test", "refactor", "chore"]

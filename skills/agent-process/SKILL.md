@@ -66,7 +66,9 @@ delta scenario to a named test or `n/a: <reason>`.
    with its verification command. End each coherent group with a commit.
 4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the complete
    quality command the repository names in the context of `openspec/config.yaml`.
-5. Deliver using the procedure below. The person merges.
+5. Deliver using the procedure below; the Deliver task titles the PR `<type>: <change>` with
+   the Conventional Commit type the planner chose — `feat` or `fix` when behaviour changes,
+   otherwise `docs`, `test`, `refactor` or `chore`. The person merges.
 
 ## Architect review
 
@@ -87,7 +89,7 @@ reads it.
 ## Delivery
 
 Start from a clean worktree. Run `python skills/agent-process/scripts/archive_change.py
-<change>` before `gh pr create --title "<change>" --body-file <report>`. The report names the
+<change>` before `gh pr create --title "<type>: <change>" --body-file <report>`. The report names the
 tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
 deferrals. The archive is the head the PR opens on.
 

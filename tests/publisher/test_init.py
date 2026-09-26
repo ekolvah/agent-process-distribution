@@ -1,8 +1,8 @@
 """The local installer lifecycle (change v2-2g-b-local-installer-lifecycle, design D6).
 
 Tests drive the transitions — preview, release selection, write, interruption, retry,
-conflict — against real `git` and a local bare repository whose tag `v2.0.0` carries this
-tree's `skills/agent-process/` and whose tag `v2.1.0` carries a recording stub `init.py`.
+conflict — against real `git` and a local bare repository whose tag `v{CURRENT}` carries this
+tree's `skills/agent-process/` and whose tag `v{OTHER}` carries a recording stub `init.py`.
 The runner is the process boundary: it logs every command, emulates `npx` (writing the
 observed OpenSpec file set) and, for rows of the other platform, the link command, and
 runs everything else for real. The module is imported inside the tests so that a missing
@@ -28,8 +28,10 @@ import pytest
 import yaml
 
 from tests.publisher.init_harness import (
+    CURRENT,
     HOST,
     LABELS,
+    OTHER,
     ROOT,
     Runner,
     Sandbox,
@@ -47,10 +49,10 @@ from tests.publisher.init_harness import (
 
 
 def test_fixture_tags_carry_releases(process_repo: Path) -> None:
-    released = git("show", "v2.0.0:skills/agent-process/SKILL.md", cwd=process_repo)
+    released = git("show", f"v{CURRENT}:skills/agent-process/SKILL.md", cwd=process_repo)
     assert released.startswith("---\nname: agent-process")
-    stub = git("show", "v2.1.0:skills/agent-process/scripts/init.py", cwd=process_repo)
-    assert "stub-release v2.1.0" in stub
+    stub = git("show", f"v{OTHER}:skills/agent-process/scripts/init.py", cwd=process_repo)
+    assert f"stub-release v{OTHER}" in stub
 
 
 # --- the lifecycle table ----------------------------------------------------------------
@@ -66,11 +68,11 @@ def test_lifecycle(
     if scenario != "fresh":
         assert install(init, sandbox, "--confirm", platform=platform) == 0
     if mode == "retry":
-        version = "2.1.0" if scenario == "upgrade" else "2.0.0"
+        version = OTHER if scenario == "upgrade" else CURRENT
         assert install(init, sandbox, "--confirm", "--version", version, platform=platform) == 0
     capfd.readouterr()
     before = snapshot(sandbox.root, sandbox.home)
-    version = ["--version", "2.1.0"] if scenario == "upgrade" else []
+    version = ["--version", OTHER] if scenario == "upgrade" else []
     flag = "--dry-run" if mode == "dry-run" else "--confirm"
     code = install(init, sandbox, flag, *version, platform=platform)
     out = capfd.readouterr().out
@@ -79,7 +81,7 @@ def test_lifecycle(
     assert out.splitlines()[0] == f"repository: {sandbox.repo}"
     seen = transitions(out)
     if scenario == "upgrade":
-        assert "stub-release v2.1.0" in out
+        assert f"stub-release v{OTHER}" in out
         argv = json.loads(next(ln for ln in out.splitlines() if ln.startswith("argv "))[5:])
         assert flag in argv and "--selected-release" in argv
         if mode == "dry-run":
@@ -90,7 +92,7 @@ def test_lifecycle(
                 "link": "unchanged",
                 "hand-off": "planned",
             }
-            assert head_commit(sandbox.checkout) == tag_commit(sandbox, "v2.1.0")
+            assert head_commit(sandbox.checkout) == tag_commit(sandbox, f"v{OTHER}")
         return
     if scenario == "fresh" and mode != "retry":
         expected = "planned" if mode == "dry-run" else "written"
@@ -100,7 +102,7 @@ def test_lifecycle(
     if expected != "written":
         assert after == before
     else:
-        assert head_commit(sandbox.checkout) == tag_commit(sandbox, "v2.0.0")
+        assert head_commit(sandbox.checkout) == tag_commit(sandbox, f"v{CURRENT}")
 
 
 def test_other_version_dry_run_leaves_no_state(
@@ -115,13 +117,13 @@ def test_other_version_dry_run_leaves_no_state(
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     monkeypatch.setenv("STUB_EXIT", "3")
     before = snapshot(sandbox.root, sandbox.home)
-    code = install(init, sandbox, "--dry-run", "--version", "2.1.0")
+    code = install(init, sandbox, "--dry-run", "--version", OTHER)
     out = capfd.readouterr().out
     assert code == 3
-    assert "stub-release v2.1.0" in out
+    assert f"stub-release v{OTHER}" in out
     lines = out.splitlines()
     argv = json.loads(next(ln for ln in lines if ln.startswith("argv "))[5:])
-    assert argv == ["--test", "pytest -q", "--dry-run", "--version", "2.1.0", "--selected-release"]
+    assert argv == ["--test", "pytest -q", "--dry-run", "--version", OTHER, "--selected-release"]
     assert f"cwd {sandbox.root}" in lines
     assert snapshot(sandbox.root, sandbox.home) == before
     assert list(scratch.iterdir()) == []
@@ -132,13 +134,13 @@ def test_confirm_selects_release_before_composing(
 ) -> None:
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
-    code = install(init, sandbox, "--confirm", "--version", "2.1.0", runner=runner)
+    code = install(init, sandbox, "--confirm", "--version", OTHER, runner=runner)
     out = capfd.readouterr().out
     assert code == 0, out
     ran = next(line[5:] for line in out.splitlines() if line.startswith("file "))
     selected = sandbox.checkout / "skills" / "agent-process" / "scripts" / "init.py"
     assert os.path.realpath(ran) == os.path.realpath(selected)
-    assert head_commit(sandbox.checkout) == tag_commit(sandbox, "v2.1.0")
+    assert head_commit(sandbox.checkout) == tag_commit(sandbox, f"v{OTHER}")
     handoff = next(i for i, cmd in enumerate(runner.log) if cmd[0] == sys.executable)
     assert any("clone" in cmd for cmd in runner.log[:handoff])
     assert not any(Path(cmd[0]).name.lower().startswith("npx") for cmd in runner.log)
@@ -150,7 +152,7 @@ def test_skill_link_resolves_to_selected_release(sandbox: Sandbox, platform: str
     init = load_init()
     runner = Runner(init, platform, sandbox.github)
     target = sandbox.checkout / "skills" / "agent-process"
-    for version, tag in (("2.0.0", "v2.0.0"), ("2.1.0", "v2.1.0")):
+    for version, tag in ((CURRENT, f"v{CURRENT}"), (OTHER, f"v{OTHER}")):
         code = install(
             init, sandbox, "--confirm", "--version", version, platform=platform, runner=runner
         )
@@ -175,7 +177,7 @@ def _prepare(init: ModuleType, sb: Sandbox, scenario: str) -> list[str]:
     """Bring the sandbox to the scenario's starting state; return the requested version."""
     if scenario == "upgrade":
         assert install(init, sb, "--confirm") == 0
-        return ["--version", "2.1.0"]
+        return ["--version", OTHER]
     return []
 
 
@@ -254,7 +256,7 @@ LITERALS = [
 @pytest.mark.parametrize("literal", LITERALS)
 def test_literal_commands_are_yaml_safe(literal: str) -> None:
     init = load_init()
-    workflow = yaml.safe_load(init.render_workflow("2.0.0", literal, literal))
+    workflow = yaml.safe_load(init.render_workflow(CURRENT, literal, literal))
     (job,) = workflow["jobs"].values()
     assert job["with"] == {"setup": literal, "test": literal}
     block = yaml.safe_load(init.render_config_block(literal))
@@ -263,13 +265,13 @@ def test_literal_commands_are_yaml_safe(literal: str) -> None:
 
 def test_caller_inputs() -> None:
     init = load_init()
-    text = init.render_workflow("2.0.0", "", "pytest -q")
+    text = init.render_workflow(CURRENT, "", "pytest -q")
     assert text.splitlines()[0] == "# agent-process:managed"
     workflow = yaml.safe_load(text)
     assert list(workflow["jobs"]) == ["agent-process"]
     job = workflow["jobs"]["agent-process"]
     assert job["uses"] == (
-        "ekolvah/agent-process-distribution/.github/workflows/quality.yml@v2.0.0"
+        f"ekolvah/agent-process-distribution/.github/workflows/quality.yml@v{CURRENT}"
     )
     assert set(job["with"]) == {"setup", "test"}
 

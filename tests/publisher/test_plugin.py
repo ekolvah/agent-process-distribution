@@ -148,7 +148,21 @@ def test_publisher_dogfoods_process() -> None:
 
 
 def test_version_drift() -> None:
-    plugin = _json(PLUGIN)
-    marketplace = _json(MARKETPLACE)
-    assert plugin["version"] == "2.0.0"
-    assert marketplace["plugins"][0]["version"] == plugin["version"]
+    release = _json(ROOT / ".release-please-manifest.json")["."]
+    assert _json(PLUGIN)["version"] == release
+    assert _json(MARKETPLACE)["plugins"][0]["version"] == release
+    version_line = re.search(
+        r"^VERSION = .*$", (SCRIPTS / "init.py").read_text(encoding="utf-8"), re.M
+    )
+    assert version_line is not None
+    assert version_line.group(0) == f'VERSION = "{release}"  # x-release-please-version'
+    extra_files = _json(ROOT / "release-please-config.json")["packages"]["."]["extra-files"]
+    assert sorted(extra_files, key=lambda place: place["path"]) == [
+        {
+            "type": "json",
+            "path": ".claude-plugin/marketplace.json",
+            "jsonpath": "$.plugins[0].version",
+        },
+        {"type": "json", "path": ".claude-plugin/plugin.json", "jsonpath": "$.version"},
+        {"type": "generic", "path": "skills/agent-process/scripts/init.py"},
+    ]

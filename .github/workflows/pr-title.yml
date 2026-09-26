@@ -1,0 +1,26 @@
+name: PR title
+
+# The squash commit on `main` takes the PR title, and release-please reads its
+# Conventional Commit type. The job key is the context the `pr-title` ruleset
+# requires (ADR 0030). `pull_request` reads this branch's configuration.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            test
+            refactor
+            chore

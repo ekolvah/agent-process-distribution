@@ -17,6 +17,7 @@ from tests.publisher.init_harness import (
     CHECK_COMMAND,
     CHECK_GROUP,
     CONSUMER_FILES,
+    CURRENT,
     HOST,
     MARKETPLACE,
     PLUGIN,
@@ -87,7 +88,10 @@ def test_rerender_replaces_only_owned_content(
                 {"hooks": [{"type": "command", "command": "mine-start"}]},
                 {
                     "hooks": [
-                        {"type": "command", "command": CHECK_COMMAND.replace("v2.0.0", "v1.9.0")}
+                        {
+                            "type": "command",
+                            "command": CHECK_COMMAND.replace(f"v{CURRENT}", "v1.9.0"),
+                        }
                     ]
                 },
             ],
@@ -110,14 +114,14 @@ def test_rerender_replaces_only_owned_content(
         assert _block(text) == _block(before[path])
         assert "# agent-process:begin" in text and "old" not in _only_block(text)
     assert "# openspec: 1.13.0" in config.read_text(encoding="utf-8")
-    assert workflow.read_text(encoding="utf-8") == init.render_workflow("2.0.0", "", "pytest -q")
+    assert workflow.read_text(encoding="utf-8") == init.render_workflow(CURRENT, "", "pytest -q")
     data = json.loads(settings.read_text(encoding="utf-8"))
     assert data["permissions"] == consumer_settings["permissions"]
     assert (
         data["extraKnownMarketplaces"]["mine"]
         == consumer_settings["extraKnownMarketplaces"]["mine"]
     )
-    assert data["extraKnownMarketplaces"][MARKETPLACE]["source"]["ref"] == "v2.0.0"
+    assert data["extraKnownMarketplaces"][MARKETPLACE]["source"]["ref"] == f"v{CURRENT}"
     assert data["enabledPlugins"] == {"mine@mine": True, PLUGIN: True}
     assert data["hooks"] == {
         "PreToolUse": consumer_settings["hooks"]["PreToolUse"],

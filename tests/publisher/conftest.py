@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 
 from tests.publisher.init_harness import (
+    CURRENT,
+    OTHER,
     PACKAGE,
     STUB,
     Sandbox,
@@ -17,7 +19,7 @@ from tests.publisher.init_harness import (
 
 @pytest.fixture(scope="module")
 def process_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A bare repository: `v2.0.0` carries this tree's skill, `v2.1.0` the recording stub."""
+    """A bare repository: `v{CURRENT}` carries this tree's skill, `v{OTHER}` the recording stub."""
     base = tmp_path_factory.mktemp("process")
     work = base / "work"
     shutil.copytree(
@@ -25,11 +27,11 @@ def process_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
     )
     git("init", "-q", str(work))
     git("add", "-A", cwd=work)
-    git("commit", "-q", "-m", "v2.0.0", cwd=work)
-    git("tag", "v2.0.0", cwd=work)
+    git("commit", "-q", "-m", f"v{CURRENT}", cwd=work)
+    git("tag", f"v{CURRENT}", cwd=work)
     (work / "skills" / "agent-process" / "scripts" / "init.py").write_text(STUB, encoding="utf-8")
-    git("commit", "-q", "-am", "v2.1.0", cwd=work)
-    git("tag", "v2.1.0", cwd=work)
+    git("commit", "-q", "-am", f"v{OTHER}", cwd=work)
+    git("tag", f"v{OTHER}", cwd=work)
     bare = base / "process.git"
     git("clone", "-q", "--bare", str(work), str(bare))
     return bare

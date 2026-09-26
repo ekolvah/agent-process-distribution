@@ -1,0 +1,88 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The round-3 findings are closed in the artifacts: the title check now enters through a RED task whose test fixes the context name, triggers, pin and type list, the scenario maps to that test with n/a scoped to the action's verdict and the ruleset, and D7 records the pending-context mechanism, the observed integration id with its command, and a rollback that deletes the ruleset before the workflow.",
+  "classes": {
+    "simpler": {
+      "evidence": "Alternatives per decision: D1 (bespoke bump script — rejected by openspec/specs/maintenance/spec.md 'Native first'; semantic-release), D2 (GitHub App token; GITHUB_TOKEN plus reopening each release PR), D3 (rebase merges; parsing the squash body), D4 (exempting release PRs from the link step), D7 (commitlint on branch commits, which never sees the squash title; the process ruleset, reverted by activate_protection; a bespoke title check in ci_check, which a standard action replaces). Non-Goals keep both the release workflow and the title check out of consumer repositories. The simplest option — hand tagging plus a drift check — is rejected by the Why (#190, #197). No script of the repository's own is added; the title check is one job wrapping amannn/action-semantic-pull-request@v6, whose releases read v6.1.1, v6.1.0, v6.0.1, so the major pin resolves.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Four delta scenarios, four map entries. 'Version places agree' → tests/publisher/test_plugin.py::test_version_drift. 'Release PR merged' and 'Behaviour change delivered' → n/a with the observation that replaces the test. 'Title without a type' → tests/publisher/test_reusable_workflows.py::test_pr_title_requires_a_conventional_commit_type for the context name, triggers and types, with n/a now scoped to the two halves no repository test can hold: the action's verdict (observed by 6.3 on this PR) and the merge block (read back from gh api repos/…/rules/branches/main once the person creates the ruleset). Nothing statically assertable is left unmapped.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 has both tests and each runs through check_red.py with its node id. 1.1 rewrites test_version_drift and fails in the test body on the absent manifest. 1.2 adds test_pr_title_requires_a_conventional_commit_type and fails in the test body because pr-title.yml is absent — the file is read through the module's own _workflow helper inside the test, so the failure is a body failure and not a collection error (.claude/rules/testing.md item 1). 3.3 now verifies with that node id, so the addition has a test that was red before it. Group 2 is a test-only refactor with 2.2 as its proof; 3.2 asserts the exact dry-run file list and stops delivery on any other list; group 4 is docs.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every behaviour the plan rests on carries an observation. Proposal Why: the release-pr dry run that parsed none of the six commits after v2.0.0, the workflow permissions JSON, the ruleset's two required contexts, the release-please-action README sentence on GITHUB_TOKEN events. D1: docs/customizing.md (json + jsonpath, the x-release-please-version annotation), src/strategies/simple.ts (createIfMissing on version.txt and CHANGELOG.md), src/bin/release-please.ts (release-pr without --release-type → Manifest.fromManifest with the target branch, config and manifest files). D3: the REST 'Update a repository' sentence on PR_TITLE versus COMMIT_OR_PR_TITLE plus the repository's read merge settings. D7: the action README on the types input, on needing a synchronize trigger when the workflow is required for merging, and on pull_request using the current branch's configuration (which is what lets this PR check its own title); GitHub's rulesets page on aggregation of several rulesets targeting one branch; the statement that a required context no run reports stays pending and blocks the merge; and integration_id 15368 with the command that reads it, which matches what I read live (both contexts of ruleset 23732345 at integration_id 15368, and that ruleset being the only one, so a second one named pr-title lies outside what 'Activation converges one ruleset' owns).",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D2 replaces the default GITHUB_TOKEN input with the person's PAT and lists its failure modes (missing, expired, missing permission), what stops proving (nothing a test proves; the release PR is not opened or updated) and the catcher (the release-please run on the push to main, red on that commit). D5 replaces the '2.0.0' pin of test_version_drift with the manifest; the lost proof passes to release-please, which writes every place in one commit, with 3.2's dry run and the release PR's own version as the observation before merge. The merge methods are narrowed, not dropped (6.2 and Impact turn off merge commits and rebase merges so the squash title is the only path to a subject on main). D7 adds a guard rather than dropping one, and its removal path is ordered in the Migration Plan; D4 keeps the quality link step unchanged.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "D2 → the release-please workflow run on the push to main, red on that commit. D3 → for a missing type, the now blocking pr-title check of D7; for a wrong but valid type, the release PR's CHANGELOG.md with no entry for that commit plus the 'commit could not be parsed: <sha> <title>' line of a --debug run, with the statement that the release-please run itself stays green. D7 → the test of 1.2 against a silent rename of the job that would orphan the required context, and the read-back of the rule for the merge block. Risks bullet 1 (generated CHANGELOG.md against the document guard) → the release PR's own agent-process / quality run; the guard's scope is tracked .md minus .agent-process/docs/adr/ (tests/agent_process/test_doc_narrative.py). Risks bullet 3 (a PR stuck on a failing title) → the check's message and gh pr edit --title, which re-runs it through the edited event. D5 → task 2.2. 3.2's mismatched file list → the delivery stop written into the task. Each names a run, a test, an artifact on a head, or a task.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "distribution adds one requirement of about 115 words and two scenarios of about 50, of which test_version_drift asserts roughly 60 (the version places and the configuration). implementation adds one requirement of about 100 words and two scenarios of about 55; of its added check sentence, about 45 words, the testable part — the events the check runs on, the six allowed types and the context name — is now asserted by 1.2, leaving the verdict and the ruleset to 6.3 and the read-back; the Deliver-title half stays procedure prose. The SKILL.md edit is the same title string in two places and 4.1 bounds the diff to them; the round-4 additions are decision text in D7 and the Migration Plan, which no spec inherits.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The proposal's Impact and the design add five non-test files and no script or check of the repository's own: .github/workflows/release-please.yml, release-please-config.json, .release-please-manifest.json (the three default-named inputs of googleapis/release-please-action, so the workflow takes no path inputs), .github/workflows/pr-title.yml (one job wrapping amannn/action-semantic-pull-request@v6; D7 rejects a bespoke title check in ci_check by name) and .agent-process/docs/adr/0030, which openspec/specs/maintenance/spec.md requires for a core addition. The problem the check closes is observed rather than anticipated: six commits on main that release-please could not parse. 0030 is the next free number after 0029.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "distribution",
+      "scenario": "Release PR merged",
+      "reason": "platform behaviour of release-please-action; observed when the person merges the first release PR (gh release view v2.1.0 on the merge commit)"
+    },
+    {
+      "capability": "implementation",
+      "scenario": "Behaviour change delivered",
+      "reason": "procedure prose; observed on this PR's own squash commit feat: release-please and on the release PR that proposes 2.1.0 from it"
+    },
+    {
+      "capability": "implementation",
+      "scenario": "Title without a type",
+      "reason": "partly covered: 1.2's test holds the context name, triggers and types; the action's verdict is observed on this PR by task 6.3 and the merge block by reading the rule back from gh api repos/ekolvah/agent-process-distribution/rules/branches/main after the person creates the ruleset"
+    }
+  ],
+  "additions": [
+    {
+      "path": ".github/workflows/release-please.yml",
+      "problem": "#197",
+      "standard": "googleapis/release-please-action@v4, the tool's own Actions entry point, pinned by major like the repository's other workflows",
+      "why_not": "The standard fits and is used: the file is the action's invocation on push to main, not a runner of the repository's own; the alternative D1 rejects is a bespoke bump script."
+    },
+    {
+      "path": "release-please-config.json",
+      "problem": "#190",
+      "standard": "the release-please manifest configuration (release-type simple, extra-files for the two JSON places and the x-release-please-version marker in init.py)",
+      "why_not": "The standard fits: the file is that standard's own input at its default name, which is why the workflow needs no path inputs and the repository needs no bump script (maintenance / Native first)."
+    },
+    {
+      "path": ".release-please-manifest.json",
+      "problem": "#190",
+      "standard": "the same release-please manifest, whose \".\" entry becomes the single version source test_version_drift reads",
+      "why_not": "The standard fits: the file is the tool's state, and the alternative it removes is exactly the pinned literal that #190 showed comparing equal to a different tree."
+    },
+    {
+      "path": ".github/workflows/pr-title.yml",
+      "problem": "#197",
+      "standard": "amannn/action-semantic-pull-request@v6, the standard title check (releases read v6.1.1, v6.1.0, v6.0.1, so the major pin resolves)",
+      "why_not": "The standard fits and is used: the file is one job wrapping that action so the check reports under the context name the ruleset requires; D7 rejects a bespoke check in ci_check and commitlint on branch commits, which never sees the squash title."
+    },
+    {
+      "path": ".agent-process/docs/adr/0030-releases-go-through-release-please.md",
+      "problem": "#197",
+      "standard": "the repository's ADR template .agent-process/docs/adr/template.md",
+      "why_not": "The standard fits and is mandatory: openspec/specs/maintenance/spec.md requires the 'Native alternatives considered' section and a deletion condition for a core addition."
+    }
+  ]
+}
