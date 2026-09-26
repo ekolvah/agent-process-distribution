@@ -1,0 +1,54 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The plan argues its alternatives, maps every scenario to a test, names a reachable catcher for each thing the gate stops proving, and now cites or defers to a live observation every platform behaviour it rests on.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md Alternatives A-E carries pros/cons per option and the paragraph after the table names why E wins. The simpler designs are A (today: one job, fail-fast) and B (one job, no fail-fast, a $GITHUB_STEP_SUMMARY table): both are rejected by distribution scenario 'One check fails', which requires the failing check's own job to fail while every other listed check's job reaches its own conclusion, and by the goal that the merge box, not a log or a click-through table, carries the line. D (static jobs in YAML) is rejected by the CHECKS 'no second list' invariant of the implementation capability. E adds no permission, no third-party action and no file.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Six delta scenarios - distribution: Consumer test fails, One check fails, Listing fails, PR weakens its own driver, Quality runs once per PR; implementation: List - and tasks.md 'Scenario -> test map' has an entry for each, naming test_quality_callee_runs_the_callers_commands, test_quality_gate_requires_every_job, test_publisher_driver_keeps_a_same_head_catcher (unchanged), test_quality_runs_once_per_pr (unchanged) and test_list_prints_the_registry. No entry is 'n/a'; the one partial is recorded under scenario_coverage.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 holds 1.1 (test_list_prints_the_registry: argparse has no --list, so main() raises inside the test body) and 1.2 (rewrite of test_quality_callee_runs_the_callers_commands, new test_quality_gate_requires_every_job, edited test_publisher_caller_reaches_callee_by_same_commit_path - all YAML assertions that fail in the test body), each run through check_red.py on its node ids and committed before task 2.1 touches ci_check.py. No 'no RED' task is needed.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design.md Context lists seven behaviours, each with its evidence: the quoted github/docs sentence for a skipped job reporting Success as a required check, for needs + always(), for the fail-fast default, for the values of needs.<job_id>.result, for the context-availability row 'jobs.<job_id>.name | github, needs, strategy, matrix, vars, inputs', and for the fromJSON-of-a-job-output matrix in expressions.md; the observation on this repository that the required context agent-process / quality is caller job / callee job; and two behaviours the docs do not state - how matrix legs aggregate into needs.check.result, and how a callee matrix leg with a name: reports in the check list - both handed to task 4.2 on a live run. D1 now calls the list 'expected' and points at 4.2, and 4.2 carries a stop-and-report rule for each: if a leg reports as agent-process / check (lint), and if the gate passes on the failing leg. Nothing the design rests on is left inferred.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The check set moves from a callee-internal single process to a caller-supplied command (checks). design.md D1 lists that input's failure modes and the guard - plan validates with jq -e for a non-empty array of ^[A-Za-z0-9._-]+$ names - and D3 makes an empty or failing listing red rather than an empty matrix that passes; the 'Listing fails' scenario pins it. The silent-subset mode (a listing that under-reports CHECKS) is closed by construction: --list prints json.dumps(list(CHECKS)) with no filter (D4), pinned by test_list_prints_the_registry against a monkeypatched registry. Nothing else is lost with the aggregate run: run_selected(None) adds only the .ci_check_stamp bookkeeping, which is already disabled when CI is set. The verdict that the single process carried is replaced by the gate, and design.md 'What stops proving' names it with its catchers.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "test_quality_gate_requires_every_job (always(), success-only expression, fail-fast: false) lives in tests/publisher, which ci_check's pytest check collects through the product-scope pass, so it runs in the 'pytest' job of agent-process / quality on every PR - including the PR that would weaken the gate, since agent-process.yml takes the callee from its own commit. The two undocumented behaviours are caught by task 4.2 on the delivery PR's own head before the review request: the check-list names from gh pr checks, and one deliberately failing check for the aggregate, each with an explicit 'stop and report to the person'. Both reach a named delivery step.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "distribution MODIFIED 'The quality callee runs the caller's commands': 6 sentences, ~127 words (from ~50). Task 1.2 asserts all of them in YAML - the three inputs and their defaults, the link job equal to the reusable-quality.yml step, matrix per name with setup then test --only, fail-fast: false, the single-job path without checks, and needs [link, plan, check] + always() + success-only - roughly 115 of the 127 words; the remainder is 'named after the check' as it appears in the check list, which task 4.2 observes. Second MODIFIED requirement: one edited sentence (+2 words, 'each check of') and a reworded scenario (~+12), asserted by test_quality_runs_once_per_pr plus the --list/matrix chain of 1.1 and 1.2. implementation ADDED 'ci_check lists its checks': 2 sentences, ~35 words, every clause (JSON array, run order, exit zero, no check started) asserted by test_list_prints_the_registry. No unasserted prose is added to a rule file or SKILL.md.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The proposal's Impact adds no file - five edits, three of them tests - and the design adds no script. The only non-test additions are jobs inside quality.yml: plan, the check matrix, and the gate's one jq line over toJSON(needs), listed below. The change moves work onto the platform's native per-job check status instead of a bespoke report (alternative B's summary table) or bespoke Checks API code with checks: write (alternative C). D2 weighs the one standard that fits the gate's job, re-actors/alls-green, and rejects it for a stated reason. ci_check --list extends the existing CLI rather than adding a second entry point.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "distribution",
+      "scenario": "One check fails",
+      "reason": "A test can assert only the YAML contract (fail-fast: false and the success-only gate, test_quality_gate_requires_every_job); how the matrix legs aggregate into needs.check.result is platform behaviour the docs do not state, so tasks.md 4.2 observes it on the delivery PR's own head with one deliberately failing check and stops if the gate passes."
+    }
+  ],
+  "additions": [
+    {
+      "path": ".github/workflows/quality.yml - the plan job and the inline jq gate in the quality job",
+      "problem": "#202",
+      "standard": "re-actors/alls-green as the gate job, and GitHub's native per-job check status as the display (used, rather than a $GITHUB_STEP_SUMMARY table or Checks API code)",
+      "why_not": "design.md D2: the gate is one jq line over toJSON(needs) and doing the same thing through a third-party action would pin a dependency inside the one required context agent-process / quality; the plan job exists because the matrix must come from CHECKS rather than from a second list in YAML (alternative D)."
+    }
+  ]
+}

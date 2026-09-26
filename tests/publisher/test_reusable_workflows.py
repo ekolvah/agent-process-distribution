@@ -196,37 +196,86 @@ def test_quality_verifies_the_pr_links_its_issue_before_the_driver() -> None:
     assert document["permissions"] == expected
 
 
+def _assert_checkout_and_python(steps: list[dict[str, Any]]) -> None:
+    assert steps[0]["uses"] == "actions/checkout@v4"
+    assert "with" not in steps[0]
+    assert steps[1]["uses"] == "actions/setup-python@v5"
+    assert steps[1]["with"]["python-version"] == "3.12"
+
+
 def test_quality_callee_runs_the_callers_commands() -> None:
-    """v2-2h D1: the new callee runs the caller's `setup` and `test` on the PR checkout,
-    after the v1 issue-link step; a failing command fails the job."""
+    """quality-checks-per-job D1: `link` verifies the PR → issue link; `plan` lists the
+    caller's checks (or one unnamed leg without `checks`); `check` runs `setup`, then
+    `test --only <name>` per listed check, the name passed through `env`."""
     document = _workflow("quality.yml")
     assert set(_trigger(document)) == {"workflow_call"}
     inputs = _trigger(document)["workflow_call"]["inputs"]
+    assert set(inputs) == {"setup", "test", "checks"}
     assert inputs["setup"]["required"] is False
     assert inputs["setup"]["default"] == ""
     assert inputs["test"]["required"] is True
+    assert inputs["checks"]["required"] is False
+    assert inputs["checks"]["default"] == ""
     assert document["permissions"] == {
         "contents": "read",
         "pull-requests": "read",
         "issues": "read",
     }
-    assert list(document["jobs"]) == ["quality"]
+    jobs = document["jobs"]
+    assert list(jobs) == ["link", "plan", "check", "quality"]
 
-    steps = document["jobs"]["quality"]["steps"]
     link = _steps("reusable-quality.yml")["Verify the PR links its issue"]
-    assert steps[0] == link
-    assert steps[1]["uses"] == "actions/checkout@v4"
-    assert "with" not in steps[1]
-    assert steps[2]["uses"] == "actions/setup-python@v5"
-    assert steps[2]["with"]["python-version"] == "3.12"
-    setup, test = steps[3], steps[4]
-    assert len(steps) == 5
+    assert jobs["link"]["steps"] == [link]
+
+    plan = jobs["plan"]
+    _assert_checkout_and_python(plan["steps"])
+    listed, single = plan["steps"][2], plan["steps"][3]
+    assert len(plan["steps"]) == 4
+    assert listed["if"] == "inputs.checks != ''"
+    assert "${{ inputs.checks }}" in listed["run"]
+    assert "jq -e" in listed["run"]
+    assert "length > 0" in listed["run"]
+    assert "^[A-Za-z0-9._-]+$" in listed["run"]
+    assert '>> "$GITHUB_OUTPUT"' in listed["run"]
+    assert single["if"] == "inputs.checks == ''"
+    assert "${{ inputs.checks }}" not in single["run"]
+    assert 'checks=[""]' in single["run"]
+    assert plan["outputs"]["checks"] == (
+        f"${{{{ steps.{listed['id']}.outputs.checks || steps.{single['id']}.outputs.checks }}}}"
+    )
+
+    check = jobs["check"]
+    assert check["needs"] == "plan"
+    assert check["strategy"]["matrix"] == {"check": "${{ fromJSON(needs.plan.outputs.checks) }}"}
+    assert check["name"] == "${{ matrix.check || 'test' }}"
+    _assert_checkout_and_python(check["steps"])
+    setup, test = check["steps"][2], check["steps"][3]
+    assert len(check["steps"]) == 4
     assert setup["run"] == "${{ inputs.setup }}"
     assert setup["if"] == "inputs.setup != ''"
-    assert test["run"] == "${{ inputs.test }}"
+    assert test["env"] == {"CHECK": "${{ matrix.check }}"}
+    assert test["run"] == '${{ inputs.test }} ${CHECK:+--only "$CHECK"}'
     assert "if" not in test
-    for step in (setup, test):
-        assert "continue-on-error" not in step
+
+    for job in jobs.values():
+        for step in job["steps"]:
+            assert "continue-on-error" not in step
+
+
+def test_quality_gate_requires_every_job() -> None:
+    """quality-checks-per-job D3: the gate `quality` runs even when a job it needs failed or
+    was skipped, and passes only when every one of them succeeded; no check leg cancels
+    another."""
+    jobs = _workflow("quality.yml")["jobs"]
+    assert jobs["check"]["strategy"]["fail-fast"] is False
+
+    gate = jobs["quality"]
+    assert gate["needs"] == ["link", "plan", "check"]
+    assert gate["if"] == "always()"
+    assert len(gate["steps"]) == 1
+    step = gate["steps"][0]
+    assert step["env"] == {"NEEDS": "${{ toJSON(needs) }}"}
+    assert "jq -e 'all(.[]; .result == \"success\")'" in step["run"]
 
 
 def test_publisher_caller_reaches_callee_by_same_commit_path() -> None:
@@ -242,6 +291,7 @@ def test_publisher_caller_reaches_callee_by_same_commit_path() -> None:
         "setup": "python -m pip install -r .agent-process/requirements.txt"
         " -r .agent-process/requirements-dev.txt",
         "test": "python .agent-process/scripts/ci_check.py",
+        "checks": "python .agent-process/scripts/ci_check.py --list",
     }
 
 
