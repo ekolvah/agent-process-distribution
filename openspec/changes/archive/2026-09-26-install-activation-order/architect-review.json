@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The plan is the minimum that closes #183: the refusal is correct behaviour, the post-merge acceptance is observed, and the one edited sentence keeps every other clause of Install step 5 and every guard of `activate_protection`.",
+  "classes": {
+    "simpler": {
+      "evidence": "The docs-only edit is already the smallest move; the two alternatives are rejected by the observations the proposal cites. Relaxing `activate_protection` so a fresh repository passes before the merge is rejected by the `distribution` scenario `Caller absent` (openspec/specs/distribution/spec.md:174-176), which must keep refusing when the default branch lacks the caller. Sending the person to a second PR opened after the merge (the issue's own first guess, #183 Expected) is rejected by the owner's observation of 2026-09-25 that `--pr 1 --dry-run` on the merged installation PR plans the create and exits 0. proposal.md Impact states the script and its tests are not edited.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "`.openspec.yaml` sets `skip_specs: true` and proposal.md Capabilities adds and modifies none, so there is no delta scenario to map; the enforced order stays in the unchanged requirement `Protection activation observes quality first`. tasks.md's `## Scenario -> test map` says exactly that and names the existing `Caller absent` scenario. scenario_coverage is therefore empty.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.1 is `no RED: docs-only (skip_specs)` - principle I exception (b), documentation-only. Its claim that the script behaviour the step describes is already covered checks out: tests/publisher/test_activate_protection.py:196 `test_caller_absent` asserts the `caller absent on main: .github/workflows/agent-process.yml` message over both modes. No test reads Install step 5's prose (tests/publisher/test_planning_workflow.py:264-265 truncates SKILL.md at `## Install` on purpose), so the edit breaks no green test.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Two behaviours carry the new order, both observed, not asserted. (1) The refusal in a fresh repository: `refused: caller absent on main: .github/workflows/agent-process.yml`, exit 2, run against ekolvah/agent-process-sandbox#1 during #117 step 7a and quoted in proposal.md Why. (2) A merged installation PR is still an acceptable `--pr` argument - its head keeps the successful `agent-process / quality` run and the default branch now carries the caller: issue #183 comment of 2026-09-25, `activate_protection.py --pr 1 --dry-run` plans the ruleset create, exit 0. Point (2) is what removes the need for a second PR, and it is the observation, not repository reasoning.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The edit replaces one trigger - `Once the first PR shows agent-process / quality` - with the merged-installation-PR order. No guard is dropped: tasks.md 2.1 says to leave the rest of the step unchanged, so the dry-run, the single ask, `--confirm`, the never-classic-protection sentence and the `agent-review` context clause all stay, and `activate_protection`'s pre-write refusals stay untouched (proposal.md Impact, `Not edited`). The diff is bounded by 2.1's `git diff --stat origin/main` check.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "One catcher: `activate_protection`'s own pre-write refusal. A reader who still runs step 5 too early reaches it at that step - exit 2 with the missing caller named, every GitHub command a read (openspec/specs/distribution/spec.md:164-176, tests/publisher/test_activate_protection.py:196). Nothing in the change moves or weakens it, and the prose order only spares the operator the trip; the visible anomaly, not silence, remains the fallback.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "One sentence of procedure changes: the ~7-word trigger `Once the first PR shows agent-process / quality` (skills/agent-process/SKILL.md:140) becomes the ~16-word order named in tasks.md 2.1; the rest of step 5 (~60 words) is untouched, and no other file gains prose. Words asserted by tests: 0 - Install prose is deliberately outside the delivery-procedure assertions (tests/publisher/test_planning_workflow.py:264-265). That is not a gap here: the deterministic half of this rule already is a script with an exit code (`activate_protection` refuses, exit 2), so the sentence only orders a step the gate independently enforces.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "proposal.md Impact lists one edited file, skills/agent-process/SKILL.md, and an explicit not-edited list (`activate_protection.py` and its tests, openspec/specs/distribution/spec.md, the archived changes). There is no design.md (docs-only, correctly skipped) and no new script, check, workflow or non-test file anywhere in the plan, so additions is empty.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": []
+}
