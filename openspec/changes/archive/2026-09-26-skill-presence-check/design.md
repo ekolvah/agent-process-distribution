@@ -52,8 +52,10 @@ marker, not a blocked session, is the carrier. Output, only when a reason exists
 `"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "python \"$$CLAUDE_PROJECT_DIR/.claude/agent-process-check.py\" https://github.com/ekolvah/agent-process-distribution/blob/v${version}/skills/agent-process/SKILL.md#install"}]}]}`
 (`$$` because the template goes through `string.Template.substitute`).
 
-`_settings_text` owns the `SessionStart` group whose command names `agent-process-check.py`:
-it is added once, replaced when different, and every other hook key and group is kept. The early
+`_settings_text` owns a `SessionStart` group only in the exact form some release writes — that one
+hook, differing only in the release tag of the URL. A group that merely names the check file or
+holds another hook beside it is the consumer's, so it is kept and the owned group is appended
+(review of PR 191). The owned group is added once, replaced when different, and every other hook key and group is kept. The early
 `unchanged` return requires the owned group too, so an already-installed consumer gets the hook on
 its next `init --confirm` (the rewrite branch). A consumer whose file is not in the form init
 writes gets the existing conflict, whose manual instruction now also names the hook group — the

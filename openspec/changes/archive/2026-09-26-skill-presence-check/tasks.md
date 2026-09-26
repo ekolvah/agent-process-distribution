@@ -30,7 +30,7 @@
 ## Scenario → test map
 
 - `distribution / Fresh repository` → `tests/publisher/test_init.py::test_installed_footprint_is_closed`
-- `distribution / Installation of another release` → `tests/publisher/test_init.py::test_rerender_replaces_only_owned_content`, `::test_installed_consumer_gains_the_hook`
+- `distribution / Installation of another release` → `tests/publisher/test_init.py::test_rerender_replaces_only_owned_content`, `::test_installed_consumer_gains_the_hook`, `::test_consumer_session_start_is_not_owned`
 - `distribution / Skill loaded` → `tests/publisher/test_skill_check.py::test_loaded_is_silent`, `::test_case_differing_project_paths_are_one_project`
 - `distribution / Skill not loaded` → `tests/publisher/test_skill_check.py::test_not_loaded_is_marked`
 - `distribution / Check cannot decide` → `tests/publisher/test_skill_check.py::test_undecidable_is_marked`

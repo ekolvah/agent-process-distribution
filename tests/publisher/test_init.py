@@ -323,7 +323,7 @@ def test_rerender_replaces_only_owned_content(
                 {"hooks": [{"type": "command", "command": "mine-start"}]},
                 {
                     "hooks": [
-                        {"type": "command", "command": "python .claude/agent-process-check.py old"}
+                        {"type": "command", "command": CHECK_COMMAND.replace("v2.0.0", "v1.9.0")}
                     ]
                 },
             ],
@@ -409,6 +409,40 @@ def test_installed_consumer_gains_the_hook(
     out = capfd.readouterr().out
     assert transitions(out)["settings"] == "conflict", out
     assert "SessionStart" in out
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo agent-process-check.py",
+        'python "$CLAUDE_PROJECT_DIR/tools/agent-process-check.py" x',
+        CHECK_COMMAND + " --verbose",
+        "prefix " + CHECK_COMMAND,
+    ],
+    ids=["mention", "other-path", "extra-argument", "wrapped"],
+)
+def test_consumer_session_start_is_not_owned(sandbox: Sandbox, command: str) -> None:
+    """Only the exact group `init` writes, for any release, is owned: a consumer group that
+    merely names the check file, or adds a hook beside it, keeps its content."""
+    init = load_init()
+    _installed(init, sandbox)
+    settings = sandbox.root / ".claude" / "settings.json"
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    consumer = [
+        {"hooks": [{"type": "command", "command": command}]},
+        {
+            "hooks": [
+                {"type": "command", "command": CHECK_COMMAND},
+                {"type": "command", "command": "mine"},
+            ]
+        },
+    ]
+    data["hooks"] = {"SessionStart": consumer}
+    settings.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    assert install(init, sandbox, "--confirm") == 0
+    assert json.loads(settings.read_text(encoding="utf-8"))["hooks"] == {
+        "SessionStart": [*consumer, CHECK_GROUP]
+    }
 
 
 def _only_block(text: str) -> str:

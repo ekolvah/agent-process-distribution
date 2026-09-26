@@ -552,7 +552,7 @@ def _session_starts(
     starts = hooks.get("SessionStart", [])
     if not isinstance(starts, list):
         raise Conflict("`hooks.SessionStart` is not a list")
-    owned = [i for i, start in enumerate(starts) if _runs_check(start)]
+    owned = [i for i, start in enumerate(starts) if _is_owned_start(start, group)]
     new_starts = [start for i, start in enumerate(starts) if i not in owned[1:]]
     if owned:
         new_starts[owned[0]] = group
@@ -561,12 +561,21 @@ def _session_starts(
     return hooks, starts, new_starts
 
 
-def _runs_check(group: Any) -> bool:
-    """A `SessionStart` group is the owned one when a command of it runs the check file."""
-    commands = group.get("hooks") if isinstance(group, dict) else None
-    return isinstance(commands, list) and any(
-        isinstance(hook, dict) and Path(CHECK).name in str(hook.get("command", ""))
-        for hook in commands
+def _is_owned_start(start: Any, group: dict[str, Any]) -> bool:
+    """`start` is the owned group: exactly `group` as some release writes it, differing only
+    in the release tag of the Install URL. Anything else is the consumer's."""
+    command = group["hooks"][0]["command"]
+    head, tail = re.split(r"/blob/v[^/]+/", command)
+    pattern = re.escape(head) + r"/blob/v[^/\s]+/" + re.escape(tail)
+    hooks = start.get("hooks") if isinstance(start, dict) else None
+    return (
+        isinstance(hooks, list)
+        and len(start) == 1
+        and len(hooks) == 1
+        and isinstance(hooks[0], dict)
+        and hooks[0].keys() == {"type", "command"}
+        and hooks[0]["type"] == "command"
+        and re.fullmatch(pattern, str(hooks[0]["command"])) is not None
     )
 
 
