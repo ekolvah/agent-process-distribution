@@ -13,7 +13,7 @@ from types import ModuleType
 import pytest
 import yaml
 
-from tests.publisher.test_openspec_valid import OPENSPEC, _openspec
+from tests.publisher.openspec_cli import OPENSPEC, _openspec
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "openspec" / "config.yaml"

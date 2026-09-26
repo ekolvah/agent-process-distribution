@@ -1,6 +1,6 @@
 """Harness of the installer tests: the fixture release repository, the fake GitHub behind
-`gh`, the process-boundary runner and the state readers. Shared by `test_init.py` and the
-`conftest.py` fixtures."""
+`gh`, the process-boundary runner and the state readers. Shared by the `test_init*.py` modules
+and the `conftest.py` fixtures."""
 
 from __future__ import annotations
 
@@ -330,3 +330,36 @@ def head_commit(path: Path) -> str:
 
 def tag_commit(sb: Sandbox, tag: str) -> str:
     return git("rev-parse", f"{tag}^{{commit}}", cwd=sb.repo)
+
+
+# Names shared by the `test_init*.py` modules.
+
+LABELS = [
+    "checkout",
+    "link",
+    "openspec",
+    "config",
+    "workflow",
+    "dependabot",
+    "settings",
+    "check",
+    "project-copy",
+    "project-link",
+]
+CONSUMER_FILES = {
+    ".github/workflows/agent-process.yml",
+    ".github/dependabot.yml",
+    ".claude/settings.json",
+    ".claude/agent-process-check.py",
+}
+MARKETPLACE = "agent-process-marketplace"
+PLUGIN = "agent-process@agent-process-marketplace"
+CHECK_COMMAND = (
+    'python "$CLAUDE_PROJECT_DIR/.claude/agent-process-check.py" '
+    "https://github.com/ekolvah/agent-process-distribution/blob/v2.0.0/skills/agent-process/SKILL.md#install"
+)
+CHECK_GROUP = {"hooks": [{"type": "command", "command": CHECK_COMMAND}]}
+
+
+def _installed(init: ModuleType, sb: Sandbox) -> None:
+    assert install(init, sb, "--confirm") == 0

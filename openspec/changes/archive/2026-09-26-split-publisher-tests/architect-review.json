@@ -1,0 +1,48 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "A move-only split whose every claim I re-observed, adding no hand-written check and no dependency: the size limit stays with the standard linter, the pure-move proof (D6) runs on the implementer's head, and the import criterion is met once by the move with its residual recorded as an accepted gap and deferred to a change of its own.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 records the issue's own alternative (fixtures to `delivery_fakes.py`, `test_release_drift.py` kept) and rejects it; verified: `_change` (test_delivery_scripts.py:276) depends on `_review` (:264) and `_CLASSES` (:261), and `_GROUP0`/`_PLACEHOLDER`/`_START`/`_CHANGE` (:253-256) are used only inside lines 253-692 and in test_release_drift.py, so once the drift tests join `test_start_change.py` nothing is shared. The smaller alternative — split only `test_init.py`, the module actually at the limit — does not survive: `test_delivery_scripts.py` is 969 lines, 31 of headroom, and would have to absorb the 73 lines of `test_release_drift.py`. Raising the limit is excluded by Non-Goals and ADR 0028. D5 makes the change smaller still: no new file outside the move, the guard question moved to a change of its own. Module count grows by six with no new abstraction and no test body touched; the largest module after the move is ~560 lines, `init_harness.py` ~360.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "`.openspec.yaml` sets `skip_specs: true` and there is no `specs/`; nothing under `openspec/specs/` names test-module layout or the size limit (searched), so no delta is owed. tasks.md ends with `## Scenario → test map` carrying one `n/a: skip_specs` line that points at the unchanged collected ids of task 3.2, and it no longer names a guard test.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 is `no RED: move of tests, no behaviour change (skip_specs)`, the form SKILL.md#tasks allows for `skip_specs` and §I exception (a) (move of already-tested symbols) covers; the moved tests are the safety net and the task records the baseline the move is judged against — `384 tests collected` plus the node ids stripped of the module path, diffed in 3.2 (D6). No test is written or changed in this plan, so there is no behaviour for a RED test to pin.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every fact the plan rests on is observed, and re-observed here: `max-module-lines = 1000` with `disable = [\"all\"] / enable = [\"too-many-lines\"]` in pyproject.toml:19-24, run by the `module-size` check of `.agent-process/scripts/ci_check.py` (registry line 341); `tests/publisher/test_init.py` is exactly 1000 lines and `test_delivery_scripts.py` 969 (`wc -l`); `python -m pytest tests/publisher --collect-only -q` → `384 tests collected in 0.10s` on `main` at 340fa3f; `process_repo` is `scope=\"module\"` and `sandbox` function-scoped in tests/publisher/conftest.py:18-47, so each new `test_init*` module does rebuild it, as the third risk states; the section boundaries, line ranges and helper homes of D1/D2 match the sources, including the `test_init_config.py` range stated as the commentless tail of the retry section. D5 rests on no unobserved behaviour: it names import-linter's pattern support as not yet observed and defers the choice instead of designing on it (`TID251`'s exact-name-only scope is its documented one), which is what SKILL.md#proposal asks. The durations figure behind the accepted rebuild cost (1.51 s slowest call at #3, 165 tests in 32.1 s) is a recorded measurement not re-run here; it bounds a cost, not correctness.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard dropped that existed: every test keeps its name, body, parameters and helper names, and D6 makes the collected-id multiset the proof. The only proofs that move house are the two cross-module imports, replaced by co-location (`test_start_change.py`) and by `openspec_cli.py`; D4 moves each docstring paragraph with the tests it describes, so no source docstring is left naming an absent test. The archived changes' scenario → test maps that name `test_delivery_scripts.py` and `test_release_drift.py` go stale by design (proposal Impact, Not edited); no gate reads them — `tests/agent_process/test_doc_links.py` resolves only `.md#anchor` links and code spans, not backticked `.py` paths.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Named catchers, each traced to a run: a dropped or duplicated test → the D6 stripped-node-id diff of task 3.2 on the implementer's head, plus the `pytest` step of `python .agent-process/scripts/ci_check.py` in the pre-push hook and on the PR head; module state shared across the new boundaries → the same full `tests/publisher` run; module size after the move → pylint `too-many-lines` in the `module-size` check of that same command, on every future head. The import criterion is proved once, by the search in task 3.2, and its regex matches the only import form that exists under `tests/` (absolute `from tests.<pkg>.test_*`; no relative import and no `from tests.<pkg> import <module>` line exists — searched). Beyond this PR the rule has no run behind it, and the plan says so: the fourth Risks line records `review only until the separate guard change — accepted`, and task 4.2 carries that gap into the PR report. That is an accepted gap with no catcher claimed, not a catcher the review cannot trace, and it is the person's decision after this review raised it; the repository's practice for such a gap is exactly this (design Risks plus the 4.2 report line, as in openspec/changes/archive/2026-09-26-release-drift-check). The separate change D5 promises has no issue filed yet (open issues searched), so the anchor for the deferral is still only the design and the PR report.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds and edits no rule or spec sentence: `skip_specs`, and Impact lists only files under `tests/publisher/`. No prose in `skills/`, `.claude/rules/`, `AGENTS.md` or an ADR changes, and D5 deliberately writes no new prohibition into a rule file, so there is no sentence whose asserted words could be counted.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Impact and the design add no script, check, workflow, dependency or configuration. The single non-test file is `tests/publisher/openspec_cli.py`, a 15-line move, listed in `additions`. D5 explicitly rejects the hand-written `ast` check and names the two standard tools it weighed (import-linter's `forbidden` contract, ruff `TID251`), leaving the choice to a change that can observe them — no bespoke surface enters this repository here.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": [
+    {
+      "path": "tests/publisher/openspec_cli.py",
+      "problem": "#193",
+      "standard": "a plain shared helper module under `tests/publisher` imported by both test modules — this repository's own standard for shared test code (`delivery_fakes.py`, `init_harness.py`) — with pytest's `conftest.py` as the alternative home",
+      "why_not": "The standard shape is followed; only its existing homes do not fit. `conftest.py` holds the installer fixtures (its docstring) and `_openspec` is a subprocess helper, not a fixture; `delivery_fakes.py` is about the delivery scripts and `init_harness.py` about the installer, so neither is about the OpenSpec CLI (D3). The file is 15 moved lines, `OPENSPEC` and `_openspec`, with no new behaviour."
+    }
+  ]
+}
