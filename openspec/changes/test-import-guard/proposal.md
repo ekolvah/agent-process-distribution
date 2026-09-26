@@ -1,8 +1,8 @@
 ## Why
 
 A test module that imports another test module appeared twice (`test_release_drift.py` ←
-`test_delivery_scripts.py`, `test_planning_workflow.py` ← `test_openspec_valid.py`); #193
-removed both by moving tests, but only review keeps the rule true (#194). Test code shares
+`test_delivery_scripts.py`, `test_planning_workflow.py` ← `test_openspec_valid.py`). Both were
+removed by moving tests (#193), but only review keeps the rule true (#194). Test code shares
 helpers through non-test modules (`tests.publisher.delivery_fakes`, `init_harness`,
 `openspec_cli`), which stay importable.
 
@@ -43,4 +43,4 @@ per Principle V:
   `.agent-process/requirements-dev.in`, `.agent-process/requirements-dev.txt`,
   `tests/agent_process/test_ci_check.py`.
 - Added, removed: none. No doc edit: the rule, the alternatives and the observations live in
-  `design.md`, as #194 allows.
+  `design.md`, which the issue allows (#194).

@@ -1,8 +1,8 @@
 ## Context
 
-`ci_check.py` already bounds module size with pylint (ADR 0028); the rule of #194 has no
-tool. Candidate observations are in proposal.md — Why. A bespoke `ast` test was rejected in
-#193 (design D5). v2 installs no publisher file into a consumer (ADR 0028, Scope), so the
+`ci_check.py` already bounds module size with pylint (ADR 0028); the rule that test modules
+do not import each other has no tool (#194). Candidate observations are in proposal.md — Why. A bespoke `ast` test was rejected earlier
+(#193, design D5). v2 installs no publisher file into a consumer (ADR 0028, Scope), so the
 check binds this repository only.
 
 ## Goals / Non-Goals
@@ -18,7 +18,7 @@ check binds this repository only.
 **D1 — tach.** It is the only candidate that expresses "no `test_*` module imports a
 `test_*` module" without listing modules. Rejected: import-linter (wildcards replace a whole
 module segment only), ruff `TID251` (exact names; a pattern key is accepted and never
-matches), bespoke `ast` test (#193 D5).
+matches), bespoke `ast` test (#193, design D5).
 
 **D2 — configuration in the root `pyproject.toml`.**
 ```toml
@@ -59,5 +59,5 @@ run.
 
 ## Migration Plan
 
-Main passes after #193 (observed: the scratch copy without the violation printed
-`[OK] All modules validated!`). Rollback is reverting the PR.
+Main passes once the earlier test moves are in (#193): `python -m tach check` on this branch
+printed `[OK] All modules validated!`. Rollback is reverting the PR.
