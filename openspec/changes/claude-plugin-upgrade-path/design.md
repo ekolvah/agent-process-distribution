@@ -52,7 +52,7 @@ to the person.
 ## Risks / Trade-offs
 
 - [The Claude CLI changes this behaviour] → the message names CLI commands observed on 2.1.283.
-  The next observed failure reopens #184. No test can reach the live CLI.
+  A new observed failure reopens the issue (#184). No test can reach the live CLI.
 - [Two repositories on one machine need different releases] → not possible: the user-scope
   declaration pins the machine. `## Install` states this.
 - [Old skills keep printing the old fix] → accepted. See proposal.md, Impact.
