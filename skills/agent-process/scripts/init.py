@@ -20,7 +20,8 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 2. link      `~/.agents/skills/agent-process` -> the checkout's skill (junction on Windows)
 3. hand-off  to the requested release, when it is not this one
 4. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
-5. config    the marker block of `openspec/config.yaml`
+5. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
+             `# agent-process release:` line, which `release_drift` compares (#190)
 6. workflow  the managed `.github/workflows/agent-process.yml`
 7. dependabot  the marker block of `.github/dependabot.yml`
 8. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
@@ -84,6 +85,7 @@ BEGIN = "# agent-process:begin"
 END = "# agent-process:end"
 MANAGED = "# agent-process:managed"
 PIN = "# openspec: "
+RELEASE = "# agent-process release: "
 # A top-level `rules` key in any YAML spelling: plain, quoted, tagged or anchored, an explicit
 # `?` key, a flow mapping that opens the document (which may hold one), or a double-quoted key
 # with an escape (which may spell it).
@@ -163,7 +165,7 @@ def render_workflow(version: str, setup: str, test: str) -> str:
 
 def render_config_block(test: str) -> str:
     quality = f"The repository's complete quality command is: {test}"
-    return _template("config.yaml", openspec=OPENSPEC, quality=json.dumps(quality))
+    return _template("config.yaml", openspec=OPENSPEC, version=VERSION, quality=json.dumps(quality))
 
 
 def _render_settings(version: str) -> dict[str, Any]:
@@ -399,7 +401,8 @@ def _hand_off(ctx: Context, argv: list[str], tree: Path) -> int:
     return done.returncode
 
 
-def _recorded_pin(text: str | None) -> str | None:
+def _recorded(text: str | None, prefix: str) -> str | None:
+    """The value of the block's `prefix` line, `None` without a readable one."""
     if text is None:
         return None
     lines = text.splitlines()
@@ -410,13 +413,37 @@ def _recorded_pin(text: str | None) -> str | None:
     if span is None:
         return None
     for line in lines[span[0] + 1 : span[1]]:
-        if line.startswith(PIN):
-            return line[len(PIN) :].strip()
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip()
     return None
 
 
 def release_drift(root: Path, script_dir: Path) -> str | None:
-    return None
+    """`None` when `root` records this skill's release or `script_dir` is the publisher's
+    source checkout of `root`; otherwise the message naming both releases and the fix."""
+    publisher = root / "skills" / "agent-process" / "scripts"
+    if os.path.normcase(script_dir.resolve()) == os.path.normcase(publisher.resolve()):
+        return None
+    try:
+        recorded = _recorded(_read(root / CONFIG), RELEASE)
+    except Conflict:
+        recorded = None
+    if recorded == VERSION:
+        return None
+    head = f"release drift: project records {recorded or 'none'}, skill is {VERSION}"
+    parsed = recorded is not None and re.fullmatch(r"\d+\.\d+\.\d+", recorded)
+    if parsed and _release(parsed[0]) > _release(VERSION):
+        return (
+            f"{head} — update the skill to {recorded}: Claude "
+            f"`/plugin marketplace update agent-process-marketplace`, Codex Install with "
+            f"`--version {recorded}`; then restart the session"
+        )
+    install = TEMPLATES.parent / "SKILL.md"
+    return f"{head} — re-run Install with this skill ({install}#install)"
+
+
+def _release(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
 
 
 def _with_pin(text: str) -> str:
@@ -438,7 +465,7 @@ def _openspec(ctx: Context) -> Step:
             text = _read(config)
         except Conflict:  # reported by the config step, which runs before any write
             return False
-        return paths and _recorded_pin(text) == OPENSPEC
+        return paths and _recorded(text, PIN) == OPENSPEC
 
     def apply() -> bool:
         if current():

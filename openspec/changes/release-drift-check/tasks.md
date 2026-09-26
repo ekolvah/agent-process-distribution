@@ -10,8 +10,8 @@
 
 ## 2. Release line and check
 
-- [ ] 2.1 `templates/config.yaml` gains `# agent-process release: ${version}` after the pin line; `init.py` gains `RELEASE`, renders it from `VERSION` in `render_config_block`, and gains `release_drift` (design: One module owns the line; Comparison and messages; Exemption by path). Verify `python -m pytest tests/publisher/test_init.py -q` is green
-- [ ] 2.2 `start_change.py` and `create_tracking_issue.py` call `release_drift(root, SCRIPT_DIR)` first and return 2 with its message (design: Placement); the module docstrings name the exit. Verify `python -m pytest tests/publisher -q` is green, commit Group 2 as `feat(distribution): delivery entry scripts refuse release drift`
+- [x] 2.1 `templates/config.yaml` gains `# agent-process release: ${version}` after the pin line; `init.py` gains `RELEASE`, renders it from `VERSION` in `render_config_block`, and gains `release_drift` (design: One module owns the line; Comparison and messages; Exemption by path). Verify `python -m pytest tests/publisher/test_init.py -q` is green
+- [x] 2.2 `start_change.py` and `create_tracking_issue.py` call `release_drift(root, SCRIPT_DIR)` first and return 2 with its message (design: Placement); the module docstrings name the exit. Verify `python -m pytest tests/publisher -q` is green, commit Group 2 as `feat(distribution): delivery entry scripts refuse release drift`
 
 ## 3. Verify
 

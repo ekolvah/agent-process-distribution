@@ -4,6 +4,8 @@
 Usage: python skills/agent-process/scripts/start_change.py <change> --planner <Claude|Codex>
        --implementer <Claude|Codex>
 
+First, a project whose `openspec/config.yaml` does not record this skill's release exits 2
+with `release drift` and the fix (`init.release_drift`; the publisher's own checkout is exempt).
 The gate is exit codes, not prose the agent evaluates: `openspec/changes/<change>/
 architect-review.json` is valid against architect-review.schema.json beside this skill and
 its verdict is approve, and the
@@ -34,6 +36,7 @@ import re
 import sys
 from pathlib import Path
 
+from init import release_drift
 from set_status import Gh, _linked_project, _repo, run_gh, set_status
 
 ROOT = Path.cwd()
@@ -110,6 +113,9 @@ def _status(gh: Gh, number: int) -> str:
 def start_change(
     change: str, *, planner: str, implementer: str, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
+    if drift := release_drift(root, SCRIPT_DIR):
+        print(drift, file=sys.stderr)
+        return 2
     change_dir = root / "openspec" / "changes" / change
     line = verdict(change_dir)
     if line != "approve":

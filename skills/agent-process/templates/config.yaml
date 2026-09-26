@@ -1,5 +1,6 @@
 # agent-process:begin
 # openspec: ${openspec}
+# agent-process release: ${version}
 rules:
   proposal:
     - Follow the Proposal section of the agent-process skill.
