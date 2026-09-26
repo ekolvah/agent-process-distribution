@@ -497,5 +497,12 @@ def test_label_change() -> None:
 def test_install_names_the_skill_marker() -> None:
     install = _section("Install")
     assert "agent-process skill not loaded" in install
-    assert "/plugin marketplace update" in install
+    for token in (
+        "claude plugin marketplace add",
+        "~/.claude/settings.json",
+        "claude plugin update agent-process@agent-process-marketplace",
+        "enabling the plugin for the project",
+    ):
+        assert token in install
+    assert "/plugin marketplace update" not in install
     assert "pinned per repository" not in install

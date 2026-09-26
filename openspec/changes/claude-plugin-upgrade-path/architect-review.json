@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every step of the upgrade path the change ships is observed in #184 with exact output and now asserted by a test, the Install rewrite is scoped to the reason the path answers, each delta scenario has a discriminating test, and the diff stays the two texts that print the fix.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md > Decisions weighs the two simpler shapes and the delta scenarios reject both: linking `## Install` from the message is rejected because the linked page belongs to the release the person is leaving (the `Skill behind the project` scenario is exactly the case where that page carries the wrong fix), and `init.py` writing `~/.claude/settings.json` is rejected against the standing `The installed footprint is closed` requirement plus the machine-wide effect of a user-scope ref. `marketplace remove` + `add` is rejected as unobserved. Non-Goals keep the version-string cache collision (#184 comment 5844804395) and any release comparison in the session-start check out of this change, and `Install rewrite scope` keeps the untouched not-loaded reasons out, so the diff is two message texts and two test edits — nothing speculative, no new abstraction.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Four delta scenarios, four entries in tasks.md > Scenario → test map: `Release recorded` → test_init_config.py::test_config_block_records_release (unchanged), `Release drift` → test_start_change.py::test_release_drift (its `newer` case moves to the new `_SKILL_FIX`, tests/publisher/test_start_change.py:515,523), `Skill behind the project` → the new test_skill_behind_names_observed_path, parametrized over both entry scripts, `Publisher checkout` → test_publisher_checkout_is_exempt (unchanged). Task 1.2 carries no delta scenario because it asserts the `## Install` page of the standing `A Claude session start reports a missing skill` requirement (openspec/specs/distribution/spec.md:265-284), whose text that requirement does not fix — the same placement the archived skill-presence-check change used, and design.md > Install rewrite scope now bounds what of that page moves.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 writes both tests (1.1 the new drift test plus the `_SKILL_FIX` change, 1.2 the Install assertions) before any production edit and 1.3 runs `check_red.py` over them including `test_release_drift`, then commits RED. Both fail in the test body against today's code: `release_drift` (skills/agent-process/scripts/init.py:436-440) still emits `/plugin marketplace update agent-process-marketplace` and names no `marketplace add`, `--scope` or second restart, and `## Install` (skills/agent-process/SKILL.md:152-155) still carries that string. 1.2's new positive token (`enabling the plugin for the project`) is the one assertion already true today, so it pins the kept remedy while the negative assertion carries the failure — the test still fails in its body.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every behaviour the message rests on is observed on Claude Code 2.1.283, 2026-09-26, with exact output in the two #184 comments the proposal cites (reviewer read both via `gh issue view 184 --comments`): `marketplace update` re-clones the ref the machine holds and ignores the project declaration (comment 5844804395, steps A-C); `marketplace add \"ekolvah/agent-process-distribution#v2.0.0\"` re-points the clone and writes `extraKnownMarketplaces` to `~/.claude/settings.json` (step D); `add` refuses a name settings already declare and directs to the declaration (comment 5844817104, step E); a session start follows the user declaration, not the project one (step G); moving the marketplace does not move an install (step H) and `claude plugin update agent-process@agent-process-marketplace --scope project` prints `updated from 2.0.0 to 0.1.0 … Restart to apply changes` (step I). The only unobserved variant is `--scope user` of the same observed flag, which the spec sentence covers as `for each install scope` and 1.1 asserts as `--scope`.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Both replaced texts are listed with what survives. The drift message: design.md > The message carries the commands, with the rejected link alternative, and `_SKILL_FIX` (tests/publisher/test_start_change.py:515) keeps the `newer` case of test_release_drift discriminating, so the `older`/`newer` split still has two distinct proofs. `## Install`: design.md > Install rewrite scope names which of the marker's reasons (openspec/specs/distribution/spec.md:278-284) the release path answers — `has no skill` and a plugin behind the project — keeps `enabling the plugin for the project` for `not enabled for this project`, and leaves the unobserved `several installs apply` alone; task 2.2 carries the same boundary and task 1.2 asserts the kept remedy, so it cannot be dropped silently. The removed #184 sentence's content (a project `ref` moves nothing) is not lost: the replacement states that the user-scope declaration pins the release for every repository, and the existing `pinned per repository` negative assertion stays.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Catchers traced to a step: 1.3 `check_red.py` reaches the RED commit; 2.1 `pytest tests/publisher/test_start_change.py` and 2.2 `pytest tests/publisher` reach each edited text; 3.1 `openspec validate --strict --all` and 3.2 `ci_check.py` plus the `git diff --name-only origin/main` comparison against proposal.md > Impact reach delivery; 4.1-4.4 carry archive, PR, `@codex review`, `wait_for_pr` and the three-round escalation. The one catcher that is a person rather than a run — design.md > Risks, `the next observed failure reopens #184` for a CLI behaviour change — takes away no proof this change had: the live CLI is unreachable from the suite today as well, and every word of the printed path is now asserted as text.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Edited spec prose: the `Delivery entry scripts refuse release drift` requirement swaps ~19 words for ~75 (specs/distribution/spec.md:8-15) and gains the ~45-word `Skill behind the project` scenario; the `## Install` rewrite replaces one remedy clause and one sentence. Tasks 1.1-1.2 assert every step those words name: the `marketplace add` command with the ref, `~/.claude/settings.json`, `claude plugin update agent-process@agent-process-marketplace`, `--scope` for `for each install scope`, `--version <recorded>` for Codex, the restart after the declaration and the restart after `plugin update` in that order (#184 comment 5844817104, steps G and I), the absence of `/plugin marketplace update`, and on the page the kept `enabling the plugin for the project` and the absent `pinned per repository`. No sentence of the delta and no clause of the rewritten page is left without an assertion.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "proposal.md > Impact adds and removes nothing: the non-test files are the two edits `skills/agent-process/scripts/init.py` (the `release_drift` skill-behind branch, init.py:436-440) and `skills/agent-process/SKILL.md` (`## Install`), plus the two test files; design.md adds no script, check or file. `.agent-process/docs/adr/0011` is deliberately left (Impact), and a repository-wide search for `marketplace update` shows no other live text carrying the wrong fix. No new script, no new gate, no new dependency — the correction lands in the two texts that already print the fix, which is the standard for this job.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": []
+}

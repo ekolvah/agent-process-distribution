@@ -512,7 +512,7 @@ def _mixed_line_endings() -> bytes:
 
 _SCRIPTS = {"start_change": _START, "create_tracking_issue": [_CHANGE]}
 _INSTALL_FIX = "re-run Install"
-_SKILL_FIX = "/plugin marketplace update"
+_SKILL_FIX = "claude plugin update"
 # case -> (config: a release to record, `None` for no release line, or a bytes factory;
 #          the release the message names for the project; the fix it names)
 _DRIFT: dict[str, tuple[Any, str, str]] = {
@@ -552,6 +552,37 @@ def test_release_drift(
         assert "release drift" in err and "verdict" not in err
         assert f"project records {recorded}" in err and f"skill is {version}" in err
         assert fix in err
+
+
+@pytest.mark.parametrize("script", sorted(_SCRIPTS))
+def test_skill_behind_names_observed_path(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], script: str
+) -> None:
+    """Scenario: Skill behind the project — the fix names the observed Claude path (#184)
+    and the Codex `--version`, never `/plugin marketplace update`."""
+    recorded = "99.0.0"
+    root = _change(
+        tmp_path,
+        verdict="approve",
+        tasks=_GROUP0.format(token="tracking issue 7"),
+        config=_release_config(recorded),
+    )
+    with pytest.raises(SystemExit) as exc:
+        load_script(script).main(_SCRIPTS[script], gh=Gh(status="Planned"), root=root)
+    err = capsys.readouterr().err
+    assert exc.value.code == 2, err
+    for token in (
+        f'claude plugin marketplace add "ekolvah/agent-process-distribution#v{recorded}"',
+        "~/.claude/settings.json",
+        "claude plugin update agent-process@agent-process-marketplace",
+        "--scope",
+        f"--version {recorded}",
+    ):
+        assert token in err
+    assert "/plugin marketplace update" not in err
+    update = err.index("claude plugin update")
+    assert err.index("~/.claude/settings.json") < err.index("restart") < update
+    assert "restart" in err[update:]
 
 
 def test_publisher_checkout_is_exempt(tmp_path: Path) -> None:
