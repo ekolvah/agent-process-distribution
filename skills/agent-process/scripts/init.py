@@ -434,9 +434,12 @@ def release_drift(root: Path, script_dir: Path) -> str | None:
     parsed = recorded is not None and re.fullmatch(r"\d+\.\d+\.\d+", recorded)
     if parsed and _release(parsed[0]) > _release(VERSION):
         return (
-            f"{head} — update the skill to {recorded}: Claude "
-            f"`/plugin marketplace update agent-process-marketplace`, Codex Install with "
-            f"`--version {recorded}`; then restart the session"
+            f"{head} — update the skill to {recorded}. Claude: declare the marketplace at "
+            f'v{recorded} with `claude plugin marketplace add "{GITHUB_REPO}#v{recorded}"`, or '
+            f"edit its `ref` in `~/.claude/settings.json` when it is declared there; "
+            f"restart; run `claude plugin update agent-process@agent-process-marketplace "
+            f"--scope <user|project>` for each install; restart. Codex: Install with "
+            f"`--version {recorded}`; restart"
         )
     install = TEMPLATES.parent / "SKILL.md"
     return f"{head} — re-run Install with this skill ({install}#install)"

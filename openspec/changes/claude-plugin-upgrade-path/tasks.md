@@ -10,8 +10,8 @@
 
 ## 2. Upgrade path
 
-- [ ] 2.1 `release_drift` in `skills/agent-process/scripts/init.py`: the skill-behind branch names the Claude path and the Codex `--version <recorded>` (design: The message carries the commands; `add` or an edit of the declaration). Verify that `python -m pytest tests/publisher/test_start_change.py -q` is green
-- [ ] 2.2 `## Install` of `skills/agent-process/SKILL.md`: replace the #184 sentence and the `/plugin marketplace update` remedy with the observed mechanism. The user-scope declaration pins the release for every repository on the machine, and the path to a release is the one of 2.1. That path answers a plugin that is behind or that has no skill. The remedy `enabling the plugin for the project` stays for the reason "not enabled for this project" (design: Install rewrite scope). Verify that `python -m pytest tests/publisher -q` is green, then commit Group 2 as `fix(distribution): name the observed Claude upgrade path`
+- [x] 2.1 `release_drift` in `skills/agent-process/scripts/init.py`: the skill-behind branch names the Claude path and the Codex `--version <recorded>` (design: The message carries the commands; `add` or an edit of the declaration). Verify that `python -m pytest tests/publisher/test_start_change.py -q` is green
+- [x] 2.2 `## Install` of `skills/agent-process/SKILL.md`: replace the #184 sentence and the `/plugin marketplace update` remedy with the observed mechanism. The user-scope declaration pins the release for every repository on the machine, and the path to a release is the one of 2.1. That path answers a plugin that is behind or that has no skill. The remedy `enabling the plugin for the project` stays for the reason "not enabled for this project" (design: Install rewrite scope). Verify that `python -m pytest tests/publisher -q` is green, then commit Group 2 as `fix(distribution): name the observed Claude upgrade path`
 
 ## 3. Verify
 

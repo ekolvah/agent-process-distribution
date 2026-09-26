@@ -148,11 +148,17 @@ skill's own directory. Run from the consumer's root:
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
 install of another version in any repository moves it for every repository. Claude applies
 the plugin only after the person trusts the folder, and runs the release the machine last
-fetched for the marketplace name: the `ref` in `.claude/settings.json` does not re-point a
-marketplace the machine already knows (#184). At each Claude session start the installed
-check prints `agent-process skill not loaded (<reason>)` when the plugin does not supply
-the skill; the fix is `/plugin marketplace update agent-process-marketplace` and a restart,
-or enabling the plugin for the project. Codex without this skill starts from a temporary clone of the
+fetched for the marketplace name: the `ref` in the project's `.claude/settings.json` does not
+re-point a marketplace the machine already knows. The user-scope declaration in
+`~/.claude/settings.json` does, and it pins one release for every repository on the machine.
+To move the machine to release `<x.y.z>`, declare it with `claude plugin marketplace add
+"ekolvah/agent-process-distribution#v<x.y.z>"` (or edit its `ref` in `~/.claude/settings.json`
+when it is already declared there), restart, run `claude plugin update
+agent-process@agent-process-marketplace --scope <user|project>` for each install, and restart.
+At each Claude session start the installed check prints `agent-process skill not loaded
+(<reason>)` when the plugin does not supply the skill; the fix is that path to the project's
+release when the plugin has no skill or is behind the project, or enabling the plugin for the
+project. Codex without this skill starts from a temporary clone of the
 release tag (`git clone --depth 1 --branch v<x.y.z>
 https://github.com/ekolvah/agent-process-distribution.git <dir>`) and runs that clone's
 `skills/agent-process/scripts/init.py` from the consumer's root.
