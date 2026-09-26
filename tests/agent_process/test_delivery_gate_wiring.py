@@ -12,21 +12,13 @@ import re
 from pathlib import Path
 from typing import Any
 
-import pytest
-import yaml
-
 _REPO = Path(__file__).resolve().parents[2]
 _CLAUDE_SETTINGS = _REPO / ".claude" / "settings.json"
 _CODEX_HOOKS = _REPO / ".codex" / "hooks.json"
-_COPIER_ANSWERS = _REPO / ".agent-process" / "copier-answers.yml"
 
 
 def _settings() -> Any:
     return json.loads(_CLAUDE_SETTINGS.read_text(encoding="utf-8"))
-
-
-def _answers() -> dict[str, Any]:
-    return yaml.safe_load(_COPIER_ANSWERS.read_text(encoding="utf-8"))
 
 
 def _resource_attributes() -> dict[str, str]:
@@ -47,24 +39,16 @@ def _codex_hooks() -> Any:
     return json.loads(_CODEX_HOOKS.read_text(encoding="utf-8"))
 
 
-@pytest.mark.skipif(
-    not _CLAUDE_SETTINGS.is_file(),
-    reason="the generated project does not include the optional Claude adapter",
-)
 def test_claude_wires_no_stop_hook() -> None:
     assert "Stop" not in _settings()["hooks"]
 
 
-@pytest.mark.skipif(
-    not _CLAUDE_SETTINGS.is_file(),
-    reason="the generated project does not include the optional Claude adapter",
-)
 class TestTelemetryAttribution:
     """Project attribution on the agent telemetry (issue #97).
 
     A telemetry assertion in a file whose stated subject is hook and gate wiring is
-    deliberate: this is the one place that already reads `.claude/settings.json`
-    behind the optional-adapter `skipif`, and the attribution rides the same file.
+    deliberate: this is the one place that already reads `.claude/settings.json`,
+    and the attribution rides the same file.
 
     Deliberate gap, recorded here rather than reopened as work-for-work: no test
     asserts that a *live* Claude Code session emits these attributes. That crosses
@@ -74,36 +58,22 @@ class TestTelemetryAttribution:
     """
 
     def test_settings_carry_the_project_as_a_resource_attribute(self) -> None:
-        attributes = _resource_attributes()
-        answers = _answers()
-
-        project = attributes["vcs.repository.name"]
-        assert project, "the project attribute must not be empty"
-        # Which of the two answers wins was a template rule (mirror deleted by
-        # #119); this test only asserts the value is one of them and so cannot
-        # drift into a second encoding of the fallback.
-        assert project in {answers.get("github_repository"), answers.get("repo_name")}
+        project = _resource_attributes()["vcs.repository.name"]
+        assert re.fullmatch(r"[^/\s]+/[^/\s]+", project), (
+            f"the project attribute must be `<owner>/<repository>`: {project!r}"
+        )
 
     def test_the_carrier_stays_a_multi_pair_list(self) -> None:
         attributes = _resource_attributes()
-        answers = _answers()
 
-        github_repository = answers.get("github_repository")
-        if github_repository:
-            assert (
-                attributes["vcs.repository.url.full"] == f"https://github.com/{github_repository}"
-            )
-            assert len(attributes) >= 2
-        else:
-            # An adopter who left `github_repository` blank has no canonical URL,
-            # so the pair is omitted rather than guessed.
-            assert "vcs.repository.url.full" not in attributes
+        project = attributes["vcs.repository.name"]
+        assert attributes["vcs.repository.url.full"] == f"https://github.com/{project}"
+        assert len(attributes) >= 2
 
 
 class TestCodexHookWiring:
-    """`.codex/hooks.json` is mandatory in every render (issue #75, AC 6): unlike
-    the Claude tests above, this class takes no `skipif` — a missing file here
-    must fail loudly, not skip silently (§IV)."""
+    """`.codex/hooks.json` is mandatory (issue #75, AC 6): a missing file fails
+    loudly rather than skipping silently (§IV)."""
 
     def test_every_event_group_maps_to_its_subcommand(self) -> None:
         hooks = _codex_hooks()["hooks"]
