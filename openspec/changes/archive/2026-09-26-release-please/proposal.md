@@ -15,7 +15,7 @@ Observed, not inferred:
   then `commit could not be parsed: c109c29… install-activation-order (#200)` for all six
   commits after it, ending `Would open 0 pull requests`. The squash merge takes the PR title,
   and the procedure titles a PR with the bare change name
-  ([SKILL.md Delivery](../../../skills/agent-process/SKILL.md#delivery)), so the issue's
+  ([SKILL.md Delivery](../../../../skills/agent-process/SKILL.md#delivery)), so the issue's
   premise that Conventional Commits are already used holds for branch commits only, not for
   the commits on `main` that release-please reads.
 - The repository's workflow permissions read

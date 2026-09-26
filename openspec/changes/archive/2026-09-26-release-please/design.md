@@ -40,7 +40,7 @@ source (`docs/customizing.md`, `src/strategies/simple.ts`, `src/bin/release-plea
   configFile, manifestFile)`, so the dry run of task 3.2 reads this branch's config.
 That dry run is the observation of the three bumps before delivery.
 *Alternatives:* a bespoke bump script or check — rejected by the issue and by
-[Native first](../../specs/maintenance/spec.md); semantic-release — needs a Node release
+[Native first](../../../specs/maintenance/spec.md); semantic-release — needs a Node release
 config and publishes on every merge with no PR for the person to approve.
 
 **D2. A fine-grained PAT, secret `RELEASE_PLEASE_TOKEN`.** Scope: this repository only,
@@ -95,7 +95,7 @@ here). The release PR title `chore(main): release <version>` passes.
 The requirement lives in a second ruleset `pr-title` (target `~DEFAULT_BRANCH`, one
 `required_status_checks` rule, context `pr-title`, integration 15368), because
 `activate_protection` converges the context set of `agent-process default branch`
-([Activation converges one ruleset](../../specs/distribution/spec.md)) and would drop a
+([Activation converges one ruleset](../../../specs/distribution/spec.md)) and would drop a
 foreign context on its next run. GitHub's rulesets page: "if multiple rulesets target the
 same branch or tag in a repository, the rules in each of these rulesets are aggregated."
 A required context that no run reports stays pending and blocks the merge; the ruleset's
