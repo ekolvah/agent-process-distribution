@@ -1,0 +1,21 @@
+name: Release Please
+
+# One release PR moves every version place; merging it tags `v<version>` (ADR 0030).
+# The token is the person's fine-grained PAT, so the required contexts run on the
+# release PR; events created with GITHUB_TOKEN start no workflow.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
