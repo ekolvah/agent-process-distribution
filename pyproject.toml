@@ -27,3 +27,12 @@ max-module-lines = 1000
 testpaths = ["tests/publisher"]
 python_files = ["test_*.py"]
 pythonpath = [".agent-process", "."]
+# tach's pytest plugin runs impact analysis on every run and adds warnings; only `tach check` is used.
+addopts = ["-p", "no:tach"]
+
+[tool.tach]
+source_roots = ["."]
+
+[[tool.tach.modules]]
+path = "tests.**.test_*"
+depends_on = []

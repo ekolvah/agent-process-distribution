@@ -1,0 +1,48 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The map finding is applied: one call, `run_selected(\"test-imports\")`, now proves the registry name, the run path and the behaviour, and RED still fails in the test body — leaving a plan whose tool choice, rejected alternatives and dependency trade are quoted runs, not assertions.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects each cheaper candidate with a quoted run in proposal.md Why: import-linter 2.15 (`forbidden_modules: A wildcard can only replace a whole module.`), ruff 0.15.12 TID251 (pattern key -> `All checks passed!`, exact key -> `Found 1 error.`), and the bespoke `ast` test already rejected in #193 D5. The structural alternative the design does not name — making test modules unimportable — is rejected by the repository's own layout: `pyproject.toml` `pythonpath = [\".\", \".agent-process\"]` must keep `tests.publisher.delivery_fakes`, `init_harness` and `openspec_cli` importable (proposal.md Why), so the same path that reaches a helper reaches a test module. D2 adds no file (one table in the existing root `pyproject.toml`), D3 adds one function of a few lines in `ci_check.py` next to `module-size`, and the whole diff is the five paths of the Impact list. Nothing smaller closes #194 without enumerating every test module.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "specs/implementation/spec.md carries one scenario (Test module imports a test module); `## Scenario -> test map` maps it to tests/agent_process/test_ci_check.py::TestTestImports::test_test_module_importing_test_module_fails, written by task 1.2, so scenario_coverage is empty. After the applied finding the test drives `ci_check.run_selected(\"test-imports\")` in the fixture repository, so the scenario's subject is proven as written: the name in `CHECKS` (the only source of both the full run and `--only`, ci_check.py:403-415), the run path, and the three asserted outcomes. That closes the gap the earlier round found — no test in this repository asserts a member of `CHECKS` otherwise, and `test_full_runner_visits_every_registered_check` monkeypatches the registry with fakes (tests/agent_process/test_ci_check.py:58-62).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is tasks 1.1-1.3. Task 1.2 registers a `check_test_imports` stub that returns, as `test-imports` after `module-size`, so `run_selected(\"test-imports\")` takes the `only` branch, calls the stub and returns: no `SystemExit`, so `pytest.raises` fails in the test body, not on an `unknown check` exit that would have been green for the wrong reason (ci_check.py:404-407). Task 1.3 runs check_red.py on that node id and commits RED, and task 2.1 then only replaces the stub body — the behaviour under test is the last thing written. Task 1.1 (dependency plus the `[tool.tach]` table) precedes RED but is the fixture the test reads: task 1.2 copies the real table into tmp_path, the pattern `TestComplexityLimits._process_repo` already uses for `.agent-process/pyproject.toml` (tests/agent_process/test_ci_check.py:519-529). No existing test changes meaning.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every tool behaviour the design rests on is a quoted run in proposal.md Why on a scratch copy of tests/ at 85bf807 plus an injected violation: import-linter's wildcard refusal, TID251's silent non-match against an exact-key `Found 1 error.`, and tach 0.35.1's `[FAIL] tests\\publisher\\test_violation.py:1: ... Module '...test_violation' cannot depend on '...test_set_status'` with exit 1, `[OK] All modules validated!` with exit 0 without it, and helper imports unreported (D2, D3). The scratch root also held the run's own venv, so a second Python tree in the scanned root did not change the result. D4's 'no telemetry' is a search of the installed package, and the pytest11 risk is a compared pair of scratch runs with and without `-p no:tach`. The one inference left is design.md's Migration Plan ('Main passes after #193'), drawn from the scratch copy rather than this repository's root with `.agent-process/`, `skills/` and `openspec/` present; task 1.1 verifies `[OK] All modules validated!` on the branch before task 2.1 makes the check real, so the inference is checked before it can gate anything.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No input is replaced and no guard dropped: the change only adds a check. The Non-Goals bound it (imports by `conftest.py` and helper modules, both unobserved as incidents; the unregistered `check_imports` and `check_mypy` stay untouched), and tasks.md 4.2 carries that bound into the PR report as the accepted gap, which is where the recent changes of this repository record one (no ledger file exists). `[tool.tach]` in the root `pyproject.toml` adds a table to a file whose other tables (`tool.ruff`, `tool.pylint`, `tool.pytest.ini_options`) the check set already reads; nothing stops being proven.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Three catchers named, each traceable: (1) `pip-audit-dev` for tach's transitive dependencies — a registered check reading `.agent-process/requirements-dev.txt` (ci_check.py:252-255), the trade ADR 0028 accepted for pylint; (2) task 1.1's `python -m tach check` on the branch for the config's behaviour at this repository's root; (3) `test-imports` inside `ci_check` for the rule itself, reached by the pre-push hook and by `.github/workflows/agent-process.yml` -> reusable-quality.yml, whose driver is the default branch's `ci_check.py` run in the PR worktree (reusable-quality.yml:46-82) while dependencies are installed from the PR's own requirements — so on this PR the new check is proven by task 3.2's local full run and starts gating in CI from the merge, the same path `module-size` took. Its registration, previously untraceable, is now asserted by the mapped test.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "No rule prose is added (proposal.md Impact: no doc edit; design.md holds the alternatives and the observations). The spec delta is one requirement of ~22 words in two sentences — 'ci_check SHALL fail when a test module imports another test module' (12) and 'A test module MAY import a non-test helper module' (10) — plus a ~45-word scenario with three outcomes. Every word is now asserted by the mapped test: the subject `ci_check` by the `run_selected(\"test-imports\")` entry point, 'SHALL fail' by `SystemExit`, 'names ... both' by the output naming `tests.publisher.test_b` and `tests.publisher.test_a`, and the MAY sentence by `test_c`, whose only import is `tests.publisher.helper`, staying out of the output. The requirement title matches the house form of 'ci_check limits code complexity' (openspec/specs/implementation/spec.md:171).",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "proposal.md Impact adds no file and design.md adds no script: the whole non-test surface is one `[tool.tach]` table in the existing root `pyproject.toml`, one `check_test_imports` shelling to `[sys.executable, '-m', 'tach', 'check']` through the existing `_run`, and one registry line — the shape ADR 0028 established for `module-size`. The standards for the job were both tried and both fail on the pattern, quoted in proposal.md Why; the bespoke `ast` walker that would need no dependency was rejected in #193 D5, and the rule exists because the incident happened twice, not in anticipation. One entry in additions.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": [
+    {
+      "path": ".agent-process/scripts/ci_check.py::check_test_imports plus its `test-imports` entry in `CHECKS`, configured by the `[tool.tach]` table of the root pyproject.toml",
+      "problem": "#194",
+      "standard": "tach 0.35.1 `tach check`, the standard module-dependency checker, which the addition runs; the two standards for the job tried first are import-linter 2.15 forbidden contracts and ruff 0.15.12 TID251",
+      "why_not": "Observed in proposal.md Why: import-linter refuses the pattern outright (`forbidden_modules: A wildcard can only replace a whole module.`), and TID251 accepts `tests.publisher.test_*` as a key while matching nothing (`All checks passed!`, against `Found 1 error.` for an exact module name), so it would silence itself and would need an entry per test module. tach expresses `tests.**.test_*` with `depends_on = []` in one table, names the importing and the imported module in its FAIL line, and leaves helper modules unreported — so no bespoke walker is written and no module list is kept in sync. The two incidents it closes are the ones #193 removed by moving tests (test_release_drift.py <- test_delivery_scripts.py, test_planning_workflow.py <- test_openspec_valid.py). The cost is a dev-only dependency, audited by `pip-audit-dev`, the trade ADR 0028 already accepted for pylint."
+    }
+  ]
+}

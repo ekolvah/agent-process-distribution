@@ -148,6 +148,17 @@ def check_module_size() -> None:
         _run([sys.executable, "-m", "pylint", "--rcfile", "pyproject.toml", *product])
 
 
+def check_test_imports() -> None:
+    """No test module imports another test module, by tach's module boundaries.
+
+    `[tool.tach]` in the root `pyproject.toml` declares every `tests.**.test_*` as a
+    module with no dependencies; helper modules are not tach modules, so importing
+    them stays allowed. import-linter and ruff `TID251` cannot express the pattern.
+    """
+    print("==> test imports")
+    _run([sys.executable, "-m", "tach", "check"])
+
+
 def _configures_module_size(path: Path) -> bool:
     """Whether `path` enables pylint `too-many-lines` and nothing else."""
     if not path.is_file():
@@ -339,6 +350,7 @@ CHECKS: dict[str, Callable[[], None]] = {
     "format": check_format,
     "lint": check_lint,
     "module-size": check_module_size,
+    "test-imports": check_test_imports,
     "secrets": check_secrets,
     "pytest": check_pytest,
     "pip-audit": check_pip_audit,

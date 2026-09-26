@@ -5,4 +5,5 @@ pip-audit
 pylint
 pytest
 ruff
+tach
 types-PyYAML
