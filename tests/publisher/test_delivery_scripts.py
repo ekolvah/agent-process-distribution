@@ -279,10 +279,15 @@ def _change(
     verdict: str = "approve",
     tasks: str,
     review: dict[str, Any] | None = None,
+    config: bytes | None = None,
 ) -> Path:
-    """A change directory under `tmp_path` with the three files the scripts read."""
+    """A change directory under `tmp_path` with the three files the scripts read, in a
+    consumer whose `openspec/config.yaml` records the skill's release unless `config` is given."""
     change_dir = tmp_path / "openspec" / "changes" / _CHANGE
     change_dir.mkdir(parents=True)
+    if config is None:
+        config = load_script("init").render_config_block("t").encode("utf-8")
+    (tmp_path / "openspec" / "config.yaml").write_bytes(config)
     (change_dir / "architect-review.json").write_text(
         json.dumps(review or _review(verdict)), encoding="utf-8"
     )

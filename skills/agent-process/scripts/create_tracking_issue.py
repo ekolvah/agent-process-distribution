@@ -3,7 +3,8 @@
 
 Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--priority <High|Medium|Low>]
 
-The architect review is validated first, as `start_change` reads it: an invalid file or a
+A release drift exits 2 first, as in `start_change`. The architect review is validated
+next, as `start_change` reads it: an invalid file or a
 verdict other than approve is exit 2 and nothing is created. Then `tasks.md` of the change
 decides the branch through its `tracking issue <N>` token (Group 0;
 the same read as `start_change`): while it carries the placeholder, `--priority` is required
@@ -24,6 +25,7 @@ import re
 import sys
 from pathlib import Path
 
+from init import release_drift
 from set_status import Gh, run_gh, set_status
 from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue, verdict
 
@@ -42,6 +44,9 @@ def _issue_number(create_output: str) -> int:
 def create_tracking_issue(
     change: str, *, priority: str | None, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
+    if drift := release_drift(root, SCRIPT_DIR):
+        print(drift, file=sys.stderr)
+        return 2
     change_dir = root / "openspec" / "changes" / change
     line = verdict(change_dir)
     if line != "approve":

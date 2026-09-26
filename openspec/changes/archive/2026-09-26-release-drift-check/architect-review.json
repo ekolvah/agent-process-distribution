@@ -1,0 +1,48 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every finding of the earlier rounds is applied: the RED commit now fails only in the mapped test bodies, every failure mode of the new input ends in the exit-2 message, and each clause of the requirement is asserted by a named test.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md \"One module owns the line\" rejects `.claude-plugin/plugin.json` (outside the skill a Codex link reaches) and a separate module, and keeps `render_config_block`'s signature, rendering the release from `VERSION` as it already renders `OPENSPEC` (init.py:164-166) — the smaller diff. The competing mechanism the design does not name, extending the installed SessionStart check (skills/agent-process/templates/skill_check.py, #187/#191) that already reads the plugin's version, is rejected by the delta's own scenarios: that check always returns 0 and exists only for Claude, so it cannot exit 2 before a GitHub call for a Codex carrier. Two call sites are the minimum for `Release drift`: proposal.md Why names create_tracking_issue and start_change as the first delivery commands a carrier runs. No file is added.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "specs/distribution/spec.md carries three scenarios (Release recorded, Release drift, Publisher checkout); the `## Scenario -> test map` gives each a named test (test_init.py::test_config_block_records_release, test_delivery_scripts.py::test_release_drift, ::test_publisher_checkout_is_exempt) and tasks 1.1-1.2 write exactly those. No scenario is unmapped, so scenario_coverage is empty.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is tasks 1.1-1.3: 1.1 and 1.2 write the mapped tests without changing any signature, `_change` writes `init.render_config_block(\"t\")` (the same call in design.md's Tests decision), and 1.3 runs check_red.py on their node ids with a `release_drift` stub returning `None`, then commits RED. With that stub every new assertion fails in its own body — no release line inside the block, the scripts proceed instead of exiting 2, the scratch-copy call returns `None` — as .claude/rules/testing.md step 1 requires, and no existing delivery test breaks.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Claude fix in the newer-release message: `/plugin marketplace update agent-process-marketplace` plus a restart is the #184 observation already recorded in SKILL.md#install (the `ref` does not re-point a marketplace the machine knows); proposal.md points there instead of repeating it. Codex fix: Install with `--version <x>` moves the user-scope checkout and the user-wide link, this repository's own tested behaviour (init.py docstring lines 7-12, tests/publisher/test_init.py::test_confirm_selects_release_before_composing). The design's assumption that the installed release is `VERSION` in every run that writes holds against init.py:781-783 (a handed-off child with another VERSION exits 1) and init.py:809-825 (another version is cloned or handed off before any write); test_lifecycle's `upgrade` scenario shows the write happening in the child.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Nothing is replaced and no guard dropped; the change adds a guard over a new input, the `# agent-process release:` line of the consumer's `openspec/config.yaml`. design.md lists every failure mode of that input beside the decision: absent, unparsable, older, newer, and any `Conflict` — from `_read` (symlink, non-UTF-8, mixed line endings) or `_span` — counting as absent so it ends in the exit-2 message, never a traceback, which matters because `Conflict` is neither ValueError nor RuntimeError and neither script's `main` catches it (start_change.py:176-181). tasks.md 1.2 parametrizes the mixed-line-endings config, the state tests/publisher/test_init.py:617 already treats as a real consumer state.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "design.md Risks names one accepted gap (delivery scripts after Group 0 — archive_change, wait_for_pr — stay unchecked) and claims no catcher for it, stating instead that both entry points of a change are checked; tasks.md 4.2 carries that gap into the PR report. The catchers the plan does name are the two scripts themselves, reached at the end of propose and at Group 0, which tasks 0.1 and 1.2 exercise.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds no rule prose (proposal.md Impact: no doc edit) and one spec requirement of ~110 words: the installer clause (~19 words, asserted by test_config_block_records_release), the refusal clause (~78 words, asserted by test_release_drift over both scripts x no block / no line / `abc` / older / newer / mixed line endings, exit 2, no gh call, both releases, the direction's fix), and the exemption clause (~13 words, asserted by test_publisher_checkout_is_exempt). The clause \"before any other step\" is pinned by the case per script with a `rework` review and an older release, asserting the drift message, not the verdict message, is what exits 2.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "proposal.md Impact adds no file (four edited non-test files: templates/config.yaml, init.py, start_change.py, create_tracking_issue.py) and design.md adds one function, `release_drift`, in the module that writes the line. The standard for holding a tool and a project on one release is the host's own pin — the Claude marketplace `ref` in `.claude/settings.json` and the user-wide Codex link — and SKILL.md#install records why neither pins per repository (#184; `~/.agents/skills/agent-process` is one checkout for every repository on the machine).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": [
+    {
+      "path": "skills/agent-process/scripts/init.py::release_drift, with the `# agent-process release:` line of skills/agent-process/templates/config.yaml",
+      "problem": "#190",
+      "standard": "the host's own version pin: the Claude marketplace `ref` in `.claude/settings.json` and the user-wide Codex skill link `~/.agents/skills/agent-process`",
+      "why_not": "#184 observed that the marketplace is keyed by name at user scope and a project's `ref` does not re-point a release the machine already fetched, and the Codex link is one checkout shared by every repository (SKILL.md#install), so no host pin can hold a repository to the release it was installed with; the recorded line is the only per-repository record of it, and the two scripts that start a change are where a carrier first acts on it."
+    }
+  ]
+}
