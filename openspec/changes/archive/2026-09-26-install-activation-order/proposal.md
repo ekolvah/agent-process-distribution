@@ -1,6 +1,6 @@
 ## Why
 
-[Install](../../../skills/agent-process/SKILL.md#install) step 5 says "Once the first PR shows
+[Install](../../../../skills/agent-process/SKILL.md#install) step 5 says "Once the first PR shows
 `agent-process / quality`, run `activate_protection.py --pr <N>`". In a fresh repository the
 first PR is the installation PR, and on it the run refuses (#183, observed in
 `ekolvah/agent-process-sandbox#1` during #117 step 7a):
