@@ -21,7 +21,6 @@ def _trigger(document: dict[Any, Any]) -> Any:
 
 def test_callees_declare_workflow_call_without_pull_request_trigger() -> None:
     for name in (
-        "reusable-quality.yml",
         "reusable-agent-review.yml",
         "quality.yml",
     ):
@@ -83,25 +82,6 @@ def _steps(name: str) -> dict[str, dict[str, Any]]:
     return {step["name"]: step for step in job["steps"] if "name" in step}
 
 
-def test_quality_executes_a_trusted_driver_against_the_pr_worktree() -> None:
-    steps = _steps("reusable-quality.yml")
-
-    trusted_checkout = steps["Checkout trusted quality driver"]
-    assert trusted_checkout["with"] == {
-        "ref": "${{ github.event.repository.default_branch }}",
-        "path": "trusted",
-    }
-    assert steps["Checkout PR under test"]["with"] == {"path": "pr"}
-    assert _trigger(_workflow("reusable-quality.yml"))["workflow_call"] is None
-    assert steps["Install consumer dependencies"]["working-directory"] == "pr"
-    assert steps["Run trusted quality checks"]["working-directory"] == "pr"
-    assert steps["Run trusted quality checks"]["run"] == (
-        'python "$GITHUB_WORKSPACE/${{ steps.quality-driver.outputs.path }}/.agent-process/scripts/ci_check.py"'
-    )
-    assert "trusted/.agent-process/scripts/ci_check.py" in steps["Select quality driver"]["run"]
-    assert 'echo "path=pr"' in steps["Select quality driver"]["run"]
-
-
 def test_publisher_driver_keeps_a_same_head_catcher() -> None:
     """`agent-process / quality` runs the PR's own driver, so a context the PR cannot change
     stays required beside it: this repository carries the review caller, and activation
@@ -121,43 +101,10 @@ def test_quality_runs_once_per_pr() -> None:
         for path in sorted(WORKFLOWS.glob("*.yml"))
         if "pull_request" in (_trigger(_workflow(path.name)) or {})
         for name, job in _workflow(path.name).get("jobs", {}).items()
-        if Path(job.get("uses", "").split("@")[0]).name in {"quality.yml", "reusable-quality.yml"}
+        if Path(job.get("uses", "").split("@")[0]).name == "quality.yml"
     }
 
     assert callers == {("agent-process.yml", "agent-process")}
-
-
-def test_quality_installs_product_dependencies_when_present() -> None:
-    """A consumer's own product dependencies must be installed before its
-    checks run — the trusted-driver step only ever installed the process's
-    own two lockfiles, so a consumer whose product tests import a dependency
-    outside those locks failed for reasons unrelated to its code (#57)."""
-    steps = _steps("reusable-quality.yml")
-
-    name = "Install product dependencies"
-    assert name in steps
-    step = steps[name]
-    assert step["working-directory"] == "pr"
-    assert "requirements.txt" in step["run"]
-    # A consumer that declares dependencies only in a package `pyproject.toml`
-    # (no root requirements.txt) needs its own installation path — the earlier
-    # fix only ever recognized requirements.txt (#57 fresh finding).
-    assert "pyproject.toml" in step["run"]
-    assert "pip install -e ." in step["run"]
-    # Only a packaging-capable pyproject.toml (a literal `[project]` table)
-    # counts: this repository's own root pyproject.toml holds tool config
-    # only, with no installable package, and running `pip install -e .`
-    # against it fails setuptools' flat-layout auto-discovery (regression
-    # caught live on #57's own self-applied quality gate). setup.cfg/setup.py/
-    # Poetry-style pyproject.toml support is deferred to a dedicated issue.
-    assert "grep" in step["run"]
-    assert r"^\[project\]" in step["run"]
-    names = list(steps)
-    assert (
-        names.index("Install consumer dependencies")
-        < names.index(name)
-        < names.index("Run trusted quality checks")
-    )
 
 
 def test_quality_verifies_the_pr_links_its_issue_before_the_driver() -> None:
@@ -166,13 +113,13 @@ def test_quality_verifies_the_pr_links_its_issue_before_the_driver() -> None:
     reads the API; `GH_REPO` names the repository no worktree provides). An empty
     list is `::error::` naming how to link and how to re-run, then `exit 1`. No
     `shell:` key: `run` is `bash -e {0}`, so a failed read is red, never `ok`."""
-    document = _workflow("reusable-quality.yml")
-    steps = _steps("reusable-quality.yml")
-    names = list(steps)
+    document = _workflow("quality.yml")
+    raw = document["jobs"]["link"]["steps"]
+    steps = _steps("quality.yml")
 
     name = "Verify the PR links its issue"
     assert name in steps
-    assert names.index(name) < names.index("Checkout trusted quality driver")
+    assert not any(s.get("uses", "").startswith("actions/checkout") for s in raw)
     step = steps[name]
     assert step["env"] == {
         "GH_TOKEN": "${{ github.token }}",
@@ -224,8 +171,9 @@ def test_quality_callee_runs_the_callers_commands() -> None:
     jobs = document["jobs"]
     assert list(jobs) == ["link", "plan", "check", "quality"]
 
-    link = _steps("reusable-quality.yml")["Verify the PR links its issue"]
-    assert jobs["link"]["steps"] == [link]
+    steps = jobs["link"]["steps"]
+    assert len(steps) == 1
+    assert steps[0]["name"] == "Verify the PR links its issue"
 
     plan = jobs["plan"]
     _assert_checkout_and_python(plan["steps"])
