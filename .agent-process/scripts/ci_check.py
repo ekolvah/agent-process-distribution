@@ -3,9 +3,11 @@
 
     python .agent-process/scripts/ci_check.py            # run every check (pre-push)
     python .agent-process/scripts/ci_check.py --only X   # run one check by name locally
+    python .agent-process/scripts/ci_check.py --list     # print the check names as JSON
 
-CI runs this program without `--only` from the trusted default branch, so the
-same registry (CHECKS) defines its complete check set and the local full run.
+CI either runs this program without `--only` or takes one job per name of
+`--list` and runs it with `--only`, so the same registry (CHECKS) defines its
+complete check set and the local full run.
 A full run remembers the last clean, verified HEAD in `.ci_check_stamp` and
 skips straight to "already verified" when nothing has changed — see
 `_already_verified`. `CI` env var set disables this entirely.
@@ -14,6 +16,7 @@ skips straight to "already verified" when nothing has changed — see
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -433,13 +436,20 @@ def run_selected(only: str | None = None) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run quality checks (or one via --only).")
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--only",
         metavar="NAME",
         choices=sorted(CHECKS),
         help="run a single named check; default runs all",
     )
+    mode.add_argument(
+        "--list", action="store_true", help="print the check names as a JSON array, in run order"
+    )
     args = parser.parse_args()
+    if args.list:
+        print(json.dumps(list(CHECKS)))
+        return
     run_selected(args.only)
 
 
