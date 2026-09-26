@@ -23,12 +23,13 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 5. config    the marker block of `openspec/config.yaml`
 6. workflow  the managed `.github/workflows/agent-process.yml`
 7. dependabot  the marker block of `.github/dependabot.yml`
-8. settings  two keys of `.claude/settings.json`
-9. project-copy  `gh project copy` of the template Project as `<repository> agent process`,
+8. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
+9. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+10. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                  unless the repository has a linked Project or its owner an unlinked copy
-10. project-link `gh project link` of that one unlinked copy to the repository
+11. project-link `gh project link` of that one unlinked copy to the repository
 
-Steps 9-10 are classified from `gh` reads of the repository's linked Projects and its
+Steps 10-11 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The plan ends with `manual` rows — the Project's visibility and built-in workflows — that
 only its UI can change. Nothing is committed or pushed, and the Project copy and link are
@@ -97,6 +98,7 @@ CONFIG = "openspec/config.yaml"
 WORKFLOW = ".github/workflows/agent-process.yml"
 DEPENDABOT = ".github/dependabot.yml"
 SETTINGS = ".claude/settings.json"
+CHECK = ".claude/agent-process-check.py"
 TEMPLATE_OWNER = "ekolvah"
 TEMPLATE_PROJECT = "4"
 # The owner's Projects with what tells a reusable copy from one linked elsewhere; `gh project
@@ -509,6 +511,8 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     for key in ("extraKnownMarketplaces", "enabledPlugins"):
         if not isinstance(data.get(key, {}), dict):
             raise Conflict(f"`{key}` is not an object")
+    group = wanted["hooks"]["SessionStart"][0]
+    hooks, starts, new_starts = _session_starts(data, group)
     marketplaces = data.get("extraKnownMarketplaces", {})
     plugins = data.get("enabledPlugins", {})
     market = marketplaces.get(MARKETPLACE)
@@ -520,19 +524,57 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     if plugins.get(PLUGIN, True) is not True:
         raise Conflict(f"`{PLUGIN}` is set to {json.dumps(plugins[PLUGIN])}")
     entry = wanted["extraKnownMarketplaces"][MARKETPLACE]
-    if market == entry and plugins.get(PLUGIN) is True:
+    if market == entry and plugins.get(PLUGIN) is True and starts == new_starts:
         return text, text or ""
     # Re-serialising is lossless only from the form written here; any other form (spacing,
     # key order, escapes, repeated keys) is the person's to edit.
     if text is not None and text != json.dumps(data, indent=2, ensure_ascii=False) + "\n":
         raise Conflict(
             f'is not in the form init writes; add `"extraKnownMarketplaces": {{"{MARKETPLACE}":'
-            f' {json.dumps(entry)}}}` and `"enabledPlugins": {{"{PLUGIN}": true}}` by hand'
+            f' {json.dumps(entry)}}}`, `"enabledPlugins": {{"{PLUGIN}": true}}` and the'
+            f" `hooks.SessionStart` group {json.dumps(group)} by hand"
         )
     updated = dict(data)
     updated["extraKnownMarketplaces"] = {**marketplaces, MARKETPLACE: entry}
     updated["enabledPlugins"] = {**plugins, PLUGIN: True}
+    updated["hooks"] = {**hooks, "SessionStart": new_starts}
     return text, json.dumps(updated, indent=2, ensure_ascii=False) + "\n"
+
+
+def _session_starts(
+    data: dict[str, Any], group: dict[str, Any]
+) -> tuple[dict[str, Any], list[Any], list[Any]]:
+    """`hooks`, its `SessionStart` groups, and those groups with the owned one in place: the
+    first owned group is replaced, a repeated one dropped, a missing one appended."""
+    hooks = data.get("hooks", {})
+    if not isinstance(hooks, dict):
+        raise Conflict("`hooks` is not an object")
+    starts = hooks.get("SessionStart", [])
+    if not isinstance(starts, list):
+        raise Conflict("`hooks.SessionStart` is not a list")
+    owned = [i for i, start in enumerate(starts) if _runs_check(start)]
+    new_starts = [start for i, start in enumerate(starts) if i not in owned[1:]]
+    if owned:
+        new_starts[owned[0]] = group
+    else:
+        new_starts.append(group)
+    return hooks, starts, new_starts
+
+
+def _runs_check(group: Any) -> bool:
+    """A `SessionStart` group is the owned one when a command of it runs the check file."""
+    commands = group.get("hooks") if isinstance(group, dict) else None
+    return isinstance(commands, list) and any(
+        isinstance(hook, dict) and Path(CHECK).name in str(hook.get("command", ""))
+        for hook in commands
+    )
+
+
+def _check_text(ctx: Context) -> tuple[str | None, str]:
+    text = _read(ctx.root / CHECK)
+    if text is not None and text.split("\n", 1)[0].strip() != MANAGED:
+        raise Conflict(f"exists without its first line `{MANAGED}`")
+    return text, (TEMPLATES / "skill_check.py").read_text(encoding="utf-8")
 
 
 def _file_step(
@@ -564,6 +606,7 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         _file_step(ctx, "workflow", WORKFLOW, _workflow_text),
         _file_step(ctx, "dependabot", DEPENDABOT, _dependabot_text),
         _file_step(ctx, "settings", SETTINGS, _settings_text),
+        _file_step(ctx, "check", CHECK, _check_text),
     ]
 
 

@@ -11,9 +11,9 @@
 
 ## 2. Check
 
-- [ ] 2.1 `templates/skill_check.py` (design: Check file and hook entry). Verify `python -m pytest tests/publisher/test_skill_check.py -q` is green
-- [ ] 2.2 `init.py`: `CHECK = ".claude/agent-process-check.py"`, a `check` file step, the owned `SessionStart` group in `_settings_text`, the footprint comment. `templates/settings.json` gains the hook; this repository's `.claude/settings.json` gains its own group (design: The publisher checks itself). Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_plugin.py -q` is green
-- [ ] 2.3 `SKILL.md` `## Install` (design: Install text). Verify `python -m pytest tests/publisher -q` is green, commit Group 2 as `feat(distribution): a Claude session start reports a missing skill`
+- [x] 2.1 `templates/skill_check.py` (design: Check file and hook entry). Verify `python -m pytest tests/publisher/test_skill_check.py -q` is green
+- [x] 2.2 `init.py`: `CHECK = ".claude/agent-process-check.py"`, a `check` file step, the owned `SessionStart` group in `_settings_text`, the footprint comment. `templates/settings.json` gains the hook; this repository's `.claude/settings.json` gains its own group (design: The publisher checks itself). Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_plugin.py -q` is green
+- [x] 2.3 `SKILL.md` `## Install` (design: Install text). Verify `python -m pytest tests/publisher -q` is green, commit Group 2 as `feat(distribution): a Claude session start reports a missing skill`
 
 ## 3. Verify
 
