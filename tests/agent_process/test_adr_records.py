@@ -1,6 +1,6 @@
-"""Structural guard for the `docs/adr/` catalogue.
+"""Structural guard for the `.agent-process/docs/adr/` catalogue.
 
-**What is guarded.** Decision rationales live in MADR records in `docs/adr/`, and the entire point of
+**What is guarded.** Decision rationales live in MADR records in `.agent-process/docs/adr/`, and the entire point of
 the mechanism is a **stable ID with a body in the repository and a status**: only then can a
 state document refer to a decision rather than restating it beside itself. The guard protects precisely
 the properties without which an ID ceases to be an address: a conventional name,

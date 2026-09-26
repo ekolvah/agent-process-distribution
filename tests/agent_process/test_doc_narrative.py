@@ -38,7 +38,7 @@ rather than by a list of spellings. A link is matched by the end of its URL, not
 token; a link to another file would pass. This is precisely the condition under which the date branch was rejected as open
 (ledger **AC** in `coverage-gaps.md`).
 
-**Scope.** The branches concerning pointer form are `.md` from the git index minus `docs/adr/`; the sigil branch is
+**Scope.** The branches concerning pointer form are `.md` from the git index minus `.agent-process/docs/adr/`; the sigil branch is
 **all** tracked files. `git ls-files`, not a filesystem traversal: `.claude/worktrees/` is gitignored
 and holds repository copies with old docs (the same argument as in `tests/test_doc_links.py`).
 MADR records are excluded **by genre**: a record is the home of rationale, it is dated by design
@@ -203,7 +203,7 @@ def _tracked_files() -> tuple[str, ...]:
 
 
 def _tracked_docs() -> tuple[str, ...]:
-    """Tracked `.md` outside `docs/adr/`—scope of pointer-form branches."""
+    """Tracked `.md` outside `.agent-process/docs/adr/`—scope of pointer-form branches."""
     names = [name for name in _tracked_files() if name.endswith(".md")]
     return tuple(name for name in names if not name.startswith(_EXCLUDED_DIR))
 

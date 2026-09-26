@@ -186,6 +186,6 @@ than inheriting a blended number silently.
 The observation records — the four pre-change checks and the post-change
 verification of both routes — are captured under `evidence/issue-97/`, which is
 working-tree-only. The redaction-safe summary of what they establish is in
-[the measurement setup document](../telemetry-measurement-setup.md), which is the
+[the measurement setup document](../../../docs/telemetry-measurement-setup.md), which is the
 durable home for the setup itself: which variables, which collector, which
 dashboards, and which label carries what.

@@ -19,7 +19,7 @@ stayed:
   turn a missing file into a silent skip (§IV). `docs/telemetry-measurement-setup.md:38-41`
   still describes "the Copier render" and an `init` step that telemetry's exit (ADR 0029) cancelled.
 
-Tracking issue: #206.
+This change has a tracking issue (#206).
 
 ## What Changes
 
