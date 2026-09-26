@@ -4,8 +4,8 @@ A PR shows one line for quality, `agent-process / quality`. The driver behind it
 (`ci_check.py`) runs nine checks — format, lint, module-size, test-imports, secrets,
 pytest, pip-audit, pip-audit-dev, requirements — in one step and stops at the first failure.
 So the merge box does not show what was checked, and a red `lint` hides whether `secrets` or
-`pytest` pass. Observed on PR #202: the check list holds `agent-process / quality` as the
-only quality entry.
+`pytest` pass. A PR's check list holds `agent-process / quality` as the only quality entry
+(observed on #202).
 
 ## What Changes
 
