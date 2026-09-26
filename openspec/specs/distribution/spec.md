@@ -290,8 +290,8 @@ line before any other step and, when it is absent, not a `<major>.<minor>.<patch
 different from the release of the running skill, exit 2 without a GitHub call, naming both
 releases and the fix: re-run Install with the running skill when the project's release is absent,
 unparsable or older. When the skill's release is older, the fix SHALL name, for Claude, the
-user-scope marketplace declaration at `v<recorded>` (`claude plugin marketplace add
-"ekolvah/agent-process-distribution#v<recorded>"`, or an edit of the declaration in
+user-scope marketplace declaration at `v<recorded>` (`claude plugin marketplace add`, run outside any project,
+with "ekolvah/agent-process-distribution#v<recorded>"`, or an edit of the declaration in
 `~/.claude/settings.json`), a restart, `claude plugin update
 agent-process@agent-process-marketplace` for each install scope and a restart. For Codex it
 SHALL name Install with `--version <recorded>` and a restart. It SHALL NOT name

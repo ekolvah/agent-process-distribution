@@ -435,7 +435,8 @@ def release_drift(root: Path, script_dir: Path) -> str | None:
     if parsed and _release(parsed[0]) > _release(VERSION):
         return (
             f"{head} — update the skill to {recorded}. Claude: declare the marketplace at "
-            f'v{recorded} with `claude plugin marketplace add "{GITHUB_REPO}#v{recorded}"`, or '
+            f"v{recorded} from outside any project (the project's own declaration refuses "
+            f'`add`) with `claude plugin marketplace add "{GITHUB_REPO}#v{recorded}"`, or '
             f"edit its `ref` in `~/.claude/settings.json` when it is declared there; "
             f"restart; run `claude plugin update agent-process@agent-process-marketplace "
             f"--scope <user|project>` for each install; restart. Codex: Install with "

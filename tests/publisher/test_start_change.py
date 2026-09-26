@@ -573,6 +573,7 @@ def test_skill_behind_names_observed_path(
     assert exc.value.code == 2, err
     for token in (
         f'claude plugin marketplace add "ekolvah/agent-process-distribution#v{recorded}"',
+        "outside any project",
         "~/.claude/settings.json",
         "claude plugin update agent-process@agent-process-marketplace",
         "--scope",

@@ -151,7 +151,8 @@ the plugin only after the person trusts the folder, and runs the release the mac
 fetched for the marketplace name: the `ref` in the project's `.claude/settings.json` does not
 re-point a marketplace the machine already knows. The user-scope declaration in
 `~/.claude/settings.json` does, and it pins one release for every repository on the machine.
-To move the machine to release `<x.y.z>`, declare it with `claude plugin marketplace add
+To move the machine to release `<x.y.z>`, declare it from outside any project, since the
+project's own declaration refuses the command, with `claude plugin marketplace add
 "ekolvah/agent-process-distribution#v<x.y.z>"` (or edit its `ref` in `~/.claude/settings.json`
 when it is already declared there), restart, run `claude plugin update
 agent-process@agent-process-marketplace --scope <user|project>` for each install, and restart.
