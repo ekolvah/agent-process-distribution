@@ -10,5 +10,17 @@
   },
   "enabledPlugins": {
     "agent-process@agent-process-marketplace": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$$CLAUDE_PROJECT_DIR/.claude/agent-process-check.py\" https://github.com/ekolvah/agent-process-distribution/blob/v${version}/skills/agent-process/SKILL.md#install"
+          }
+        ]
+      }
+    ]
   }
 }

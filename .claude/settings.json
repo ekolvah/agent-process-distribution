@@ -32,6 +32,16 @@
     ]
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/skills/agent-process/templates/skill_check.py\" https://github.com/ekolvah/agent-process-distribution/blob/main/skills/agent-process/SKILL.md#install"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",

@@ -146,9 +146,13 @@ skill's own directory. Run from the consumer's root:
    the PR must also show that check green.
 
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
-install of another version in any repository moves it for every repository. The Claude
-plugin is pinned per repository by `.claude/settings.json`, and Claude applies it only after
-the person trusts the folder. Codex without this skill starts from a temporary clone of the
+install of another version in any repository moves it for every repository. Claude applies
+the plugin only after the person trusts the folder, and runs the release the machine last
+fetched for the marketplace name: the `ref` in `.claude/settings.json` does not re-point a
+marketplace the machine already knows (#184). At each Claude session start the installed
+check prints `agent-process skill not loaded (<reason>)` when the plugin does not supply
+the skill; the fix is `/plugin marketplace update agent-process-marketplace` and a restart,
+or enabling the plugin for the project. Codex without this skill starts from a temporary clone of the
 release tag (`git clone --depth 1 --branch v<x.y.z>
 https://github.com/ekolvah/agent-process-distribution.git <dir>`) and runs that clone's
 `skills/agent-process/scripts/init.py` from the consumer's root.

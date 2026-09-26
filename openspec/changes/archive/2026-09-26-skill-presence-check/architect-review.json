@@ -1,0 +1,54 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every platform behaviour the plan rests on is observed, the upgrade path and the publisher's own blindness are decided and tested, each delta scenario has a discriminating test, and the RED step now fails in every test body.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md > Decisions rejects prose rules in the config block, a plugin hook, delivery-script checks and a Codex hook; `Skill not loaded` and `Check cannot decide` reject all four, since each is absent or ignorable exactly when the skill is. The simpler signal (read `.claude/settings.json` plus the plugin cache, no subprocess) is rejected by the same scenarios: per-project enablement and the duplicate installs of one folder are visible only in `claude plugin list --json` (reviewer ran it, 2026-09-26). Dropping `string.Template` for one URL argument removed a rendering step and let the publisher run the same file (design.md > The publisher checks itself) — one code path, not two. Each clause of `verdict()` maps to one observed case; none is speculative.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Five delta scenarios, five entries in tasks.md > Scenario → test map: `Fresh repository` → test_installed_footprint_is_closed; `Installation of another release` → test_rerender_replaces_only_owned_content, test_installed_consumer_gains_the_hook (which carries both halves of the upgrade decision); `Skill loaded` → test_loaded_is_silent, test_case_differing_project_paths_are_one_project; `Skill not loaded` → test_not_loaded_is_marked; `Check cannot decide` → test_undecidable_is_marked, including the missing-URL argument. The publisher's own group is asserted by the existing `tests/publisher/test_plugin.py::test_publisher_dogfoods_process` (line 128) under the standing `This repository dogfoods its own process` requirement, so it needs no delta scenario.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 writes every test of the map before any production edit, and 1.4 runs `check_red.py` over them before the RED commit. The stub is now a `templates/skill_check.py` that prints `stub` and exits 1, so `test_loaded_is_silent` fails on stdout and exit code, the marker tests fail on the missing JSON, and the 1.2-1.3 tests fail on the absent `check` step, hook entry, footprint path and Install text — no test of the group is green by construction, which is what `check_red.evaluate_report` (skills/agent-process/scripts/check_red.py:108-157) demands. One node id to leave out of the invocation: `test_package_contents_are_closed`, which the `TEMPLATES` edit of 1.3 makes green as soon as the stub file exists; it is not a test of this change's behaviour, and check_red names it if it is passed in.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every platform behaviour the design rests on is observed. #187 comments (2026-09-26, Claude Code 2.1.280): a project `SessionStart` hook runs with the plugin disabled, headless and interactive; `additionalContext` reaches the agent; a crashing hook is silent; the hook's stdin carries nothing about plugins. https://github.com/ekolvah/agent-process-distribution/issues/187#issuecomment-5843168590 (2026-09-26T04:29:13Z, fetched by the reviewer): a `SessionStart` hook's `systemMessage` is shown to the person in the interactive UI. Reviewer ran `claude plugin list --json` on 2026-09-26: entries carry `id`, `version`, `scope`, `enabled`, `installPath`, `projectPath`; user-scope entries have no `projectPath`; this repository yields a user and a project entry sharing one `installPath`, so the `distinct installPath` rule leaves the publisher's own check silent while the sandbox's 0.1.0/2.0.0 pair marks. `$$CLAUDE_PROJECT_DIR` in the hook command matches `init._template`'s `string.Template.substitute` (init.py:150-152), and `skill_check.py` is no longer substituted at all.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "design.md > Check file and hook entry lists the guard it touches: the early `unchanged` return of `init._settings_text` (init.py:520-535) requires the owned `SessionStart` group too, so an already-installed consumer takes the rewrite branch and gets the hook, and a file not in init's form takes the existing conflict, whose manual instruction now names the hook group — the same outcome a `ref` change already produces there. proposal.md > Impact states that outcome. tasks.md 1.2 proves both halves in `test_installed_consumer_gains_the_hook`, and the scenario map cites it instead of `test_update_keeps_consumer_bytes`, whose own assertions survive: it reformats a settings file the new install has already given the hook, so the group is present, the early return holds, and its CRLF and final-newline guards still stand. Other replacements listed: the check file is fully owned like the workflow; `## Install` drops \"pinned per repository\" against the #184 observation.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Catchers traced end to end: 1.4 `check_red.py` reaches the RED commit; 2.1-2.3 `pytest tests/publisher` reaches each production edit, and `test_installed_footprint_is_closed` pins the whole settings object, so a mis-rendered hook command or a missing check file fails there; 3.1 `openspec validate --strict --all` and 3.2 `ci_check.py` plus the `git diff --name-only origin/main` comparison against Impact (which lists `.claude/settings.json`) reach delivery; 4.1-4.4 carry archive, PR, `@codex review`, `wait_for_pr` and the three-round escalation. The publisher is no longer outside the net: design.md > The publisher checks itself runs `templates/skill_check.py` from source in this repository's `.claude/settings.json`, asserted by `test_publisher_dogfoods_process`, so the three-week outage of proposal.md > Why is marked here too. Codex is the one accepted gap, recorded in design.md > Decisions and > Risks and named in the PR report (task 4.2).",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Added or edited prose: the `A Claude session start reports a missing skill` requirement ~110 words with ~70 of scenarios, the `The installed footprint is closed` edit ~35, the `## Install` addition ~45. Asserted by tasks 1.1-1.3: exit code and silence, each not-loaded case (no entry, disabled, other project, two installPaths, no SKILL.md), each undecidable case (no CLI, exit 1, non-JSON, JSON object, missing URL argument), both output fields, the `agent-process skill not loaded` and `SKILL.md#install` strings, the case-differing project paths, the owned hook entry with its rendered command, the publisher's group, and the three Install strings — every clause of both requirements and of the Install text has a test.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Non-test additions of proposal.md > Impact and design.md: `skills/agent-process/templates/skill_check.py` and the `SessionStart` group it adds to the consumer's and to this repository's `.claude/settings.json`; `tests/publisher/test_skill_check.py` is a test file. Both close an observed problem (#187, and the three-week blindness of this repository); the standard for the job is Claude Code's own plugin declaration, which reports no absence. Standard library only, one `subprocess.run` with `encoding=\"utf-8\"` and a 10 s timeout, a pure `verdict()` under unit test, no rendering layer, no new dependency, and no new script in the delivery flow.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": [
+    {
+      "path": "skills/agent-process/templates/skill_check.py",
+      "problem": "#187",
+      "standard": "Claude Code's own plugin machinery: `enabledPlugins` and `extraKnownMarketplaces` of `.claude/settings.json`, which already declare the required plugin, plus the `/plugin` UI.",
+      "why_not": "Declaring the plugin does not surface its absence: #184 left a stale marketplace entry and a 0.1.0 cache without `SKILL.md`, and the session said nothing (#187). Claude emits no session-start signal about a declared-but-unloaded plugin and the hook's stdin carries no plugin data (observed 2026-09-26), so `claude plugin list --json` is the only observed per-project presence signal and nothing standard turns it into a marker."
+    },
+    {
+      "path": ".claude/settings.json (this repository's own SessionStart group)",
+      "problem": "#187",
+      "standard": "The same plugin declaration this repository already carries, and its existing `.agent-process/scripts/hooks.py` hooks.",
+      "why_not": "The declaration is what silently failed here for three weeks (proposal.md > Why), and the existing hooks run on tool use, not at session start. The group adds no file: it runs the change's own `templates/skill_check.py` from source with the `main` Install URL, so the publisher exercises the shipped check instead of a second implementation."
+    }
+  ]
+}
