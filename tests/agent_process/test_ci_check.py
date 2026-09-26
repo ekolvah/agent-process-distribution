@@ -6,7 +6,9 @@ codes, and the capture-failure path that must name its real cause.
 
 from __future__ import annotations
 
+import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -403,6 +405,23 @@ class TestStamp:
 
         assert called == ["first"]
         assert self._stamp(tmp_path).read_text(encoding="utf-8").strip() == "0" * 40
+
+
+def test_list_prints_the_registry(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    called: list[str] = []
+    checks = {
+        "first": lambda: called.append("first"),
+        "second": lambda: called.append("second"),
+    }
+    monkeypatch.setattr(ci_check, "CHECKS", checks)
+    monkeypatch.setattr(sys, "argv", ["ci_check.py", "--list"])
+
+    ci_check.main()
+
+    assert json.loads(capsys.readouterr().out) == ["first", "second"]
+    assert called == []
 
 
 class TestMypyManifest:
