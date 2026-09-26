@@ -138,14 +138,26 @@ that changes either.
 - **THEN** its output carries the two `manual` rows and no command it issued changes a Project's visibility or workflows
 
 ### Requirement: The quality callee runs the caller's commands
-The reusable workflow `quality.yml` SHALL take an optional `setup` and a required `test`
-command from its caller. Its one job `quality` SHALL first verify that the PR links its issue,
-then run `setup` when one is given and then `test` on the PR's checkout. A failing command
-SHALL fail the job.
+The reusable workflow `quality.yml` SHALL take an optional `setup`, a required `test`, and an
+optional `checks` command from its caller. A job SHALL verify that the PR links its issue.
+When `checks` is given, its output SHALL be a JSON array of check names, and each name SHALL
+run `setup` when one is given and then `test --only <name>` on the PR's checkout, in a job of
+its own named after the check. A failing check job SHALL NOT cancel another. Without `checks`,
+one job SHALL run `setup` and then `test`. The job `quality` SHALL succeed only when the link
+job, the listing job, and every check job succeeded, and SHALL fail otherwise, including when
+one of them was skipped or cancelled.
 
 #### Scenario: Consumer test fails
 - **WHEN** a caller's `test` command exits non-zero on a PR that links its issue
-- **THEN** the `quality` job fails at that step
+- **THEN** the `quality` job fails
+
+#### Scenario: One check fails
+- **WHEN** a caller gives `checks`, and on a PR that links its issue one listed check exits non-zero
+- **THEN** that check's job fails, every other listed check's job runs to its own conclusion, and the `quality` job fails
+
+#### Scenario: Listing fails
+- **WHEN** the `checks` command exits non-zero or prints anything but a non-empty JSON array of check names
+- **THEN** the `quality` job fails
 
 ### Requirement: Callers reach the quality callee
 A caller job of `quality.yml` SHALL be named `agent-process`, so the check reports as
@@ -240,7 +252,7 @@ any order.
 Every head of this repository SHALL be gated by a required context that the PR cannot
 change: `agent-review / agent-review`, which reviews that head. A required context that runs
 the PR's own driver, `agent-process / quality`, SHALL be required only beside it. Each PR
-SHALL run the quality driver once.
+SHALL run each check of the quality driver once.
 
 #### Scenario: PR weakens its own driver
 - **WHEN** a PR of this repository changes the driver that `agent-process / quality` runs
@@ -248,7 +260,7 @@ SHALL run the quality driver once.
 
 #### Scenario: Quality runs once per PR
 - **WHEN** a PR of this repository opens or receives a push
-- **THEN** `agent-process / quality` is the only check run that executes the quality driver on its head
+- **THEN** only jobs of the `agent-process` caller execute the quality driver on its head, and each check of its registry runs in exactly one of them
 
 ### Requirement: Package paths resolve in a consumer
 A file of the package — the skill directory, `agents/`, and `commands/` — SHALL NOT name a
