@@ -100,10 +100,7 @@ def test_loaded_is_silent(tmp_path: Path) -> None:
 def test_case_differing_project_paths_are_one_project(tmp_path: Path) -> None:
     project = str(tmp_path / "project")
     install = _install(tmp_path, "2.0.0")
-    listing = [
-        _entry(install, scope="project", projectPath=project),
-        _entry(install, scope="project", projectPath=project.swapcase()),
-    ]
+    listing = [_entry(install, scope="project", projectPath=project.swapcase())]
     done = _run(tmp_path, json.dumps(listing))
     assert (done.returncode, done.stdout) == (0, ""), done.stderr
 

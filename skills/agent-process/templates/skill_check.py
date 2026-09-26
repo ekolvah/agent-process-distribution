@@ -27,16 +27,13 @@ def verdict(listing: Any, project: str) -> str | None:
     """The reason the skill is not loaded, `None` when it is."""
     if not isinstance(listing, list) or not all(isinstance(e, dict) for e in listing):
         return "cannot check: `claude plugin list --json` is not a list of objects"
-    here = os.path.normcase(os.path.normpath(project))
+    here = _folded(project)
     applying = [
         entry
         for entry in listing
         if entry.get("id") == PLUGIN
         and entry.get("enabled") is True
-        and (
-            entry.get("scope") == "user"
-            or os.path.normcase(os.path.normpath(str(entry.get("projectPath", "")))) == here
-        )
+        and (entry.get("scope") == "user" or _folded(str(entry.get("projectPath", ""))) == here)
     ]
     if not applying:
         return "not enabled for this project"
@@ -48,6 +45,11 @@ def verdict(listing: Any, project: str) -> str | None:
     if not (Path(path) / "skills" / "agent-process" / "SKILL.md").is_file():
         return f"plugin {entry.get('version')} has no skill"
     return None
+
+
+def _folded(path: str) -> str:
+    """A project path compared ignoring case on every OS: `normcase` folds only on Windows."""
+    return os.path.normpath(path).casefold()
 
 
 def _reason(argv: list[str]) -> str | None:
