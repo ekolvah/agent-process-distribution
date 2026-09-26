@@ -364,19 +364,16 @@ def test_rerender_replaces_only_owned_content(
 
 
 def test_config_block_records_release(sandbox: Sandbox) -> None:
-    """Scenario: Release recorded — a fresh install and a rerender over another release's block
-    both leave the installed release inside the block (#190)."""
+    """Scenario: Release recorded — install and rerender record the installed release (#190)."""
     init = load_init()
-    line = f"# agent-process release: {init.VERSION}"
+    line, old = f"# agent-process release: {init.VERSION}", "# agent-process release: 1.9.0"
     config = sandbox.root / "openspec" / "config.yaml"
     _installed(init, sandbox)
     assert line in _only_block(config.read_text(encoding="utf-8")).splitlines()
-
-    old = config.read_text(encoding="utf-8").replace(line, "# agent-process release: 1.9.0")
-    config.write_text(old, encoding="utf-8")
+    config.write_text(config.read_text(encoding="utf-8").replace(line, old), encoding="utf-8")
     _installed(init, sandbox)
     block = _only_block(config.read_text(encoding="utf-8")).splitlines()
-    assert line in block and "# agent-process release: 1.9.0" not in block
+    assert line in block and old not in block
 
 
 def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:

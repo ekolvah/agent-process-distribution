@@ -15,8 +15,8 @@ installed with against its own `VERSION`. The first delivery commands a carrier 
 `create_tracking_issue.py` (end of propose) and `start_change.py` (Group 0); neither reads a
 release today.
 
-`## Install` no longer claims a per-repository plugin pin: #191 replaced it with the #184
-observation, so this change leaves that text alone.
+`## Install` no longer claims a per-repository plugin pin, since a previous change replaced it
+with the observed user-wide plugin (#191), so this change leaves that text alone.
 
 ## What Changes
 
@@ -43,7 +43,8 @@ observation, so this change leaves that text alone.
   `skills/agent-process/scripts/start_change.py`,
   `skills/agent-process/scripts/create_tracking_issue.py`, `tests/publisher/test_init.py`,
   `tests/publisher/test_delivery_scripts.py`.
-- Added: none. Removed: none. No doc edit: the exit messages carry the fix, and `## Install`
+- Added: `tests/publisher/test_release_drift.py` (the drift tests; `test_delivery_scripts.py`
+  would pass the 1000-line module limit). Removed: none. No doc edit: the exit messages carry the fix, and `## Install`
   already names the plugin update (#191).
 - Consumers installed by 2.0.0 have no recorded release: their first `create_tracking_issue` or
   `start_change` after this release exits 2 asking to re-run Install, which writes the line.
