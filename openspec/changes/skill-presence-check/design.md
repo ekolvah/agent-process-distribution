@@ -2,8 +2,8 @@
 
 A consumer holds no process script (`distribution` / The installed footprint is closed): the
 procedure and scripts come from the Claude plugin or the user-wide Codex skill link. When the
-plugin does not load, only the agent can see it, and in #187 it improvised instead of saying so.
-Observations are in the proposal and on #187.
+plugin does not load, only the agent can see it, and it improvised instead of saying so (#187).
+Observations are in the proposal and on that issue.
 
 ## Decisions
 
@@ -71,8 +71,8 @@ so the three-week outage named in the proposal is marked here too.
 
 `## Install` gains: a Claude session start that prints `agent-process skill not loaded` names the
 reason; the fixes are `/plugin marketplace update agent-process-marketplace` and a restart, or
-enabling the plugin. It also drops "pinned per repository by `.claude/settings.json`": #184
-observed that the project's `ref` does not re-point a marketplace the machine already knows.
+enabling the plugin. It also drops "pinned per repository by `.claude/settings.json`": the
+project's `ref` does not re-point a marketplace the machine already knows (#184).
 
 ## Risks
 
@@ -80,7 +80,7 @@ observed that the project's `ref` does not re-point a marketplace the machine al
   (the process already needs Python for every script); the second prints `cannot check`, so it
   shows rather than hides.
 - Every session start costs ~0.5 s (observed).
-- Codex sessions stay unchecked (accepted, above). Version drift is #190.
+- Codex sessions stay unchecked (accepted, above). Version drift is out of scope (#190).
 
 ## Migration and rollback
 

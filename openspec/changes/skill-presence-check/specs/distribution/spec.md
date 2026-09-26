@@ -25,7 +25,7 @@ one enabled install of `agent-process@agent-process-marketplace` that applies to
 holds `skills/agent-process/SKILL.md`. In every other case, including a missing or failing CLI,
 unparsable output, or an error of the check itself, it SHALL exit 0 with a `systemMessage` for the
 person naming `agent-process skill not loaded`, the reason, and the Install URL the hook passes
-it (the installed release's `SKILL.md#install`), and an `additionalContext` telling the agent not to reconstruct the skill.
+it (the Install section of the installed release's skill), and an `additionalContext` telling the agent not to reconstruct the skill.
 
 #### Scenario: Skill loaded
 - **WHEN** exactly one enabled applicable install holds the skill

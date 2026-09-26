@@ -1,6 +1,6 @@
 ## Why
 
-#187, observed in `ekolvah/agent-process-sandbox` after `init --confirm` (#117 step 7a): the
+Observed (#187) in `ekolvah/agent-process-sandbox` after `init --confirm` (#117 step 7a): the
 Claude plugin cache held 0.1.0 (#184) — no `SKILL.md`, no `scripts/`. `/opsx:propose` ran, nothing
 said the skill was absent, and the agent cloned the `v2.0.0` tag into its scratchpad and ran
 scripts from there. In this repository the plugin did not load for about three weeks (a stale
@@ -49,4 +49,4 @@ creates: Codex is out of scope.
 - Added: `skills/agent-process/templates/skill_check.py`, `tests/publisher/test_skill_check.py`.
   Removed: none.
 - Consumers get the check on their next `init --confirm`; one whose settings file is hand-formatted
-  gets the existing conflict with a manual instruction. Release drift is #190.
+  gets the existing conflict with a manual instruction. Release drift is out of scope (#190).
