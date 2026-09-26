@@ -251,11 +251,16 @@ def test_the_pr_link_gate_is_gone() -> None:
     assert not (ROOT / ".agent-process" / "scripts" / "verify_pr_link.py").exists()
 
 
+def test_the_copier_answers_are_gone() -> None:
+    """remove-copier-leftovers: no script reads the v1 Copier answers file."""
+    assert not (ROOT / ".agent-process" / "copier-answers.yml").exists()
+
+
 def test_the_v1_quality_callee_is_gone() -> None:
     """remove-reusable-quality: the v1 callee has no caller and no consumer, so neither
     the file nor a reference to it survives."""
     assert not (WORKFLOWS / "reusable-quality.yml").exists()
-    for path in [*sorted(WORKFLOWS.iterdir()), ROOT / ".agent-process" / "copier-answers.yml"]:
+    for path in sorted(WORKFLOWS.iterdir()):
         assert "reusable-quality" not in path.read_text(encoding="utf-8"), path
 
 

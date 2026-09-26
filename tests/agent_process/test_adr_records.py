@@ -1,6 +1,6 @@
-"""Structural guard for the `docs/adr/` catalogue.
+"""Structural guard for the `.agent-process/docs/adr/` catalogue.
 
-**What is guarded.** Decision rationales live in MADR records in `docs/adr/`, and the entire point of
+**What is guarded.** Decision rationales live in MADR records in `.agent-process/docs/adr/`, and the entire point of
 the mechanism is a **stable ID with a body in the repository and a status**: only then can a
 state document refer to a decision rather than restating it beside itself. The guard protects precisely
 the properties without which an ID ceases to be an address: a conventional name,
@@ -28,6 +28,7 @@ automatically. The guard against an empty catalogue counters the same §IV vacuu
 from __future__ import annotations
 
 import re
+import subprocess
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
@@ -176,6 +177,24 @@ class TestAdrCatalogue:
             f"проверяют пустой набор, и 'нечего проверять' становится неотличимо от "
             f"'всё в порядке'"
         )
+
+    def test_no_record_outside_the_catalogue(self) -> None:
+        """A record outside `_ADR_DIR` escapes every check of this module."""
+        tracked = subprocess.run(
+            ["git", "ls-files", "-z"],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            encoding="utf-8",
+            check=True,
+        ).stdout.split("\0")
+        strays = [
+            path
+            for path in tracked
+            if path
+            and _RECORD_NAME.match(Path(path).name)
+            and (_REPO_ROOT / path).parent != _ADR_DIR
+        ]
+        assert not strays, f"записи ADR вне {_ADR_DIR}: {strays}"
 
     def test_template_exists_and_is_not_a_record(self) -> None:
         """The adjacent template must exist but remain invalid as a record.

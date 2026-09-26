@@ -35,10 +35,10 @@ Dashboards are referred to by UID rather than by URL, for the same reason:
 vcs.repository.name=<owner>/<repository>,vcs.repository.url.full=https://github.com/<owner>/<repository>
 ```
 
-Each adoption carries its own value, never this repository's. Until `init`
-(v2-2) writes the pairs, an adopter sets them by hand — the Copier render that
-used to fill them from the answers file was retired with the template mirror
-(#119). The URL pair is omitted when the repository has no canonical GitHub URL;
+Each adoption carries its own value, never this repository's. An adopter sets
+the pairs by hand: telemetry left the v2 migration
+([ADR 0029](../.agent-process/docs/adr/0029-telemetry-leaves-the-v2-migration.md)).
+The URL pair is omitted when the repository has no canonical GitHub URL;
 a guessed one is worse than an absent one.
 
 `vcs.repository.name` and `vcs.repository.url.full` are documented OpenTelemetry
@@ -142,7 +142,7 @@ That residual gap is not a documentation problem; it is a measurement condition,
 and it is auditable: Codex traffic sitting under `vcs_repository_name="unattributed"`
 inside a measured window means some role ran outside the attribution. The
 reasoning and the decision are in
-[ADR 0026](adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md).
+[ADR 0026](../.agent-process/docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md).
 
 The collector configuration lives on the owner's machine, outside this
 repository, for the same reason the transport variables do: it is host state, not
