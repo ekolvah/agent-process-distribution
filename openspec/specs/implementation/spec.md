@@ -193,3 +193,11 @@ final message, or written in that message when the carrier cannot publish a page
 #### Scenario: Run ends
 - **WHEN** the implementing run stops after its PR
 - **THEN** its final message links or carries the plain-words explanation of the delivered change
+
+### Requirement: ci_check forbids test-to-test imports
+`ci_check` SHALL fail when a test module imports another test module. A test module MAY import
+a non-test helper module.
+
+#### Scenario: Test module imports a test module
+- **WHEN** a test module imports another test module, while another imports only a helper module
+- **THEN** `ci_check` exits non-zero and names the importing and the imported test module, and reports nothing for the helper import
