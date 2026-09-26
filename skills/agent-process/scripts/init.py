@@ -415,6 +415,10 @@ def _recorded_pin(text: str | None) -> str | None:
     return None
 
 
+def release_drift(root: Path, script_dir: Path) -> str | None:
+    return None
+
+
 def _with_pin(text: str) -> str:
     lines = text.split("\n")
     span = _span(lines)
