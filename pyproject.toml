@@ -27,3 +27,10 @@ max-module-lines = 1000
 testpaths = ["tests/publisher"]
 python_files = ["test_*.py"]
 pythonpath = [".agent-process", "."]
+
+[tool.tach]
+source_roots = ["."]
+
+[[tool.tach.modules]]
+path = "tests.**.test_*"
+depends_on = []

@@ -601,3 +601,36 @@ class TestComplexityLimits:
             ci_check.check_lint()
 
         assert "RUF100" in capfd.readouterr().out
+
+
+class TestTestImports:
+    """A test module never imports another test module; helper modules stay importable."""
+
+    def test_test_module_importing_test_module_fails(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+    ) -> None:
+        subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+        (tmp_path / "pyproject.toml").write_text(
+            (_PROCESS_PYPROJECT.parent.parent / "pyproject.toml").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        tests = tmp_path / "tests" / "publisher"
+        tests.mkdir(parents=True)
+        (tests / "test_a.py").write_text("A = 1\n", encoding="utf-8")
+        (tests / "test_b.py").write_text("from tests.publisher.test_a import A\n", encoding="utf-8")
+        (tests / "helper.py").write_text("H = 1\n", encoding="utf-8")
+        (tests / "test_c.py").write_text("from tests.publisher.helper import H\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(SystemExit):
+            run_selected("test-imports")
+
+        captured = capfd.readouterr()
+        out = captured.out + captured.err
+        assert "tests.publisher.test_b" in out
+        assert "tests.publisher.test_a" in out
+        assert "test_c" not in out

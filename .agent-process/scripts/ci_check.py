@@ -148,6 +148,10 @@ def check_module_size() -> None:
         _run([sys.executable, "-m", "pylint", "--rcfile", "pyproject.toml", *product])
 
 
+def check_test_imports() -> None:
+    pass
+
+
 def _configures_module_size(path: Path) -> bool:
     """Whether `path` enables pylint `too-many-lines` and nothing else."""
     if not path.is_file():
@@ -339,6 +343,7 @@ CHECKS: dict[str, Callable[[], None]] = {
     "format": check_format,
     "lint": check_lint,
     "module-size": check_module_size,
+    "test-imports": check_test_imports,
     "secrets": check_secrets,
     "pytest": check_pytest,
     "pip-audit": check_pip_audit,
