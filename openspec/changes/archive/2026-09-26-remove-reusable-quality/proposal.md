@@ -37,5 +37,7 @@ the change sets `skip_specs: true`.
 - Not touched: `reusable-agent-review.yml`, which `agent-review.yml` still calls. ADR 0027 is
   history and stays as written. No ADR is needed: this carries out the removal that
   `v2-2j` and issue 115 already decided.
-- `quality-checks-per-job` (#204) lands after this change. Its D6 and non-goal about this file
-  then fall away, and `/opsx:update` reconciles them before its apply.
+- `quality-checks-per-job` (#204) was planned to land after this change but merged first
+  (#207), keeping its D6 and non-goal about this file. It moved the link step into its own
+  `link` job with no checkout, so task 2.1's "link step before the first checkout" is
+  asserted as "the `link` job has no checkout step".
