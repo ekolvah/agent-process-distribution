@@ -23,18 +23,6 @@ HOST = "win32" if sys.platform == "win32" else "linux"
 
 LINE = re.compile(r"^(planned|unchanged|written|conflict) ([a-z-]+):", re.MULTILINE)
 GIT = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
-STUB = """\
-import json
-import os
-import sys
-from pathlib import Path
-
-print("stub-release v2.1.0")
-print("argv " + json.dumps(sys.argv[1:]))
-print("cwd " + os.getcwd())
-print("file " + str(Path(__file__).resolve()))
-sys.exit(int(os.environ.get("STUB_EXIT", "0")))
-"""
 
 
 def load_init() -> ModuleType:
@@ -44,6 +32,24 @@ def load_init() -> ModuleType:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+# The fixture tags this tree as the current release and the stub as the next minor.
+CURRENT = load_init().VERSION
+_major, _minor, _ = CURRENT.split(".")
+OTHER = f"{_major}.{int(_minor) + 1}.0"
+STUB = f"""\
+import json
+import os
+import sys
+from pathlib import Path
+
+print("stub-release v{OTHER}")
+print("argv " + json.dumps(sys.argv[1:]))
+print("cwd " + os.getcwd())
+print("file " + str(Path(__file__).resolve()))
+sys.exit(int(os.environ.get("STUB_EXIT", "0")))
+"""
 
 
 def git(*args: str, cwd: Path | None = None) -> str:
@@ -356,7 +362,7 @@ MARKETPLACE = "agent-process-marketplace"
 PLUGIN = "agent-process@agent-process-marketplace"
 CHECK_COMMAND = (
     'python "$CLAUDE_PROJECT_DIR/.claude/agent-process-check.py" '
-    "https://github.com/ekolvah/agent-process-distribution/blob/v2.0.0/skills/agent-process/SKILL.md#install"
+    f"https://github.com/ekolvah/agent-process-distribution/blob/v{CURRENT}/skills/agent-process/SKILL.md#install"
 )
 CHECK_GROUP = {"hooks": [{"type": "command", "command": CHECK_COMMAND}]}
 

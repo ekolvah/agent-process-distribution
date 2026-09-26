@@ -21,6 +21,7 @@ import pytest
 from tests.publisher.init_harness import (
     CHECK_GROUP,
     CONSUMER_FILES,
+    CURRENT,
     HOST,
     LABELS,
     MARKETPLACE,
@@ -63,7 +64,7 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
                 "source": {
                     "source": "github",
                     "repo": "ekolvah/agent-process-distribution",
-                    "ref": "v2.0.0",
+                    "ref": f"v{CURRENT}",
                 }
             }
         },
