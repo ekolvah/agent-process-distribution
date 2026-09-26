@@ -18,3 +18,4 @@ jobs:
     with:
       setup: python -m pip install -r .agent-process/requirements.txt -r .agent-process/requirements-dev.txt
       test: python .agent-process/scripts/ci_check.py
+      checks: python .agent-process/scripts/ci_check.py --list
