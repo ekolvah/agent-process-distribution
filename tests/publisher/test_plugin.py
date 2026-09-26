@@ -33,6 +33,7 @@ TEMPLATES = {
     "dependabot.yml",
     "ruleset.json",
     "settings.json",
+    "skill_check.py",
 }
 
 
@@ -136,6 +137,10 @@ def test_publisher_dogfoods_process() -> None:
         }
     }
     assert settings["enabledPlugins"] == {"agent-process@agent-process-marketplace": True}
+    commands = [
+        hook["command"] for group in settings["hooks"]["SessionStart"] for hook in group["hooks"]
+    ]
+    assert any("skills/agent-process/templates/skill_check.py" in c for c in commands)
     config = yaml.safe_load((ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8"))
     assert all(
         "skills/agent-process/SKILL.md" in " ".join(rule) for rule in config["rules"].values()

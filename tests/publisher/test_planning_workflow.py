@@ -492,3 +492,10 @@ def test_one_planning_home() -> None:
 def test_label_change() -> None:
     """Scenario: Label change — no per-label artifact sets, no discovery role, no v1 planner."""
     assert [path for path in _V1_ENTRY_POINTS if (ROOT / path).exists()] == []
+
+
+def test_install_names_the_skill_marker() -> None:
+    install = _section("Install")
+    assert "agent-process skill not loaded" in install
+    assert "/plugin marketplace update" in install
+    assert "pinned per repository" not in install

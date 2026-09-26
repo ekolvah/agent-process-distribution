@@ -59,6 +59,7 @@ LABELS = [
     "workflow",
     "dependabot",
     "settings",
+    "check",
     "project-copy",
     "project-link",
 ]
@@ -66,9 +67,15 @@ CONSUMER_FILES = {
     ".github/workflows/agent-process.yml",
     ".github/dependabot.yml",
     ".claude/settings.json",
+    ".claude/agent-process-check.py",
 }
 MARKETPLACE = "agent-process-marketplace"
 PLUGIN = "agent-process@agent-process-marketplace"
+CHECK_COMMAND = (
+    'python "$CLAUDE_PROJECT_DIR/.claude/agent-process-check.py" '
+    "https://github.com/ekolvah/agent-process-distribution/blob/v2.0.0/skills/agent-process/SKILL.md#install"
+)
+CHECK_GROUP = {"hooks": [{"type": "command", "command": CHECK_COMMAND}]}
 
 
 def test_fixture_tags_carry_releases(process_repo: Path) -> None:
@@ -310,6 +317,17 @@ def test_rerender_replaces_only_owned_content(
             },
         },
         "enabledPlugins": {"mine@mine": True},
+        "hooks": {
+            "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "mine"}]}],
+            "SessionStart": [
+                {"hooks": [{"type": "command", "command": "mine-start"}]},
+                {
+                    "hooks": [
+                        {"type": "command", "command": "python .claude/agent-process-check.py old"}
+                    ]
+                },
+            ],
+        },
     }
     # The form `init` writes: an update re-serialises losslessly only from it (design D4).
     settings.write_text(json.dumps(consumer_settings, indent=2) + "\n", encoding="utf-8")
@@ -337,6 +355,10 @@ def test_rerender_replaces_only_owned_content(
     )
     assert data["extraKnownMarketplaces"][MARKETPLACE]["source"]["ref"] == "v2.0.0"
     assert data["enabledPlugins"] == {"mine@mine": True, PLUGIN: True}
+    assert data["hooks"] == {
+        "PreToolUse": consumer_settings["hooks"]["PreToolUse"],
+        "SessionStart": [consumer_settings["hooks"]["SessionStart"][0], CHECK_GROUP],
+    }
     after = relative(snapshot(root), root)
     assert {rel: after[rel] for rel in untouched} == untouched
 
@@ -363,6 +385,30 @@ def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:
     assert after.count(b"\n") == after.count(b"\r\n")
     assert after.endswith(b"\r\n# tail without newline")
     assert settings.read_text(encoding="utf-8") == four_spaces
+
+
+def test_installed_consumer_gains_the_hook(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """A consumer installed before the check holds both owned keys: the next run adds the
+    hook, and a hand-formatted file gets the conflict that names it."""
+    init = load_init()
+    _installed(init, sandbox)
+    settings = sandbox.root / ".claude" / "settings.json"
+    data = json.loads(settings.read_text(encoding="utf-8"))
+    del data["hooks"]
+    settings.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    assert install(init, sandbox, "--confirm") == 0
+    assert json.loads(settings.read_text(encoding="utf-8"))["hooks"] == {
+        "SessionStart": [CHECK_GROUP]
+    }
+
+    settings.write_text(json.dumps(data, indent=4), encoding="utf-8")
+    capfd.readouterr()
+    assert install(init, sandbox, "--confirm") == 2
+    out = capfd.readouterr().out
+    assert transitions(out)["settings"] == "conflict", out
+    assert "SessionStart" in out
 
 
 def _only_block(text: str) -> str:
@@ -556,6 +602,24 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
             json.dumps({"extraKnownMarketplaces": {MARKETPLACE: None}}, indent=2) + "\n",
         ),
     ),
+    "settings-hooks-not-object": (
+        "settings",
+        lambda init, sb: _write(
+            sb, ".claude/settings.json", json.dumps({"hooks": []}, indent=2) + "\n"
+        ),
+    ),
+    "settings-session-start-not-list": (
+        "settings",
+        lambda init, sb: _write(
+            sb,
+            ".claude/settings.json",
+            json.dumps({"hooks": {"SessionStart": {}}}, indent=2) + "\n",
+        ),
+    ),
+    "check-unmanaged": (
+        "check",
+        lambda init, sb: _write(sb, ".claude/agent-process-check.py", "print('mine')\n"),
+    ),
     "checkout-dirty": ("checkout", _checkout_dirty),
     "checkout-other-origin": ("checkout", _checkout_other_origin),
     "checkout-not-repository": ("checkout", _checkout_not_repository),
@@ -612,6 +676,7 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
             }
         },
         "enabledPlugins": {PLUGIN: True},
+        "hooks": {"SessionStart": [CHECK_GROUP]},
     }
 
 
