@@ -303,6 +303,14 @@ def test_the_pr_link_gate_is_gone() -> None:
     assert not (ROOT / ".agent-process" / "scripts" / "verify_pr_link.py").exists()
 
 
+def test_the_v1_quality_callee_is_gone() -> None:
+    """remove-reusable-quality: the v1 callee has no caller and no consumer, so neither
+    the file nor a reference to it survives."""
+    assert not (WORKFLOWS / "reusable-quality.yml").exists()
+    for path in [*sorted(WORKFLOWS.iterdir()), ROOT / ".agent-process" / "copier-answers.yml"]:
+        assert "reusable-quality" not in path.read_text(encoding="utf-8"), path
+
+
 def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads() -> None:
     """ADR 0027, v2-2b: the job reads whether a Codex review of the head exists,
     runs the Claude action only when it does not, and fails on an unresolved

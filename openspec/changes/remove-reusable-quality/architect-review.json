@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "A dead-code removal whose every live proof is moved before the file goes, pinned by one RED test that also forbids the three stale references; nothing the plan deletes is still reachable in this repository or in a v2 consumer render.",
+  "classes": {
+    "simpler": {
+      "evidence": "The simpler design is the status quo the archived v2-2j chose (its design.md line 39: keep the callee for v1 consumers pinned @main). proposal.md Why rejects it on the fact that changed since: issue 115 is closed and the person confirms no repository uses the plugin, so the callee has no consumer, while three tests (tests/publisher/test_reusable_workflows.py:86,130,163) still pin a file nothing runs and quality-checks-per-job (#204) design.md D6 has to reason around it. The next-simpler variant — delete the file only — is rejected by the RED test of task 1.1, which forbids the two references that would survive it (.github/workflows/quality.yml:27 comment, .agent-process/copier-answers.yml:37). Nothing larger is proposed: no ADR, no spec delta, no script.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "`.openspec.yaml` sets `skip_specs: true` and proposal.md Capabilities adds and modifies none, so there is no delta scenario to map. Verified that no requirement of openspec/specs/ names the file or its trusted-driver behaviour: distribution/spec.md:140-162 specifies `quality.yml` and the `agent-process / quality` caller only, distribution/spec.md:239-251 (`Quality runs once per PR`) names the driver context and is held by the edited test_quality_runs_once_per_pr, and review-and-merge/spec.md:110-122 names the `quality` job's link step generically, which quality.yml:29-40 carries verbatim. tasks.md's `## Scenario → test map` says exactly that and names the two tests that carry the removal and the surviving link-step contract.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 task 1.1 writes tests/publisher/test_reusable_workflows.py::test_the_v1_quality_callee_is_gone and runs check_red.py on that node id; with .github/workflows/reusable-quality.yml, the quality.yml comment and the copier-answers entry all still present, the failure is an assertion in the test body, not a collection error. It is the form of the existing precedent test_the_pr_link_gate_is_gone (same file, line 248) for the v2-2c deletion, and the commit is RED before task 2.2 removes anything.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The one platform fact the plan rests on is that `uses: owner/repo/.github/workflows/<file>@main` resolves against the target repository's default branch, so deleting the file on main breaks any consumer still pinned there: recorded in ADR 0012 (.agent-process/docs/adr/0012-ci-logic-is-referenced-not-copied.md:49-52), not re-derived here. Its premise — that there is no such consumer — is the person's statement recorded in proposal.md Why, and the repository side is observed, not asserted: `grep reusable-quality` finds no `uses:` in .github/workflows/ (only the quality.yml:27 comment), and skills/agent-process/scripts/init.py:274 renders every new consumer caller at `.github/workflows/quality.yml@v<version>`. No step of the plan claims a GitHub behaviour beyond file deletion.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Three proofs change hands inside task 2.1, before the file is deleted in 2.2. (a) Step content of the link gate: test_quality_verifies_the_pr_links_its_issue_before_the_driver keeps every assertion (env, no `shell:`, the closingIssuesReferences read, ::error:: text, exit 1, the one `gh pr view`, permissions) and retargets them from the deleted file to quality.yml:29-40, which carries the identical step. (b) Ordering before any checkout: the retargeted test cannot use the `_steps()` helper for it — quality.yml's checkout (line 41) has no `name:` key and the helper (test file line 81-83) keeps only named steps — but the ordering is pinned on the raw step list by test_quality_callee_runs_the_callers_commands (steps[0] name, steps[1] `actions/checkout@v4`), which task 2.1 rewrites; the implementer must read the raw list, never drop the assertion. (c) The cross-file identity assertion `steps[0] == link` stops proving that two files carry the same step — meaningless once one file remains, and replaced by (a). The #57 product-dependency install proof (test line 130) is deleted with its file: that behaviour is not dropped but was already moved by archived v2-2h to the caller's `setup` input (distribution/spec.md:140-148), so nothing live stops being proved. Observed and deliberately left out of scope: .agent-process/copier-answers.yml:32-34 still lists the v1 context `quality / quality` under required_status_contexts, stale since v2-2h/v2-2i; it does not name the deleted file, nothing reads the key (only tests/agent_process/test_delivery_gate_wiring.py:21-29 reads that file, for github_repository/repo_name), and widening the diff to it would breach §VII surgical scope.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Each catcher named in tasks.md is traceable to a step that runs. A leftover reference to the deleted callee: test_the_v1_quality_callee_is_gone, run by `python -m pytest` in task 2.2 locally and by ci_check.py in task 3.1, then on the PR head in the `agent-process / quality` check (.github/workflows/agent-process.yml → quality.yml) reached at delivery task 4.3 via wait_for_pr.py. A test left pinning the removed file (FileNotFoundError from _workflow()): the same pytest run of task 2.1, which precedes the deletion. A change artifact of #204 left naming the file: proposal.md Impact assigns it to `/opsx:update` before that change's apply, which its own Group 0 gate (start_change.py) precedes. An unmerged-order mistake (#204 before this change) has no script catcher and none is claimed: proposal.md states the order for the person, who merges.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds or edits no rule or spec sentence: `skip_specs: true`, no design.md, no ADR, and Impact lists only a deleted workflow, one test module, one YAML comment in .github/workflows/quality.yml and one line of .agent-process/copier-answers.yml. The reworded comment is a code comment, not a rule, and task 2.2 binds it to a test-asserted fact (the string `reusable-quality` must not occur), so there is no unasserted prose sentence to count.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "proposal.md Impact and the task list name no script, no check and no non-test file added — the only addition is one test in an existing module, and the verification commands are the repository's standard ones (check_red.py, `python -m pytest`, `openspec validate --strict --all`, ci_check.py). additions is therefore empty, and no new deterministic check is introduced without an observed problem.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": []
+}
