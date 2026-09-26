@@ -2,7 +2,7 @@
   "name": "agent-process",
   "displayName": "Agent Process",
   "description": "Claude Code commands and agents for the repository agent-development process.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": {
     "name": "kinozal_scraper maintainers"
   }
