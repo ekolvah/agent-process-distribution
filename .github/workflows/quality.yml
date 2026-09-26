@@ -31,8 +31,7 @@ jobs:
   link:
     runs-on: ubuntu-latest
     steps:
-      # Same step as reusable-quality.yml: GitHub's own link field, read once,
-      # before any checkout (ADR 0027, v2-2c).
+      # GitHub's own link field, read once, before any checkout (ADR 0027, v2-2c).
       - name: Verify the PR links its issue
         env:
           GH_TOKEN: ${{ github.token }}

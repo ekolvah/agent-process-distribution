@@ -34,5 +34,3 @@ required_status_contexts:
 - agent-review / agent-review
 workflow_references:
     agent-review: ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@main
-    quality: ekolvah/agent-process-distribution/.github/workflows/reusable-quality.yml@main
-
