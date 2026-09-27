@@ -58,9 +58,9 @@ report path of the project.
 - **THEN** `check_red` either runs every node id regardless or exits 2 with the runner's output, never RED from a partial report
 
 ### Requirement: GitHub links branch, PR and issue
-The delivery tasks SHALL create the linked branch with `gh issue develop -c N` on the
-tracking issue the propose run left in `Planned`; the PR links to the issue automatically
-and the merge closes it.
+The delivery tasks SHALL create the linked branch with `gh issue develop N --name <change>`,
+without checkout, on the tracking issue the propose run left in `Planned`; the PR links to the
+issue automatically and the merge closes it.
 
 #### Scenario: Merge
 - **WHEN** the PR from the linked branch merges
@@ -90,7 +90,7 @@ reported with what was still awaited (exit 3).
 ### Requirement: Delivery steps are tasks of every change
 The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with `start_change
 <change>` — the gate (the review file validated, its verdict read, and the tracking issue as a Project item in
-`Planned`), `gh issue develop -c` on that issue, `set_status "In Progress"` and the
+`Planned`), `gh issue develop` on that issue, the change's worktree, `set_status "In Progress"` and the
 provenance line in one command whose conditions are exit codes — and end with `ci_check`,
 `archive_change <change>`, the PR and the `wait_for_pr` loop. No delivery task SHALL
 prompt the person or create the issue: the area was chosen by the propose run, which
@@ -120,8 +120,8 @@ flag or switch takes away, and the RED test covers the class, not the reviewer's
 The tasks after the archive SHALL leave no tick in
 the repository — the PR is their record — and a run interrupted after the archive SHALL
 resume from `gh pr view <change>`, not from the apply. The PR body SHALL name the tracking
-issue as a plain reference, not with a `Closes` keyword: the branch from `gh issue develop
--c` closes the issue on merge.
+issue as a plain reference, not with a `Closes` keyword: the linked branch from `gh issue
+develop` closes the issue on merge.
 
 #### Scenario: Tasks of a new change
 - **WHEN** a change is proposed with the `spec-driven` schema
@@ -234,3 +234,40 @@ when any batch reports a finding.
 #### Scenario: Targets beyond one command line
 - **WHEN** the targets' single command line would exceed 32767 characters and a secret sits in a file of the last batch
 - **THEN** every started command line is at most the limit, the batches together pass every target once, and `ci_check` exits non-zero
+
+### Requirement: A change is carried in its own worktree
+`start_change <change>` SHALL carry the change in a worktree of its own at
+`.claude/worktrees/<change>` of the repository's main worktree, wherever it runs, on the linked branch tracking `origin/<change>`, and SHALL move
+the untracked `openspec/changes/<change>/` of the checkout it runs in into that worktree; it
+SHALL NOT change the branch, the index or any other file of the checkout it runs in. Group 0
+SHALL enter that worktree, and every later task of the apply SHALL run there. A failure once
+the remote branch exists SHALL name the steps left, beginning with the worktree step that did
+not run; a run interrupted before the archive SHALL resume by entering the same worktree.
+Before creating the branch, `start_change` SHALL remove every worktree under the main
+worktree's `.claude/worktrees/`, other than the one containing its cwd, whose branch's PR is merged and whose tree is clean, print each removal,
+keep and name on stderr a merged one it cannot remove or that is dirty, leave every other
+worktree untouched, and not fail the start on a cleanup failure.
+
+#### Scenario: Merged change's worktree
+- **WHEN** `start_change` runs while `.claude/worktrees/` holds a clean worktree whose PR is merged, a dirty one whose PR is merged, and one whose branch has an open PR or none
+- **THEN** the first is removed and printed, the second is kept and named on stderr, the third is untouched, and the start goes on to create its own branch
+
+#### Scenario: Started from inside the previous change's worktree
+- **WHEN** `start_change` runs with its cwd in `.claude/worktrees/<previous>` whose PR is merged
+- **THEN** the new worktree is `.claude/worktrees/<change>` of the main worktree, not nested in the previous one, and the previous worktree survives the run
+
+#### Scenario: Cleanup fails
+- **WHEN** removing a merged clean worktree fails
+- **THEN** stderr carries a `kept:` line naming the worktree and the failure, and `start_change` still creates its branch and exits 0
+
+#### Scenario: Parallel changes
+- **WHEN** `start_change` runs for change `b` in a checkout on `main` that also holds the untracked `openspec/changes/a/` of another change
+- **THEN** the checkout is still on `main` and still holds `openspec/changes/a/`, and `openspec/changes/b/` is in `.claude/worktrees/b`, whose worktree is on branch `b` tracking `origin/b`
+
+#### Scenario: Worktree step fails after the branch exists
+- **WHEN** `gh issue develop` created the remote branch and a later worktree step fails
+- **THEN** `start_change` exits 1 naming the steps left, starting with the one that failed, in order, before `set_status "In Progress"` and the provenance comment, and names no `git switch`
+
+#### Scenario: Worktree listing fails
+- **WHEN** `git worktree list --porcelain` fails after the gate
+- **THEN** `start_change` exits 1 naming the error before any branch exists
