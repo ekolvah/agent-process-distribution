@@ -8,9 +8,9 @@
 
 ## 2. Review job (D1, D2, D3)
 
-- [ ] 2.1 Reduce `head_review.py` per D2 and update its module docstring. Verify `python -m pytest tests/publisher/test_head_review.py -q` passes
-- [ ] 2.2 Rewrite the review steps of `.github/workflows/reusable-agent-review.yml` per D1, with its header and step comments naming no Codex, and remove `with` from `.github/workflows/agent-review.yml`. Verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes
-- [ ] 2.3 Set `_REVIEWERS = frozenset({"github-actions"})` in `.agent-process/scripts/check_blocking_review_threads.py` and `skills/agent-process/scripts/resolve_review_thread.py`, and drop Codex from their docstrings, from the comment and the operator message of `resolve_review_thread.py` (lines 242 and 268 today), and from the docstring of `wait_for_pr.py`. Verify `python -m pytest tests/publisher/test_blocking_review_threads.py tests/publisher/test_resolve_review_thread.py -q` passes. Commit Group 2 as `feat(review): Claude reviews every head`
+- [x] 2.1 Reduce `head_review.py` per D2 and update its module docstring. Verify `python -m pytest tests/publisher/test_head_review.py -q` passes
+- [x] 2.2 Rewrite the review steps of `.github/workflows/reusable-agent-review.yml` per D1, with its header and step comments naming no Codex, and remove `with` from `.github/workflows/agent-review.yml`. Verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes
+- [x] 2.3 Set `_REVIEWERS = frozenset({"github-actions"})` in `.agent-process/scripts/check_blocking_review_threads.py` and `skills/agent-process/scripts/resolve_review_thread.py`, and drop Codex from their docstrings, from the comment and the operator message of `resolve_review_thread.py` (lines 242 and 268 today), and from the docstring of `wait_for_pr.py`. Verify `python -m pytest tests/publisher/test_blocking_review_threads.py tests/publisher/test_resolve_review_thread.py -q` passes. Commit Group 2 as `feat(review): Claude reviews every head`
 
 ## 3. Carriers and installer (D4, D5, D6)
 

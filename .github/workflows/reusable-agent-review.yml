@@ -1,22 +1,13 @@
 name: Reusable agent review
 
-# The caller associates this required check with the PR head. The PR author
-# requests the Codex review (`@codex review`); this job waits for that review
-# of the head — read as present or absent, never parsed — and runs the Claude
-# Code action only when it is absent. Its last step fails the check while an
-# unresolved P0/P1 thread of either reviewer exists (ADR 0027, v2-2b). Every
-# event the caller subscribes to runs this same path: a review-event run that
-# skipped the wait and the fallback would pass on a head without any review
-# and become the required context (a skipped job passes a required check too).
-# A release PR alone skips the wait and the fallback (ADR 0031).
+# The caller associates this required check with the PR head. The job reviews
+# the head with the Claude Code action unless its own review of the head —
+# read as present or absent, never parsed — already exists. Its last step fails
+# the check while an unresolved P0/P1 thread of the review job exists (ADR 0027,
+# ADR 0033). Every event the caller subscribes to runs this same path: a skipped
+# job passes a required check too. A release PR alone skips the review (ADR 0031).
 on:
   workflow_call:
-    inputs:
-      codex-timeout-seconds:
-        description: Bounded wait for the Codex review of the head.
-        required: false
-        type: number
-        default: 600
     secrets:
       claude_code_oauth_token:
         required: true
@@ -60,30 +51,26 @@ jobs:
           --base-sha ${{ github.event.pull_request.base.sha }}
           --head-sha ${{ github.event.pull_request.head.sha }}
 
-      # Exit 3 (absent) is the recorded condition for the fallback, not a failure
-      # of the step; a crash of the reader (exit 2) fails the step and the job —
-      # the fallback never runs on a read that did not establish absence.
-      # Presence is a review of the head by either login the check trusts: `gh run
-      # rerun` re-executes every step, so a re-run of a head the fallback reviewed
-      # returns on that review instead of waiting for Codex and paying for a second
-      # review of an unchanged head (issue 139). The fallback's review is its closing
-      # comment naming the head, never its inline comments alone: an action
-      # interrupted after its first finding left those, and the re-run reviews again.
-      # A release PR waits for no review, so no fallback runs either (ADR 0031).
-      - name: Wait for the Codex review of the head
-        id: codex
+      # One read, no wait: `gh run rerun` re-executes every step, so a re-run of a
+      # reviewed head returns on the job's closing comment instead of paying for a
+      # second review of an unchanged head (issue 139). Inline comments alone are an
+      # interrupted review, and the re-run reviews again. Exit 3 (absent) is the
+      # recorded condition for the review, not a failure of the step; a crash of the
+      # reader (exit 2) fails the step and the job — the action never runs on a read
+      # that did not establish absence. A release PR gets no review (ADR 0031).
+      - name: Read the Claude review of the head
+        id: review
         if: steps.release.outputs.release != 'true'
         working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           rc=0
-          python .agent-process/scripts/request_codex_review.py --wait \
-            --reviewer chatgpt-codex-connector --reviewer github-actions \
+          python .agent-process/scripts/head_review.py --wait \
             --repo "${{ github.repository }}" \
             --pr "${{ github.event.pull_request.number }}" \
             --head-sha "${{ github.event.pull_request.head.sha }}" \
-            --timeout-seconds "${{ inputs.codex-timeout-seconds }}" || rc=$?
+            --timeout-seconds 0 || rc=$?
           case "$rc" in
             0) echo "absent=false" >> "$GITHUB_OUTPUT" ;;
             3) echo "absent=true" >> "$GITHUB_OUTPUT" ;;
@@ -93,9 +80,9 @@ jobs:
       # No fork guard: the platform withholds every secret but GITHUB_TOKEN from a
       # run of a fork PR, on `pull_request_review` as on `pull_request`, and the
       # repository requires approval for every run from an external contributor
-      # (ADR 0027). A fork head without a Codex review is red from the missing secret.
+      # (ADR 0027). A fork head is red from the missing secret.
       - name: Claude review
-        if: steps.codex.outputs.absent == 'true'
+        if: steps.review.outputs.absent == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.claude_code_oauth_token }}
@@ -114,18 +101,16 @@ jobs:
             there is no finding. That closing comment is what the job reads as
             your review. Never approve, request changes or merge.
 
-      # The action can finish green without publishing (ADR 0004); a silent fallback
-      # is no review of the head. The same presence read as for Codex, on the
-      # workflow token's login — its closing comment — fails the check instead of
-      # leaving it green.
+      # The action can finish green without publishing (ADR 0004); a silent action
+      # is no review of the head. The same presence read, bounded, fails the check
+      # instead of leaving it green.
       - name: Verify the Claude review of the head
-        if: steps.codex.outputs.absent == 'true'
+        if: steps.review.outputs.absent == 'true'
         working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          python .agent-process/scripts/request_codex_review.py --wait
-          --reviewer github-actions
+          python .agent-process/scripts/head_review.py --wait
           --repo "${{ github.repository }}"
           --pr "${{ github.event.pull_request.number }}"
           --head-sha "${{ github.event.pull_request.head.sha }}"
