@@ -222,5 +222,7 @@ def test_manual_actions_are_printed(
     workflows = [ln for ln in lines if ln.startswith("manual project-workflows: ")]
     assert len(visibility) == 1 and "visibility" in visibility[0]
     assert len(workflows) == 1 and all(name in workflows[0] for name in WORKFLOWS)
+    areas = [ln for ln in lines if ln.startswith("manual project-areas: ")]
+    assert len(areas) == 1 and "Area" in areas[0]
     for args in runner.gh():
         _gh_kind(args)
