@@ -9,7 +9,7 @@
       "name": "agent-process",
       "source": ".",
       "description": "Claude Code commands and agents for the repository agent-development process.",
-      "version": "2.3.0"
+      "version": "2.4.0"
     }
   ]
 }
