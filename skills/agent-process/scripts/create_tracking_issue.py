@@ -103,7 +103,7 @@ def main(argv: list[str] | None = None, *, gh: Gh = run_gh, root: Path = ROOT) -
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("change", help="change name under openspec/changes/")
     parser.add_argument(
-        "--area", help="the Project's Area option asked from the person (new issue only)"
+        "--area", help="the Project's Area option the planner chose (new issue only)"
     )
     ns = parser.parse_args(argv)
     try:
