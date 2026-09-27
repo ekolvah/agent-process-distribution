@@ -32,7 +32,7 @@ Chosen: **recognise the release PR by its diff, exempt it, and let auto-merge me
   base with each `old → new` version replaced. A compare listing 300 files (the API's limit) is
   not a release PR. A repository without the config has no release PR.
 * **D2 — one script from the trusted source.** `quality.yml` job `link` and
-  `reusable-agent-review.yml` check out this repository at `github.job_workflow_sha` and run the
+  `reusable-agent-review.yml` check out this repository at `job.workflow_sha` (issue 226: the former name was never set) and run the
   script there, publishing `release=true|false` and printing why. A failed read exits 2 and
   fails the step. On a release PR `link` skips the issue check, and `agent-review` skips the
   Codex wait, so the Claude fallback and its verification do not run either; the tests

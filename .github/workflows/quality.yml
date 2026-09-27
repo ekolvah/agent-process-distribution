@@ -31,11 +31,20 @@ jobs:
   link:
     runs-on: ubuntu-latest
     steps:
+      - name: Require the called workflow commit
+        env:
+          SHA: ${{ job.workflow_sha }}
+        run: |
+          if test -z "$SHA"; then
+            echo "::error::job.workflow_sha is empty; the trusted checkout would fall back to the PR's ref"
+            exit 1
+          fi
+
       - name: Checkout trusted process source
         uses: actions/checkout@v4
         with:
           repository: ekolvah/agent-process-distribution
-          ref: ${{ github.job_workflow_sha }}
+          ref: ${{ job.workflow_sha }}
           path: trusted
 
       # A release PR changes only what release-please versions (ADR 0031); the

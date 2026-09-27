@@ -101,7 +101,7 @@ def _run_guard(run: str, sha: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_trusted_checkout_is_the_called_commit() -> None:
-    """Issue 226: `github.job_workflow_sha` does not exist, so the empty ref made
+    """Issue 226: the former ref, a `github` context property that does not exist, was empty and made
     `actions/checkout` fall back to the PR's merge ref. The checkout takes the called
     workflow's commit, and an empty one fails the job before the checkout."""
     for name in ("reusable-agent-review.yml", "quality.yml"):
@@ -243,6 +243,7 @@ def test_quality_callee_runs_the_callers_commands() -> None:
 
     steps = jobs["link"]["steps"]
     assert [step["name"] for step in steps] == [
+        "Require the called workflow commit",
         "Checkout trusted process source",
         "Detect a release PR",
         "Verify the PR links its issue",
@@ -349,6 +350,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
 
     assert list(steps) == [
         "Checkout reviewed PR head",
+        "Require the called workflow commit",
         "Checkout trusted review source",
         "Detect a release PR",
         "Wait for the Codex review of the head",

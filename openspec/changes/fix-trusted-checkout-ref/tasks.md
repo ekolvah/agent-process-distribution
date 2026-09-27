@@ -8,8 +8,8 @@
 
 ## 2. Workflows (D1, D2)
 
-- [ ] 2.1 In `.github/workflows/reusable-agent-review.yml` and `.github/workflows/quality.yml`, set the trusted checkout to `ref: ${{ job.workflow_sha }}` and insert the guard step of D2 right before it. Verify that `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes
-- [ ] 2.2 In ADR 0031 D2, replace `github.job_workflow_sha` with `job.workflow_sha` and add "(issue 226: the former name was never set)". Verify that `git grep -n "github.job_workflow_sha" -- .github .agent-process tests` prints nothing. Commit Group 2 as `fix(review): trusted checkout is the called commit`
+- [x] 2.1 In `.github/workflows/reusable-agent-review.yml` and `.github/workflows/quality.yml`, set the trusted checkout to `ref: ${{ job.workflow_sha }}` and insert the guard step of D2 right before it. Verify that `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes
+- [x] 2.2 In ADR 0031 D2, replace `github.job_workflow_sha` with `job.workflow_sha` and add "(issue 226: the former name was never set)". Verify that `git grep -n "github.job_workflow_sha" -- .github .agent-process tests` prints nothing. Commit Group 2 as `fix(review): trusted checkout is the called commit`
 
 ## 3. Verify
 
