@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Session-level Claude hook adapter, plus the shared post-edit checks.
 
-Three hook commands, one entry point (mirroring `.agent-process/scripts/codex_hooks.py`):
+Three hook commands, one entry point:
 
   - `pre-bash` (PreToolUse, matcher `Bash`) → `scripts.navigation_policy`, which denies a
     shell route into the filesystem *with the replacement call named*. It replaced a

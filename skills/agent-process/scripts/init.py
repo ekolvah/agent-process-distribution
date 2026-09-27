@@ -7,8 +7,7 @@ Usage: python init.py --test <command> [--setup <command>] [--version <x.y.z>]
 The requested release owns its run. With `--version` equal to `VERSION` this file runs
 itself; otherwise `--dry-run` clones the requested tag into a temporary directory and runs
 that tree's `init.py`, forwarding its output and exit code, and `--confirm` moves the
-user-scope checkout to the tag, links the Codex skill, and hands off to the checkout's
-`init.py`. The hidden `--selected-release` marks a handed-off child: a tag whose `VERSION`
+user-scope checkout to the tag and hands off to the checkout's `init.py`. The hidden `--selected-release` marks a handed-off child: a tag whose `VERSION`
 differs from the requested version exits 1 instead of recursing.
 
 A run first classifies every transition from observed state — `planned`, `unchanged`, or
@@ -17,21 +16,20 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 `written` or `unchanged`:
 
 1. checkout  `~/.agent-process/distribution` at `v<version>` (staged clone + `os.replace`)
-2. link      `~/.agents/skills/agent-process` -> the checkout's skill (junction on Windows)
-3. hand-off  to the requested release, when it is not this one
-4. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
-5. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
+2. hand-off  to the requested release, when it is not this one
+3. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
+4. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
              `# agent-process release:` line, which `release_drift` compares (#190)
-6. workflow  the managed `.github/workflows/agent-process.yml`
-7. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
-8. dependabot  the marker block of `.github/dependabot.yml`
-9. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
-10. check    the managed `.claude/agent-process-check.py` that hook runs (#187)
-11. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+5. workflow  the managed `.github/workflows/agent-process.yml`
+6. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
+7. dependabot  the marker block of `.github/dependabot.yml`
+8. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
+9. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+10. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                  unless the repository has a linked Project or its owner an unlinked copy
-12. project-link `gh project link` of that one unlinked copy to the repository
+11. project-link `gh project link` of that one unlinked copy to the repository
 
-Steps 11-12 are classified from `gh` reads of the repository's linked Projects and its
+Steps 10-11 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
@@ -60,12 +58,10 @@ REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
 REPOSITORY_ENV = "AGENT_PROCESS_REPOSITORY"
 GITHUB_REPO = "ekolvah/agent-process-distribution"
 OPENSPEC = "1.13.0"
-# `openspec init --tools claude,codex` of the pin in a fresh repository (observed 2026-09-23).
+# `openspec init --tools claude` of the pin in a fresh repository (observed 2026-09-27).
 OPENSPEC_OUTPUT = (
-    ".agents/skills/.openspec-target",
     *(
-        f"{tool}/skills/openspec-{name}/SKILL.md"
-        for tool in (".agents", ".claude")
+        f".claude/skills/openspec-{name}/SKILL.md"
         for name in (
             "apply-change",
             "archive-change",
@@ -297,10 +293,6 @@ class Context:
     def checkout(self) -> Path:
         return self.home / ".agent-process" / "distribution"
 
-    @property
-    def link(self) -> Path:
-        return self.home / ".agents" / "skills" / "agent-process"
-
     def exe(self, name: str) -> str:
         found = self.which(name)
         if not found:
@@ -376,26 +368,6 @@ def _checkout(ctx: Context) -> Step:  # noqa: C901, PLR0911 -- baseline: one out
     return Step("checkout", "planned", f"{path} {current} -> {tag}", move)
 
 
-def _link(ctx: Context) -> Step:
-    link, target = ctx.link, ctx.checkout / "skills" / "agent-process"
-    if not os.path.lexists(link):
-        if reason := _parent_conflict(link):
-            return Step("link", "conflict", f"{link} {reason}")
-
-        def create() -> bool:
-            link.parent.mkdir(parents=True, exist_ok=True)
-            if ctx.platform == "win32":
-                ctx.call("cmd", "/c", "mklink", "/J", str(link), str(target))
-            else:
-                ctx.call("ln", "-s", str(target), str(link))
-            return True
-
-        return Step("link", "planned", f"{link} -> {target}", create)
-    if _is_link(link) and _same_path(link, target):
-        return Step("link", "unchanged", f"{link} -> {target}")
-    return Step("link", "conflict", f"{link} is not the installer's link to {target}")
-
-
 def _hand_off(ctx: Context, argv: list[str], tree: Path) -> int:
     """Run the release in `tree` with the same arguments; its output and exit code are ours."""
     script = tree / "skills" / "agent-process" / "scripts" / "init.py"
@@ -442,9 +414,8 @@ def release_drift(root: Path, script_dir: Path) -> str | None:
     parsed = recorded is not None and re.fullmatch(r"\d+\.\d+\.\d+", recorded)
     if parsed and _release(parsed[0]) > _release(VERSION):
         return (
-            f"{head} — update the skill to {recorded}: Claude "
-            f"`/plugin marketplace update agent-process-marketplace`, Codex Install with "
-            f"`--version {recorded}`; then restart the session"
+            f"{head} — update the skill to {recorded}: "
+            f"`/plugin marketplace update agent-process-marketplace`; then restart the session"
         )
     install = TEMPLATES.parent / "SKILL.md"
     return f"{head} — re-run Install with this skill ({install}#install)"
@@ -465,7 +436,7 @@ def _with_pin(text: str) -> str:
 
 def _openspec(ctx: Context) -> Step:
     config = ctx.root / CONFIG
-    detail = f"openspec init --tools claude,codex (@fission-ai/openspec@{OPENSPEC})"
+    detail = f"openspec init --tools claude (@fission-ai/openspec@{OPENSPEC})"
 
     def current() -> bool:
         paths = all((ctx.root / rel).exists() for rel in OPENSPEC_OUTPUT)
@@ -484,7 +455,7 @@ def _openspec(ctx: Context) -> Step:
             f"@fission-ai/openspec@{OPENSPEC}",
             "init",
             "--tools",
-            "claude,codex",
+            "claude",
             "--no-animation",
             cwd=ctx.root,
             env={**os.environ, "OPENSPEC_TELEMETRY": "0"},
@@ -894,7 +865,7 @@ def _run(
                 str(tree),
             )
             return _hand_off(ctx, argv, tree)
-    steps = [_checkout(ctx), _link(ctx)]
+    steps = [_checkout(ctx)]
     manual: list[str] = []
     if args.version != VERSION:
         steps.append(Step("hand-off", "planned", f"{ctx.tag} composes the consumer files"))

@@ -25,8 +25,8 @@
       "enum": ["approve", "rework"]
     },
     "reviewer": {
-      "description": "Who reviewed: the architect-reviewer subagent, or the planner's self-review.",
-      "enum": ["architect-reviewer", "self-review"]
+      "description": "Who reviewed: the architect-reviewer subagent.",
+      "enum": ["architect-reviewer"]
     },
     "reasoning": {
       "description": "One line on why the verdict holds.",
