@@ -45,13 +45,18 @@ release's own installer, run from a temporary checkout that is removed afterward
 - **THEN** the output and exit code are the requested release's own dry-run, and the consumer repository and user profile are byte-identical before and after
 
 ### Requirement: Confirmation selects the release first
-`init --confirm` SHALL move the user-scope process checkout to the requested release before it
-writes any consumer file, and the consumer files SHALL be composed by that release's
-installer from that release's templates.
+`init --confirm` of a version other than the running installer's SHALL run the requested
+release's installer from a temporary checkout of its tag, removed afterwards, before it writes
+any consumer file, and the consumer files SHALL be composed by that release's installer from
+that release's templates. The running installer SHALL write nothing in the user profile.
 
 #### Scenario: Confirmed upgrade
 - **WHEN** an installer of one version runs `--confirm --version` of another version
-- **THEN** the checkout is at the requested tag before the first consumer write, and every consumer write comes from the requested release's installer
+- **THEN** every consumer write comes from the requested release's installer, and its temporary checkout no longer exists afterwards
+
+#### Scenario: Confirmed install of the running release
+- **WHEN** an installer runs `--confirm` of its own version
+- **THEN** the user profile is byte-identical before and after
 
 ### Requirement: Init reconciles from observable state
 Each transition SHALL be decided from the state it observes, so a rerun of the same version
@@ -63,8 +68,9 @@ exactly once and no completed one again.
 - **THEN** the retry reports each completed transition `unchanged`, performs each unfinished one once, and ends in the same state as an uninterrupted run
 
 ### Requirement: Init fails closed on inputs it does not own
-A target the installer does not own — a consumer-owned file or key, malformed ownership markers, or a checkout that is dirty or has another origin — SHALL be reported as `conflict` and the run SHALL exit non-zero before it writes
-any consumer file. A user-profile conflict SHALL be found before any user-profile write.
+A target the installer does not own — a consumer-owned file or key, or malformed ownership
+markers — SHALL be reported as `conflict` and the run SHALL exit non-zero before it writes
+any consumer file.
 
 #### Scenario: Target the installer does not own
 - **WHEN** a dry-run or confirmed run meets a target the installer does not own
@@ -353,3 +359,13 @@ a secret.
 #### Scenario: Review prerequisites
 - **WHEN** a dry-run or confirmed run completes
 - **THEN** its output carries one `manual` row for the secret, and no command it issued writes a secret
+
+### Requirement: The marketplace fetches only the package
+The installer SHALL render the `agent-process-marketplace` source of `.claude/settings.json`
+with `sparsePaths` naming exactly the package directories — `.claude-plugin`, `agents`,
+`commands`, and `skills/agent-process` — and this repository's own settings SHALL name the same
+list.
+
+#### Scenario: Settings render
+- **WHEN** the installer renders the settings of any release, or the publisher tests read this repository's settings
+- **THEN** the marketplace source's `sparsePaths` is exactly `.claude-plugin`, `agents`, `commands`, `skills/agent-process`
