@@ -133,14 +133,22 @@ def test_confirm_selects_release_before_composing(
     code = install(init, sandbox, "--confirm", "--version", OTHER, runner=runner)
     out = capfd.readouterr().out
     assert code == 0, out
-    ran = next(line[5:] for line in out.splitlines() if line.startswith("file "))
-    selected = sandbox.checkout / "skills" / "agent-process" / "scripts" / "init.py"
-    assert os.path.realpath(ran) == os.path.realpath(selected)
-    assert head_commit(sandbox.checkout) == tag_commit(sandbox, f"v{OTHER}")
+    ran = Path(next(line[5:] for line in out.splitlines() if line.startswith("file ")))
+    assert Path(os.path.realpath(sandbox.home)) not in Path(os.path.realpath(ran)).parents
+    assert not ran.parents[3].exists()
+    assert snapshot(sandbox.home) == {}
     handoff = next(i for i, cmd in enumerate(runner.log) if cmd[0] == sys.executable)
     assert any("clone" in cmd for cmd in runner.log[:handoff])
     assert not any(Path(cmd[0]).name.lower().startswith("npx") for cmd in runner.log)
     assert snapshot(sandbox.root) == {}
+
+
+def test_confirm_leaves_the_user_profile_alone(sandbox: Sandbox) -> None:
+    """Scenario: Confirmed install of the running release — the user profile is untouched."""
+    init = load_init()
+    before = snapshot(sandbox.home)
+    assert install(init, sandbox, "--confirm") == 0
+    assert snapshot(sandbox.home) == before
 
 
 def test_openspec_tools_are_claude_only(sandbox: Sandbox) -> None:

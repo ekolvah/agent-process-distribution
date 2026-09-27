@@ -8,6 +8,8 @@ from pathlib import Path
 
 import yaml
 
+from tests.publisher.init_harness import load_init
+
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
 MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
@@ -146,6 +148,33 @@ def test_publisher_dogfoods_process() -> None:
     assert all(
         "skills/agent-process/SKILL.md" in " ".join(rule) for rule in config["rules"].values()
     )
+
+
+SPARSE_PATHS = [".claude-plugin", "agents", "commands", "skills/agent-process"]
+
+
+def _component_roots() -> list[str]:
+    """The plugin component roots the repository has at its top level."""
+    names = ["commands", "agents", "hooks", "output-styles", ".mcp.json", ".lsp.json"]
+    roots = [name for name in names if (ROOT / name).exists()]
+    roots += [f"skills/{path.name}" for path in (ROOT / "skills").iterdir() if path.is_dir()]
+    return [*roots, ".claude-plugin"]
+
+
+def test_marketplace_fetches_only_the_package() -> None:
+    """Scenario: Settings render — the marketplace source fetches the package paths only."""
+    init = load_init()
+    rendered = init._render_settings(init.VERSION)
+    for settings in (rendered, _json(SETTINGS)):
+        source = settings["extraKnownMarketplaces"]["agent-process-marketplace"]["source"]
+        assert source.get("sparsePaths") == SPARSE_PATHS
+    assert all((ROOT / entry).exists() for entry in SPARSE_PATHS)
+    uncovered = [
+        root
+        for root in _component_roots()
+        if not any(root == entry or root.startswith(f"{entry}/") for entry in SPARSE_PATHS)
+    ]
+    assert not uncovered
 
 
 def test_version_drift() -> None:

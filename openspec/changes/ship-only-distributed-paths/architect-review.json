@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "A subtractive plan on an observed platform field: every delta scenario has a RED test, the derived `sparsePaths` test now fails when a package root appears, and the removed checkout leaves its user-profile boundary named.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects the `plugin/` subdirectory (it rewrites every `skills/agent-process/` path and still clones the whole repository, so scenario `Settings render` would still not hold) and a package-only release ref (a new release build step for what a platform field does); D2's simpler option — keep the checkout — is remove-codex D5 (archive/2026-09-27-remove-codex/design.md:77-82), rejected because nothing has read `~/.agent-process/distribution` since that change while `Confirmed upgrade` needs only a tree to hand off from. Both decisions are subtractive: one settings field and one removed step, no new module.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Four delta scenarios, four entries in tasks.md `Scenario → test map`: `Settings render` → test_plugin.py::test_marketplace_fetches_only_the_package (added by 1.1) and test_init_remote.py::test_installed_footprint_is_closed (exists, tests/publisher/test_init_remote.py:52); `Confirmed upgrade` → test_init.py::test_confirm_selects_release_before_composing (exists, :128, rewritten by 1.2); `Confirmed install of the running release` → test_init.py::test_confirm_leaves_the_user_profile_alone (added by 1.2); `Target the installer does not own` → test_init_conflicts.py::test_conflict_fails_closed with the `checkout-*` cases (:174, :222-224) removed. No delta scenario is unmapped; the 1.1 test asserts more than `Settings render` spells out (the derived root coverage), which is the same requirement's phrase \"the package directories\" made checkable.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is 1.1-1.3 and 1.3 runs check_red.py over the four tests. Each fails in its body against today's tree: no `sparsePaths` is rendered (skills/agent-process/templates/settings.json:2-8) and this repository's settings assert an exact dict without it (test_plugin.py:132-139); a confirmed run writes `~/.agent-process/distribution` (init.py:294, 868) and hands off from it (:894), so both `snapshot(sandbox.home)` assertions and the outside-home hand-off path fail now. `test_installed_footprint_is_closed` compares the written settings as a whole dict (test_init_remote.py:61-70), so the added field makes it fail too.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Two behaviours carry D1, both recorded in proposal.md Why: (a) a `github` marketplace source with sparse paths yields a narrowed cache — run of 2026-09-27, Claude Code 2.1.283 in an isolated CLAUDE_CONFIG_DIR, `claude plugin marketplace add …#v2.6.0 --sparse …` recorded `'sparsePaths': [...]` in `known_marketplaces.json`, `plugin install` succeeded and the cache `agent-process/2.6.0/` held 225K with cone-mode root files; (b) `sparsePaths` is a field of the `github` source in `extraKnownMarketplaces` — code.claude.com/docs/en/plugins/marketplace-reference, \"Fields by type\". The shipped route is (b) (a settings entry) while the run exercised the CLI flag, which the reference page covers. The plugin entry `\"source\": \".\"` resolving inside the sparse clone is part of the same run; #184 (a known marketplace is not re-cloned) is carried as a risk, not an assertion.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "design.md D2 lists the dropped guard (the four checkout conflicts: dirty, other origin, not a Git checkout, non-directory parent) with the reason each protected only the persistent checkout, the retained `InstallError` path for a failing clone, and the retry consequence; the delta removes the matching spec words, including `A user-profile conflict SHALL be found before any user-profile write`, which no longer has a write to guard. The `home` input is now listed too: D2 keeps `Host.home`/`Context.home` (init.py:269, 279, 835) as the injected user-profile boundary with no current reader and no `Path.home()` outside `main()` (init.py:908), which is what makes `snapshot(sandbox.home)` in the new scenario a guard that can fail — task 3.1 verifies it. D1's Residue lists the cone-mode root files as the accepted remainder of the replaced clone contents.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The D1 catcher now derives its expectation (Risks bullet 2, task 1.1): every plugin component root the repository has at its top level under the platform's default layout (`commands`, `agents`, each `skills/<name>`, `hooks`, `output-styles`, `.mcp.json`, `.lsp.json`) plus `.claude-plugin` must lie under a `sparsePaths` entry of the rendered source and of `.claude/settings.json`, and every entry must exist — so a fifth root (a second skill, a `hooks/`) fails the test at 4.2 instead of silently shipping a plugin short one component, and a dangling entry fails too. The pre-existing catchers still hold their own scope: test_plugin.py:62-74 closes the file set under `skills/agent-process`, :87-105 resolves package paths. Residue, safe because it fails visibly: a future root-level `.mcp.json`/`.lsp.json` would demand an entry although cone mode already keeps root files (proposal, Why) — the failing direction is a red test, not a silent gap. The other catchers reach delivery steps: check_red.py at 1.3, `openspec validate --strict --all` at 4.1, `python .agent-process/scripts/ci_check.py` at 4.2.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec prose added or edited, with what the tests assert. ADDED requirement sentence 38 words + scenario 34 words: every clause (which source, `sparsePaths`, the exact four names, this repository's own settings) is asserted by test_marketplace_fetches_only_the_package and test_installed_footprint_is_closed. MODIFIED `Confirmation selects the release first` 48 words, of which ~24 are new (temporary checkout of its tag, removed afterwards; the running installer writes nothing in the user profile): asserted respectively by the clone-before-hand-off and release-directory-gone assertions, and by the two `snapshot(sandbox.home)` assertions; its two scenarios 37 words, both mapped. MODIFIED `Init fails closed` only removes 14 words and asserts nothing new. No rule, SKILL.md or AGENTS.md sentence is added; the only other prose edits are init.py's module docstring and D2's two-line boundary statement, both tracked by task 3.1.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check: it edits two settings files, init.py, and five test modules, and its verification is the existing `check_red.py`, `openspec validate --strict --all` and `python .agent-process/scripts/ci_check.py`. The derived root coverage lives inside the test task 1.1 already writes, and the `Path.home()` boundary is a task-3.1 verification rather than a new gate for a problem no run has shown.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
