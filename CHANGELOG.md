@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.5.1...v2.6.0) (2026-09-27)
+
+
+### Features
+
+* remove-additions-rule ([#234](https://github.com/ekolvah/agent-process-distribution/issues/234)) ([e847340](https://github.com/ekolvah/agent-process-distribution/commit/e8473400e394757ca4cdb209466a11465223f9ed))
+
 ## [2.5.1](https://github.com/ekolvah/agent-process-distribution/compare/v2.5.0...v2.5.1) (2026-09-27)
 
 
