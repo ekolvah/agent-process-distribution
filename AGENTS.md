@@ -26,9 +26,6 @@ Claude or Codex adapter is the only permitted executor.
 
 ## Repository conventions
 
-- <!-- List this project's own recurring environment pitfalls here (shell,
-  OS, subprocess encoding, path quirks) — start from the target repository's
-  actual toolchain, not this template's origin project. -->
 - Capture Python subprocess output with `encoding="utf-8"`; do not turn a
   `None` stdout or stderr into an empty string.
 - Keep a PR to one logical unit. Update planned docs and ADRs, or explicitly
