@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.3.0...v2.4.0) (2026-09-27)
+
+
+### Features
+
+* install-review-gate ([#223](https://github.com/ekolvah/agent-process-distribution/issues/223)) ([35d76a8](https://github.com/ekolvah/agent-process-distribution/commit/35d76a8cbebcee26887d097dcca00c13f4486e8f))
+
 ## [2.3.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.2.0...v2.3.0) (2026-09-27)
 
 
