@@ -89,7 +89,7 @@ def create_tracking_issue(
     tasks_md.write_text(
         re.sub(re.escape(PLACEHOLDER), f"tracking issue {number}", text, count=1), encoding="utf-8"
     )
-    resume = f'python "{SCRIPT_DIR / "set_status.py"}" {number} Planned --area {area}'
+    resume = f'python "{SCRIPT_DIR / "set_status.py"}" {number} Planned --area "{area}"'
     try:
         set_status(number, "Planned", area=area, gh=gh)
     except (KeyError, ValueError, RuntimeError) as exc:

@@ -37,6 +37,7 @@ FIELDS = {
             "options": [
                 {"id": "A_OBS", "name": "Observability"},
                 {"id": "A_DIST", "name": "Distribution"},
+                {"id": "A_TOK", "name": "Token efficiency"},
             ],
         },
     ]

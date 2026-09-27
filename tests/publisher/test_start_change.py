@@ -464,17 +464,18 @@ def test_plan_approved_creates_the_issue(
     assert "issues/7" in capsys.readouterr().out
 
     # `set_status` fails after the create: the number is already in tasks.md and the
-    # message names the resume — a re-run must not create a second issue.
+    # message names the resume — a re-run must not create a second issue. A multi-word
+    # area stays one argument of the resume command.
     root = _change(tmp_path / "d", tasks=_GROUP0.format(token=_PLACEHOLDER))
     gh = Gh(fail_on=["gh", "project", "item-edit"])
     with pytest.raises(SystemExit) as exc:
-        create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
+        create.main([_CHANGE, "--area", "Token efficiency"], gh=gh, root=root)
     assert exc.value.code == 1
     tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
     assert "tracking issue 7" in tasks
     err = capsys.readouterr().err
     assert str(SKILL_SCRIPTS / "set_status.py") in err
-    assert "7 Planned --area Observability" in err
+    assert '7 Planned --area "Token efficiency"' in err
 
 
 def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
