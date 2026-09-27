@@ -1,6 +1,6 @@
 ## Context
 
-See proposal.md — Why for the stalled #202 and the platform facts. Current state:
+See proposal.md — Why for the stalled release PR (#202) and the platform facts. Current state:
 `quality.yml` job `link` runs one `gh pr view --json closingIssuesReferences` step before any
 checkout; `reusable-agent-review.yml` checks out the trusted process source at
 `github.job_workflow_sha` and runs `request_codex_review.py --wait` from it; `release-please.yml`
@@ -83,8 +83,8 @@ name and a second trigger for one command.
   release-please, which creates the pending tag, and the gap goes to a follow-up issue.
 - [PAT lacks the scope to enable auto-merge] → the step fails red on the first release PR; the
   fix is the token's permissions, recorded in ADR 0031.
-- [Every `feat`/`fix` releases within minutes] → accepted by #203; consumers move only through
-  #199's gate (release drift and a reinstall PR the person merges).
+- [Every `feat`/`fix` releases within minutes] → accepted by the issue (#203); consumers move only through
+  the release-drift gate (#199) (release drift and a reinstall PR the person merges).
 - [`strict` status checks and a release PR behind `main`] → release-please rebuilds the PR on
   every push to `main`, which re-runs the checks on a current head.
 

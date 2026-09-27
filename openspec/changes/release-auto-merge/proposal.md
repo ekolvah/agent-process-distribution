@@ -1,7 +1,7 @@
 ## Why
 
-After #201, release-please opens the release PR, and it stalls on the person (#203). Observed on
-#202 `chore(main): release 2.1.0`: `gh pr view 202 --json files` lists exactly
+After release-please landed (#201), it opens the release PR, and it stalls on the person (#203). Observed on the release PR
+(#202) `chore(main): release 2.1.0`: `gh pr view 202 --json files` lists exactly
 `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.release-please-manifest.json`,
 `CHANGELOG.md`, `skills/agent-process/scripts/init.py`; `agent-process / quality` failed in 3 s
 on "PR 202 links no issue"; `agent-review / agent-review` waited for a Codex review nobody
