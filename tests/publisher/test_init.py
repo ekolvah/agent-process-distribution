@@ -20,7 +20,6 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 import pytest
@@ -35,12 +34,10 @@ from tests.publisher.init_harness import (
     Runner,
     Sandbox,
     git,
-    head_commit,
     install,
     load_init,
     relative,
     snapshot,
-    tag_commit,
     transitions,
 )
 
@@ -62,6 +59,7 @@ def test_lifecycle(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], scenario: str, mode: str, platform: str
 ) -> None:
     init = load_init()
+    home = snapshot(sandbox.home)
     if scenario != "fresh":
         assert install(init, sandbox, "--confirm", platform=platform) == 0
     if mode == "retry":
@@ -77,18 +75,13 @@ def test_lifecycle(
     assert code == 0, out
     assert out.splitlines()[0] == f"repository: {sandbox.repo}"
     seen = transitions(out)
+    assert snapshot(sandbox.home) == home
     if scenario == "upgrade":
         assert f"stub-release v{OTHER}" in out
         argv = json.loads(next(ln for ln in out.splitlines() if ln.startswith("argv "))[5:])
         assert flag in argv and "--selected-release" in argv
-        if mode == "dry-run":
-            assert seen == {} and after == before
-        else:
-            assert seen == {
-                "checkout": "written" if mode == "confirm" else "unchanged",
-                "hand-off": "planned",
-            }
-            assert head_commit(sandbox.checkout) == tag_commit(sandbox, f"v{OTHER}")
+        assert seen == ({} if mode == "dry-run" else {"hand-off": "planned"})
+        assert after == before
         return
     if scenario == "fresh" and mode != "retry":
         expected = "planned" if mode == "dry-run" else "written"
@@ -97,8 +90,6 @@ def test_lifecycle(
     assert seen == dict.fromkeys(LABELS, expected), out
     if expected != "written":
         assert after == before
-    else:
-        assert head_commit(sandbox.checkout) == tag_commit(sandbox, f"v{CURRENT}")
 
 
 def test_other_version_dry_run_leaves_no_state(
@@ -182,29 +173,18 @@ class Interrupted(Exception):
     pass
 
 
-def _prepare(init: ModuleType, sb: Sandbox, scenario: str) -> list[str]:
-    """Bring the sandbox to the scenario's starting state; return the requested version."""
-    if scenario == "upgrade":
-        assert install(init, sb, "--confirm") == 0
-        return ["--version", OTHER]
-    return []
-
-
 def _final(sb: Sandbox) -> dict[str, Any]:
     return {
         "root": relative(snapshot(sb.root), sb.root),
-        "head": head_commit(sb.checkout),
         "github": sb.github.state(),
     }
 
 
-@pytest.mark.parametrize("scenario", ["fresh", "upgrade"])
 def test_retry_after_each_write(
     tmp_path: Path,
     process_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
     capfd: pytest.CaptureFixture[str],
-    scenario: str,
 ) -> None:
     init = load_init()
     monkeypatch.setenv("AGENT_PROCESS_REPOSITORY", str(process_repo))
@@ -219,15 +199,13 @@ def test_retry_after_each_write(
         return sb
 
     reference = fresh_sandbox("reference")
-    version = _prepare(init, reference, scenario)
     labels: list[str] = []
-    assert install(init, reference, "--confirm", *version, on_write=labels.append) == 0
+    assert install(init, reference, "--confirm", on_write=labels.append) == 0
     expected = _final(reference)
     assert labels, "an uninterrupted run reports its writes"
 
     for label in labels:
         sb = fresh_sandbox(f"at-{label}")
-        _prepare(init, sb, scenario)
         runner = Runner(init, HOST, sb.github)
 
         def interrupt(seen: str, at: str = label) -> None:
@@ -235,9 +213,9 @@ def test_retry_after_each_write(
                 raise Interrupted(at)
 
         with pytest.raises(Interrupted):
-            install(init, sb, "--confirm", *version, runner=runner, on_write=interrupt)
+            install(init, sb, "--confirm", runner=runner, on_write=interrupt)
         capfd.readouterr()
-        assert install(init, sb, "--confirm", *version, runner=runner) == 0
+        assert install(init, sb, "--confirm", runner=runner) == 0
         out = capfd.readouterr().out
         assert transitions(out)[label] == "unchanged", (label, out)
         assert _final(sb) == expected, label

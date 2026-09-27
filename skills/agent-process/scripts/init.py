@@ -5,31 +5,30 @@ Usage: python init.py --test <command> [--setup <command>] [--version <x.y.z>]
        (--dry-run | --confirm)
 
 The requested release owns its run. With `--version` equal to `VERSION` this file runs
-itself; otherwise `--dry-run` clones the requested tag into a temporary directory and runs
-that tree's `init.py`, forwarding its output and exit code, and `--confirm` moves the
-user-scope checkout to the tag and hands off to the checkout's `init.py`. The hidden `--selected-release` marks a handed-off child: a tag whose `VERSION`
-differs from the requested version exits 1 instead of recursing.
+itself; otherwise it clones the requested tag into a temporary directory, removed afterwards,
+and runs that tree's `init.py`, forwarding its output and exit code; `--confirm` first prints
+`planned hand-off`. The hidden `--selected-release` marks a handed-off child: a tag whose
+`VERSION` differs from the requested version exits 1 instead of recursing. Nothing is written
+in the user profile.
 
 A run first classifies every transition from observed state — `planned`, `unchanged`, or
 `conflict` — and prints one line per transition. Any conflict exits 2 before the first
 write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order and print
 `written` or `unchanged`:
 
-1. checkout  `~/.agent-process/distribution` at `v<version>` (staged clone + `os.replace`)
-2. hand-off  to the requested release, when it is not this one
-3. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
-4. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
+1. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
+2. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
              `# agent-process release:` line, which `release_drift` compares (#190)
-5. workflow  the managed `.github/workflows/agent-process.yml`
-6. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
-7. dependabot  the marker block of `.github/dependabot.yml`
-8. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
-9. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
-10. project-copy `gh project copy` of the template Project as `<repository> agent process`,
-                 unless the repository has a linked Project or its owner an unlinked copy
-11. project-link `gh project link` of that one unlinked copy to the repository
+3. workflow  the managed `.github/workflows/agent-process.yml`
+4. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
+5. dependabot  the marker block of `.github/dependabot.yml`
+6. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
+7. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+8. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+                unless the repository has a linked Project or its owner an unlinked copy
+9. project-link `gh project link` of that one unlinked copy to the repository
 
-Steps 10-11 are classified from `gh` reads of the repository's linked Projects and its
+Steps 8-9 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
@@ -244,10 +243,6 @@ def _write(path: Path, text: str, eol: str = "\n") -> None:
         raise
 
 
-def _same_path(a: str | Path, b: str | Path) -> bool:
-    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
-
-
 def _is_link(path: Path) -> bool:
     return os.path.islink(path) or os.path.isjunction(path)
 
@@ -289,10 +284,6 @@ class Context:
     def tag(self) -> str:
         return f"v{self.version}"
 
-    @property
-    def checkout(self) -> Path:
-        return self.home / ".agent-process" / "distribution"
-
     def exe(self, name: str) -> str:
         found = self.which(name)
         if not found:
@@ -318,54 +309,6 @@ class Context:
         # No optional locks: a status read never refreshes the index of a checkout it inspects.
         env = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
         return self.call("git", *args, env=env, check=check)
-
-
-def _checkout(ctx: Context) -> Step:  # noqa: C901, PLR0911 -- baseline: one outcome per checkout state
-    path, tag = ctx.checkout, ctx.tag
-    if not os.path.lexists(path):
-        if reason := _parent_conflict(path):
-            return Step("checkout", "conflict", f"{path} {reason}")
-
-        def clone() -> bool:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            staging = tempfile.mkdtemp(dir=path.parent)
-            try:
-                ctx.git("clone", "--quiet", "--branch", tag, ctx.repository, staging)
-                os.replace(staging, path)
-            except BaseException:
-                shutil.rmtree(staging, ignore_errors=True)
-                raise
-            return True
-
-        return Step("checkout", "planned", f"{path} absent -> {tag}", clone)
-
-    def conflict(reason: str) -> Step:
-        return Step("checkout", "conflict", f"{path} {reason}")
-
-    here = ["-C", str(path)]
-    top = ctx.git(*here, "rev-parse", "--show-toplevel", check=False)
-    if _is_link(path) or top.returncode != 0 or not _same_path(top.stdout.strip(), path):
-        return conflict("is not a Git checkout")
-    origin = ctx.git(*here, "remote", "get-url", "origin", check=False)
-    if origin.returncode != 0 or origin.stdout.strip() != ctx.repository:
-        return conflict(f"has origin {origin.stdout.strip() or 'none'}, not {ctx.repository}")
-    if ctx.git(*here, "status", "--porcelain").stdout.strip():
-        return conflict("has local changes")
-    head = ctx.git(*here, "rev-parse", "HEAD").stdout.strip()
-    wanted = ctx.git(
-        *here, "rev-parse", "--verify", "-q", f"refs/tags/{tag}^{{commit}}", check=False
-    )
-    if wanted.returncode == 0 and wanted.stdout.strip() == head:
-        return Step("checkout", "unchanged", f"{path} at {tag}")
-    described = ctx.git(*here, "describe", "--tags", "--exact-match", "HEAD", check=False)
-    current = described.stdout.strip() if described.returncode == 0 else head[:12]
-
-    def move() -> bool:
-        ctx.git(*here, "fetch", "--quiet", "--tags", "origin")
-        ctx.git(*here, "checkout", "--quiet", "--detach", tag)
-        return True
-
-    return Step("checkout", "planned", f"{path} {current} -> {tag}", move)
 
 
 def _hand_off(ctx: Context, argv: list[str], tree: Path) -> int:
@@ -851,7 +794,9 @@ def install(argv: list[str], host: Host) -> int:
 def _run(
     ctx: Context, args: argparse.Namespace, argv: list[str], on_write: Callable[[str], None]
 ) -> int:
-    if args.version != VERSION and args.dry_run:
+    if args.version != VERSION:
+        if args.confirm:
+            print(f"planned hand-off: {ctx.tag} composes the consumer files")
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             tree = Path(tmp) / "release"
             ctx.git(
@@ -865,15 +810,10 @@ def _run(
                 str(tree),
             )
             return _hand_off(ctx, argv, tree)
-    steps = [_checkout(ctx)]
-    manual: list[str] = []
-    if args.version != VERSION:
-        steps.append(Step("hand-off", "planned", f"{ctx.tag} composes the consumer files"))
-    else:
-        steps.extend(_consumer_steps(ctx))
-        project, url, repo = _project_steps(ctx)
-        steps.extend(project)
-        manual = _manual(url, repo)
+    steps = _consumer_steps(ctx)
+    project, url, repo = _project_steps(ctx)
+    steps.extend(project)
+    manual = _manual(url, repo)
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     for line in manual:
@@ -883,15 +823,11 @@ def _run(
         return 2
     if args.dry_run:
         return 0
-    return _perform(ctx, steps, argv, on_write)
+    return _perform(steps, on_write)
 
 
-def _perform(
-    ctx: Context, steps: list[Step], argv: list[str], on_write: Callable[[str], None]
-) -> int:
+def _perform(steps: list[Step], on_write: Callable[[str], None]) -> int:
     for step in steps:
-        if step.label == "hand-off":
-            return _hand_off(ctx, argv, ctx.checkout)
         written = step.status == "planned" and step.apply is not None and step.apply()
         print(f"{'written' if written else 'unchanged'} {step.label}: {step.detail}")
         if written:

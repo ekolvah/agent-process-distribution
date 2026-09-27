@@ -172,10 +172,6 @@ class Sandbox:
     github: FakeGitHub = field(default_factory=FakeGitHub)
 
     @property
-    def checkout(self) -> Path:
-        return self.home / ".agent-process" / "distribution"
-
-    @property
     def link(self) -> Path:
         return self.home / ".agents" / "skills" / "agent-process"
 
@@ -323,7 +319,6 @@ def tag_commit(sb: Sandbox, tag: str) -> str:
 # Names shared by the `test_init*.py` modules.
 
 LABELS = [
-    "checkout",
     "openspec",
     "config",
     "workflow",

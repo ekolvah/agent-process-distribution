@@ -92,10 +92,7 @@ def test_package_paths_resolve_in_a_consumer() -> None:
     for path in _package_text_files():
         text = path.read_text(encoding="utf-8")
         name = path.relative_to(ROOT).as_posix()
-        # `~/.agent-process/` is the installer's user-profile checkout, not a repository path.
-        findings += [
-            f"{name}: {m.group()}" for m in re.finditer(r"(?<!~/)\.agent-process/\S*", text)
-        ]
+        findings += [f"{name}: {m.group()}" for m in re.finditer(r"\.agent-process/\S*", text)]
         if path.suffix == ".md" and PACKAGE in path.parents:
             for target in re.findall(r"\]\(([^)#\s]+)", text):
                 if "://" in target:
