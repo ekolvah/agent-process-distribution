@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.1](https://github.com/ekolvah/agent-process-distribution/compare/v2.6.0...v2.6.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* carry-change-in-worktree ([#237](https://github.com/ekolvah/agent-process-distribution/issues/237)) ([7e7a979](https://github.com/ekolvah/agent-process-distribution/commit/7e7a979044bffd2c84d5e7e55f1bff6ede7d571d))
+
 ## [2.6.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.5.1...v2.6.0) (2026-09-27)
 
 
