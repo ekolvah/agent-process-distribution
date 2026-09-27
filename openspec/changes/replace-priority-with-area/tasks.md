@@ -16,8 +16,8 @@
 
 ## 3. Installer and docs (D4)
 
-- [ ] 3.1 `init.py` `_manual`: add the `manual project-areas: {where}/settings -- replace the Area options and the area views with this repository's own` row; the module docstring names three rows. Verify `python -m pytest tests/publisher/test_init_remote.py -q` passes
-- [ ] 3.2 `skills/agent-process/SKILL.md` Architect review: "ask once for the area … `--area <name>`" (the Project's `Area` options); `.claude/rules/workflow.md`: ask for the area and run `set_status.py <N> --area <name>`; `openspec/config.yaml` context: "in `Planned` with its area". Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes and `rg -n -e "--priority" -e "High|Medium|Low" skills .claude openspec/config.yaml` finds nothing. Commit as `docs(state): ask for the area at issue creation`
+- [x] 3.1 `init.py` `_manual`: add the `manual project-areas: {where}/settings -- replace the Area options and the area views with this repository's own` row; the module docstring names three rows. Verify `python -m pytest tests/publisher/test_init_remote.py -q` passes
+- [x] 3.2 `skills/agent-process/SKILL.md` Architect review: "ask once for the area … `--area <name>`" (the Project's `Area` options); `.claude/rules/workflow.md`: ask for the area and run `set_status.py <N> --area <name>`; `openspec/config.yaml` context: "in `Planned` with its area". Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes and `rg -n -e "--priority" -e "High|Medium|Low" skills .claude openspec/config.yaml` finds nothing. Commit as `docs(state): ask for the area at issue creation`
 
 ## 4. Verify
 

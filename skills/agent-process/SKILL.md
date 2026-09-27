@@ -78,8 +78,9 @@ After `tasks.md`, review proposal, specifications, design, and tasks against pri
 
 Findings point at artifacts instead of restating them. On `rework`, answer every finding and
 review again. The propose run ends on `approve`: if the change has no issue, ask once for
-priority and run `python skills/agent-process/scripts/create_tracking_issue.py <change>
---priority <High|Medium|Low>`; otherwise run it without priority. It validates the review
+the area (an option of the Project's `Area` field) and run
+`python skills/agent-process/scripts/create_tracking_issue.py <change> --area <name>`;
+otherwise run it without area. It validates the review
 first; send its errors back to the reviewer. The issue must be `Planned` before the
 plan is ready. Then explain the plan in plain words — what changes, why, what the person
 decides — as a page linked in the final message, or in that message when the carrier cannot
