@@ -29,6 +29,7 @@ MOVED_SCRIPTS = {
 
 TEMPLATES = {
     "agent-process.yml",
+    "agent-review.yml",
     "config.yaml",
     "dependabot.yml",
     "ruleset.json",

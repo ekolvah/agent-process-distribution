@@ -163,6 +163,10 @@ def render_workflow(version: str, setup: str, test: str) -> str:
     )
 
 
+def render_review_workflow(version: str) -> str:
+    raise NotImplementedError
+
+
 def render_config_block(test: str) -> str:
     quality = f"The repository's complete quality command is: {test}"
     return _template("config.yaml", openspec=OPENSPEC, version=VERSION, quality=json.dumps(quality))
