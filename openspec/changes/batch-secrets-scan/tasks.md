@@ -8,7 +8,7 @@
 
 ## 2. Batching (design: batch by measured length, fail fast)
 
-- [ ] 2.1 In `.agent-process/scripts/ci_check.py` add `_CMDLINE_LIMIT = 32000` and a helper that packs targets in order into batches whose `subprocess.list2cmdline(_secrets_cmd(batch))` stays within it (a single over-long path gets a batch of its own); make `check_secrets` keep the empty-list refusal and call `_run(_secrets_cmd(batch))` per batch. Verify `python -m pytest tests/agent_process/test_ci_check.py -q` passes and `python .agent-process/scripts/ci_check.py --only secrets` passes on Windows; commit as `fix(ci): batch the secrets scan under the command-line limit`
+- [x] 2.1 In `.agent-process/scripts/ci_check.py` add `_CMDLINE_LIMIT = 32000` and a helper that packs targets in order into batches whose `subprocess.list2cmdline(_secrets_cmd(batch))` stays within it (a single over-long path gets a batch of its own); make `check_secrets` keep the empty-list refusal and call `_run(_secrets_cmd(batch))` per batch. Verify `python -m pytest tests/agent_process/test_ci_check.py -q` passes and `python .agent-process/scripts/ci_check.py --only secrets` passes on Windows; commit as `fix(ci): batch the secrets scan under the command-line limit`
 
 ## 3. Verify
 
