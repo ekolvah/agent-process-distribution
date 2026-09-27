@@ -8,7 +8,7 @@
 
 ## 2. Workflow (D1)
 
-- [ ] 2.1 Edit the auto-merge step of `.github/workflows/release-please.yml` per D1. The step comment says the output is parsed in `run` because the step `env` is evaluated even when `if` is false (run 36297738914). Verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes. Commit as `fix(release): the auto-merge step tolerates an unchanged release PR`
+- [x] 2.1 Edit the auto-merge step of `.github/workflows/release-please.yml` per D1. The step comment says the output is parsed in `run` because the step `env` is evaluated even when `if` is false (run 36297738914). Verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes. Commit as `fix(release): the auto-merge step tolerates an unchanged release PR`
 
 ## 3. Verify
 

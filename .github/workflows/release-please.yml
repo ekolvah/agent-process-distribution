@@ -24,10 +24,14 @@ jobs:
 
       # Auto-merge waits for the required contexts; a failure to enable it (the
       # repository disallows auto-merge) fails the run instead of stalling the PR.
+      # The step `env` is evaluated even when `if` is false, and `pr` is unset when no
+      # PR changed (run 36297738914), so the number is parsed in `run`, not in `env`.
       - name: Enable auto-merge on the release PR
         if: steps.release.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          PR: ${{ fromJSON(steps.release.outputs.pr).number }}
-        run: gh pr merge --auto --squash "$PR"
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          PR=$(jq -er .number <<< "$PR_JSON")
+          gh pr merge --auto --squash "$PR"
