@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1](https://github.com/ekolvah/agent-process-distribution/compare/v2.5.0...v2.5.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* batch-secrets-scan ([#232](https://github.com/ekolvah/agent-process-distribution/issues/232)) ([762ce2b](https://github.com/ekolvah/agent-process-distribution/commit/762ce2b78734b1994a03b7e89641125dc21c4562))
+
 ## [2.5.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.4.1...v2.5.0) (2026-09-27)
 
 
