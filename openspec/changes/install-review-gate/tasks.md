@@ -13,7 +13,7 @@
 
 ## 3. Activation (D3)
 
-- [ ] 3.1 In `activate_protection.py` refuse on a null `review` object with the D3 message, drop the parameter of `contexts()`, and update the module docstring. Update `test_reusable_workflows.py::test_publisher_driver_keeps_a_same_head_catcher` to call `contexts()`. Verify `python -m pytest tests/publisher/test_activate_protection.py tests/publisher/test_reusable_workflows.py -q` passes. Commit as `feat(distribution): activation requires the review caller`
+- [x] 3.1 In `activate_protection.py` refuse on a null `review` object with the D3 message, drop the parameter of `contexts()`, and update the module docstring. Update `test_reusable_workflows.py::test_publisher_driver_keeps_a_same_head_catcher` to call `contexts()`. Verify `python -m pytest tests/publisher/test_activate_protection.py tests/publisher/test_reusable_workflows.py -q` passes. Commit as `feat(distribution): activation requires the review caller`
 
 ## 4. Procedure and record (D2, D3, D5)
 

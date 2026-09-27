@@ -119,7 +119,7 @@ def test_publisher_driver_keeps_a_same_head_catcher() -> None:
     from tests.publisher.delivery_fakes import load_script
 
     assert (ROOT / ".github" / "workflows" / "agent-review.yml").is_file()
-    assert "agent-review / agent-review" in load_script("activate_protection").contexts(True)
+    assert "agent-review / agent-review" in load_script("activate_protection").contexts()
 
 
 def test_quality_runs_once_per_pr() -> None:
