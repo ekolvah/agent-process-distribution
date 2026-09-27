@@ -23,17 +23,19 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 5. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
              `# agent-process release:` line, which `release_drift` compares (#190)
 6. workflow  the managed `.github/workflows/agent-process.yml`
-7. dependabot  the marker block of `.github/dependabot.yml`
-8. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
-9. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
-10. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+7. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
+8. dependabot  the marker block of `.github/dependabot.yml`
+9. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
+10. check    the managed `.claude/agent-process-check.py` that hook runs (#187)
+11. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                  unless the repository has a linked Project or its owner an unlinked copy
-11. project-link `gh project link` of that one unlinked copy to the repository
+12. project-link `gh project link` of that one unlinked copy to the repository
 
-Steps 10-11 are classified from `gh` reads of the repository's linked Projects and its
+Steps 11-12 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
-`Area` options and views copied from the template — that only its UI can change. Nothing is committed or pushed, and the Project copy and link are
+`Area` options and views copied from the template, and the review caller's
+`CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change. Nothing is committed or pushed, and the Project copy and link are
 the only GitHub writes. `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -98,6 +100,7 @@ PLUGIN = "agent-process@agent-process-marketplace"
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 CONFIG = "openspec/config.yaml"
 WORKFLOW = ".github/workflows/agent-process.yml"
+REVIEW_WORKFLOW = ".github/workflows/agent-review.yml"
 DEPENDABOT = ".github/dependabot.yml"
 SETTINGS = ".claude/settings.json"
 CHECK = ".claude/agent-process-check.py"
@@ -161,6 +164,11 @@ def render_workflow(version: str, setup: str, test: str) -> str:
     return _template(
         "agent-process.yml", version=version, setup=json.dumps(setup), test=json.dumps(test)
     )
+
+
+def render_review_workflow(version: str) -> str:
+    """The managed review caller; its secret is the consumer's own."""
+    return _template("agent-review.yml", version=version)
 
 
 def render_config_block(test: str) -> str:
@@ -509,11 +517,19 @@ def _config_text(ctx: Context) -> tuple[str | None, str]:
     return text, "\n".join(_replace_block(lines, block))
 
 
-def _workflow_text(ctx: Context) -> tuple[str | None, str]:
-    text = _read(ctx.root / WORKFLOW)
+def _managed_text(ctx: Context, rel: str, rendered: str) -> tuple[str | None, str]:
+    text = _read(ctx.root / rel)
     if text is not None and text.split("\n", 1)[0].strip() != MANAGED:
         raise Conflict(f"exists without its first line `{MANAGED}`")
-    return text, render_workflow(ctx.version, ctx.setup, ctx.test)
+    return text, rendered
+
+
+def _workflow_text(ctx: Context) -> tuple[str | None, str]:
+    return _managed_text(ctx, WORKFLOW, render_workflow(ctx.version, ctx.setup, ctx.test))
+
+
+def _review_text(ctx: Context) -> tuple[str | None, str]:
+    return _managed_text(ctx, REVIEW_WORKFLOW, render_review_workflow(ctx.version))
 
 
 def _dependabot_text(ctx: Context) -> tuple[str | None, str]:
@@ -644,6 +660,7 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         _openspec(ctx),
         _file_step(ctx, "config", CONFIG, _config_text),
         _file_step(ctx, "workflow", WORKFLOW, _workflow_text),
+        _file_step(ctx, "review", REVIEW_WORKFLOW, _review_text),
         _file_step(ctx, "dependabot", DEPENDABOT, _dependabot_text),
         _file_step(ctx, "settings", SETTINGS, _settings_text),
         _file_step(ctx, "check", CHECK, _check_text),
@@ -699,23 +716,32 @@ def _reusable(ctx: Context, owner: str, title: str) -> tuple[list[dict[str, Any]
     return reusable, named
 
 
-def _project_steps(ctx: Context) -> tuple[list[Step], str | None]:
-    """Steps 9-10 from the remote state alone, and the Project's URL when one is decided."""
+def _project_steps(ctx: Context) -> tuple[list[Step], str | None, str]:
+    """Steps 11-12 from the remote state alone, the Project's URL when one is decided, and
+    the repository's `owner/name`."""
     owner, name, linked = _repository(ctx)
     repo = f"{owner}/{name}"
     title = f"{name} agent process"
     if len(linked) == 1:
         detail = f"#{linked[0].get('number')} {linked[0].get('title')!r} linked to {repo}"
-        return [
-            Step("project-copy", "unchanged", detail),
-            Step("project-link", "unchanged", detail),
-        ], linked[0].get("url")
+        return (
+            [
+                Step("project-copy", "unchanged", detail),
+                Step("project-link", "unchanged", detail),
+            ],
+            linked[0].get("url"),
+            repo,
+        )
     if len(linked) > 1:
         numbers = ", ".join(f"#{node.get('number')}" for node in linked)
-        return [
-            Step("project-copy", "conflict", f"{numbers} are linked to {repo}; keep one"),
-            Step("project-link", "conflict", f"several Projects are linked to {repo}"),
-        ], None
+        return (
+            [
+                Step("project-copy", "conflict", f"{numbers} are linked to {repo}; keep one"),
+                Step("project-link", "conflict", f"several Projects are linked to {repo}"),
+            ],
+            None,
+            repo,
+        )
     reusable, named = _reusable(ctx, owner, title)
 
     def link() -> bool:
@@ -729,17 +755,25 @@ def _project_steps(ctx: Context) -> tuple[list[Step], str | None]:
 
     if len(reusable) == 1:
         number = reusable[0].get("number")
-        return [
-            Step("project-copy", "unchanged", f"#{number} {title!r} of {owner}"),
-            Step("project-link", "planned", f"#{number} -> {repo}", link),
-        ], reusable[0].get("url")
+        return (
+            [
+                Step("project-copy", "unchanged", f"#{number} {title!r} of {owner}"),
+                Step("project-link", "planned", f"#{number} -> {repo}", link),
+            ],
+            reusable[0].get("url"),
+            repo,
+        )
     if named:
         why = "several" if reusable else "none of them open and unlinked"
         detail = f"Projects `{title}` of {owner}: {', '.join(named)} ({why})"
-        return [
-            Step("project-copy", "conflict", detail),
-            Step("project-link", "conflict", "no single Project to link"),
-        ], None
+        return (
+            [
+                Step("project-copy", "conflict", detail),
+                Step("project-link", "conflict", "no single Project to link"),
+            ],
+            None,
+            repo,
+        )
 
     def copy() -> bool:
         ctx.call(
@@ -758,14 +792,19 @@ def _project_steps(ctx: Context) -> tuple[list[Step], str | None]:
         return True
 
     source = f"{TEMPLATE_OWNER} #{TEMPLATE_PROJECT}"
-    return [
-        Step("project-copy", "planned", f"{source} -> {owner} as {title!r}", copy),
-        Step("project-link", "planned", f"the copy -> {repo}", link),
-    ], None
+    return (
+        [
+            Step("project-copy", "planned", f"{source} -> {owner} as {title!r}", copy),
+            Step("project-link", "planned", f"the copy -> {repo}", link),
+        ],
+        None,
+        repo,
+    )
 
 
-def _manual(url: str | None) -> list[str]:
-    """What only the Project's UI can do; `init` prints it and never performs it."""
+def _manual(url: str | None, repo: str) -> list[str]:
+    """What only the Project's UI or the repository's settings can do; `init` prints it and
+    never performs it (a secret is never read or written by `init`)."""
     where = url or "the new copy"
     return [
         f"manual project-visibility: {where}/settings -- a copy is private; "
@@ -773,6 +812,8 @@ def _manual(url: str | None) -> list[str]:
         f"manual project-workflows: {where}/workflows -- check {WORKFLOWS}",
         f"manual project-areas: {where}/settings -- replace the Area options and the area "
         "views with this repository's own",
+        f"manual review-secret: https://github.com/{repo}/settings/secrets/actions -- set "
+        "CLAUDE_CODE_OAUTH_TOKEN, the token the review caller passes to the review",
     ]
 
 
@@ -859,9 +900,9 @@ def _run(
         steps.append(Step("hand-off", "planned", f"{ctx.tag} composes the consumer files"))
     else:
         steps.extend(_consumer_steps(ctx))
-        project, url = _project_steps(ctx)
+        project, url, repo = _project_steps(ctx)
         steps.extend(project)
-        manual = _manual(url)
+        manual = _manual(url, repo)
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     for line in manual:

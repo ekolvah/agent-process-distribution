@@ -346,6 +346,7 @@ LABELS = [
     "openspec",
     "config",
     "workflow",
+    "review",
     "dependabot",
     "settings",
     "check",
@@ -354,6 +355,7 @@ LABELS = [
 ]
 CONSUMER_FILES = {
     ".github/workflows/agent-process.yml",
+    ".github/workflows/agent-review.yml",
     ".github/dependabot.yml",
     ".claude/settings.json",
     ".claude/agent-process-check.py",

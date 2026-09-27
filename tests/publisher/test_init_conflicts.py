@@ -101,6 +101,10 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         "workflow",
         lambda init, sb: _write(sb, ".github/workflows/agent-process.yml", "name: mine\n"),
     ),
+    "review-unmanaged": (
+        "review",
+        lambda init, sb: _write(sb, ".github/workflows/agent-review.yml", "name: mine\n"),
+    ),
     "dependabot-without-block": (
         "dependabot",
         lambda init, sb: _write(sb, ".github/dependabot.yml", "version: 2\nupdates: []\n"),

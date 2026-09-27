@@ -226,3 +226,20 @@ def test_manual_actions_are_printed(
     assert len(areas) == 1 and "Area" in areas[0]
     for args in runner.gh():
         _gh_kind(args)
+
+
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+def test_review_prerequisites_are_printed(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
+) -> None:
+    init = load_init()
+    runner = Runner(init, HOST, sandbox.github)
+    assert install(init, sandbox, mode, runner=runner) == 0
+    lines = capfd.readouterr().out.splitlines()
+    rows = [ln for ln in lines if ln.startswith("manual review-")]
+    assert len(rows) == 1 and rows[0].startswith("manual review-secret: "), rows
+    assert "CLAUDE_CODE_OAUTH_TOKEN" in rows[0]
+    assert f"https://github.com/{CONSUMER}/settings/secrets/actions" in rows[0]
+    # `_gh_kind` fails on any `gh` command but the reads, the copy and the link: no secret.
+    for args in runner.gh():
+        _gh_kind(args)

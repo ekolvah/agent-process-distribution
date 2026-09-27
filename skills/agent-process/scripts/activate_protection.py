@@ -3,11 +3,11 @@
 
 Usage: python skills/agent-process/scripts/activate_protection.py --pr <N> (--dry-run | --confirm)
 
-The required contexts follow the callers on the default branch: `agent-process / quality`
-always, and `agent-review / agent-review` when `.github/workflows/agent-review.yml` exists.
-A required check that never reported blocks every merge (PR 151, run 35523639249), so the
-run first reads these facts and refuses (exit 2) without them: the default branch carries
-`.github/workflows/agent-process.yml`, and the current head of PR <N> against that branch
+The required contexts are `agent-process / quality` and `agent-review / agent-review`,
+the review gate every install carries (#215). A required check that never reported blocks
+every merge (PR 151, run 35523639249), so the run first reads these facts and refuses
+(exit 2) without them: the default branch carries `.github/workflows/agent-process.yml` and
+`.github/workflows/agent-review.yml`, and the current head of PR <N> against that branch
 has, for each context, a check run that GitHub Actions concluded `success`. That run's app
 id becomes the context's `integration_id`.
 
@@ -57,9 +57,9 @@ class Refusal(Exception):
     """A precondition or a conflict: exit 2, nothing written."""
 
 
-def contexts(review_caller: bool) -> list[str]:
-    """The required contexts, given whether the default branch carries the review caller."""
-    return [CONTEXT, REVIEW_CONTEXT] if review_caller else [CONTEXT]
+def contexts() -> list[str]:
+    """The required contexts."""
+    return [CONTEXT, REVIEW_CONTEXT]
 
 
 def _observed(gh: Gh, repo: str, pr: int, head: str, context: str) -> Check:
@@ -99,14 +99,15 @@ def preflight(gh: Gh, pr: int) -> tuple[str, str, list[Check]]:
     repo, branch = str(data["nameWithOwner"]), str(data["defaultBranchRef"]["name"])
     if data["object"] is None:
         raise Refusal(f"refused: caller absent on {branch}: {CALLER}")
+    if data["review"] is None:
+        raise Refusal(f"refused: caller absent on {branch}: {REVIEW_CALLER}")
     view = _json(gh, ["gh", "pr", "view", str(pr), "--json", "headRefOid,baseRefName"])
     if view["baseRefName"] != branch:
         raise Refusal(
             f"refused: PR {pr} has base {view['baseRefName']}, not the default branch {branch}"
         )
     head = str(view["headRefOid"])
-    wanted = contexts(data["review"] is not None)
-    return repo, branch, [_observed(gh, repo, pr, head, context) for context in wanted]
+    return repo, branch, [_observed(gh, repo, pr, head, context) for context in contexts()]
 
 
 def _fill(node: Any, values: dict[str, Any]) -> Any:

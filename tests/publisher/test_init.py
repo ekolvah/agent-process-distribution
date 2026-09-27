@@ -276,6 +276,36 @@ def test_caller_inputs() -> None:
     assert set(job["with"]) == {"setup", "test"}
 
 
+_LEVELS = {"none": 0, "read": 1, "write": 2}
+
+
+def test_review_caller_render() -> None:
+    init = load_init()
+    text = init.render_review_workflow(CURRENT)
+    assert text.splitlines()[0] == "# agent-process:managed"
+    assert "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" in text
+    workflow = yaml.safe_load(text)
+    assert workflow.get("on", workflow.get(True)) == {
+        "pull_request": {"types": ["opened", "synchronize"]}
+    }
+    assert list(workflow["jobs"]) == ["agent-review"]
+    job = workflow["jobs"]["agent-review"]
+    assert job["uses"] == (
+        f"ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@v{CURRENT}"
+    )
+    assert "with" not in job
+    callee = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "reusable-agent-review.yml").read_text(encoding="utf-8")
+    )
+    schema = callee.get("on", callee.get(True))["workflow_call"]
+    assert not any(spec.get("required") for spec in (schema.get("inputs") or {}).values())
+    assert set(job["secrets"]) == set(schema["secrets"])
+    assert job["secrets"] == {"claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"}
+    granted = workflow["permissions"]
+    for scope, level in callee["permissions"].items():
+        assert _LEVELS[granted.get(scope, "none")] >= _LEVELS[level], scope
+
+
 @pytest.mark.parametrize("test", ["", "   "])
 def test_empty_test_command_is_refused(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], test: str

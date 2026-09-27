@@ -137,17 +137,17 @@ skill's own directory. Run from the consumer's root:
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
 3. Ask once; on yes run the same command with `--confirm` instead of `--dry-run`.
-4. Tell the person to review and commit the changed files and to do the `manual` rows in
-   the Project's UI. The installer never commits or pushes; its only GitHub writes are the
-   copy of the template Project and its link to the repository.
-5. Once the installation PR shows `agent-process / quality` and the person has merged it,
-   run `python skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run` with
+4. Tell the person to review and commit the changed files and to do the `manual` rows:
+   the `project-*` rows in the Project's UI, and the `review-secret` row, which sets the
+   repository's `CLAUDE_CODE_OAUTH_TOKEN` secret the review caller passes to the review.
+   The installer never commits or pushes; its only GitHub writes are the copy of the
+   template Project and its link to the repository.
+5. Once the installation PR shows `agent-process / quality` and `agent-review / agent-review`
+   green and the person has merged it, run `python skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run` with
    that PR's number (admin rights on
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never
-   writes classic branch protection. When the repository has
-   `.github/workflows/agent-review.yml`, it requires `agent-review / agent-review` too, so
-   the PR must also show that check green.
+   writes classic branch protection.
 
 The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
 install of another version in any repository moves it for every repository. Claude applies

@@ -30,7 +30,17 @@ WRITES = ("POST", "PUT", "PATCH", "DELETE")
 PAGE = 30  # the REST default page size of the ruleset list
 
 
-def _rules(context: str, integration: int = 15368) -> list[dict[str, Any]]:
+def _pair(context: str, integration: int) -> dict[str, Any]:
+    return {"context": context, "integration_id": integration}
+
+
+# The contexts an activation requires (both callers are installed), and those of a ruleset
+# written before the review caller existed.
+BOTH = [_pair(CONTEXT, 15368), _pair(REVIEW, REVIEW_APP)]
+OLD = [_pair("quality / quality", 15368)]
+
+
+def _rules(checks: list[dict[str, Any]] = BOTH) -> list[dict[str, Any]]:
     return [
         {"type": "deletion"},
         {"type": "non_fast_forward"},
@@ -49,15 +59,15 @@ def _rules(context: str, integration: int = 15368) -> list[dict[str, Any]]:
             "parameters": {
                 "strict_required_status_checks_policy": True,
                 "do_not_enforce_on_create": False,
-                "required_status_checks": [{"context": context, "integration_id": integration}],
+                "required_status_checks": copy.deepcopy(checks),
             },
         },
     ]
 
 
-def _served(ruleset_id: int, context: str) -> dict[str, Any]:
+def _served(ruleset_id: int, checks: list[dict[str, Any]] = BOTH) -> dict[str, Any]:
     """A ruleset as the server returns it: owned fields plus the keys the server adds."""
-    rules = _rules(context)
+    rules = _rules(checks)
     rules[2]["parameters"] |= {
         "require_extra_approval_for_unattributed_changes": True,
         "allowed_merge_methods": ["merge", "squash", "rebase"],
@@ -93,17 +103,13 @@ def _review_run(conclusion: str = "success", slug: str = "github-actions") -> di
     return _run(conclusion, slug, name=REVIEW, app_id=REVIEW_APP)
 
 
-def _pair(context: str, integration: int) -> dict[str, Any]:
-    return {"context": context, "integration_id": integration}
-
-
 class FakeGh:
     """Fake `gh` over one repository with the live shapes of design Observations."""
 
     def __init__(
         self,
         *,
-        callers: tuple[str, ...] = ("agent-process",),
+        callers: tuple[str, ...] = ("agent-process", "agent-review"),
         base: str = "main",
         runs: list[dict[str, Any]] | None = None,
         rulesets: list[dict[str, Any]] | None = None,
@@ -112,11 +118,9 @@ class FakeGh:
         self.calls: list[list[str]] = []
         self.callers = callers  # the `.github/workflows/<name>.yml` on the default branch
         self.base = base
-        self.runs = [_run()] if runs is None else runs
+        self.runs = [_run(), _review_run()] if runs is None else runs
         self.rulesets = (
-            {LIVE_ID: _served(LIVE_ID, "quality / quality")}
-            if rulesets is None
-            else {r["id"]: r for r in rulesets}
+            {LIVE_ID: _served(LIVE_ID, OLD)} if rulesets is None else {r["id"]: r for r in rulesets}
         )
         self.classic = classic
         self.read_back: Any = None  # mutates the ruleset the next GET returns after a write
@@ -201,6 +205,15 @@ def test_caller_absent(mode: str, capsys: pytest.CaptureFixture[str]) -> None:
     assert gh.writes() == []
 
 
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+def test_review_caller_absent(mode: str, capsys: pytest.CaptureFixture[str]) -> None:
+    gh = FakeGh(callers=("agent-process",))
+    code, out = _activate(gh, mode, capsys)
+    assert code == 2
+    assert "refused: caller absent on main: .github/workflows/agent-review.yml" in out
+    assert gh.writes() == []
+
+
 @pytest.mark.parametrize(
     ("gh", "observed"),
     [
@@ -221,12 +234,7 @@ def test_context_not_observed(
 
 
 def test_review_caller_present(capsys: pytest.CaptureFixture[str]) -> None:
-    gh = FakeGh(
-        callers=("agent-process", "agent-review"),
-        runs=[_run(), _review_run()],
-        rulesets=[],
-        classic=None,
-    )
+    gh = FakeGh(rulesets=[], classic=None)
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 0, out
     assert f"written: ruleset {NEW_ID}" in out
@@ -254,7 +262,7 @@ def test_review_context_not_observed(
     mode: str,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    gh = FakeGh(callers=("agent-process", "agent-review"), runs=[_run(), *review_runs])
+    gh = FakeGh(runs=[_run(), *review_runs])
     code, out = _activate(gh, mode, capsys)
     assert code == 2
     (line,) = [line for line in out.splitlines() if line.startswith("refused:")]
@@ -270,7 +278,9 @@ def test_dry_run(capsys: pytest.CaptureFixture[str]) -> None:
     lines = out.splitlines()
     planned = lines.index(f"planned update {LIVE_ID}")
     assert any(
-        "required_status_checks" in line and "quality / quality" in line and CONTEXT in line
+        "required_status_checks" in line
+        and "quality / quality" in line
+        and line.endswith(f"-> {json.dumps(BOTH, separators=(',', ':'))}")
         for line in lines[planned + 1 :]
     )
     rollback = next(line for line in lines[planned + 1 :] if line.startswith("rollback: "))
@@ -291,7 +301,7 @@ def test_no_ruleset_yet(capsys: pytest.CaptureFixture[str]) -> None:
     assert [c[:5] for c in gh.writes()] == [["gh", "api", "-X", "POST", f"repos/{REPO}/rulesets"]]
     (body,) = gh.inputs
     assert body["conditions"]["ref_name"]["include"] == ["refs/heads/main"]
-    assert body["rules"] == _rules(CONTEXT)
+    assert body["rules"] == _rules()
 
 
 def _other(ruleset_id: int) -> dict[str, Any]:
@@ -301,18 +311,18 @@ def _other(ruleset_id: int) -> dict[str, Any]:
 @pytest.mark.parametrize("before", [0, PAGE], ids=["first-page", "later-page"])
 def test_live_ruleset_differs(before: int, capsys: pytest.CaptureFixture[str]) -> None:
     others = [_other(i) for i in range(1, before + 1)]
-    gh = FakeGh(rulesets=[*others, _served(LIVE_ID, "quality / quality")])
+    gh = FakeGh(rulesets=[*others, _served(LIVE_ID, OLD)])
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 0, out
     assert f"written: ruleset {LIVE_ID}" in out
     assert [c[:5] for c in gh.writes()] == [
         ["gh", "api", "-X", "PUT", f"repos/{REPO}/rulesets/{LIVE_ID}"]
     ]
-    assert gh.inputs[0]["rules"] == _rules(CONTEXT)
+    assert gh.inputs[0]["rules"] == _rules()
 
 
 def test_rerun(capsys: pytest.CaptureFixture[str]) -> None:
-    gh = FakeGh(rulesets=[_served(LIVE_ID, CONTEXT)])
+    gh = FakeGh(rulesets=[_served(LIVE_ID)])
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 0, out
     assert f"unchanged {LIVE_ID}" in out.splitlines()
@@ -324,9 +334,9 @@ def test_rerun(capsys: pytest.CaptureFixture[str]) -> None:
 @pytest.mark.parametrize(
     ("rulesets", "named"),
     [
-        ([_served(LIVE_ID, CONTEXT), _served(7, CONTEXT)], [f"{LIVE_ID}", "7"]),
+        ([_served(LIVE_ID), _served(7)], [f"{LIVE_ID}", "7"]),
         (
-            [_served(LIVE_ID, CONTEXT) | {"source_type": "Organization"}],
+            [_served(LIVE_ID) | {"source_type": "Organization"}],
             [f"{LIVE_ID} Organization"],
         ),
     ],
@@ -438,9 +448,7 @@ def _set(path: tuple[str, ...], value: Any):
 def test_read_back_mismatch(
     mutate, field: str, rulesets: list | None, written: int, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    gh = FakeGh(
-        callers=("agent-process", "agent-review"), runs=[_run(), _review_run()], rulesets=rulesets
-    )
+    gh = FakeGh(rulesets=rulesets)
     gh.read_back = mutate
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 1
@@ -452,7 +460,7 @@ def test_read_back_mismatch(
 
 
 def test_read_back_reordered(capsys: pytest.CaptureFixture[str]) -> None:
-    gh = FakeGh(callers=("agent-process", "agent-review"), runs=[_run(), _review_run()])
+    gh = FakeGh()
     gh.read_back = _contexts(lambda checks: checks[::-1])
     code, out = _activate(gh, "--confirm", capsys)
     assert code == 0, out
@@ -463,9 +471,7 @@ def test_read_back_reordered(capsys: pytest.CaptureFixture[str]) -> None:
         REVIEW,
         CONTEXT,
     ]
-    rerun = FakeGh(
-        callers=("agent-process", "agent-review"), runs=[_run(), _review_run()], rulesets=[served]
-    )
+    rerun = FakeGh(rulesets=[served])
     code, out = _activate(rerun, "--dry-run", capsys)
     assert code == 0, out
     assert f"unchanged {LIVE_ID}" in out.splitlines()
