@@ -13,7 +13,7 @@
 
 ## 3. Move the telemetry document
 
-- [ ] 3.1 `git mv docs/telemetry-measurement-setup.md .agent-process/docs/telemetry-measurement-setup.md`. In it, change `../.agent-process/docs/adr/0029-…` and `../.agent-process/docs/adr/0026-…` to `adr/0029-…` and `adr/0026-…`. In `.agent-process/docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md:189`, change `../../../docs/telemetry-measurement-setup.md` to `../telemetry-measurement-setup.md`. Verify `docs/` no longer exists and `python -m pytest tests/agent_process/test_doc_links.py tests/agent_process/test_adr_records.py -q` passes; commit as `docs: move the telemetry setup under .agent-process/docs`
+- [x] 3.1 `git mv docs/telemetry-measurement-setup.md .agent-process/docs/telemetry-measurement-setup.md`. In it, change `../.agent-process/docs/adr/0029-…` and `../.agent-process/docs/adr/0026-…` to `adr/0029-…` and `adr/0026-…`. In `.agent-process/docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md:189`, change `../../../docs/telemetry-measurement-setup.md` to `../telemetry-measurement-setup.md`. Verify `docs/` no longer exists and `python -m pytest tests/agent_process/test_doc_links.py tests/agent_process/test_adr_records.py -q` passes; commit as `docs: move the telemetry setup under .agent-process/docs`
 
 ## 4. Verify
 
