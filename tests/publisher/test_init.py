@@ -291,8 +291,7 @@ def test_review_caller_render() -> None:
     assert list(workflow["jobs"]) == ["agent-review"]
     job = workflow["jobs"]["agent-review"]
     assert job["uses"] == (
-        "ekolvah/agent-process-distribution/.github/workflows/"
-        f"reusable-agent-review.yml@v{CURRENT}"
+        f"ekolvah/agent-process-distribution/.github/workflows/reusable-agent-review.yml@v{CURRENT}"
     )
     assert "with" not in job
     callee = yaml.safe_load(

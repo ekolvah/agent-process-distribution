@@ -120,9 +120,7 @@ class FakeGh:
         self.base = base
         self.runs = [_run(), _review_run()] if runs is None else runs
         self.rulesets = (
-            {LIVE_ID: _served(LIVE_ID, OLD)}
-            if rulesets is None
-            else {r["id"]: r for r in rulesets}
+            {LIVE_ID: _served(LIVE_ID, OLD)} if rulesets is None else {r["id"]: r for r in rulesets}
         )
         self.classic = classic
         self.read_back: Any = None  # mutates the ruleset the next GET returns after a write
