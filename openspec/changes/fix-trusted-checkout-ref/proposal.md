@@ -9,16 +9,16 @@ property does not exist: the contexts reference
 (https://github.com/actions/runner/issues/2417). On an empty `ref`, `actions/checkout` falls
 back to the event's ref, so `trusted/` holds the PR's merge commit.
 
-Reproduction, run 36326501964 (`agent-review` on PR #225, head `f6cf02e`): the `with:` block of
+Reproduction, run 36326501964 (`agent-review` on PR 225, head `f6cf02e`): the `with:` block of
 `Checkout trusted review source` lists no `ref:`. The step then runs
 `git checkout --progress --force refs/remotes/pull/225/merge`. The steps come from `main`, the
 scripts from the PR, and `request_codex_review.py`, which the PR renamed, exits 2. The
-successful run 36323480377 (PR #224) shows the same `refs/remotes/pull/224/merge` checkout, so
+successful run 36323480377 (PR 224) shows the same `refs/remotes/pull/224/merge` checkout, so
 the fallback is not new. Nobody noticed it because the scripts on `main` and in the PR were
-identical. Run 36326501841 (`agent-process`, PR #225) shows the same in job `link`.
+identical. Run 36326501841 (`agent-process`, PR 225) shows the same in job `link`.
 
 Root cause: a wrong context property. The design of v2-2b assumed that an empty value fails the
-checkout, but it falls back silently instead. Tracking issue #226.
+checkout, but it falls back silently instead. Tracking issue 226.
 
 ## What Changes
 
@@ -43,5 +43,5 @@ checkout, but it falls back silently instead. Tracking issue #226.
 - Consumers get the fix with the next release that their `@v<version>` pins. The process
   scripts of a consumer's PR then stop feeding its own check. A consumer carries no process
   scripts in its PRs, so nothing that works today breaks.
-- Unblocks #225. Once this is on `main`, the review of #225 runs `main`'s steps with `main`'s
+- Unblocks PR 225. Once this is on `main`, the review of PR 225 runs `main`'s steps with `main`'s
   scripts.

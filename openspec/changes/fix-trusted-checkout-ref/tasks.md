@@ -13,8 +13,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
 
 ## 4. Deliver
 
@@ -22,9 +22,9 @@
 - [ ] 4.2 Run `gh pr create --title "fix: fix-trusted-checkout-ref" --body-file <report>`. The report names tracking issue 226 as a plain reference (never `Closes`), carries the scenario → test map, and states that the `@main` review callee is observed only after the merge (design, Risks)
 - [ ] 4.3 In the log of the PR's `agent-process / link` job, verify that `Require the called workflow commit` passed and that the `with:` block of `Checkout trusted process source` lists a non-empty `ref:`. If it is empty, stop and report it to the person
 - [ ] 4.4 Run `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
-- [ ] 4.5 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation in the final message. Tell the person that after the merge, a re-run of `agent-review` on #225 must show `Checkout trusted review source` at `main`'s SHA. The person merges
+- [ ] 4.5 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation in the final message. Tell the person that after the merge, a re-run of `agent-review` on PR 225 must show `Checkout trusted review source` at `main`'s SHA. The person merges
 
 ## Scenario → test map
 
-- `review-and-merge` / PR changes a process script → `tests/publisher/test_reusable_workflows.py::test_trusted_checkout_is_the_called_commit` (`ref` is `job.workflow_sha`). The live proof is task 4.3 for `quality.yml` and, after the merge, the #225 re-run for the review callee
+- `review-and-merge` / PR changes a process script → `tests/publisher/test_reusable_workflows.py::test_trusted_checkout_is_the_called_commit` (`ref` is `job.workflow_sha`). The live proof is task 4.3 for `quality.yml` and, after the merge, the PR 225 re-run for the review callee
 - `review-and-merge` / Called commit unavailable → `tests/publisher/test_reusable_workflows.py::test_trusted_checkout_is_the_called_commit` (the guard run with an empty `SHA`)

@@ -40,7 +40,7 @@ OIDC token is read.
   `ref:`.
 - [The review job's `@main` callee cannot be observed before merge] → the first run of
   `agent-review` after the merge is the observation. Its `Checkout trusted review source` must
-  show `main`'s SHA, not `refs/remotes/pull/<N>/merge`. The re-run of #225 is that run, and
+  show `main`'s SHA, not `refs/remotes/pull/<N>/merge`. The re-run of PR 225 is that run, and
   task 4.5 reports it.
 
 ## Migration Plan
