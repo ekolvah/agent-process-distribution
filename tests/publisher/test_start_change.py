@@ -495,7 +495,6 @@ def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[s
     assert [e[e.index("--single-select-option-id") + 1] for e in gh.edits()] == ["S_PLAN"]
 
 
-
 def test_area_field_drift_creates_no_issue(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -520,6 +519,7 @@ def test_area_field_drift_creates_no_issue(
     assert exc.value.code == 2 and _creates(gh) == [] and gh.edits() == []
     assert "no field 'Area'" in capsys.readouterr().err
     assert _PLACEHOLDER in (root / tasks_md).read_text(encoding="utf-8")
+
 
 def _release_config(recorded: str | None) -> bytes:
     """A config block recording `recorded`; `None` drops the release line."""

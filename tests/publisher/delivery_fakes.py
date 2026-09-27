@@ -72,7 +72,7 @@ class Gh:
     that raises as `run_gh` does on a non-zero exit; `fields` is what `field-list` prints.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 -- keyword-only fake knobs, one per gh answer
         self,
         *,
         projects: list[dict] | None = None,

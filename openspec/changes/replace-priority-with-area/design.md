@@ -19,7 +19,7 @@ ordering items on the board (position stays manual).
 **D1 — `--area` replaces `--priority` one for one.** `set_status(number, status, *, area)`
 writes `fields["Area"]` through the existing `_option_id`; `--priority` is removed, not kept
 as an alias, because nothing should write the field the person stopped using. Alternative:
-accept both — rejected, two creation fields is the drift #219 describes.
+accept both — rejected: two creation fields are the drift this change removes (#219).
 
 **D2 — area names come from the Project, checked before the create.** Areas are
 per-repository, so `create_tracking_issue` has no `choices` list. This replaces a
