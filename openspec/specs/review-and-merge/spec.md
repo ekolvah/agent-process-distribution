@@ -6,83 +6,10 @@ mistakes.
 
 ## Requirements
 
-### Requirement: Local safety on both carriers
-Push to the default branch, force push and `gh pr merge` SHALL be denied locally on both
-carriers: a deny-list in Claude Code, a pre-tool hook in Codex. Merging is the person's, except
-the release PR, which the platform's auto-merge merges once its required checks pass.
-
-#### Scenario: Push to main from Codex
-- **WHEN** an agent runs `git push origin main` in Codex
-- **THEN** the pre-tool hook denies it with the repository-policy reason
-
-### Requirement: Codex reviews on the author's request, Claude is the fallback
-The PR author SHALL request the Codex review (`@codex review`, after the PR opens and after
-every push; automatic reviews in the Codex app stay off). The review job SHALL wait a
-bounded time for a review of the current head by a reviewer the check trusts — the Codex app
-or the job's own login — read as present or absent, never parsed: a native review by the
-Codex app on that head, or a reviewer's clean comment naming that head; an error or
-usage-limit message from the app is absence — and SHALL run the Claude Code action with the
-review contract read from the trusted checkout of the process at the ref the caller pinned
-only when the wait ended absent. Each reviewer publishes findings as inline comments
-labelled `P0`–`P3`; the Claude Code action closes every review with one comment naming the
-reviewed head, and that closing comment alone is its review — its inline comments are
-review nodes under the job's login an interrupted action leaves behind; the job leaves no
-review state, no evidence and no classification. On a release PR the job SHALL neither wait
-nor run the Claude Code action, and SHALL conclude on the enforcement of the threads.
-
-#### Scenario: Valid Codex review
-- **WHEN** Codex has reviewed the current head
-- **THEN** the Claude fallback does not run
-
-#### Scenario: Stale Codex review
-- **WHEN** the only Codex review is for an older head
-- **THEN** it is not accepted as evidence
-
-#### Scenario: Codex review absent
-- **WHEN** the wait ends without a review of the head by either trusted reviewer — none, or an error or limit message instead of one
-- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments and, last, the comment naming the reviewed head; the job then reads whether that closing comment exists under the workflow token — a silent fallback fails the check
-
-#### Scenario: Re-run on a fallback head
-- **WHEN** the head's run is re-run after its first attempt fell back to Claude and the fallback's closing comment names the head
-- **THEN** the wait returns on that comment, the Claude Code action does not run again, and the attempt concludes on the enforcement of the threads as they are
-
-#### Scenario: Re-run on an interrupted fallback
-- **WHEN** the head's run is re-run after its first attempt's action left inline comments on the head and no closing comment
-- **THEN** the wait ends absent and the Claude Code action reviews the head again
-
-#### Scenario: Reader failure
-- **WHEN** the read of the PR's reviews fails instead of establishing presence or absence
-- **THEN** the check fails without running the Claude action
-
-#### Scenario: Head from a fork
-- **WHEN** the PR head is in another repository and the wait ended absent, on any event
-- **THEN** the run has started only on the person's approval (the repository requires it for every external contributor) and holds no secret but the read-only `GITHUB_TOKEN` — the platform withholds the rest on `pull_request_review` as on `pull_request` —, so the Claude action fails and with it the check: a fork PR is reviewed by Codex or by a person, never by the fallback
-
-#### Scenario: Event other than a push
-- **WHEN** a caller runs the job for an event that is not `pull_request`
-- **THEN** it runs the same path — the wait, the fallback on absence, the verification, the enforcement — so its conclusion derives from a review of the head; a run that only enforced would pass a head without any review
-
-#### Scenario: Release PR review
-- **WHEN** the job runs on a release PR
-- **THEN** it requests and waits for no review, the Claude Code action does not run, and the check passes unless an unresolved `P0`/`P1` thread exists
-
-### Requirement: No automation resolves a review thread
-No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
-thread the fixer's push addressed is resolved by the fixer from its own session, thread by
-thread, whichever app raised it; every other thread is answered and left to the person.
-
-#### Scenario: Required check and threads
-- **WHEN** the required check runs
-- **THEN** every review thread keeps its resolved state and receives no classification reply
-
-#### Scenario: Addressed finding of either reviewer
-- **WHEN** the fixer resolves a thread it addressed
-- **THEN** the resolve accepts a `P0`/`P1` thread raised by the Codex app or by the Claude review job, refuses one raised against the current head, and refuses a `P2`/`P3` thread
-
 ### Requirement: Reviewer instructions name the simplicity triggers
-The review contract SHALL be one file both reviewers read — Codex through the repository's
-instructions file, Claude through the trusted checkout — and SHALL name reinvented
-functionality and unnecessary complexity as findings, coupled to the principles file.
+The review contract SHALL be one file the Claude review job reads from the trusted checkout,
+and SHALL name reinvented functionality and unnecessary complexity as findings, coupled to
+the principles file.
 
 #### Scenario: Contract and principles
 - **WHEN** the review contract or the principles change
@@ -90,17 +17,17 @@ functionality and unnecessary complexity as findings, coupled to the principles 
 
 ### Requirement: Unresolved P0/P1 threads fail the review check
 The last step of the review job SHALL fail the check while an unresolved review thread whose
-first comment, by either reviewer, carries `P0` or `P1` exists, printing the thread URLs; it
-SHALL read only the label and the resolved state, reply to no thread, and SHALL pass on
-`P2`/`P3` threads, resolved or not. Conversation resolution is not required on the default
-branch: a `P3` does not keep a PR from merging.
+first comment, by the Claude review job, carries `P0` or `P1` exists, printing the thread URLs;
+it SHALL read only the label and the resolved state, reply to no thread, and SHALL pass on
+`P2`/`P3` threads, resolved or not, and on threads of any other author. Conversation
+resolution is not required on the default branch: a `P3` does not keep a PR from merging.
 
 #### Scenario: Unresolved blocking thread
-- **WHEN** a `P1` thread by Codex or by the Claude review job is unresolved on the head
+- **WHEN** a `P1` thread by the Claude review job is unresolved on the head
 - **THEN** the check fails and names the thread's URL, and no reply is posted to it
 
 #### Scenario: Advisory thread
-- **WHEN** only `P2`/`P3` threads are unresolved
+- **WHEN** only `P2`/`P3` threads, or threads of another author, are unresolved
 - **THEN** the check passes
 
 #### Scenario: Blocking thread resolved
@@ -170,3 +97,69 @@ failed read SHALL fail the check instead of deciding either way.
 #### Scenario: Failed read
 - **WHEN** the read of the base, the head or a file fails
 - **THEN** the check fails with the read error
+
+### Requirement: Claude reviews every head
+The review job SHALL read once whether a closing comment of the workflow token's login names
+the current head, and when none does SHALL run the Claude Code action with the review
+contract read from the trusted checkout of the process at the ref the caller pinned. The
+action publishes findings as inline comments labelled `P0`–`P3` and closes every review with
+one comment naming the reviewed head; that closing comment alone is its review — its inline
+comments are review nodes an interrupted action leaves behind. After the action the job SHALL
+read, within a bounded time, whether that closing comment exists, and fail the check when it
+does not. The job leaves no review state, no evidence and no classification, and nobody
+requests the review. On a release PR the job SHALL neither read nor run the Claude Code
+action, and SHALL conclude on the enforcement of the threads.
+
+#### Scenario: New head
+- **WHEN** the job runs on a head that no closing comment names — including a head whose only closing comment names an older head
+- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments and, last, the comment naming the head, and the job verifies that closing comment
+
+#### Scenario: Silent action
+- **WHEN** the action finishes without publishing the closing comment within the bounded time
+- **THEN** the check fails
+
+#### Scenario: Re-run on a reviewed head
+- **WHEN** the head's run is re-run and a closing comment names the head
+- **THEN** the Claude Code action does not run again, and the attempt concludes on the enforcement of the threads as they are
+
+#### Scenario: Re-run on an interrupted review
+- **WHEN** the head's run is re-run after its first attempt's action left inline comments on the head and no closing comment
+- **THEN** the read finds no review and the Claude Code action reviews the head again
+
+#### Scenario: Reader failure
+- **WHEN** the read of the PR's comments fails instead of establishing presence or absence
+- **THEN** the check fails without running the Claude Code action
+
+#### Scenario: Head from a fork
+- **WHEN** the PR head is in another repository, on any event
+- **THEN** the run has started only on the person's approval (the repository requires it for every external contributor) and holds no secret but the read-only `GITHUB_TOKEN`, so the Claude Code action fails and with it the check: a fork PR is reviewed by a person
+
+#### Scenario: Event other than a push
+- **WHEN** a caller runs the job for an event that is not `pull_request`
+- **THEN** it runs the same path — the read, the action on absence, the verification, the enforcement — so its conclusion derives from a review of the head
+
+#### Scenario: Release PR review
+- **WHEN** the job runs on a release PR
+- **THEN** it reads no review, the Claude Code action does not run, and the check passes unless an unresolved `P0`/`P1` thread exists
+
+### Requirement: Local safety in Claude Code
+Push to the default branch, force push and `gh pr merge` SHALL be denied locally by the
+deny-list of `.claude/settings.json`. Merging is the person's, except the release PR, which the
+platform's auto-merge merges once its required checks pass.
+
+#### Scenario: Push to main from Claude Code
+- **WHEN** an agent runs `git push origin main`, `git push --force` or `gh pr merge` in Claude Code
+- **THEN** the project's deny-list carries a rule that denies it
+
+### Requirement: Only the fixer resolves a review-job thread
+No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
+thread the fixer's push addressed is resolved by the fixer from its own session, thread by
+thread; every other thread is answered and left to the person.
+
+#### Scenario: Required check and threads
+- **WHEN** the required check runs
+- **THEN** every review thread keeps its resolved state and receives no classification reply
+
+#### Scenario: Addressed finding of the review job
+- **WHEN** the fixer resolves a thread it addressed
+- **THEN** the resolve accepts a `P0`/`P1` thread raised by the Claude review job, refuses one raised by any other author, refuses one raised against the current head, and refuses a `P2`/`P3` thread

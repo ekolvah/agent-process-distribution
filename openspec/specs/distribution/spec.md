@@ -45,22 +45,13 @@ release's own installer, run from a temporary checkout that is removed afterward
 - **THEN** the output and exit code are the requested release's own dry-run, and the consumer repository and user profile are byte-identical before and after
 
 ### Requirement: Confirmation selects the release first
-`init --confirm` SHALL move the user-scope Codex checkout to the requested release before it
+`init --confirm` SHALL move the user-scope process checkout to the requested release before it
 writes any consumer file, and the consumer files SHALL be composed by that release's
 installer from that release's templates.
 
 #### Scenario: Confirmed upgrade
 - **WHEN** an installer of one version runs `--confirm --version` of another version
 - **THEN** the checkout is at the requested tag before the first consumer write, and every consumer write comes from the requested release's installer
-
-### Requirement: The Codex skill links the selected release
-After a confirmed run, `~/.agents/skills/agent-process` SHALL resolve to the
-`skills/agent-process` directory of the process checkout at the requested tag: a directory
-junction on Windows and a symbolic link on Unix.
-
-#### Scenario: Link on Windows and Unix
-- **WHEN** a confirmed run completes on Windows or on Unix
-- **THEN** the user skill path resolves to the checkout's skill directory at the requested tag
 
 ### Requirement: Init reconciles from observable state
 Each transition SHALL be decided from the state it observes, so a rerun of the same version
@@ -72,9 +63,7 @@ exactly once and no completed one again.
 - **THEN** the retry reports each completed transition `unchanged`, performs each unfinished one once, and ends in the same state as an uninterrupted run
 
 ### Requirement: Init fails closed on inputs it does not own
-A target the installer does not own — a consumer-owned file or key, malformed ownership
-markers, a checkout that is dirty or has another origin, or a user skill path that is not
-its link — SHALL be reported as `conflict` and the run SHALL exit non-zero before it writes
+A target the installer does not own — a consumer-owned file or key, malformed ownership markers, or a checkout that is dirty or has another origin — SHALL be reported as `conflict` and the run SHALL exit non-zero before it writes
 any consumer file. A user-profile conflict SHALL be found before any user-profile write.
 
 #### Scenario: Target the installer does not own
@@ -300,7 +289,7 @@ in its `openspec/config.yaml` block. `create_tracking_issue` and `start_change` 
 line before any other step and, when it is absent, not a `<major>.<minor>.<patch>` version, or
 different from the release of the running skill, exit 2 without a GitHub call, naming both
 releases and the fix: re-run Install with the running skill when the project's release is absent,
-unparsable or older, or update the plugin or the Codex skill link and restart the session when the
+unparsable or older, or update the plugin and restart the session when the
 skill's release is older. Scripts run from `skills/agent-process/scripts` under the repository
 root SHALL skip the comparison.
 
