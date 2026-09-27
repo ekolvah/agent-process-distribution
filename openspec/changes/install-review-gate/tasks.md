@@ -17,8 +17,8 @@
 
 ## 4. Procedure and record (D2, D3, D5)
 
-- [ ] 4.1 In `skills/agent-process/SKILL.md` Install: step 4 names the review-secret `manual` row; step 5 drops "When the repository has `agent-review.yml`" and states that the PR must show `agent-process / quality` and `agent-review / agent-review` green. Verify `python -m pytest tests/publisher/test_plugin.py -q` passes
-- [ ] 4.2 Add `.agent-process/docs/adr/0032-the-review-gate-is-installed-in-every-consumer.md` from `template.md` per D5, Confirmation naming the tests of 1.1. Verify `python .agent-process/scripts/ci_check.py` passes the document guard; commit Group 4 as `docs(distribution): the review gate is part of every install`
+- [x] 4.1 In `skills/agent-process/SKILL.md` Install: step 4 names the review-secret `manual` row; step 5 drops "When the repository has `agent-review.yml`" and states that the PR must show `agent-process / quality` and `agent-review / agent-review` green. Verify `python -m pytest tests/publisher/test_plugin.py -q` passes
+- [x] 4.2 Add `.agent-process/docs/adr/0032-the-review-gate-is-installed-in-every-consumer.md` from `template.md` per D5, Confirmation naming the tests of 1.1. Verify `python .agent-process/scripts/ci_check.py` passes the document guard; commit Group 4 as `docs(distribution): the review gate is part of every install`
 
 ## 5. Verify
 

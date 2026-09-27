@@ -61,7 +61,7 @@ caller and is refused until it reruns `init` and merges the result — the refus
 missing file.
 
 **D4 — The reusable/caller split stays.** With a consumer caller the callee has a second
-caller, which answers issue #215. Merging into one file was rejected by the person, and would
+caller, which answers the tracking issue (#215). Merging into one file was rejected by the person, and would
 let a PR rewrite the review steps it is judged by, because a `pull_request` run takes the
 workflow file from the PR.
 
