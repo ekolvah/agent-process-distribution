@@ -649,6 +649,12 @@ questions of #114 in its order:
   `path`, `problem`, `standard` and `why_not`; under `approve` the schema rejects a
   `problem` that is not an issue, PR or run reference and a `standard` of none, n/a or a
   dash. Completeness and truth stay the `bespoke` judgement. No script.
+* The `additions` list is removed (issue 186): its regex checked the form of a problem
+  reference, not its relevance, and its scope, every non-test file, took ordinary product
+  code; a plan without a prior issue — created only after `approve` — could cite only an
+  unrelated one (sandbox issue 117 step 7a cited `#1`). The problem and the standard weighed
+  are a `design.md` decision, the MADR "Considered Options" form, which the `bespoke` class
+  judges for each script or check. No script.
 * The v1 review control plane is deleted (`v2-4a-review-protection`, tracking issue 172,
   issue 114). Observed 2026-09-24: `is_valid_branch_name` printed `False False True` for
   `review-bespoke-standard`, `v2-2j-remove-v1-quality-caller` and

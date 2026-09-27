@@ -69,7 +69,6 @@ def _valid_review(verdict: str) -> str:
             "reasoning": "the plan holds",
             "classes": {name: {"evidence": "read", "result": "ok"} for name in _CLASSES},
             "scenario_coverage": [],
-            "additions": [],
         }
     )
 
@@ -177,8 +176,12 @@ def test_over_long_rule_or_bespoke_check() -> None:
     """Scenario: Over-long rule or bespoke check — each is a class of its own."""
     assert "words its tests assert" in _class_description("length")
     bespoke = _class_description("bespoke")
-    assert "names every script, check or non-test file of the proposal's Impact" in bespoke
-    assert "closes" in bespoke and "does not fit" in bespoke
+    for phrase in ("script or check the plan adds", "design.md decision", "closes", "does not fit"):
+        assert phrase in bespoke, phrase
+    assert "non-test file" not in bespoke
+    assert "additions" not in _schema()["properties"]
+    design = _section("Design")
+    assert "the problem it closes" in design and "the standard for its job" in design
 
 
 def test_fourth_round_leaves_the_rest_to_the_person() -> None:

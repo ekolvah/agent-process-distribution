@@ -35,6 +35,8 @@ at those paths is the installer's to define.
 ## Design
 
 - Record decisions, alternatives, risks, and the migration and rollback boundary.
+- A new script or check has a decision naming the problem it closes — an issue, PR or run
+  when one exists — and the standard for its job and why it does not fit.
 - A design that replaces a project-declared input with one the caller supplies, or drops a
   guard, lists beside the decision the new input's failure modes, what stops proving, and for
   each lost proof the catcher that is actually reached: which script, which run, on which head,
