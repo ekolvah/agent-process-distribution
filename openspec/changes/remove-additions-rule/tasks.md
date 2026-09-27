@@ -8,8 +8,8 @@
 
 ## 2. Schema and procedure (D1–D4)
 
-- [ ] 2.1 Per D1 remove `additions` from `required`, from the `then` block and from `properties` of `skills/agent-process/architect-review.schema.json`; per D2 replace the `bespoke` description. Verify `python -m pytest tests/publisher/test_start_change.py tests/publisher/test_planning_workflow.py -q` fails only on the Design assertion
-- [ ] 2.2 Per D3 add the bullet to `## Design` of `skills/agent-process/SKILL.md`; per D4 add the bullet after the issue 170 entry of `.agent-process/docs/adr/0027-v2-standards-replace-the-bespoke-control-plane.md`. Verify `python -m pytest tests/publisher/test_start_change.py tests/publisher/test_planning_workflow.py -q` passes; commit as `feat(planning): bespoke justification lives in design.md`
+- [x] 2.1 Per D1 remove `additions` from `required`, from the `then` block and from `properties` of `skills/agent-process/architect-review.schema.json`; per D2 replace the `bespoke` description. Verify `python -m pytest tests/publisher/test_start_change.py tests/publisher/test_planning_workflow.py -q` fails only on the Design assertion
+- [x] 2.2 Per D3 add the bullet to `## Design` of `skills/agent-process/SKILL.md`; per D4 add the bullet after the issue 170 entry of `.agent-process/docs/adr/0027-v2-standards-replace-the-bespoke-control-plane.md`. Verify `python -m pytest tests/publisher/test_start_change.py tests/publisher/test_planning_workflow.py -q` passes; commit as `feat(planning): bespoke justification lives in design.md`
 
 ## 3. Verify
 
