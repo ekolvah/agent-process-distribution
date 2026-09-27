@@ -27,7 +27,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py replace-priority-with-area`. Verify that it archives the deltas into `openspec/specs/state/spec.md`, `openspec/specs/distribution/spec.md`, `openspec/specs/planning/spec.md` and `openspec/specs/implementation/spec.md`, commits, and pushes the branch
+- [x] 5.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py replace-priority-with-area`. Verify that it archives the deltas into `openspec/specs/state/spec.md`, `openspec/specs/distribution/spec.md`, `openspec/specs/planning/spec.md` and `openspec/specs/implementation/spec.md`, commits, and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "feat: replace-priority-with-area" --body-file <report>`. The report names tracking issue 219 as a plain reference, never `Closes`, and carries the scenario → test map and the 4.3 output
 - [ ] 5.3 Run `gh pr comment <PR> --body "@codex review"`, then `python skills/agent-process/scripts/wait_for_pr.py <PR>`. Run both again after each corrective push. Resolve only an addressed older-head P0/P1 thread, with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 threads without resolving them. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 5.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR in the final message and link the plain-words explanation of the delivered change. The person merges it

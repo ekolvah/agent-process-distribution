@@ -130,12 +130,13 @@ failure, SHALL decide from the observed Projects and SHALL NOT create a second c
 
 ### Requirement: Project UI actions are printed, not performed
 The plan of a dry-run and of a confirmed run SHALL print, as `manual`, setting the Project's
-visibility and checking the template's built-in workflows, and `init` SHALL issue no command
-that changes either.
+visibility, checking the template's built-in workflows, and replacing the template's `Area`
+options and area views with the consumer's own, and `init` SHALL issue no command that
+changes any of them.
 
 #### Scenario: Manual actions
 - **WHEN** a dry-run or confirmed run completes
-- **THEN** its output carries the two `manual` rows and no command it issued changes a Project's visibility or workflows
+- **THEN** its output carries the three `manual` rows and no command it issued changes a Project's visibility, workflows, fields or views
 
 ### Requirement: The quality callee runs the caller's commands
 The reusable workflow `quality.yml` SHALL take an optional `setup`, a required `test`, and an
