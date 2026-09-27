@@ -11,8 +11,8 @@
 
 ## 2. Scripts (D1–D3)
 
-- [ ] 2.1 `set_status.py` (D1): `--area` replaces `--priority`; `set_status(..., area=...)` writes `Area` through `_option_id`; add `area_options(gh) -> list[str]` (read only, D2) that raises the same `ValueError` for a missing `Area` field; update the docstring and the `ok:` line. Verify `python -m pytest tests/publisher/test_set_status.py -q` passes
-- [ ] 2.2 `create_tracking_issue.py` (D2, D3): drop `PRIORITIES` and `choices`; `--area` required on the placeholder and refused on an existing issue; on the create branch check the name against `area_options(gh)` before `gh issue create`; resume hint and `ok:` line say `--area`. `start_change.py`: `NOT_FINISHED` says `--area <name>`. Verify `python -m pytest tests/publisher/test_start_change.py -q` passes. Commit as `feat(state): the process sets Area, not Priority, at creation`
+- [x] 2.1 `set_status.py` (D1): `--area` replaces `--priority`; `set_status(..., area=...)` writes `Area` through `_option_id`; add `check_area(area, gh)` (read only, D2) that raises the same `ValueError` as `_option_id` for an unknown option or a missing `Area` field; update the docstring and the `ok:` line. Verify `python -m pytest tests/publisher/test_set_status.py -q` passes
+- [x] 2.2 `create_tracking_issue.py` (D2, D3): drop `PRIORITIES` and `choices`; `--area` required on the placeholder and refused on an existing issue; on the create branch check the name with `check_area(area, gh)` before `gh issue create`; resume hint and `ok:` line say `--area`. `start_change.py`: `NOT_FINISHED` says `--area <name>`. Verify `python -m pytest tests/publisher/test_start_change.py -q` passes. Commit as `feat(state): the process sets Area, not Priority, at creation`
 
 ## 3. Installer and docs (D4)
 

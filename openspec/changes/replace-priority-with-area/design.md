@@ -27,7 +27,7 @@ project-declared input (the fixed `PRIORITIES`) with one the caller supplies:
 - Failure modes: a typo, an area the board lacks, a board with no `Area` field (a consumer
   installed before this change).
 - What stops proving: argparse no longer rejects a bad name before `gh issue create`.
-- Catcher: `set_status.area_options(gh)` (the same `_repo` → `_linked_project` → `_fields`
+- Catcher: `set_status.check_area(area, gh)` (the same `_repo` → `_linked_project` → `_fields`
   read, no write) is called by `create_tracking_issue` right after the verdict check and
   before `gh issue create`; an unknown name or missing field is exit 2 naming the options or
   fields, and no issue exists. Proven by the `Area field drift` test on the create branch

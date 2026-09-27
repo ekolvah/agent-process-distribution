@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""The tail of the propose run as one command: the tracking issue in `Planned` with its priority.
+"""The tail of the propose run as one command: the tracking issue in `Planned` with its area.
 
-Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--priority <High|Medium|Low>]
+Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--area <name>]
 
 A release drift exits 2 first, as in `start_change`. The architect review is validated
 next, as `start_change` reads it: an invalid file or a
 verdict other than approve is exit 2 and nothing is created. Then `tasks.md` of the change
 decides the branch through its `tracking issue <N>` token (Group 0;
-the same read as `start_change`): while it carries the placeholder, `--priority` is required
-— `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`, the
+the same read as `start_change`): while it carries the placeholder, `--area` is required and
+is resolved against the Project's `Area` options first (a missing field or option is exit 2
+and no issue exists) — `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`, the
 number (the last path segment of the printed URL; `gh issue create` has no `--json`) is written
-into the token at once, and only then `set_status <N> "Planned" --priority <P>`, so a failure
+into the token at once, and only then `set_status <N> "Planned" --area <A>`, so a failure
 after the create leaves the number in tasks.md and a re-run lands on the existing-issue branch
-instead of creating a second issue. When the token already carries a number, `--priority` is
-refused (the priority was set at creation) and the call is `set_status <N> "Planned"` alone
+instead of creating a second issue. When the token already carries a number, `--area` is
+refused (the area was set at creation) and the call is `set_status <N> "Planned"` alone
 (Todo → Planned). A `gh` failure is exit 1 with its stderr; an unresolved Project name is exit
 2, as `set_status` maps it; on the create branch both messages end with the resume command.
 """
@@ -26,10 +27,8 @@ import sys
 from pathlib import Path
 
 from init import release_drift
-from set_status import Gh, run_gh, set_status
+from set_status import Gh, check_area, run_gh, set_status
 from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue, verdict
-
-PRIORITIES = ("High", "Medium", "Low")
 
 
 def _issue_number(create_output: str) -> int:
@@ -42,7 +41,7 @@ def _issue_number(create_output: str) -> int:
 
 
 def create_tracking_issue(
-    change: str, *, priority: str | None, gh: Gh = run_gh, root: Path = ROOT
+    change: str, *, area: str | None, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
     if drift := release_drift(root, SCRIPT_DIR):
         print(drift, file=sys.stderr)
@@ -57,23 +56,23 @@ def create_tracking_issue(
     tasks_md = change_dir / "tasks.md"
     number = tracking_issue(tasks_md)
     if number is not None:
-        if priority is not None:
+        if area is not None:
             print(
-                f"priority is set at creation; the issue exists (#{number} in tasks.md) — "
-                "run without --priority",
+                f"area is set at creation; the issue exists (#{number} in tasks.md) — "
+                "run without --area",
                 file=sys.stderr,
             )
             return 2
         set_status(number, "Planned", gh=gh)
         print(f"ok: issue #{number} Planned")
         return 0
-    if priority is None:
+    if area is None:
         print(
-            "priority required: the change has no tracking issue yet — "
-            f"--priority <{'|'.join(PRIORITIES)}>",
+            "area required: the change has no tracking issue yet — --area <name>",
             file=sys.stderr,
         )
         return 2
+    check_area(area, gh=gh)
     out = gh(
         [
             "gh",
@@ -90,12 +89,12 @@ def create_tracking_issue(
     tasks_md.write_text(
         re.sub(re.escape(PLACEHOLDER), f"tracking issue {number}", text, count=1), encoding="utf-8"
     )
-    resume = f'python "{SCRIPT_DIR / "set_status.py"}" {number} Planned --priority {priority}'
+    resume = f'python "{SCRIPT_DIR / "set_status.py"}" {number} Planned --area {area}'
     try:
-        set_status(number, "Planned", priority=priority, gh=gh)
+        set_status(number, "Planned", area=area, gh=gh)
     except (KeyError, ValueError, RuntimeError) as exc:
         raise type(exc)(f"{exc}; issue #{number} is in tasks.md — resume with `{resume}`") from exc
-    print(f"ok: issue #{number} created, Planned, priority {priority}\n{out.strip()}")
+    print(f"ok: issue #{number} created, Planned, area {area}\n{out.strip()}")
     return 0
 
 
@@ -103,11 +102,11 @@ def main(argv: list[str] | None = None, *, gh: Gh = run_gh, root: Path = ROOT) -
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("change", help="change name under openspec/changes/")
     parser.add_argument(
-        "--priority", choices=PRIORITIES, help="the priority asked from the person (new issue only)"
+        "--area", help="the Project's Area option asked from the person (new issue only)"
     )
     ns = parser.parse_args(argv)
     try:
-        code = create_tracking_issue(ns.change, priority=ns.priority, gh=gh, root=root)
+        code = create_tracking_issue(ns.change, area=ns.area, gh=gh, root=root)
     except (FileNotFoundError, KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(2)
