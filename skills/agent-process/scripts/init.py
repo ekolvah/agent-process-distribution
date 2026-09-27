@@ -32,8 +32,8 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 
 Steps 10-11 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
-The plan ends with `manual` rows — the Project's visibility and built-in workflows — that
-only its UI can change. Nothing is committed or pushed, and the Project copy and link are
+The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
+`Area` options and views copied from the template — that only its UI can change. Nothing is committed or pushed, and the Project copy and link are
 the only GitHub writes. `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -771,6 +771,8 @@ def _manual(url: str | None) -> list[str]:
         f"manual project-visibility: {where}/settings -- a copy is private; "
         "set its visibility as intended",
         f"manual project-workflows: {where}/workflows -- check {WORKFLOWS}",
+        f"manual project-areas: {where}/settings -- replace the Area options and the area "
+        "views with this repository's own",
     ]
 
 

@@ -1,0 +1,52 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The three findings of the first round are closed: `openspec/specs` no longer contradicts itself after archive, both formerly false-RED tests now assert a message argparse cannot print, and the unasserted `Priority` sentence is gone.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simpler designs weighed in design.md: (a) keep `--priority` and add `--area` (D1) — rejected, two creation fields is the drift #219 describes; (b) no pre-check, letting `set_status`'s resolve-before-write catch a bad name — rejected by the state scenario `Area field drift`, which requires exit 2 *before any issue is created*, while `set_status` runs after `gh issue create` (create_tracking_issue.py:77-95); (c) keep argparse `choices` — impossible, areas are per repository (D2); (d) a separate template Project (D4) — rejected by the person. The addition is one read-only helper reusing the existing `_repo` → `_linked_project` → `_fields` path, no new module, at the cost of three extra read `gh` calls per propose tail. The four spec deltas are word-level edits of existing requirements, not new ones: diffed against `openspec/specs`, `planning` differs in 5 lines and `implementation` in 1, each only `priority` → `area`, every scenario preserved.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "All four capabilities are now in the deltas and in the map. With a test: state / Tracking issue created, Area asked once, Area field drift, Area only, Several linked Projects (unchanged test), distribution / Manual actions, planning / Plan approved, planning / Existing tracking issue — the last two named on the same tests tasks 1.2-1.3 rewrite (`test_start_change.py::test_plan_approved_creates_the_issue`, `::test_existing_tracking_issue`, `test_planning_workflow.py::test_plan_approved`). Without a new test: state / Template read (`n/a`, task 4.3), planning / New task (`n/a`), and the scenarios the MODIFIED requirements restate unchanged (planning / Review finding … Review archives with the change, implementation / Tasks of a new change … Design decision changed at review), which the map marks `unchanged; their existing tests` — their text is byte-identical to `openspec/specs`, so no test of theirs changes. Task 5.1 archives all four spec files.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is 1.1-1.3 plus 1.4, which runs `check_red.py` over eight named tests and commits `test(state): Area replaces Priority at creation`. Each fails in its body on today's code: `set_status(7, \"In Progress\", area=…)` is an unknown keyword (set_status.py:152); `test_area_field_drift` and the new `test_area_field_drift_creates_no_issue` assert `Observability`/`Distribution` and `no field 'Area'` in stderr, which argparse's `unrecognized arguments: --area` does not print (1.2 says so explicitly); `test_existing_tracking_issue` now asserts `area is set at creation`, the refusal wording task 2.2 introduces, instead of the bare word `area`; `test_area_only` and `test_plan_approved_creates_the_issue` assert an `F_AREA` edit and the `--area` resume hint; 1.3's two tests assert SKILL and `init` text that does not exist yet.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Each platform behaviour the design rests on has an observation: Project 4 carries a single-select `Area` field with options and one view per area (created 2026-09-27; #219 has its Area set by hand), re-read live by task 4.3; `gh project copy` carries fields, options and views to a consumer's board (ADR 0027 lines 280-286, gh 2.87.3, v2-2a), which is what makes D4 a `manual` row and not a mutation; *Auto-add to project* plus *Item added → Todo* give an issue created outside a change its `Todo` (ADR 0027 lines 287-307), which the `Area only` path relies on; `gh project field-list --format json` resolves single-select options by name (set_status.py:81-108, exercised on every status write of this repository); workflows and views are read-only in the API (ADR 0027 lines 289-293), so `init` cannot create them. The proposal's own count (1 of 20 open issues, #88, not even a Project item) is dated 2026-09-27.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "One replaced input, and D2 carries the three lists: the project-declared `PRIORITIES` choices become a caller-supplied area name; failure modes (typo, an area the board lacks, a board with no `Area` field); what stops proving (argparse no longer rejects a bad name before `gh issue create`); catcher (`area_options` before the create, exit 2, no issue). The dropped guard is the argparse `choices` of create_tracking_issue.py:106, replaced one for one. Impact names the consumer consequence (`no field 'Area'`, exit 2, until the person adds the field) and the Migration Plan the rollback (`Priority` stays on the board, so the reverted calls work).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Every named catcher reaches a delivery step: `area_options` → exit 2 naming the options or `no field 'Area'` with no issue created (D2, task 2.2, both branches asserted by `test_area_field_drift_creates_no_issue` in 1.2); a failure after the create → the resume hint `set_status <N> Planned --area <name>` (2.2, asserted where test_start_change.py:477 checks the priority form today); a propose run that stopped short → `start_change`'s `NOT_FINISHED` hint (start_change.py:51, task 2.2); a test that does not fail → `check_red.py` in 1.4; a regression → `ci_check.py` in 4.2 and `openspec validate --strict --all` in 4.1; an init that mutated a Project → the `_gh_kind` whitelist (test_init_remote.py:76-86), which proves the widened \"fields or views\" clause of the distribution delta.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "state / `Area is set at creation`, sentence by sentence: the 40-word call sentence → `test_tracking_issue_created` (both field ids in one call) and `test_area_only`; the 30-word Status-or-Area sentence → `test_area_only` (both branches, including the usage error); the 22-word linked-Project sentence → `test_several_linked_projects`; the 19-word \"asks the person … no delivery task asks\" → `test_planning_workflow::test_plan_approved` (order in the review section, Group 0's absent list). The unasserted 8-word `Priority` sentence of the first round is cut; D1 carries that decision. distribution adds 13 words about the `Area` options and area views → `test_manual_actions_are_printed` (1.3) and `_gh_kind`. planning changes 5 words and implementation 1, each inside a sentence that already existed, and each asserted: `Planned` with the area → the `S_PLAN`/`F_AREA` edits of 1.2, `refuses an area` → `test_existing_tracking_issue`, `the area was asked by the propose run` → Group 0's absent list in 1.3.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The proposal's Impact lists eleven edited files, four specs at archive and `Added / removed: none`, and the design adds no file: `area_options` is a function in the existing `set_status.py` (D2), the `manual project-areas` row is a line in `init.py`'s existing `_manual` (D4, init.py:771-773), and ADR 0027 is explicitly not amended with the reason. No new script, check, workflow or doc, so `additions` is empty; task 3.2's `rg` is a one-off verification inside a task, not an added check.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "state",
+      "scenario": "Template read",
+      "reason": "tasks.md maps it `n/a`: a live read of Project 4, which no fake can prove; task 4.3 runs the `gh api graphql` read and records the output for the PR report."
+    },
+    {
+      "capability": "planning",
+      "scenario": "New task",
+      "reason": "tasks.md maps it `n/a`: the scenario text is unchanged and the requirement's only edit is the word \"area\", asserted by `state` / Tracking issue created."
+    }
+  ],
+  "additions": []
+}

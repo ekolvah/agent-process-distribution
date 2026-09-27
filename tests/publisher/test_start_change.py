@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-from tests.publisher.delivery_fakes import ROOT, SKILL_SCRIPTS, Gh, load_script
+from tests.publisher.delivery_fakes import NO_AREA, ROOT, SKILL_SCRIPTS, Gh, load_script
 
 MOVED_SCRIPTS = {
     "activate_protection.py",
@@ -127,7 +127,7 @@ def test_verdict_is_rework(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     root = _change(tmp_path / "tail", verdict="rework", tasks=_GROUP0.format(token=_PLACEHOLDER))
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
-        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+        create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     assert exc.value.code == 2 and _creates(gh) == []
     assert "rework" in capsys.readouterr().err
 
@@ -159,7 +159,7 @@ def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     root = _change(tmp_path / "b", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
-        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+        create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     assert exc.value.code == 2 and _creates(gh) == []
     err = capsys.readouterr().err
     for message in messages:
@@ -207,7 +207,7 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
         )
         gh = Gh()
         with pytest.raises(SystemExit) as exc:
-            create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+            create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
         assert exc.value.code == 2 and _creates(gh) == [], name
         assert message in capsys.readouterr().err, name
 
@@ -216,7 +216,7 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
     review["additions"] = [_addition()]
     root = _change(tmp_path / "ok", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
     gh = Gh()
-    create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     assert len(_creates(gh)) == 1
 
     # A rework records the gap as found: valid, refused only for being rework.
@@ -257,7 +257,7 @@ def test_review_approves_an_open_finding(
     root = _change(tmp_path / "b", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
-        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+        create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     assert exc.value.code == 2 and _creates(gh) == []
     assert "$.classes.length.result" in capsys.readouterr().err
 
@@ -266,7 +266,7 @@ def test_review_approves_an_open_finding(
     root = _change(tmp_path / "c", tasks=_GROUP0.format(token=_PLACEHOLDER), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
-        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+        create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     assert exc.value.code == 2 and _creates(gh) == []
     err = capsys.readouterr().err
     assert "verdict: rework" in err and "$.classes" not in err
@@ -427,8 +427,8 @@ def test_interrupted_start_names_the_continuation(
 def test_plan_approved_creates_the_issue(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Scenario: Plan approved — the issue from proposal.md, Planned with the priority, the
-    number into tasks.md before `set_status`; the priority is required on the placeholder."""
+    """Scenario: Plan approved — the issue from proposal.md, Planned with the area, the
+    number into tasks.md before `set_status`; the area is required on the placeholder."""
     create = load_script("create_tracking_issue")
 
     root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_PLACEHOLDER))
@@ -436,7 +436,10 @@ def test_plan_approved_creates_the_issue(
     with pytest.raises(SystemExit) as exc:
         create.main([_CHANGE], gh=gh, root=root)
     assert exc.value.code == 2 and _creates(gh) == []
-    assert "priority" in capsys.readouterr().err
+    # The planner chooses the area itself: the refusal lists the Project's options.
+    err = capsys.readouterr().err
+    assert "area required" in err
+    assert all(a in err for a in ("Observability", "Distribution", "Token efficiency"))
 
     # The number in the token and the literal `<N>` elsewhere: the existing-issue branch.
     root = _change(
@@ -450,7 +453,7 @@ def test_plan_approved_creates_the_issue(
 
     root = _change(tmp_path / "c", tasks=_GROUP0.format(token=_PLACEHOLDER))
     gh = Gh()
-    create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+    create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     created = _creates(gh)
     assert len(created) == 1
     assert created[0][created[0].index("--title") + 1] == _CHANGE
@@ -459,40 +462,67 @@ def test_plan_approved_creates_the_issue(
     tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
     assert "tracking issue 7" in tasks and _PLACEHOLDER not in tasks
     edits = gh.edits()
-    assert [e[e.index("--single-select-option-id") + 1] for e in edits] == ["S_PLAN", "P_HIGH"]
+    assert [e[e.index("--single-select-option-id") + 1] for e in edits] == ["S_PLAN", "A_OBS"]
     assert gh.calls.index(created[0]) < gh.calls.index(edits[0])
     assert "issues/7" in capsys.readouterr().out
 
     # `set_status` fails after the create: the number is already in tasks.md and the
-    # message names the resume — a re-run must not create a second issue.
+    # message names the resume — a re-run must not create a second issue. A multi-word
+    # area stays one argument of the resume command.
     root = _change(tmp_path / "d", tasks=_GROUP0.format(token=_PLACEHOLDER))
     gh = Gh(fail_on=["gh", "project", "item-edit"])
     with pytest.raises(SystemExit) as exc:
-        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+        create.main([_CHANGE, "--area", "Token efficiency"], gh=gh, root=root)
     assert exc.value.code == 1
     tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
     assert "tracking issue 7" in tasks
     err = capsys.readouterr().err
     assert str(SKILL_SCRIPTS / "set_status.py") in err
-    assert "7 Planned --priority High" in err
+    assert '7 Planned --area "Token efficiency"' in err
 
 
 def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Scenario: Existing tracking issue — no create, a priority refused, Planned alone."""
+    """Scenario: Existing tracking issue — no create, an area refused, Planned alone."""
     create = load_script("create_tracking_issue")
 
     root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
-        create.main([_CHANGE, "--priority", "High"], gh=gh, root=root)
+        create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     assert exc.value.code == 2 and gh.edits() == [] and _creates(gh) == []
-    assert "priority" in capsys.readouterr().err
+    assert "area is set at creation" in capsys.readouterr().err
 
     root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
     gh = Gh()
     create.main([_CHANGE], gh=gh, root=root)
     assert _creates(gh) == []
     assert [e[e.index("--single-select-option-id") + 1] for e in gh.edits()] == ["S_PLAN"]
+
+
+def test_area_field_drift_creates_no_issue(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Area field drift — the area resolves against the Project before the issue is
+    created: an unknown name or a board without `Area` is exit 2 and no issue exists."""
+    create = load_script("create_tracking_issue")
+    tasks_md = Path("openspec") / "changes" / _CHANGE / "tasks.md"
+
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_PLACEHOLDER))
+    gh = Gh()
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--area", "Urgent"], gh=gh, root=root)
+    assert exc.value.code == 2 and _creates(gh) == [] and gh.edits() == []
+    err = capsys.readouterr().err
+    assert "Urgent" in err and "Observability" in err and "Distribution" in err
+    assert _PLACEHOLDER in (root / tasks_md).read_text(encoding="utf-8")
+
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token=_PLACEHOLDER))
+    gh = Gh(fields=NO_AREA)
+    with pytest.raises(SystemExit) as exc:
+        create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
+    assert exc.value.code == 2 and _creates(gh) == [] and gh.edits() == []
+    assert "no field 'Area'" in capsys.readouterr().err
+    assert _PLACEHOLDER in (root / tasks_md).read_text(encoding="utf-8")
 
 
 def _release_config(recorded: str | None) -> bytes:

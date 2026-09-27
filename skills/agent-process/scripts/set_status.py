@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Set an issue's Status and/or Priority in the repository's GitHub Project by name.
+"""Set an issue's Status and/or Area in the repository's GitHub Project by name.
 
-Usage: python skills/agent-process/scripts/set_status.py <N> ["<Status>"] [--priority "<Priority>"]
+Usage: python skills/agent-process/scripts/set_status.py <N> ["<Status>"] [--area "<Area>"]
 
 The process writes two Statuses: "Planned" at the end of the propose run and "In Progress"
 at the start of the apply; "Todo" and "Done" are the Project's own workflows. The Project is
@@ -95,11 +95,15 @@ def _fields(gh: Gh, owner: str, project: dict[str, Any]) -> dict[str, dict[str, 
     return {str(f["name"]): f for f in data["fields"]}
 
 
-def _option_id(fields: dict[str, dict[str, Any]], field_name: str, option_name: str) -> str:
+def _options(fields: dict[str, dict[str, Any]], field_name: str) -> dict[str, str]:
     field = fields.get(field_name)
     if field is None:
         raise ValueError(f"no field {field_name!r} in the Project; fields: {', '.join(fields)}")
-    options = {str(o["name"]): str(o["id"]) for o in field.get("options") or []}
+    return {str(o["name"]): str(o["id"]) for o in field.get("options") or []}
+
+
+def _option_id(fields: dict[str, dict[str, Any]], field_name: str, option_name: str) -> str:
+    options = _options(fields, field_name)
     try:
         return options[option_name]
     except KeyError:
@@ -149,21 +153,36 @@ def _item_edit(gh: Gh, project_id: str, item_id: str, field_id: str, option_id: 
     )
 
 
-def set_status(
-    number: int, status: str | None = None, *, priority: str | None = None, gh: Gh = run_gh
-) -> None:
-    """Set Status and/or Priority of issue `number`; every name resolves before any write."""
-    if status is None and priority is None:
-        raise ValueError("nothing to set: give a Status, --priority, or both")
+def _board(gh: Gh) -> tuple[str, dict[str, Any], dict[str, dict[str, Any]]]:
+    """The linked Project's owner, the Project and its fields by name."""
     owner, name, projects = _repo(gh)
     project = _linked_project(owner, name, projects)
     project_owner = _project_owner(project)
-    fields = _fields(gh, project_owner, project)
+    return project_owner, project, _fields(gh, project_owner, project)
+
+
+def area_options(gh: Gh = run_gh) -> list[str]:
+    """The `Area` options of the linked Project, for the planner to choose from."""
+    return list(_options(_board(gh)[2], "Area"))
+
+
+def check_area(area: str, gh: Gh = run_gh) -> None:
+    """Resolve `area` on the linked Project without writing (the check before an issue exists)."""
+    _option_id(_board(gh)[2], "Area", area)
+
+
+def set_status(
+    number: int, status: str | None = None, *, area: str | None = None, gh: Gh = run_gh
+) -> None:
+    """Set Status and/or Area of issue `number`; every name resolves before any write."""
+    if status is None and area is None:
+        raise ValueError("nothing to set: give a Status, --area, or both")
+    project_owner, project, fields = _board(gh)
     writes = []
-    if status is not None:
-        writes.append((str(fields["Status"]["id"]), _option_id(fields, "Status", status)))
-    if priority is not None:
-        writes.append((str(fields["Priority"]["id"]), _option_id(fields, "Priority", priority)))
+    for field_name, option_name in (("Status", status), ("Area", area)):
+        if option_name is not None:
+            option_id = _option_id(fields, field_name, option_name)
+            writes.append((str(fields[field_name]["id"]), option_id))
     item_id = _item_add(gh, project_owner, project, _issue_url(gh, number))
     for field_id, option_id in writes:
         _item_edit(gh, str(project["id"]), item_id, field_id, option_id)
@@ -173,10 +192,10 @@ def main(argv: list[str] | None = None, *, gh: Gh = run_gh) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("issue", type=int, help="issue number")
     parser.add_argument("status", nargs="?", help='Status option name: "Planned" or "In Progress"')
-    parser.add_argument("--priority", help='Priority option name, e.g. "High"')
+    parser.add_argument("--area", help='Area option name, e.g. "Observability"')
     ns = parser.parse_args(argv)
     try:
-        set_status(ns.issue, ns.status, priority=ns.priority, gh=gh)
+        set_status(ns.issue, ns.status, area=ns.area, gh=gh)
     except (KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(2)
@@ -184,8 +203,8 @@ def main(argv: list[str] | None = None, *, gh: Gh = run_gh) -> None:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(1)
     done = [f"status {ns.status}"] if ns.status else []
-    if ns.priority:
-        done.append(f"priority {ns.priority}")
+    if ns.area:
+        done.append(f"area {ns.area}")
     print(f"ok: issue #{ns.issue} {', '.join(done)}")
 
 

@@ -30,8 +30,19 @@ FIELDS = {
             "type": "ProjectV2SingleSelectField",
             "options": [{"id": "P_HIGH", "name": "High"}, {"id": "P_LOW", "name": "Low"}],
         },
+        {
+            "id": "F_AREA",
+            "name": "Area",
+            "type": "ProjectV2SingleSelectField",
+            "options": [
+                {"id": "A_OBS", "name": "Observability"},
+                {"id": "A_DIST", "name": "Distribution"},
+                {"id": "A_TOK", "name": "Token efficiency"},
+            ],
+        },
     ]
 }
+NO_AREA = {"fields": [f for f in FIELDS["fields"] if f["name"] != "Area"]}
 
 
 def load_script(name: str) -> Any:
@@ -59,10 +70,10 @@ class Gh:
     `status` is what `gh issue view --json projectItems` reports for the issue on the
     linked Project (`None`: the issue is no item of it); `other_items` are the issue's items
     on other Projects, `(title, status)` each, listed first; `fail_on` is a command head
-    that raises as `run_gh` does on a non-zero exit.
+    that raises as `run_gh` does on a non-zero exit; `fields` is what `field-list` prints.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913 -- keyword-only fake knobs, one per gh answer
         self,
         *,
         projects: list[dict] | None = None,
@@ -70,6 +81,7 @@ class Gh:
         other_items: list[tuple[str, str]] = (),
         fail_on: list[str] | None = None,
         remote_branch: bool = False,
+        fields: dict | None = None,
     ) -> None:
         self.calls: list[list[str]] = []
         self.projects = [PROJECT] if projects is None else projects
@@ -77,6 +89,7 @@ class Gh:
         self.other_items = list(other_items)
         self.fail_on = fail_on
         self.remote_branch = remote_branch
+        self.fields = FIELDS if fields is None else fields
 
     def __call__(self, cmd: list[str]) -> str:  # noqa: C901, PLR0911, PLR0912 -- baseline: fake gh answers one branch per command shape
         self.calls.append(cmd)
@@ -118,7 +131,7 @@ class Gh:
         if head == ["gh", "api", "graphql"]:
             raise AssertionError("set_status must read the linked Project with gh repo view")
         if head == ["gh", "project", "field-list"]:
-            return json.dumps(FIELDS)
+            return json.dumps(self.fields)
         if head == ["gh", "project", "item-add"]:
             return json.dumps({"id": "PVTI_7"})
         if head == ["gh", "project", "item-edit"]:

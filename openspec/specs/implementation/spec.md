@@ -93,7 +93,7 @@ The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with `start_
 `Planned`), `gh issue develop -c` on that issue, `set_status "In Progress"` and the
 provenance line in one command whose conditions are exit codes — and end with `ci_check`,
 `archive_change <change>`, the PR and the `wait_for_pr` loop. No delivery task SHALL
-prompt the person or create the issue: the priority was asked by the propose run, which
+prompt the person or create the issue: the area was chosen by the propose run, which
 SHALL write the issue number into Group 0 of `tasks.md` (the placeholder `<N>` replaced).
 `start_change` SHALL exit 2 without creating a branch when `architect-review.json` is not
 valid against `skills/agent-process/architect-review.schema.json` or its verdict is not

@@ -9,7 +9,7 @@ implementation starts.
 ### Requirement: A change is the unit of planning
 Substantive work SHALL start as an OpenSpec change created by `/opsx:propose`:
 `openspec/changes/<name>/` with proposal, spec deltas, design, architect review and tasks.
-A GitHub issue SHALL track the change (title, change name, priority) and is its Project item.
+A GitHub issue SHALL track the change (title, change name, area) and is its Project item.
 
 #### Scenario: New task
 - **WHEN** the person asks for a task
@@ -86,12 +86,12 @@ an `approve` with an entry whose problem is not an issue, PR or run reference, o
 standard is none, SHALL NOT validate. On
 `rework` the planner SHALL apply or answer every finding in the artifact it names and the
 review SHALL run again. On `approve` the planner SHALL run `create_tracking_issue <change>`
-— with the priority asked from the person when the change has no tracking issue yet — which
+— with the area the planner chose from the Project's `Area` options when the change has no tracking issue yet — which
 SHALL exit 2 without creating anything when the file is not valid or its verdict is not
 `approve`, the errors going back to the reviewer; otherwise it creates the issue from the
-proposal, sets its Status to `Planned` with the priority and writes the number into
+proposal, sets its Status to `Planned` with the area and writes the number into
 `tasks.md`, or, when `tasks.md` already carries the number, sets `Planned` alone and refuses
-a priority; the propose run ends there. The apply gate SHALL be the first delivery task of
+an area; the propose run ends there. The apply gate SHALL be the first delivery task of
 `tasks.md` (the file valid, its `verdict` `approve`), since artifact status is file
 existence only.
 
@@ -118,11 +118,11 @@ existence only.
 
 #### Scenario: Plan approved
 - **WHEN** `architect-review.json` says `approve`
-- **THEN** the tracking issue exists and is a Project item in `Planned` with its priority before the propose run reports the artifacts ready
+- **THEN** the tracking issue exists and is a Project item in `Planned` with its area before the propose run reports the artifacts ready
 
 #### Scenario: Existing tracking issue
 - **WHEN** `create_tracking_issue` runs on a change whose `tasks.md` already carries the issue number
-- **THEN** it creates no issue, refuses a priority, and moves that issue to `Planned`
+- **THEN** it creates no issue, refuses an area, and moves that issue to `Planned`
 
 #### Scenario: Review archives with the change
 - **WHEN** a change whose directory holds `architect-review.json` is archived

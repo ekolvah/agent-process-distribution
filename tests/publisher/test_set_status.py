@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.publisher.delivery_fakes import PROJECT, Gh, load_script
+from tests.publisher.delivery_fakes import NO_AREA, PROJECT, Gh, load_script
 
 
 def test_tracking_issue_created() -> None:
@@ -18,11 +18,11 @@ def test_tracking_issue_created() -> None:
     set_status = load_script("set_status")
     gh = Gh()
 
-    set_status.set_status(7, "In Progress", priority="High", gh=gh)
+    set_status.set_status(7, "In Progress", area="Observability", gh=gh)
 
     edits = gh.edits()
     assert len(edits) == 2
-    for cmd, field_id, option_id in zip(edits, ["F_STATUS", "F_PRIO"], ["S_PROG", "P_HIGH"]):
+    for cmd, field_id, option_id in zip(edits, ["F_STATUS", "F_AREA"], ["S_PROG", "A_OBS"]):
         assert cmd[cmd.index("--id") + 1] == "PVTI_7"
         assert cmd[cmd.index("--field-id") + 1] == field_id
         assert cmd[cmd.index("--project-id") + 1] == "PVT_1"
@@ -30,31 +30,39 @@ def test_tracking_issue_created() -> None:
     assert not any(c[:2] == ["gh", "api"] for c in gh.calls)
 
 
-def test_priority_field_drift(capsys: pytest.CaptureFixture[str]) -> None:
-    """Scenario: Priority field drift — unknown option → exit 2 listing the options, nothing changed."""
+def test_area_field_drift(capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Area field drift — an unknown option or no `Area` field → exit 2 naming the
+    options or the fields, nothing changed."""
     set_status = load_script("set_status")
     gh = Gh()
 
     with pytest.raises(SystemExit) as exc:
-        set_status.main(["7", "In Progress", "--priority", "Urgent"], gh=gh)
+        set_status.main(["7", "In Progress", "--area", "Urgent"], gh=gh)
 
     assert exc.value.code == 2
     assert gh.edits() == []
     err = capsys.readouterr().err
-    assert "Urgent" in err and "High" in err and "Low" in err
+    assert "Urgent" in err and "Observability" in err and "Distribution" in err
+
+    gh = Gh(fields=NO_AREA)
+    with pytest.raises(SystemExit) as exc:
+        set_status.main(["7", "In Progress", "--area", "Observability"], gh=gh)
+    assert exc.value.code == 2
+    assert gh.edits() == []
+    assert "no field 'Area'" in capsys.readouterr().err
 
 
-def test_priority_only() -> None:
-    """Scenario: Priority only — Status is optional; nothing given at all is a usage error."""
+def test_area_only() -> None:
+    """Scenario: Area only — Status is optional; nothing given at all is a usage error."""
     set_status = load_script("set_status")
     gh = Gh()
 
-    set_status.main(["7", "--priority", "High"], gh=gh)
+    set_status.main(["7", "--area", "Observability"], gh=gh)
 
     edits = gh.edits()
     assert len(edits) == 1
-    assert edits[0][edits[0].index("--field-id") + 1] == "F_PRIO"
-    assert edits[0][edits[0].index("--single-select-option-id") + 1] == "P_HIGH"
+    assert edits[0][edits[0].index("--field-id") + 1] == "F_AREA"
+    assert edits[0][edits[0].index("--single-select-option-id") + 1] == "A_OBS"
 
     gh = Gh()
     with pytest.raises(SystemExit) as exc:

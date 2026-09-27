@@ -48,7 +48,7 @@ _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
 NOT_FINISHED = (
     "propose run not finished: run its tail "
     f'(python "{SCRIPT_DIR / "create_tracking_issue.py"}" '
-    "{change} --priority <High|Medium|Low>) first"
+    "{change} --area <name>) first"
 )
 
 
