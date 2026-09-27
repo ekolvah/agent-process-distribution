@@ -424,6 +424,30 @@ def test_list_prints_the_registry(
     assert called == []
 
 
+def test_targets_beyond_one_command_line(monkeypatch: pytest.MonkeyPatch) -> None:
+    paths = [f"src/{i:04d}/" + "x" * 71 for i in range(600)]
+    assert all(len(path) == 80 for path in paths)
+    prefix = ci_check._secrets_cmd([])
+    commands: list[list[str]] = []
+
+    def run(cmd: list[str]) -> None:
+        commands.append(cmd)
+        if paths[-1] in cmd:
+            sys.exit(1)
+
+    monkeypatch.setattr(ci_check, "_tracked_files", lambda: paths)
+    monkeypatch.setattr(ci_check, "_run", run)
+
+    with pytest.raises(SystemExit) as exit_info:
+        ci_check.check_secrets()
+
+    assert exit_info.value.code == 1
+    assert len(commands) > 1
+    assert all(len(subprocess.list2cmdline(cmd)) <= 32767 for cmd in commands)
+    assert all(cmd[: len(prefix)] == prefix for cmd in commands)
+    assert [path for cmd in commands for path in cmd[len(prefix) :]] == paths
+
+
 class TestMypyManifest:
     def test_requests_cached_and_untracked_excluding_standard_ignores(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

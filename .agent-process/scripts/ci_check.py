@@ -195,7 +195,8 @@ def check_secrets() -> None:
         # vacuous scan would look exactly like a clean one.
         print("no files to scan — refusing to report a vacuous pass")
         sys.exit(1)
-    _run(_secrets_cmd(targets))
+    for batch in _secrets_batches(targets):
+        _run(_secrets_cmd(batch))
 
 
 def _git_files(*options: str) -> list[str]:
@@ -238,6 +239,27 @@ def _secrets_cmd(files: list[str]) -> list[str]:
     # script: unreliable-on-PATH on Windows, same reason as check_imports. No
     # `--baseline` — see check_secrets.
     return [sys.executable, "-X", "utf8", "-m", "detect_secrets.pre_commit_hook", *files]
+
+
+# Windows `CreateProcess` takes at most 32767 characters including the terminating
+# null; the margin keeps a batch clear of it. Applied on every platform so Linux CI
+# runs the same multi-batch path that Windows depends on.
+_CMDLINE_LIMIT = 32000
+
+
+def _secrets_batches(targets: list[str]) -> list[list[str]]:
+    # `list2cmdline` is the string `subprocess` hands to `CreateProcess`, so the
+    # measure is the real one. A single path over the limit still gets a batch of
+    # its own: the OS error then surfaces instead of the path being skipped.
+    batches: list[list[str]] = []
+    batch: list[str] = []
+    for name in targets:
+        if batch and len(subprocess.list2cmdline(_secrets_cmd([*batch, name]))) > _CMDLINE_LIMIT:
+            batches.append(batch)
+            batch = []
+        batch.append(name)
+    batches.append(batch)
+    return batches
 
 
 def check_pytest() -> None:
