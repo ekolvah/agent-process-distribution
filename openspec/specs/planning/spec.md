@@ -86,7 +86,7 @@ an `approve` with an entry whose problem is not an issue, PR or run reference, o
 standard is none, SHALL NOT validate. On
 `rework` the planner SHALL apply or answer every finding in the artifact it names and the
 review SHALL run again. On `approve` the planner SHALL run `create_tracking_issue <change>`
-— with the area asked from the person when the change has no tracking issue yet — which
+— with the area the planner chose from the Project's `Area` options when the change has no tracking issue yet — which
 SHALL exit 2 without creating anything when the file is not valid or its verdict is not
 `approve`, the errors going back to the reviewer; otherwise it creates the issue from the
 proposal, sets its Status to `Planned` with the area and writes the number into

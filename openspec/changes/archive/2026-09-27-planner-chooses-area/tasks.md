@@ -8,7 +8,7 @@
 
 ## 3. Deliver
 
-- [ ] 3.1 `validate --strict --all`, `ci_check.py`, `archive_change.py planner-chooses-area`, then `@codex review` and `wait_for_pr.py 220`
+- [x] 3.1 `validate --strict --all`, `ci_check.py`, `archive_change.py planner-chooses-area`, then `@codex review` and `wait_for_pr.py 220`
 
 ## Scenario → test map
 
