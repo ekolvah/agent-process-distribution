@@ -15,7 +15,7 @@
 ## 3. Workflows (D2, D4)
 
 - [x] 3.1 Edit `quality.yml` job `link` and `reusable-agent-review.yml` as the tests of 1.2 name, the step comment citing ADR 0031; verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes. Commit as `feat(release): the release PR skips the issue link and the review wait`
-- [ ] 3.2 Edit `release-please.yml`: `id: release` on the action and the auto-merge step of D4, the header comment naming ADR 0031; verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes. Commit as `feat(release): the release workflow enables auto-merge on its PR`
+- [x] 3.2 Edit `release-please.yml`: `id: release` on the action and the auto-merge step of D4, the header comment naming ADR 0031; verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes. Commit as `feat(release): the release workflow enables auto-merge on its PR`
 
 ## 4. Record (D1–D4)
 
