@@ -1,4 +1,4 @@
-"""The merge gate fails on an unresolved P0/P1 thread of either reviewer and replies to none."""
+"""The merge gate fails on an unresolved P0/P1 thread of the review job and replies to none."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from scripts.check_blocking_review_threads import ReviewThread, blocking_threads
 CLAUDE_REVIEW_JOB = "github-actions[bot]"
 
 
-def _payload(*, resolved: bool, priority: str, author: str = "chatgpt-codex-connector") -> dict:
+def _payload(*, resolved: bool, priority: str, author: str = "github-actions") -> dict:
     return {
         "data": {
             "repository": {
@@ -46,15 +46,18 @@ def _payload(*, resolved: bool, priority: str, author: str = "chatgpt-codex-conn
     }
 
 
-def test_open_codex_p1_is_merge_blocking() -> None:
-    assert blocking_threads(_payload(resolved=False, priority="P1")) == [
-        ("thread-1", "P1", "https://example.test/thread-1")
-    ]
+def test_open_codex_p1_does_not_block() -> None:
+    """Scenario: Thread of a former reviewer — a Codex app still installed on a
+    repository leaves threads the gate no longer trusts."""
+    assert (
+        blocking_threads(_payload(resolved=False, priority="P1", author="chatgpt-codex-connector"))
+        == []
+    )
 
 
 def test_open_p1_by_the_claude_review_job_is_merge_blocking() -> None:
     """The Claude action comments under the workflow token (ADR 0004), so its
-    findings carry the github-actions login; the gate reads both reviewers."""
+    findings carry the github-actions login."""
     assert blocking_threads(_payload(resolved=False, priority="P1", author=CLAUDE_REVIEW_JOB)) == [
         ("thread-1", "P1", "https://example.test/thread-1")
     ]
@@ -69,7 +72,7 @@ def test_resolved_or_nonblocking_threads_are_not_merge_blocking() -> None:
     assert blocking_threads(_payload(resolved=False, priority="P2")) == []
 
 
-def test_human_priority_text_cannot_block_the_codex_gate() -> None:
+def test_human_priority_text_cannot_block_the_gate() -> None:
     assert blocking_threads(_payload(resolved=False, priority="P1", author="author")) == []
 
 

@@ -56,7 +56,7 @@ def test_moved_start_scripts_resolve_consumer_root(
 
 
 _CHANGE = "v2-9-example"
-_START = [_CHANGE, "--planner", "Claude", "--implementer", "Codex"]
+_START = [_CHANGE, "--planner", "Claude", "--implementer", "Claude"]
 _PLACEHOLDER = "tracking issue <N>"
 _GROUP0 = (
     "- [ ] 0.1 `python skills/agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
@@ -370,10 +370,26 @@ def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
     assert edits[0][edits[0].index("--single-select-option-id") + 1] == "S_PROG"
     comments = [c for c in gh.calls if c[:3] == ["gh", "issue", "comment"]]
     assert comments == [
-        ["gh", "issue", "comment", "7", "--body", "planner: Claude; implementer: Codex"]
+        ["gh", "issue", "comment", "7", "--body", "planner: Claude; implementer: Claude"]
     ]
     order = [gh.calls.index(develop[0]), gh.calls.index(edits[0]), gh.calls.index(comments[0])]
     assert order == sorted(order)
+
+
+def test_codex_carrier_is_rejected(tmp_path: Path) -> None:
+    """Scenario: Codex carrier — Claude is the only carrier; `Codex` for either role is a
+    usage error before any GitHub call."""
+    start_change = load_script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    for argv in (
+        [_CHANGE, "--planner", "Codex", "--implementer", "Claude"],
+        [_CHANGE, "--planner", "Claude", "--implementer", "Codex"],
+    ):
+        gh = Gh(status="Planned")
+        with pytest.raises(SystemExit) as exc:
+            start_change.main(argv, gh=gh, root=root)
+        assert exc.value.code == 2, argv
+        assert gh.calls == []
 
 
 def test_interrupted_start_names_the_continuation(
@@ -384,7 +400,7 @@ def test_interrupted_start_names_the_continuation(
     them without a second `start_change` (PR 148, Codex P1)."""
     start_change = load_script("start_change")
     status_path = str(SKILL_SCRIPTS / "set_status.py")
-    comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Codex"'
+    comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Claude"'
 
     root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
     gh = Gh(fail_on=["gh", "project", "item-edit"])
@@ -582,6 +598,7 @@ def test_release_drift(
         assert "release drift" in err and "verdict" not in err
         assert f"project records {recorded}" in err and f"skill is {version}" in err
         assert fix in err
+        assert "Codex" not in err
 
 
 def test_publisher_checkout_is_exempt(tmp_path: Path) -> None:

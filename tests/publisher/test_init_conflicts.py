@@ -70,14 +70,6 @@ def _checkout_not_repository(init: ModuleType, sb: Sandbox) -> None:
     (sb.checkout / "file").write_text("mine\n", encoding="utf-8")
 
 
-def _link_real_directory(init: ModuleType, sb: Sandbox) -> None:
-    sb.link.mkdir(parents=True)
-
-
-def _link_elsewhere(init: ModuleType, sb: Sandbox) -> None:
-    host_link(sb.other, sb.link)
-
-
 CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
     "config-several-markers": (
         "config",
@@ -180,7 +172,6 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
     "workflow-parent-file": ("workflow", lambda init, sb: _write(sb, ".github/workflows", "")),
     # The user-profile targets have parents too (review of PR 159, round 3).
     "checkout-parent-file": ("checkout", lambda init, sb: _home_file(sb, ".agent-process")),
-    "link-parent-file": ("link", lambda init, sb: _home_file(sb, ".agents")),
     "config-rules-escaped": (
         "config",
         lambda init, sb: _write(sb, "openspec/config.yaml", '"r\\u0075les":\n  proposal: []\n'),
@@ -231,8 +222,6 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
     "checkout-dirty": ("checkout", _checkout_dirty),
     "checkout-other-origin": ("checkout", _checkout_other_origin),
     "checkout-not-repository": ("checkout", _checkout_not_repository),
-    "link-real-directory": ("link", _link_real_directory),
-    "link-elsewhere": ("link", _link_elsewhere),
 }
 
 

@@ -43,6 +43,13 @@ def test_claude_wires_no_stop_hook() -> None:
     assert "Stop" not in _settings()["hooks"]
 
 
+def test_claude_denies_push_to_main_force_push_and_merge() -> None:
+    """Scenario: Push to main from Claude Code — the deny-list is the local safety layer."""
+    deny = _settings()["permissions"]["deny"]
+    for rule in ("Bash(git push origin main)", "Bash(git push --force)", "Bash(gh pr merge*)"):
+        assert rule in deny, rule
+
+
 class TestTelemetryAttribution:
     """Project attribution on the agent telemetry (issue #97).
 

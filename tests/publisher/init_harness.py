@@ -199,8 +199,7 @@ def is_link(path: Path) -> bool:
 
 class Runner:
     """The process boundary: logs each command, hands `gh` to the fake GitHub, emulates `npx`
-    (unless `real_npx`) and the other platform's link command, and runs every other command
-    for real through the installer's `run`."""
+    (unless `real_npx`), and runs every other command for real through the installer's `run`."""
 
     def __init__(
         self, init: ModuleType, platform: str, github: FakeGitHub, *, real_npx: bool = False
@@ -238,10 +237,6 @@ class Runner:
                     text = "schema: spec-driven\n" if rel == "openspec/config.yaml" else "x\n"
                     path.write_text(text, encoding="utf-8")
             return subprocess.CompletedProcess(cmd, 0, "", "")
-        if self.platform != HOST and link_command(cmd):
-            link, target = link_command(cmd)
-            host_link(target, link)
-            return subprocess.CompletedProcess(cmd, 0, "", "")
         return self.init.run(cmd, cwd=cwd, env=env, capture=capture)
 
     def state_changing(self) -> list[str]:
@@ -253,8 +248,6 @@ class Runner:
                 keys.append("npx")
             elif is_gh(cmd) and cmd[1:2] == ["project"]:
                 keys.append(f"gh-{cmd[2]}")
-            elif link_command(cmd):
-                keys.append("link")
             elif name.startswith("git") and cmd[1:2] != ["-C"] and "clone" in cmd:
                 keys.append("clone")
             elif name.startswith("git") and ("fetch" in cmd or "checkout" in cmd):
@@ -264,17 +257,6 @@ class Runner:
 
 def is_gh(cmd: list[str]) -> bool:
     return Path(str(cmd[0])).stem.lower() == "gh"
-
-
-def link_command(cmd: list[str]) -> tuple[Path, Path] | None:
-    """(link, target) of `cmd /c mklink /J <link> <target>` or `ln -s <target> <link>`."""
-    parts = [str(part) for part in cmd]
-    name = Path(parts[0]).name.lower()
-    if name.startswith("cmd") and parts[1:4] == ["/c", "mklink", "/J"]:
-        return Path(parts[4]), Path(parts[5])
-    if name.startswith("ln") and parts[1:2] == ["-s"]:
-        return Path(parts[-1]), Path(parts[-2])
-    return None
 
 
 def which(name: str) -> str:
@@ -342,7 +324,6 @@ def tag_commit(sb: Sandbox, tag: str) -> str:
 
 LABELS = [
     "checkout",
-    "link",
     "openspec",
     "config",
     "workflow",
