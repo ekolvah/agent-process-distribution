@@ -1,0 +1,54 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Root cause is a named platform property, the diff is the minimum that closes it, both scenarios have a test, and the only unobservable half is observed by a named delivery step.",
+  "classes": {
+    "simpler": {
+      "evidence": "design D1 rejects a caller input (drifts from the `uses:` pin) and the OIDC claim (needs `id-token: write`, which tests/publisher/test_reusable_workflows.py::test_caller_permissions_are_a_superset_of_callee_permissions forbids); D2 rejects `ref: ${{ job.workflow_sha || 'missing' }}`. The simplest plan — fix the ref, add no guard — is rejected by spec scenario `Called commit unavailable`, which is the observed failure mode itself: the empty ref checked out `refs/remotes/pull/225/merge` silently (proposal, Why, run 36326501964). Diff is two workflow steps, one constant plus one test, one ADR line; no new file, no new input, no new permission.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md lines 29-30 map both delta scenarios (`PR changes a process script`, `Called commit unavailable`) to tests/publisher/test_reusable_workflows.py::test_trusted_checkout_is_the_called_commit, written in task 1.1, and name the live proof for the first (task 4.3, then the post-merge #225 re-run). The `ref` half rides on the TRUSTED_CHECKOUT constant (test_reusable_workflows.py:87-91), which test_quality_verifies_the_pr_links_its_issue_before_the_driver, test_agent_review_reviews_every_head_and_enforces_threads and _assert_detects_a_release_pr all compare against, so one edit propagates.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 is the RED task: the new test plus test_quality_skips_the_link_on_a_release_pr and test_agent_review_skips_the_review_on_a_release_pr run through check_red.py before the Group 2 edit, and each fails in the call phase (the `next(s for s in raw if s.get(\"with\") == TRUSTED_CHECKOUT)` of _assert_detects_a_release_pr raises in the test body, which the junit report records as `failure`, the outcome check_red.py counts as RED — `error` would not). Executing the guard's `run` under bash follows tests/agent_process/test_pre_push_hook.py, the repository's existing shell-execution precedent.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Four behaviours, each with an observation. (1) `job.workflow_sha` exists and is the callee's commit — the contexts reference cited in proposal Why; the same page carries the sentence for `job.workflow_ref` (\"For jobs defined in a Reuse workflows, this refers to the reusable workflow file\") and a reusable-workflow example that checks out the workflow's own source with `repository: ${{ job.workflow_repository }}` / `ref: ${{ job.workflow_sha }}`; re-read live during this review (D1 may cite that example instead of inferring the callee case). (2) No `github.job_workflow_sha`: the page carries zero occurrences of `job_workflow_sha`. (3) An empty `ref` falls back to the event's ref — runs 36326501964 and 36323480377, with the literal `git checkout --progress --force refs/remotes/pull/225/merge`; this is why the checkout cannot be the guard (D2). (4) `job.workflow_sha` on the local `./` call is not observed, and the design says so (Risks) with task 4.3 reading the PR's own `agent-process / link` log and stopping on an empty value.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The replaced input is the trusted checkout's `ref`. D2 lists its failure mode (empty) and the guard that fails the job first. D3 lists what stops proving: on the publisher's `./` call the trusted source is the PR's own commit, and the catcher named beside it is the `@main` review callee kept required by test_publisher_driver_keeps_a_same_head_catcher (context `agent-review / agent-review`). Proposal Impact names the consumer effect: a consumer carries no process scripts in its PRs.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Guard step `Require the called workflow commit` → fails the job before the checkout, log line `job.workflow_sha is empty` (D2). Task 4.3 → the PR's own `agent-process / link` log, stop-and-report on an empty `ref:`. Task 4.5 → the person re-runs `agent-review` on #225 after the merge (the `@main` callee cannot be reached earlier). D3 → the required context `agent-review / agent-review`. Task 2.2's leftover-name grep, now `git grep -n \"github.job_workflow_sha\" -- .github .agent-process tests`, was run during this review: it prints exactly the four occurrences tasks 1.1, 2.1 and 2.2 remove (ADR 0031 line 35, the two workflow `ref:` lines, the test constant), so it reaches `prints nothing` after Group 2 while leaving the plan's own quotation of the dead name, which §V requires the change to keep, out of scope.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Added spec prose: the requirement is 47 words, the two scenarios ~55; the tests assert the `ref` value, the guard's presence, position and `env.SHA`, its non-zero exit naming `job.workflow_sha is empty`, and its exit 0 on a set SHA — every clause but the live half of scenario 1 (`the check runs the script at the pinned commit`), which task 4.3 and the post-merge #225 re-run observe, as the map states. Outside the spec the plan adds prose only in ADR 0031 D2 (a name plus an eight-word parenthesis, a doc-only correction) — no new rule text in SKILL.md, config.yaml or .claude/rules.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Proposal Impact adds no file: four edits (two workflows, the test module, ADR 0031). The only added check is the guard step, once per workflow; both are listed under `additions` with the problem they close and the standard that does not fit.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": [
+    {
+      "path": ".github/workflows/reusable-agent-review.yml, step `Require the called workflow commit`",
+      "problem": "#226",
+      "standard": "actions/checkout failing on an unresolvable ref (design D2's alternative `ref: ${{ job.workflow_sha || 'missing' }}`)",
+      "why_not": "An empty ref is a valid input to the action, not an error: it resolves to the event's ref, observed as `git checkout refs/remotes/pull/225/merge` in runs 36326501964 and 36323480377, so the checkout cannot be the guard. The `|| 'missing'` variant does fail, but with a ref-not-found error that names neither the empty context property nor the fallback it prevented (§IV)."
+    },
+    {
+      "path": ".github/workflows/quality.yml, job `link`, step `Require the called workflow commit`",
+      "problem": "#226",
+      "standard": "actions/checkout failing on an unresolvable ref (design D2's alternative)",
+      "why_not": "Same platform behaviour and same silent fallback, observed in run 36326501841 on job `link`; a consumer pinned to `@v<version>` would otherwise run its own PR's `release_pr.py` without any log line saying so."
+    }
+  ]
+}

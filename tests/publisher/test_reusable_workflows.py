@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -79,10 +82,42 @@ def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
 
 TRUSTED_CHECKOUT = {
     "repository": "ekolvah/agent-process-distribution",
-    "ref": "${{ github.job_workflow_sha }}",
+    "ref": "${{ job.workflow_sha }}",
     "path": "trusted",
 }
 NOT_RELEASE = "steps.release.outputs.release != 'true'"
+
+
+def _run_guard(run: str, sha: str) -> subprocess.CompletedProcess[str]:
+    bash = shutil.which("bash")
+    assert bash, "bash is unavailable: the guard's run cannot be executed"
+    return subprocess.run(
+        [bash, "-c", run],
+        env={**os.environ, "SHA": sha},
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+def test_trusted_checkout_is_the_called_commit() -> None:
+    """Issue 226: `github.job_workflow_sha` does not exist, so the empty ref made
+    `actions/checkout` fall back to the PR's merge ref. The checkout takes the called
+    workflow's commit, and an empty one fails the job before the checkout."""
+    for name in ("reusable-agent-review.yml", "quality.yml"):
+        for job in _workflow(name)["jobs"].values():
+            steps = job["steps"]
+            for index, step in enumerate(steps):
+                if step.get("with", {}).get("path") != "trusted":
+                    continue
+                assert step["with"]["ref"] == "${{ job.workflow_sha }}", name
+                guard = steps[index - 1]
+                assert index > 0 and guard.get("name") == "Require the called workflow commit"
+                assert guard["env"] == {"SHA": "${{ job.workflow_sha }}"}
+                empty = _run_guard(guard["run"], "")
+                assert empty.returncode != 0
+                assert "job.workflow_sha is empty" in empty.stdout
+                assert _run_guard(guard["run"], "a" * 40).returncode == 0
 
 
 def _assert_detects_a_release_pr(raw: list[dict[str, Any]]) -> None:
