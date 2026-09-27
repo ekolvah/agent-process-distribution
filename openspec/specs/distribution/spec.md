@@ -325,7 +325,8 @@ last release, and that PR SHALL move every version place — `.claude-plugin/plu
 the release manifest — to that version in one commit. The release PR SHALL be opened with a
 token whose events start workflows, so the required contexts run on it. The release workflow
 SHALL enable auto-merge with squash on the PR it opened or updated, with the same token, and
-the repository SHALL allow auto-merge; a failure to enable it SHALL fail the workflow run.
+the repository SHALL allow auto-merge; a failure to enable it SHALL fail the workflow run. A
+run that opens or updates no release PR SHALL succeed without enabling auto-merge.
 Merging the release PR SHALL create the tag `v<version>` and its GitHub Release; no person or
 script sets a release tag by hand.
 
@@ -336,6 +337,10 @@ script sets a release tag by hand.
 #### Scenario: Release PR opened or updated
 - **WHEN** the release workflow opens or updates the release PR
 - **THEN** auto-merge with squash is enabled on that PR, or the workflow run fails
+
+#### Scenario: No release PR change
+- **WHEN** the release workflow runs and opens or updates no release PR
+- **THEN** the workflow run succeeds and the auto-merge step is skipped
 
 #### Scenario: Release PR merged
 - **WHEN** the release PR of version `<version>` merges once its required checks pass
