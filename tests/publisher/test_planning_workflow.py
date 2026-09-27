@@ -376,8 +376,9 @@ def test_plan_approved() -> None:
     text = _skill()
     review = _section("Architect review")
     assert text.index("## Architect review") < text.index("create_tracking_issue.py")
-    # The tail is one command: the area is asked before the issue is created.
-    assert review.index("area") < review.index("create_tracking_issue.py")
+    # The tail is one command: the planner chooses the area, asking the person nothing.
+    assert review.index("choose the area") < review.index("create_tracking_issue.py")
+    assert re.search(r"ask", review) is None
     assert review.index("create_tracking_issue.py") < review.index("--area")
     assert "priority" not in review
     assert "Planned" in review

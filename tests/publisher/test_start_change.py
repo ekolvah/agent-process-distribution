@@ -436,7 +436,10 @@ def test_plan_approved_creates_the_issue(
     with pytest.raises(SystemExit) as exc:
         create.main([_CHANGE], gh=gh, root=root)
     assert exc.value.code == 2 and _creates(gh) == []
-    assert "area required" in capsys.readouterr().err
+    # The planner chooses the area itself: the refusal lists the Project's options.
+    err = capsys.readouterr().err
+    assert "area required" in err
+    assert all(a in err for a in ("Observability", "Distribution", "Token efficiency"))
 
     # The number in the token and the literal `<N>` elsewhere: the existing-issue branch.
     root = _change(
