@@ -207,8 +207,11 @@ def test_quality_callee_runs_the_callers_commands() -> None:
     assert list(jobs) == ["link", "plan", "check", "quality"]
 
     steps = jobs["link"]["steps"]
-    assert len(steps) == 1
-    assert steps[0]["name"] == "Verify the PR links its issue"
+    assert [step["name"] for step in steps] == [
+        "Checkout trusted process source",
+        "Detect a release PR",
+        "Verify the PR links its issue",
+    ]
 
     plan = jobs["plan"]
     _assert_checkout_and_python(plan["steps"])

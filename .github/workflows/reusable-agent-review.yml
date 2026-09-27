@@ -8,6 +8,7 @@ name: Reusable agent review
 # event the caller subscribes to runs this same path: a review-event run that
 # skipped the wait and the fallback would pass on a head without any review
 # and become the required context (a skipped job passes a required check too).
+# A release PR alone skips the wait and the fallback (ADR 0031).
 on:
   workflow_call:
     inputs:
@@ -45,6 +46,20 @@ jobs:
           ref: ${{ github.job_workflow_sha }}
           path: trusted
 
+      # A release PR changes only what release-please versions (ADR 0031); the
+      # detection runs from the trusted process source, never from the PR's head.
+      - name: Detect a release PR
+        id: release
+        working-directory: trusted
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python .agent-process/scripts/release_pr.py
+          --repo "${{ github.repository }}"
+          --pr "${{ github.event.pull_request.number }}"
+          --base-sha ${{ github.event.pull_request.base.sha }}
+          --head-sha ${{ github.event.pull_request.head.sha }}
+
       # Exit 3 (absent) is the recorded condition for the fallback, not a failure
       # of the step; a crash of the reader (exit 2) fails the step and the job —
       # the fallback never runs on a read that did not establish absence.
@@ -54,8 +69,10 @@ jobs:
       # review of an unchanged head (issue 139). The fallback's review is its closing
       # comment naming the head, never its inline comments alone: an action
       # interrupted after its first finding left those, and the re-run reviews again.
+      # A release PR waits for no review, so no fallback runs either (ADR 0031).
       - name: Wait for the Codex review of the head
         id: codex
+        if: steps.release.outputs.release != 'true'
         working-directory: trusted
         env:
           GH_TOKEN: ${{ github.token }}
