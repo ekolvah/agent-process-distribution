@@ -42,7 +42,7 @@ Chosen: **release-please-action in manifest mode, with the PR title carrying the
   `refactor` or `chore`. A ruleset of its own, `pr-title`, requires that context:
   `activate_protection` converges the context set of the process ruleset and would drop a
   foreign one, while rules of several rulesets on one branch aggregate.
-* The release PR links its issue by hand: the person links it in the Development panel,
+* *(Superseded by [ADR 0031](0031-release-prs-merge-without-the-person.md).)* The release PR links its issue by hand: the person links it in the Development panel,
   requests `@codex review`, and merges.
 
 ### Native alternatives considered
@@ -67,9 +67,8 @@ Chosen: **release-please-action in manifest mode, with the PR title carrying the
 
 ### Cutting a release
 
-1. Link the release's issue to the open release PR.
-2. Comment `@codex review` on it.
-3. Merge it once its checks are green; the tag and the GitHub Release follow.
+Superseded by [ADR 0031](0031-release-prs-merge-without-the-person.md): the release PR merges
+itself once its required contexts are green.
 
 ### Deletion condition
 

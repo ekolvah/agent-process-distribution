@@ -1,0 +1,60 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every class holds: the diff rule is the one recognition a PR cannot forge, each dropped guard names a catcher reached on the same head, the unobserved auto-merge attribution carries its symptom and its post-merge check, the script adds no boundary the repository already has, and the last finding — a 404 of a legitimate PR read as a failed read — is closed in task 2.2.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 Alternatives (branch `release-please--branches--main`, PR author, moving `VERSION` out of `init.py`) and D2 Alternatives (inline `jq` per workflow; a separate `release` job `link` needs — a skipped `link` reports `skipped`, which the gate at .github/workflows/quality.yml:96-106 refuses). The simplest route, recognising the PR by its file set alone, is rejected by the delta scenario `Other change in a version file`: `skills/agent-process/scripts/init.py` is code and `.claude-plugin/plugin.json` declares the plugin's hooks, both inside the release-please set of release-please-config.json:7-11. The route that needs no detection at all — a ruleset bypass actor for the release PAT — is refused by proposal.md What Changes: `plan`, `check` and the gate stay required, so `tests/publisher/test_plugin.py::test_version_drift` still gates the release head. One published step output replaced the per-workflow exit-code mapping, and task 2.2 now reads only the paths the rule compares.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "17 delta scenarios — specs/review-and-merge/spec.md: 5 ADDED, plus 1 + 9 + 3 in the three MODIFIED requirements; specs/distribution/spec.md: 3 — and tasks.md:38-51 carries one entry for each. `::test_main_publishes_the_verdict` closes the chain the workflows depend on: the published `release=true|false` and the `if: steps.release.outputs.release != 'true'` asserted by `::test_quality_skips_the_link_on_a_release_pr`. `main` now reads base and head text only for a path in the set that is not a changelog and whose compare status is `modified` (task 2.2), so an `added`, `removed` or `renamed` path reaches `release_verdict` exactly as `::test_version_file_added_or_removed_is_not_a_release_pr` shapes it, and no 404 of a legitimate PR is reported as a failed read. Two entries still name a pure-function test for a requirement clause with no scenario of its own (that one and `::test_manifest_unchanged_is_not_a_release_pr`), which openspec/config.yaml allows.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is tasks 1.1 and 1.2: a signature-only stub plus eight tests of `tests/publisher/test_release_pr.py` (seven pure-function shapes over the #202 diff, plus `::test_failed_read_fails_the_check` and `::test_main_publishes_the_verdict` monkeypatching `gh_io.run_gh`), and three workflow tests, each run through `check_red.py` with its node ids and verified to fail in the test body; the RED commit closes 1.1-1.2 before groups 2-4 implement. The narrowed assertion inside the existing `::test_quality_verifies_the_pr_links_its_issue_before_the_driver` is correctly kept out of the RED node ids: it is vacuously true until task 3.1 adds the checkout.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Observed and cited: release-please-action README Outputs for `prs_created` and `pr`; GitHub Docs *Automatically merging a pull request* for the repository-level setting and the disable-on-untrusted-push rule; `gh api repos/ekolvah/agent-process-distribution` output for `allow_auto_merge: false` and the ruleset's two required contexts, 0 approvals, strict (proposal.md Why). Already load-bearing in the merged .github/workflows/reusable-agent-review.yml:41-46: `github.job_workflow_sha` as the trusted ref. On whose behalf an auto-merge merges, design.md Risks records the reading itself — the docs page (read 2026-09-26) does not say — names the symptom as an absence (no `Release Please` run on the merge commit, `gh release view v<version>` failing), and task 6.2 makes that read the post-merge check that goes to the person with the merge commit's run list. The recovery claim beside it (the next push to `main` lets release-please create the pending tag) is itself unobserved, and the escalation is what backs it.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "design.md D3 lists the three dropped guards with a catcher each: the issue link → `release_pr.py` in `link` on the release PR's head; the review → `release_pr.py` in `agent-review` on that head plus `test_version_drift` in `agent-process / quality` `check`; the person's merge → no catcher before the release, accepted with the release notes and the next `fix` after it. D2 lists the fourth and narrows rather than drops it: the assertion of tests/publisher/test_reusable_workflows.py:122 becomes \"no checkout but the trusted source at `github.job_workflow_sha` into `trusted`\", with the link step still reading `closingIssuesReferences` through the API alone (tasks.md 1.2). D2 also names the input this change replaces — in the publisher `github.job_workflow_sha` is the PR head, the same trust as quality.yml itself — and the config's presence comes from the base root listing rather than a 404, so no failed call can read as an absent configuration.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Each catcher is traceable to a delivery step. Issue link → `.agent-process/scripts/release_pr.py` in the `link` job of .github/workflows/quality.yml, added by task 3.1, on the release PR's own head. Review → the same script in the `agent-review` job of .github/workflows/reusable-agent-review.yml (task 3.1) plus `tests/publisher/test_plugin.py::test_version_drift` inside the unchanged `check` job (quality.yml:73-92), both on that head. The person's merge → D3 states plainly that nothing catches a wrong-but-valid commit type before the release, and accepts it. A detection step that cannot decide → exit 2 fails the step and the steps after it do not run, so the exemption is never the default. Auto-merge failure → D4's step is red on an unset `pr` or a token without the scope; migration step 2 leaves each release PR red until `allow_auto_merge=true`, with the person still able to merge. Missing tag after an auto-merge → task 6.2's `gh release view v<version>`, reported to the person.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Added requirement `A release PR is recognised by its diff`: ~143 words; the eight tests of 1.1 assert the base config, the manifest change, set membership, existence at both sides, the substitution equality, the named reason, the published verdict and the failed read, and the two workflow tests of 1.2 assert the trusted source and ref — ~135 words asserted, the remaining ~8 being the negative \"neither the branch name nor the author decides\", which the pure function's signature carries (no branch, no author parameter). `distribution` adds ~35 words; `test_release_workflow_enables_auto_merge` asserts all but \"the repository SHALL allow auto-merge\" (5 words), a repository setting carried by migration step 2 and task 6.2's report line. `Local safety on both carriers` adds ~13 words no test asserts; they replace the now-false \"Merging is the person's.\" of openspec/specs/review-and-merge/spec.md:11, and the `distribution` scenarios carry the behaviour. No spec sentence changed in the two rework rounds.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The non-test additions of proposal.md Impact and the design are `.agent-process/scripts/release_pr.py` and `.agent-process/docs/adr/0031-release-prs-merge-without-the-person.md` (from the repository's ADR template), plus edits to three workflow files; no new check name, no new dependency, no new quality gate. The script reads through `.agent-process/scripts/gh_io.py::run_gh` and publishes through `publish_step_output` (design D2, tasks 2.2), as `request_codex_review.py:30` and `check_blocking_review_threads.py:21` do, and its tests monkeypatch `run_gh` as tests/publisher/test_blocking_review_threads.py:91-95 does — no second copy of the `gh` boundary, and the `RuntimeError`-to-exit-2 mapping is the one place that translates it.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "distribution",
+      "scenario": "Release PR merged",
+      "reason": "tasks.md:50 — platform behaviour of auto-merge and release-please-action; no test can prove it, and it is observed on the first release after merge (`gh release view v<version>` on the merge commit), which task 6.2 makes the post-merge check and escalates to the person when it fails."
+    }
+  ],
+  "additions": [
+    {
+      "path": ".agent-process/scripts/release_pr.py",
+      "problem": "#203",
+      "standard": "release-please's own markers of its PR: the branch `release-please--branches--main`, the `autorelease: pending` label the action adds, and the action's `pr` output.",
+      "why_not": "Each is mutable by any actor with write or triage on the repository, so it would hand the issue-link and review exemption to anyone who can push a branch or set a label (design.md D1); the action's output exists only inside the `push` run on `main`, not inside the `pull_request` check that has to decide. The diff itself is the one property the PR cannot forge. The script adds no I/O of its own: it reads and publishes through `gh_io`."
+    },
+    {
+      "path": ".agent-process/docs/adr/0031-release-prs-merge-without-the-person.md",
+      "problem": "#203",
+      "standard": "the repository's ADR convention — `.agent-process/docs/adr/template.md`, with a status line and a deletion condition — which is exactly what task 4.1 uses.",
+      "why_not": "Nothing bespoke is introduced: the ADR is the standard record of a decision that supersedes ADR 0030 D4, and task 4.1 keeps 0030 pointing at it so the two cannot be read as both current."
+    }
+  ]
+}

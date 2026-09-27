@@ -1,10 +1,37 @@
-# review-and-merge Specification
+## ADDED Requirements
 
-## Purpose
-What reviews a PR, what blocks a merge, and how the default branch is protected from agent
-mistakes.
+### Requirement: A release PR is recognised by its diff
+A PR SHALL count as a release PR only when the repository's `release-please-config.json` at
+the PR's base exists, the release manifest's version changes between base and head, every
+changed file is one the configuration names — an `extra-files` path of a package, the release
+manifest or a package's changelog — and every changed file other than a changelog exists at
+both base and head and equals its base with each old manifest version replaced by the new one.
+The configuration and the manifest SHALL be read at the base, the files at the head the check
+runs on, from the trusted process source at the ref the caller pinned; neither the branch name
+nor the author decides. A PR that is not a release PR SHALL be told why in the check's log; a
+failed read SHALL fail the check instead of deciding either way.
 
-## Requirements
+#### Scenario: Release PR
+- **WHEN** a PR changes the version places the base configuration names, the manifest and the changelog, and each non-changelog file differs from its base only by the version
+- **THEN** it is a release PR
+
+#### Scenario: Other change in a version file
+- **WHEN** a PR bumps the manifest and changes, in a file the configuration names, anything besides the version
+- **THEN** it is not a release PR, and the log names that file
+
+#### Scenario: File outside the set
+- **WHEN** a PR bumps the manifest and changes a file the base configuration does not name, including the configuration itself
+- **THEN** it is not a release PR, and the log names that file
+
+#### Scenario: No release configuration
+- **WHEN** the base has no `release-please-config.json`
+- **THEN** no PR of the repository is a release PR
+
+#### Scenario: Failed read
+- **WHEN** the read of the base, the head or a file fails
+- **THEN** the check fails with the read error
+
+## MODIFIED Requirements
 
 ### Requirement: Local safety on both carriers
 Push to the default branch, force push and `gh pr merge` SHALL be denied locally on both
@@ -66,51 +93,6 @@ nor run the Claude Code action, and SHALL conclude on the enforcement of the thr
 - **WHEN** the job runs on a release PR
 - **THEN** it requests and waits for no review, the Claude Code action does not run, and the check passes unless an unresolved `P0`/`P1` thread exists
 
-### Requirement: No automation resolves a review thread
-No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
-thread the fixer's push addressed is resolved by the fixer from its own session, thread by
-thread, whichever app raised it; every other thread is answered and left to the person.
-
-#### Scenario: Required check and threads
-- **WHEN** the required check runs
-- **THEN** every review thread keeps its resolved state and receives no classification reply
-
-#### Scenario: Addressed finding of either reviewer
-- **WHEN** the fixer resolves a thread it addressed
-- **THEN** the resolve accepts a `P0`/`P1` thread raised by the Codex app or by the Claude review job, refuses one raised against the current head, and refuses a `P2`/`P3` thread
-
-### Requirement: Reviewer instructions name the simplicity triggers
-The review contract SHALL be one file both reviewers read — Codex through the repository's
-instructions file, Claude through the trusted checkout — and SHALL name reinvented
-functionality and unnecessary complexity as findings, coupled to the principles file.
-
-#### Scenario: Contract and principles
-- **WHEN** the review contract or the principles change
-- **THEN** the simplicity triggers stay the same narrow set in both
-
-### Requirement: Unresolved P0/P1 threads fail the review check
-The last step of the review job SHALL fail the check while an unresolved review thread whose
-first comment, by either reviewer, carries `P0` or `P1` exists, printing the thread URLs; it
-SHALL read only the label and the resolved state, reply to no thread, and SHALL pass on
-`P2`/`P3` threads, resolved or not. Conversation resolution is not required on the default
-branch: a `P3` does not keep a PR from merging.
-
-#### Scenario: Unresolved blocking thread
-- **WHEN** a `P1` thread by Codex or by the Claude review job is unresolved on the head
-- **THEN** the check fails and names the thread's URL, and no reply is posted to it
-
-#### Scenario: Advisory thread
-- **WHEN** only `P2`/`P3` threads are unresolved
-- **THEN** the check passes
-
-#### Scenario: Blocking thread resolved
-- **WHEN** the fixer resolves the `P0`/`P1` thread its push addressed
-- **THEN** the next run of the check on that head passes
-
-#### Scenario: Review event re-runs the check
-- **WHEN** a review thread of the head is resolved after the check concluded on that head — a resolve has no event of its own, and a run another event starts is a required context of its own that leaves the `pull_request` run as it was
-- **THEN** the check is re-run by the fixer's `resolve_review_thread --thread --reply-file`, whose `gh run rerun` of that `pull_request` run reads the resolved state; the caller follows pushes alone and the script posts the reply after the resolve
-
 ### Requirement: A PR links its issue
 Every PR SHALL link at least one issue by GitHub's own link — a closing keyword in the
 body, a manual link, or the branch `gh issue develop` created — except a release PR. A step
@@ -131,42 +113,3 @@ body for the link, and no other check carries it.
 #### Scenario: Release PR without an issue
 - **WHEN** a release PR links no issue
 - **THEN** the link step does not run, the driver's checks run, and `quality` concludes on them
-
-### Requirement: No local hook reads protection
-No local hook SHALL read the installed branch protection or rulesets: a push is gated by
-`ci_check` alone, and a merge by the ruleset that protection activation writes.
-
-#### Scenario: Push reads no protection
-- **WHEN** a branch is pushed through the pre-push hook
-- **THEN** the hook runs `ci_check` and issues no read of branch protection or rulesets
-
-### Requirement: A release PR is recognised by its diff
-A PR SHALL count as a release PR only when the repository's `release-please-config.json` at
-the PR's base exists, the release manifest's version changes between base and head, every
-changed file is one the configuration names — an `extra-files` path of a package, the release
-manifest or a package's changelog — and every changed file other than a changelog exists at
-both base and head and equals its base with each old manifest version replaced by the new one.
-The configuration and the manifest SHALL be read at the base, the files at the head the check
-runs on, from the trusted process source at the ref the caller pinned; neither the branch name
-nor the author decides. A PR that is not a release PR SHALL be told why in the check's log; a
-failed read SHALL fail the check instead of deciding either way.
-
-#### Scenario: Release PR
-- **WHEN** a PR changes the version places the base configuration names, the manifest and the changelog, and each non-changelog file differs from its base only by the version
-- **THEN** it is a release PR
-
-#### Scenario: Other change in a version file
-- **WHEN** a PR bumps the manifest and changes, in a file the configuration names, anything besides the version
-- **THEN** it is not a release PR, and the log names that file
-
-#### Scenario: File outside the set
-- **WHEN** a PR bumps the manifest and changes a file the base configuration does not name, including the configuration itself
-- **THEN** it is not a release PR, and the log names that file
-
-#### Scenario: No release configuration
-- **WHEN** the base has no `release-please-config.json`
-- **THEN** no PR of the repository is a release PR
-
-#### Scenario: Failed read
-- **WHEN** the read of the base, the head or a file fails
-- **THEN** the check fails with the read error

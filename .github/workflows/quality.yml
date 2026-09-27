@@ -31,8 +31,31 @@ jobs:
   link:
     runs-on: ubuntu-latest
     steps:
-      # GitHub's own link field, read once, before any checkout (ADR 0027, v2-2c).
+      - name: Checkout trusted process source
+        uses: actions/checkout@v4
+        with:
+          repository: ekolvah/agent-process-distribution
+          ref: ${{ github.job_workflow_sha }}
+          path: trusted
+
+      # A release PR changes only what release-please versions (ADR 0031); the
+      # detection runs from the trusted process source, never from the PR's head.
+      - name: Detect a release PR
+        id: release
+        working-directory: trusted
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python .agent-process/scripts/release_pr.py
+          --repo "${{ github.repository }}"
+          --pr "${{ github.event.pull_request.number }}"
+          --base-sha ${{ github.event.pull_request.base.sha }}
+          --head-sha ${{ github.event.pull_request.head.sha }}
+
+      # GitHub's own link field, read once; nothing of the PR's head is checked out
+      # (ADR 0027, v2-2c). A release PR carries no link of its own (ADR 0031).
       - name: Verify the PR links its issue
+        if: steps.release.outputs.release != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

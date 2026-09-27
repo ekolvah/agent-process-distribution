@@ -2,7 +2,8 @@ name: Release Please
 
 # One release PR moves every version place; merging it tags `v<version>` (ADR 0030).
 # The token is the person's fine-grained PAT, so the required contexts run on the
-# release PR; events created with GITHUB_TOKEN start no workflow.
+# release PR; events created with GITHUB_TOKEN start no workflow. The release PR
+# merges itself once its required contexts are green (ADR 0031).
 on:
   push:
     branches: [main]
@@ -17,5 +18,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
+        id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      # Auto-merge waits for the required contexts; a failure to enable it (the
+      # repository disallows auto-merge) fails the run instead of stalling the PR.
+      - name: Enable auto-merge on the release PR
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ fromJSON(steps.release.outputs.pr).number }}
+        run: gh pr merge --auto --squash "$PR"
