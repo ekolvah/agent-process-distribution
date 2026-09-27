@@ -256,6 +256,8 @@ def test_tasks_of_a_new_change() -> None:
         "no tick",
         "never a direct edit of `openspec/specs/`",
         "A P2/P3 thread is answered, never resolved by the process",
+        "EnterWorktree",
+        ".claude/worktrees/",
     ):
         assert part in text, part
     # Group 0 and the propose tail are scripts (v2-2f): the shell steps left the procedure.

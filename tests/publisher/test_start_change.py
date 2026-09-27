@@ -275,9 +275,9 @@ def test_propose_run_stopped_before_its_tail(
         tasks=_GROUP0.format(token="tracking issue 7")
         + "- [ ] 1.1 asserts `<N>` and `tracking issue <N>` in the rule; fixture tracking issue 9\n",
     )
-    gh = Gh()
+    gh = Gh(root=root)
     start_change.main(_START, gh=gh, root=root)
-    assert _develops(gh) == [["gh", "issue", "develop", "-c", "7", "--name", _CHANGE]]
+    assert _develops(gh) == [["gh", "issue", "develop", "7", "--name", _CHANGE]]
 
     root = _change(
         tmp_path / "b2",
@@ -315,7 +315,7 @@ def test_propose_run_stopped_before_its_tail(
     assert "Status: none" in capsys.readouterr().err
 
     root = _change(tmp_path / "f", tasks=_GROUP0.format(token="tracking issue 7"))
-    gh = Gh(status="Planned", other_items=[("Other", "Todo")])
+    gh = Gh(status="Planned", other_items=[("Other", "Todo")], root=root)
     start_change.main(_START, gh=gh, root=root)
     assert len(_develops(gh)) == 1
 
@@ -325,12 +325,23 @@ def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
     the provenance line, in that order; nothing asked."""
     start_change = load_script("start_change")
     root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
-    gh = Gh(status="Planned")
+    gh = Gh(status="Planned", root=root)
 
     start_change.main(_START, gh=gh, root=root)
 
     develop = _develops(gh)
-    assert develop == [["gh", "issue", "develop", "-c", "7", "--name", _CHANGE]]
+    assert develop == [["gh", "issue", "develop", "7", "--name", _CHANGE]]
+    fetch = ["git", "fetch", "origin", _CHANGE]
+    add = [
+        "git",
+        "worktree",
+        "add",
+        "--track",
+        "-b",
+        _CHANGE,
+        str(root / ".claude" / "worktrees" / _CHANGE),
+        f"origin/{_CHANGE}",
+    ]
     edits = gh.edits()
     assert len(edits) == 1
     assert edits[0][edits[0].index("--single-select-option-id") + 1] == "S_PROG"
@@ -338,7 +349,13 @@ def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
     assert comments == [
         ["gh", "issue", "comment", "7", "--body", "planner: Claude; implementer: Claude"]
     ]
-    order = [gh.calls.index(develop[0]), gh.calls.index(edits[0]), gh.calls.index(comments[0])]
+    order = [
+        gh.calls.index(develop[0]),
+        gh.calls.index(fetch),
+        gh.calls.index(add),
+        gh.calls.index(edits[0]),
+        gh.calls.index(comments[0]),
+    ]
     assert order == sorted(order)
 
 
@@ -369,7 +386,7 @@ def test_interrupted_start_names_the_continuation(
     comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Claude"'
 
     root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
-    gh = Gh(fail_on=["gh", "project", "item-edit"])
+    gh = Gh(fail_on=["gh", "project", "item-edit"], root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
@@ -377,33 +394,206 @@ def test_interrupted_start_names_the_continuation(
     assert status_path in err and '7 "In Progress"' in err and comment_cmd in err
 
     root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
-    gh = Gh(fail_on=["gh", "issue", "comment"])
+    gh = Gh(fail_on=["gh", "issue", "comment"], root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
     err = capsys.readouterr().err
     assert comment_cmd in err and status_path not in err
 
-    # `gh issue develop -c` creates the remote branch, then checks it out: when the
-    # checkout fails the branch exists (`git ls-remote --heads origin <change>` lists it)
-    # and the continuation starts with `git switch` (PR 148, Codex P1, round 2).
+    # `gh issue develop` can fail after it created the remote branch: the branch exists
+    # (`git ls-remote --heads origin <change>` lists it) and the continuation starts with
+    # the worktree steps, never `git switch` (PR 148, Codex P1, round 2; #236).
     switch_cmd = f"git switch {_CHANGE}"
+    fetch_cmd = f"git fetch origin {_CHANGE}"
     root = _change(tmp_path / "c", tasks=_GROUP0.format(token="tracking issue 7"))
-    gh = Gh(fail_on=["gh", "issue", "develop"], remote_branch=True)
+    gh = Gh(fail_on=["gh", "issue", "develop"], remote_branch=True, root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
     err = capsys.readouterr().err
-    assert err.index(switch_cmd) < err.index(status_path) < err.index(comment_cmd)
+    assert switch_cmd not in err
+    assert err.index(fetch_cmd) < err.index(status_path) < err.index(comment_cmd)
     assert gh.edits() == []
 
     root = _change(tmp_path / "d", tasks=_GROUP0.format(token="tracking issue 7"))
-    gh = Gh(fail_on=["gh", "issue", "develop"], remote_branch=False)
+    gh = Gh(fail_on=["gh", "issue", "develop"], remote_branch=False, root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 1
     err = capsys.readouterr().err
-    assert "no branch" in err and switch_cmd not in err and status_path not in err
+    assert "no branch" in err and fetch_cmd not in err and status_path not in err
+
+
+def _run(cmd: list[str]) -> str:
+    return load_script("set_status").run_gh(cmd)
+
+
+def _git(*args: str) -> str:
+    return _run(["git", *args])
+
+
+def _clone(tmp_path: Path) -> Path:
+    """A clone on `main` of a bare `origin` in `tmp_path`, with git's default fetch refspec:
+    the release-recording config is committed, the fixture change is untracked."""
+    origin, root = tmp_path / "origin.git", tmp_path / "root"
+    _git("init", "--bare", "-b", "main", str(origin))
+    _git("clone", "-q", str(origin), str(root))
+    config = load_script("init").render_config_block("t").encode("utf-8")
+    (root / "openspec").mkdir()
+    (root / "openspec" / "config.yaml").write_bytes(config)
+    _git("-C", str(root), "add", "openspec/config.yaml")
+    _git("-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init")
+    _git("-C", str(root), "push", "-q", "origin", "main")
+    _change(root, tasks=_GROUP0.format(token="tracking issue 7"), config=config)
+    return root
+
+
+def _worktree(root: Path, branch: str) -> Path:
+    path = root / ".claude" / "worktrees" / branch
+    _git("-C", str(root), "worktree", "add", "-q", "-b", branch, str(path))
+    return path
+
+
+def _untracked(root: Path) -> set[str]:
+    return set(_git("-C", str(root), "status", "--porcelain", "--untracked-files=all").splitlines())
+
+
+def test_parallel_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Scenario: Parallel changes — the start of one change leaves the shared checkout on
+    `main` with another change's files, and carries its own in a worktree tracking origin."""
+    start_change = load_script("start_change")
+    root = _clone(tmp_path)
+    other = root / "openspec" / "changes" / "a"
+    other.mkdir()
+    (other / "proposal.md").write_text("## Why\n\nAnother change.\n", encoding="utf-8")
+    monkeypatch.chdir(root)
+    before = _untracked(root)
+
+    start_change.main(_START, gh=Gh(root=root, git_runner=_run), root=root)
+
+    after = _untracked(root)
+    gone, new = before - after, after - before
+    assert gone and all(line.startswith(f"?? openspec/changes/{_CHANGE}/") for line in gone)
+    assert new and all(line.startswith("?? .claude/") for line in new)
+    assert _git("-C", str(root), "branch", "--show-current").strip() == "main"
+    assert (other / "proposal.md").is_file()
+    assert not (root / "openspec" / "changes" / _CHANGE).exists()
+    worktree = root / ".claude" / "worktrees" / _CHANGE
+    assert (worktree / "openspec" / "changes" / _CHANGE / "tasks.md").is_file()
+    upstream = _git("-C", str(worktree), "rev-parse", "--abbrev-ref", "@{u}")
+    assert upstream.strip() == f"origin/{_CHANGE}"
+
+
+def test_worktree_step_fails_after_branch_exists(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Worktree step fails after the branch exists — exit 1 naming the steps left
+    from the failed one, in order, and no `git switch`."""
+    start_change = load_script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = Gh(fail_on=["git", "worktree", "add"], remote_branch=True, root=root)
+
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    status_path = str(SKILL_SCRIPTS / "set_status.py")
+    rest = err[err.index("finish by hand") :]
+    assert (
+        rest.index("git worktree add")
+        < rest.index("then move")
+        < rest.index(f'{status_path}" 7 "In Progress"')
+        < rest.index("gh issue comment 7")
+    )
+    assert "git switch" not in err
+    assert gh.edits() == []
+
+
+def test_merged_changes_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Merged change's worktree — a merged clean one is removed and printed, a merged
+    dirty one kept and named, one with an open PR or none untouched; the start goes on."""
+    start_change = load_script("start_change")
+    root = _clone(tmp_path)
+    done, dirty, open_, new = (_worktree(root, b) for b in ("done", "dirty", "open", "new"))
+    (dirty / "notes.txt").write_text("uncommitted\n", encoding="utf-8")
+    monkeypatch.chdir(root)
+    gh = Gh(
+        root=root,
+        git_runner=_run,
+        pr_states={"done": "MERGED", "dirty": "MERGED", "open": "OPEN"},
+    )
+
+    start_change.main(_START, gh=gh, root=root)
+
+    out, err = capsys.readouterr()
+    assert not done.exists()
+    assert done.as_posix() not in _git("worktree", "list", "--porcelain")
+    assert f"removed: {done}" in out
+    assert dirty.exists() and open_.exists() and new.exists()
+    assert f"kept: {dirty}" in err
+    assert (root / ".claude" / "worktrees" / _CHANGE / "openspec" / "changes" / _CHANGE).is_dir()
+    assert _git("branch", "--list", "done").strip()
+
+
+def test_started_from_inside_the_previous_changes_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Started from inside the previous change's worktree — the new worktree is the
+    main worktree's, and the one containing the cwd is neither removed nor examined."""
+    start_change = load_script("start_change")
+    main_root = _clone(tmp_path)
+    prev = _worktree(main_root, "prev")
+    _change(prev, tasks=_GROUP0.format(token="tracking issue 7"), config=None)
+    monkeypatch.chdir(prev)
+    gh = Gh(root=main_root, git_runner=_run, pr_states={"prev": "MERGED"})
+
+    start_change.main(_START, gh=gh, root=prev)
+
+    out, err = capsys.readouterr()
+    worktree = main_root / ".claude" / "worktrees" / _CHANGE
+    assert (worktree / "openspec" / "changes" / _CHANGE / "tasks.md").is_file()
+    assert not (prev / ".claude").exists()
+    assert prev.is_dir()
+    assert str(prev) not in out and str(prev) not in err
+    assert ["gh", "pr", "view", "prev", "--json", "state"] not in gh.calls
+
+
+def test_cleanup_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Cleanup fails — a `kept:` line naming the worktree and the failure; the
+    start still creates its branch and exits 0."""
+    start_change = load_script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = Gh(
+        root=root,
+        extra_worktrees=["done"],
+        pr_states={"done": "MERGED"},
+        fail_on=["git", "worktree", "remove"],
+    )
+
+    start_change.main(_START, gh=gh, root=root)
+
+    err = capsys.readouterr().err
+    kept = next(line for line in err.splitlines() if line.startswith("kept: "))
+    assert str(root / ".claude" / "worktrees" / "done") in kept and "boom" in kept
+    assert len(_develops(gh)) == 1
+
+
+def test_worktree_listing_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Worktree listing fails — exit 1 naming the error before any branch exists."""
+    start_change = load_script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    gh = Gh(root=root, fail_on=["git", "worktree", "list"])
+
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+
+    assert exc.value.code == 1
+    assert "git worktree list" in capsys.readouterr().err
+    assert _develops(gh) == []
 
 
 def test_plan_approved_creates_the_issue(
