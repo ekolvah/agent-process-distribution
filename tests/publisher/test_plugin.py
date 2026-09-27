@@ -136,6 +136,7 @@ def test_publisher_dogfoods_process() -> None:
             "source": {
                 "source": "github",
                 "repo": "ekolvah/agent-process-distribution",
+                "sparsePaths": SPARSE_PATHS,
             }
         }
     }

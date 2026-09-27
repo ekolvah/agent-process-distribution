@@ -10,7 +10,7 @@
 
 ## 2. Marketplace (D1)
 
-- [ ] 2.1 Add `"sparsePaths": [".claude-plugin", "agents", "commands", "skills/agent-process"]` to the marketplace source of `skills/agent-process/templates/settings.json` and of `.claude/settings.json`; in `test_plugin.py::test_publisher_dogfoods_process` expect it. Verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_init_remote.py tests/publisher/test_init_config.py -q` passes. Commit as `feat(distribution): the marketplace fetches only the package`
+- [x] 2.1 Add `"sparsePaths": [".claude-plugin", "agents", "commands", "skills/agent-process"]` to the marketplace source of `skills/agent-process/templates/settings.json` and of `.claude/settings.json`; in `test_plugin.py::test_publisher_dogfoods_process` expect it. Verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_init_remote.py tests/publisher/test_init_config.py -q` passes. Commit as `feat(distribution): the marketplace fetches only the package`
 
 ## 3. Installer (D2)
 
