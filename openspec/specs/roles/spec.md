@@ -1,8 +1,7 @@
 # roles Specification
 
 ## Purpose
-Which roles the process has, which carrier fills each one in Claude Code and in Codex, and
-how two agents share one procedure without duplication.
+Which roles the process has and which Claude Code entry point carries each one.
 
 ## Requirements
 

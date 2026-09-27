@@ -106,7 +106,7 @@ it. The rule "never a direct edit of `openspec/specs/`" governs requirements, wh
 archive-only. The `review-and-merge` Purpose names no carrier and stays.
 
 **D8 — ADR 0033 "Claude Code is the only carrier"** records the decision, D1–D5's lost proofs
-and catchers, and supersedes ADR 0003 and ADR 0015, whose status lines point to it.
+and catchers, and supersedes the two-carrier decision of ADR 0027. ADR 0003 and 0015 already chain to 0027 (`superseded by`), and a status line names one target, so neither changes.
 
 ## Risks / Trade-offs
 

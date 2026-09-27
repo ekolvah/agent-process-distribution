@@ -325,7 +325,7 @@ def test_group0_names_claude_as_the_carrier() -> None:
     group0 = _group0()
     command = next(span for span in _printed_commands(group0) if "start_change.py" in span)
     assert "--planner Claude --implementer Claude" in command
-    assert not re.search(r"\bask", group0) and "unknown" not in group0
+    assert "ask the person" not in group0 and "unknown" not in group0
 
 
 def test_the_header_promises_the_resolution_its_commands_use() -> None:

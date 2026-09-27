@@ -4,7 +4,7 @@ context: |
   Language: en. Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 
   This repository publishes an agent development process for GitHub projects worked by
-  Claude Code and Codex. Three artifacts, three questions:
+  Claude Code. Three artifacts, three questions:
   - openspec/specs/<capability>/spec.md — what the process does today (the v1 baseline that v2
     keeps, plus what archived changes add)
   - openspec/changes/<name>/ — what a change adds; archived inside its PR before merge
