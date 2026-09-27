@@ -130,6 +130,18 @@ def test_main_publishes_the_verdict(monkeypatch, tmp_path, capsys) -> None:
     assert "README.md" in out
 
 
+def test_truncated_compare_is_not_a_release_pr(monkeypatch, capsys) -> None:
+    """The compare API lists at most 300 files: a list that long may hide a file outside
+    the set, so it is never a release PR."""
+    _serve(monkeypatch, HEAD, [*CHANGES, *[(f"docs/{n}.md", "modified") for n in range(295)]])
+
+    release_pr.main(ARGS)
+
+    out = capsys.readouterr().out
+    assert "release=false" in out
+    assert "300 files" in out
+
+
 def test_failed_read_fails_the_check(monkeypatch, capsys) -> None:
     def run_gh(args: list[str]) -> str:
         raise RuntimeError("gh api failed: HTTP 502")
