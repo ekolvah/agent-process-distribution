@@ -51,8 +51,12 @@ delta scenario to a named test or `n/a: <reason>`.
    skills/agent-process/scripts/start_change.py <change> --planner Claude --implementer Claude`;
    the issue records them as provenance. Its text carries `tracking issue <N>`; the propose tail
    replaces the placeholder, and both scripts read the token there. The script validates the
-   architect review, reads its verdict and the Status of the issue, creates the linked branch
-   from `origin/main`, sets In Progress and posts the provenance line. On `rework`, apply
+   architect review, reads its verdict and the Status of the issue, removes the clean
+   worktrees of merged changes, creates the linked branch from `origin/main` in its own
+   worktree `.claude/worktrees/<change>`, moves the change's files there, sets In Progress
+   and posts the provenance line. Enter that worktree with `EnterWorktree` (its `path`) and
+   run every later task there; a run interrupted before the archive resumes by entering the
+   same worktree. On `rework`, apply
    the findings and run the review again. It prints `propose run not finished` and exits 2
    while the token still carries `<N>` or the issue is not a Project item in the Status the
    propose run leaves it in: nothing is asked and nothing is created there.
