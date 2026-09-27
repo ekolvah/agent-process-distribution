@@ -78,11 +78,8 @@ class with its evidence and `ok` or the finding, and the scenario coverage; the 
 the evidence each requires are the schema's. The review contract SHALL live in the shared
 skill and that schema, not in a schema of OpenSpec: the OpenSpec schema is the unmodified
 `spec-driven`. A rule or spec sentence longer than the words its tests assert, and a new
-script or check without an observed problem it closes, SHALL each be a finding class. Each
-script, check or non-test file the plan adds SHALL be an entry of the file's `additions`
-with the problem it closes, the established standard for its job and why it does not fit;
-an `approve` with an entry whose problem is not an issue, PR or run reference, or whose
-standard is none, SHALL NOT validate. On
+script or check whose `design.md` decision does not name the problem it closes and the
+standard it weighed, SHALL each be a finding class. On
 `rework` the planner SHALL apply or answer every finding in the artifact it names and the
 review SHALL run again. On `approve` the planner SHALL run `create_tracking_issue <change>`
 — with the area the planner chose from the Project's `Area` options when the change has no tracking issue yet — which
@@ -103,12 +100,16 @@ existence only.
 - **THEN** `create_tracking_issue` exits 2 naming each validation error, creates no issue, and the propose run does not report the artifacts ready
 
 #### Scenario: Over-long rule or bespoke check
-- **WHEN** a plan carries a rule or spec sentence longer than the words its tests assert, or a new script or check without an observed problem it closes
+- **WHEN** a plan carries a rule or spec sentence longer than the words its tests assert, or a new script or check whose `design.md` decision does not name the problem it closes and the standard it weighed
 - **THEN** the architect review reports it as a finding of its class before the person approves
 
+#### Scenario: Plan without a prior issue
+- **WHEN** an `approve` review of a change with no tracking issue yet carries every class `ok` and no reference to a problem
+- **THEN** `create_tracking_issue` creates the issue
+
 #### Scenario: Addition without evidence
-- **WHEN** an `approve` review lists an addition whose problem is not an issue, PR or run reference, or whose standard is none, n/a or a dash, or lacks the `additions` key
-- **THEN** `create_tracking_issue` and `start_change` exit 2 naming the validation error, and nothing is created
+- **WHEN** a review carries an `additions` key
+- **THEN** `create_tracking_issue` and `start_change` exit 2 naming `additions` as not allowed, and nothing is created
 
 #### Scenario: Rework verdict
 - **WHEN** `architect-review.json` says `rework`
