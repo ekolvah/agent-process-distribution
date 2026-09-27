@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.2.0...v2.3.0) (2026-09-27)
+
+
+### Features
+
+* replace-priority-with-area ([#220](https://github.com/ekolvah/agent-process-distribution/issues/220)) ([27d6c49](https://github.com/ekolvah/agent-process-distribution/commit/27d6c49734a367cd974d866258a8f931cf71ce7b))
+
 ## [2.2.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.1.0...v2.2.0) (2026-09-27)
 
 
