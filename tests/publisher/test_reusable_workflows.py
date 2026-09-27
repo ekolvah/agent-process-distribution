@@ -77,6 +77,35 @@ def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
         assert "id-token" not in callee_permissions
 
 
+TRUSTED_CHECKOUT = {
+    "repository": "ekolvah/agent-process-distribution",
+    "ref": "${{ github.job_workflow_sha }}",
+    "path": "trusted",
+}
+NOT_RELEASE = "steps.release.outputs.release != 'true'"
+
+
+def _assert_detects_a_release_pr(raw: list[dict[str, Any]]) -> None:
+    """ADR 0031 D2: the detection runs from the trusted source, after its checkout, on the
+    PR's base and head SHAs."""
+    names = [step.get("name") for step in raw]
+    detect = raw[names.index("Detect a release PR")]
+    checkout = next(s for s in raw if s.get("with") == TRUSTED_CHECKOUT)
+    assert raw.index(checkout) < raw.index(detect)
+    assert detect["id"] == "release"
+    assert detect["working-directory"] == "trusted"
+    assert "if" not in detect
+    run = detect["run"]
+    assert "python .agent-process/scripts/release_pr.py" in run
+    for argument in (
+        "--repo",
+        "--pr",
+        "--base-sha ${{ github.event.pull_request.base.sha }}",
+        "--head-sha ${{ github.event.pull_request.head.sha }}",
+    ):
+        assert argument in run
+
+
 def _steps(name: str) -> dict[str, dict[str, Any]]:
     job = next(iter(_workflow(name)["jobs"].values()))
     return {step["name"]: step for step in job["steps"] if "name" in step}
@@ -119,7 +148,13 @@ def test_quality_verifies_the_pr_links_its_issue_before_the_driver() -> None:
 
     name = "Verify the PR links its issue"
     assert name in steps
-    assert not any(s.get("uses", "").startswith("actions/checkout") for s in raw)
+    # The only checkout is the trusted process source of the release detection (ADR 0031):
+    # nothing of the PR's head runs before the link is read.
+    assert all(
+        s["with"] == TRUSTED_CHECKOUT
+        for s in raw
+        if s.get("uses", "").startswith("actions/checkout")
+    )
     step = steps[name]
     assert step["env"] == {
         "GH_TOKEN": "${{ github.token }}",
@@ -277,6 +312,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert list(steps) == [
         "Checkout reviewed PR head",
         "Checkout trusted review source",
+        "Detect a release PR",
         "Wait for the Codex review of the head",
         "Claude review",
         "Verify the Claude review of the head",
@@ -289,11 +325,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
         "fetch-depth": 0,
         "ref": "${{ github.event.pull_request.head.sha }}",
     }
-    assert steps["Checkout trusted review source"]["with"] == {
-        "repository": "ekolvah/agent-process-distribution",
-        "ref": "${{ github.job_workflow_sha }}",
-        "path": "trusted",
-    }
+    assert steps["Checkout trusted review source"]["with"] == TRUSTED_CHECKOUT
 
     # Absence (exit 3) is the step's recorded output, not its failure; a crash of the
     # reader (exit 2) fails the step and with it the job — the fallback never runs on
@@ -302,7 +334,7 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     assert wait["id"] == "codex"
     assert "continue-on-error" not in wait
     assert wait["working-directory"] == "trusted"
-    assert "if" not in wait
+    assert wait["if"] == NOT_RELEASE
     assert "request_codex_review.py --wait" in wait["run"]
     assert "inputs.codex-timeout-seconds" in wait["run"]
     # Scenario: Re-run on a fallback head — presence is a review of the head by any
@@ -438,3 +470,46 @@ def test_pr_title_requires_a_conventional_commit_type() -> None:
     (step,) = job["steps"]
     assert step["uses"] == "amannn/action-semantic-pull-request@v6"
     assert step["with"]["types"].split() == ["feat", "fix", "docs", "test", "refactor", "chore"]
+
+
+def test_quality_skips_the_link_on_a_release_pr() -> None:
+    """ADR 0031: a release PR is exempt from the issue link alone; the tests still run."""
+    jobs = _workflow("quality.yml")["jobs"]
+    raw = jobs["link"]["steps"]
+
+    _assert_detects_a_release_pr(raw)
+    link = next(s for s in raw if s.get("name") == "Verify the PR links its issue")
+    assert link["if"] == NOT_RELEASE
+    assert "if" not in jobs["plan"]
+    assert "if" not in jobs["check"]
+    assert jobs["quality"]["needs"] == ["link", "plan", "check"]
+
+
+def test_agent_review_skips_the_review_on_a_release_pr() -> None:
+    """ADR 0031: a release PR waits for no review and gets no fallback; the P0/P1
+    enforcement still runs on its head."""
+    raw = _workflow("reusable-agent-review.yml")["jobs"]["agent-review"]["steps"]
+    steps = _steps("reusable-agent-review.yml")
+
+    _assert_detects_a_release_pr(raw)
+    assert steps["Wait for the Codex review of the head"]["if"] == NOT_RELEASE
+    assert steps["Claude review"]["if"] == "steps.codex.outputs.absent == 'true'"
+    assert steps["Verify the Claude review of the head"]["if"] == (
+        "steps.codex.outputs.absent == 'true'"
+    )
+    assert steps["Enforce unresolved P0/P1 threads"]["if"] == "always()"
+
+
+def test_release_workflow_enables_auto_merge() -> None:
+    """ADR 0031 D4: the release workflow enables auto-merge on the PR it created or
+    updated, with the PAT that opened it; the required checks decide the merge."""
+    (job,) = _workflow("release-please.yml")["jobs"].values()
+    raw = job["steps"]
+    action = next(s for s in raw if s.get("uses", "").startswith("googleapis/release-please"))
+    assert action["id"] == "release"
+
+    merge = raw[raw.index(action) + 1]
+    assert merge["if"] == "steps.release.outputs.prs_created == 'true'"
+    assert merge["env"]["GH_TOKEN"] == "${{ secrets.RELEASE_PLEASE_TOKEN }}"
+    assert merge["env"]["PR"] == "${{ fromJSON(steps.release.outputs.pr).number }}"
+    assert 'gh pr merge --auto --squash "$PR"' in merge["run"]
