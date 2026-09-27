@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.4.1...v2.5.0) (2026-09-27)
+
+
+### Features
+
+* remove-codex ([#225](https://github.com/ekolvah/agent-process-distribution/issues/225)) ([8b12083](https://github.com/ekolvah/agent-process-distribution/commit/8b12083e73897c7b2d26de46b76660c96a512623))
+
 ## [2.4.1](https://github.com/ekolvah/agent-process-distribution/compare/v2.4.0...v2.4.1) (2026-09-27)
 
 
