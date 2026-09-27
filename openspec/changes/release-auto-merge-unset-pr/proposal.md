@@ -1,7 +1,7 @@
 ## Why
 
 The `Release Please` run is red on every push to `main` that neither opens nor updates the
-release PR, including the merge of each release PR; #208 stays open without auto-merge.
+release PR, including the merge of each release PR; the open release PR stays without auto-merge (#208).
 
 Observation, run 36297738914 (`38582bb`, re-run attempt): the action logged
 `✔ PR https://github.com/ekolvah/agent-process-distribution/pull/208 remained the same`, then

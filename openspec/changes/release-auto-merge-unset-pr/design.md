@@ -1,7 +1,7 @@
 ## Context
 
-See proposal.md — Why for the observation and the root cause. The auto-merge step was added
-by #212 (ADR 0031 D4); the release-please action step (`id: release`) is unchanged.
+See proposal.md — Why for the observation and the root cause. The auto-merge step came with
+ADR 0031 D4 (#212); the release-please action step (`id: release`) is unchanged.
 
 ## Goals / Non-Goals
 
@@ -33,7 +33,7 @@ the `plan` job always sets, so it is not the same defect.
 ## Risks / Trade-offs
 
 - [The static test cannot show that the runner no longer fails] → the live check after merge
-  (task 4.3): the next `Release Please` run is green, and #208 merges itself.
+  (task 4.3): the next `Release Please` run is green, and the release PR merges itself (#208).
 
 ## Migration Plan
 
