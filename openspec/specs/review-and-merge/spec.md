@@ -8,7 +8,8 @@ mistakes.
 
 ### Requirement: Local safety on both carriers
 Push to the default branch, force push and `gh pr merge` SHALL be denied locally on both
-carriers: a deny-list in Claude Code, a pre-tool hook in Codex. Merging is the person's.
+carriers: a deny-list in Claude Code, a pre-tool hook in Codex. Merging is the person's, except
+the release PR, which the platform's auto-merge merges once its required checks pass.
 
 #### Scenario: Push to main from Codex
 - **WHEN** an agent runs `git push origin main` in Codex
@@ -26,7 +27,8 @@ only when the wait ended absent. Each reviewer publishes findings as inline comm
 labelled `P0`–`P3`; the Claude Code action closes every review with one comment naming the
 reviewed head, and that closing comment alone is its review — its inline comments are
 review nodes under the job's login an interrupted action leaves behind; the job leaves no
-review state, no evidence and no classification.
+review state, no evidence and no classification. On a release PR the job SHALL neither wait
+nor run the Claude Code action, and SHALL conclude on the enforcement of the threads.
 
 #### Scenario: Valid Codex review
 - **WHEN** Codex has reviewed the current head
@@ -59,6 +61,10 @@ review state, no evidence and no classification.
 #### Scenario: Event other than a push
 - **WHEN** a caller runs the job for an event that is not `pull_request`
 - **THEN** it runs the same path — the wait, the fallback on absence, the verification, the enforcement — so its conclusion derives from a review of the head; a run that only enforced would pass a head without any review
+
+#### Scenario: Release PR review
+- **WHEN** the job runs on a release PR
+- **THEN** it requests and waits for no review, the Claude Code action does not run, and the check passes unless an unresolved `P0`/`P1` thread exists
 
 ### Requirement: No automation resolves a review thread
 No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
@@ -107,11 +113,12 @@ branch: a `P3` does not keep a PR from merging.
 
 ### Requirement: A PR links its issue
 Every PR SHALL link at least one issue by GitHub's own link — a closing keyword in the
-body, a manual link, or the branch `gh issue develop` created. A step of the `quality`
-check SHALL read the PR's `closingIssuesReferences` once, with read access to pull
-requests and issues, and SHALL fail the check when the list is empty, printing how to
-link the issue and the command that re-runs the check; no check parses the branch name
-or the PR body for the link, and no other check carries it.
+body, a manual link, or the branch `gh issue develop` created — except a release PR. A step
+of the `quality` check SHALL read the PR's `closingIssuesReferences` once, with read access
+to pull requests and issues, and SHALL fail the check when the list is empty, printing how to
+link the issue and the command that re-runs the check; on a release PR the step SHALL not run
+and the driver's checks SHALL run as on any PR. No check parses the branch name or the PR
+body for the link, and no other check carries it.
 
 #### Scenario: PR from a linked branch
 - **WHEN** a PR is opened from a branch `gh issue develop` created for its issue, with no closing keyword in the body
@@ -121,6 +128,10 @@ or the PR body for the link, and no other check carries it.
 - **WHEN** a PR links no issue
 - **THEN** `quality` fails naming the two ways to link and `gh run rerun` of the run, and the driver's checks do not run
 
+#### Scenario: Release PR without an issue
+- **WHEN** a release PR links no issue
+- **THEN** the link step does not run, the driver's checks run, and `quality` concludes on them
+
 ### Requirement: No local hook reads protection
 No local hook SHALL read the installed branch protection or rulesets: a push is gated by
 `ci_check` alone, and a merge by the ruleset that protection activation writes.
@@ -128,3 +139,34 @@ No local hook SHALL read the installed branch protection or rulesets: a push is 
 #### Scenario: Push reads no protection
 - **WHEN** a branch is pushed through the pre-push hook
 - **THEN** the hook runs `ci_check` and issues no read of branch protection or rulesets
+
+### Requirement: A release PR is recognised by its diff
+A PR SHALL count as a release PR only when the repository's `release-please-config.json` at
+the PR's base exists, the release manifest's version changes between base and head, every
+changed file is one the configuration names — an `extra-files` path of a package, the release
+manifest or a package's changelog — and every changed file other than a changelog exists at
+both base and head and equals its base with each old manifest version replaced by the new one.
+The configuration and the manifest SHALL be read at the base, the files at the head the check
+runs on, from the trusted process source at the ref the caller pinned; neither the branch name
+nor the author decides. A PR that is not a release PR SHALL be told why in the check's log; a
+failed read SHALL fail the check instead of deciding either way.
+
+#### Scenario: Release PR
+- **WHEN** a PR changes the version places the base configuration names, the manifest and the changelog, and each non-changelog file differs from its base only by the version
+- **THEN** it is a release PR
+
+#### Scenario: Other change in a version file
+- **WHEN** a PR bumps the manifest and changes, in a file the configuration names, anything besides the version
+- **THEN** it is not a release PR, and the log names that file
+
+#### Scenario: File outside the set
+- **WHEN** a PR bumps the manifest and changes a file the base configuration does not name, including the configuration itself
+- **THEN** it is not a release PR, and the log names that file
+
+#### Scenario: No release configuration
+- **WHEN** the base has no `release-please-config.json`
+- **THEN** no PR of the repository is a release PR
+
+#### Scenario: Failed read
+- **WHEN** the read of the base, the head or a file fails
+- **THEN** the check fails with the read error
