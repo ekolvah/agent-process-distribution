@@ -1,8 +1,7 @@
-"""The hook wiring of `.claude/settings.json` and `.codex/hooks.json`.
+"""The hook wiring and the deny-list of `.claude/settings.json`.
 
 The turn-boundary `Stop` gate was removed (change v2-4a-review-protection, design D2), so
-neither adapter wires a `Stop` event. The hooks' logic is covered in
-`tests/publisher/test_hooks.py` and `tests/publisher/test_codex_hooks.py`.
+no `Stop` event is wired. The hooks' logic is covered in `tests/publisher/test_hooks.py`.
 """
 
 from __future__ import annotations
@@ -14,7 +13,6 @@ from typing import Any
 
 _REPO = Path(__file__).resolve().parents[2]
 _CLAUDE_SETTINGS = _REPO / ".claude" / "settings.json"
-_CODEX_HOOKS = _REPO / ".codex" / "hooks.json"
 
 
 def _settings() -> Any:
@@ -35,12 +33,15 @@ def _resource_attributes() -> dict[str, str]:
     return pairs
 
 
-def _codex_hooks() -> Any:
-    return json.loads(_CODEX_HOOKS.read_text(encoding="utf-8"))
-
-
 def test_claude_wires_no_stop_hook() -> None:
     assert "Stop" not in _settings()["hooks"]
+
+
+def test_claude_denies_push_to_main_force_push_and_merge() -> None:
+    """Scenario: Push to main from Claude Code — the deny-list is the local safety layer."""
+    deny = _settings()["permissions"]["deny"]
+    for rule in ("Bash(git push origin main)", "Bash(git push --force)", "Bash(gh pr merge*)"):
+        assert rule in deny, rule
 
 
 class TestTelemetryAttribution:
@@ -69,25 +70,3 @@ class TestTelemetryAttribution:
         project = attributes["vcs.repository.name"]
         assert attributes["vcs.repository.url.full"] == f"https://github.com/{project}"
         assert len(attributes) >= 2
-
-
-class TestCodexHookWiring:
-    """`.codex/hooks.json` is mandatory (issue #75, AC 6): a missing file fails
-    loudly rather than skipping silently (§IV)."""
-
-    def test_every_event_group_maps_to_its_subcommand(self) -> None:
-        hooks = _codex_hooks()["hooks"]
-
-        pre_tool_use = hooks["PreToolUse"]
-        assert len(pre_tool_use) == 1
-        assert pre_tool_use[0]["matcher"] == "^Bash$"
-        pre_tool_commands = [hook["command"] for hook in pre_tool_use[0]["hooks"]]
-        assert any(re.search(r"codex_hooks\.py pre-tool", command) for command in pre_tool_commands)
-
-        post_tool_use = hooks["PostToolUse"]
-        assert len(post_tool_use) == 1
-        assert post_tool_use[0]["matcher"] == "^apply_patch$"
-        post_tool_commands = [hook["command"] for hook in post_tool_use[0]["hooks"]]
-        assert any(re.search(r"codex_hooks\.py on-edit", command) for command in post_tool_commands)
-
-        assert "Stop" not in hooks

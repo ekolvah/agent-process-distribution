@@ -1,10 +1,4 @@
-# review-and-merge Specification
-
-## Purpose
-What reviews a PR, what blocks a merge, and how the default branch is protected from agent
-mistakes.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Reviewer instructions name the simplicity triggers
 The review contract SHALL be one file the Claude review job reads from the trusted checkout,
@@ -38,65 +32,24 @@ resolution is not required on the default branch: a `P3` does not keep a PR from
 - **WHEN** a review thread of the head is resolved after the check concluded on that head — a resolve has no event of its own, and a run another event starts is a required context of its own that leaves the `pull_request` run as it was
 - **THEN** the check is re-run by the fixer's `resolve_review_thread --thread --reply-file`, whose `gh run rerun` of that `pull_request` run reads the resolved state; the caller follows pushes alone and the script posts the reply after the resolve
 
-### Requirement: A PR links its issue
-Every PR SHALL link at least one issue by GitHub's own link — a closing keyword in the
-body, a manual link, or the branch `gh issue develop` created — except a release PR. A step
-of the `quality` check SHALL read the PR's `closingIssuesReferences` once, with read access
-to pull requests and issues, and SHALL fail the check when the list is empty, printing how to
-link the issue and the command that re-runs the check; on a release PR the step SHALL not run
-and the driver's checks SHALL run as on any PR. No check parses the branch name or the PR
-body for the link, and no other check carries it.
+## REMOVED Requirements
 
-#### Scenario: PR from a linked branch
-- **WHEN** a PR is opened from a branch `gh issue develop` created for its issue, with no closing keyword in the body
-- **THEN** the step reads the issue in `closingIssuesReferences` and the check goes on to the quality driver
+### Requirement: Local safety on both carriers
+**Reason**: Codex left the process; "Local safety in Claude Code" replaces it.
+**Migration**: none; the Claude Code deny-list is unchanged.
 
-#### Scenario: PR without an issue
-- **WHEN** a PR links no issue
-- **THEN** `quality` fails naming the two ways to link and `gh run rerun` of the run, and the driver's checks do not run
+### Requirement: No automation resolves a review thread
+**Reason**: threads of the Codex app are no longer trusted; "Only the fixer resolves a
+review-job thread" replaces it.
+**Migration**: none.
 
-#### Scenario: Release PR without an issue
-- **WHEN** a release PR links no issue
-- **THEN** the link step does not run, the driver's checks run, and `quality` concludes on them
+### Requirement: Codex reviews on the author's request, Claude is the fallback
+**Reason**: Codex left the process (decided 2026-09-27); Claude Code reviews every head with
+no fallback.
+**Migration**: "Claude reviews every head" replaces it; the author requests no review, and a
+repository with the Codex GitHub app uninstalls it or turns its reviews off.
 
-### Requirement: No local hook reads protection
-No local hook SHALL read the installed branch protection or rulesets: a push is gated by
-`ci_check` alone, and a merge by the ruleset that protection activation writes.
-
-#### Scenario: Push reads no protection
-- **WHEN** a branch is pushed through the pre-push hook
-- **THEN** the hook runs `ci_check` and issues no read of branch protection or rulesets
-
-### Requirement: A release PR is recognised by its diff
-A PR SHALL count as a release PR only when the repository's `release-please-config.json` at
-the PR's base exists, the release manifest's version changes between base and head, every
-changed file is one the configuration names — an `extra-files` path of a package, the release
-manifest or a package's changelog — and every changed file other than a changelog exists at
-both base and head and equals its base with each old manifest version replaced by the new one.
-The configuration and the manifest SHALL be read at the base, the files at the head the check
-runs on, from the trusted process source at the ref the caller pinned; neither the branch name
-nor the author decides. A PR that is not a release PR SHALL be told why in the check's log; a
-failed read SHALL fail the check instead of deciding either way.
-
-#### Scenario: Release PR
-- **WHEN** a PR changes the version places the base configuration names, the manifest and the changelog, and each non-changelog file differs from its base only by the version
-- **THEN** it is a release PR
-
-#### Scenario: Other change in a version file
-- **WHEN** a PR bumps the manifest and changes, in a file the configuration names, anything besides the version
-- **THEN** it is not a release PR, and the log names that file
-
-#### Scenario: File outside the set
-- **WHEN** a PR bumps the manifest and changes a file the base configuration does not name, including the configuration itself
-- **THEN** it is not a release PR, and the log names that file
-
-#### Scenario: No release configuration
-- **WHEN** the base has no `release-please-config.json`
-- **THEN** no PR of the repository is a release PR
-
-#### Scenario: Failed read
-- **WHEN** the read of the base, the head or a file fails
-- **THEN** the check fails with the read error
+## ADDED Requirements
 
 ### Requirement: Claude reviews every head
 The review job SHALL read once whether a closing comment of the workflow token's login names
@@ -163,16 +116,3 @@ thread; every other thread is answered and left to the person.
 #### Scenario: Addressed finding of the review job
 - **WHEN** the fixer resolves a thread it addressed
 - **THEN** the resolve accepts a `P0`/`P1` thread raised by the Claude review job, refuses one raised by any other author, refuses one raised against the current head, and refuses a `P2`/`P3` thread
-
-### Requirement: Trusted checkout is the called commit
-Every checkout of the trusted process source SHALL check out this repository at the commit of
-the called workflow definition. When that commit is not available to the job, the job SHALL
-fail and name the missing value. It SHALL NOT check out the PR's ref instead.
-
-#### Scenario: PR changes a process script
-- **WHEN** a PR changes a script that the trusted source runs, and a caller pinned to another commit runs the check
-- **THEN** the check runs the script at the pinned commit, not the PR's version
-
-#### Scenario: Called commit unavailable
-- **WHEN** the called workflow's commit is empty in the job
-- **THEN** the job fails before the trusted checkout, and its log names the missing value

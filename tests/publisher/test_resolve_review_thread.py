@@ -30,7 +30,7 @@ def _thread(
     priority: str,
     original_commit_oid: str | None,
     resolved: bool = False,
-    author: str = "chatgpt-codex-connector",
+    author: str = "github-actions",
 ) -> dict:
     return {
         "id": thread_id,
@@ -147,6 +147,26 @@ def test_resolve_refuses_a_non_blocking_thread() -> None:
     calls: list[str] = []
 
     with pytest.raises(RuntimeError, match="not BLOCKING"):
+        resolve(payload, "thread-1", mutate=lambda thread_id: calls.append(thread_id))
+
+    assert calls == []
+
+
+def test_resolve_refuses_a_codex_thread() -> None:
+    """Scenario: Thread of a former reviewer — it neither blocks nor is resolved here."""
+    payload = _payload(
+        threads=[
+            _thread(
+                "thread-1",
+                priority="P1",
+                original_commit_oid=_BEHIND,
+                author="chatgpt-codex-connector",
+            )
+        ]
+    )
+    calls: list[str] = []
+
+    with pytest.raises(RuntimeError):
         resolve(payload, "thread-1", mutate=lambda thread_id: calls.append(thread_id))
 
     assert calls == []

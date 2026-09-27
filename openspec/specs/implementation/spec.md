@@ -105,8 +105,7 @@ is resolved — `resolve_review_thread --thread --reply-file` on that thread fro
 implementer's own session — and SHALL resolve no other thread: a `P2`/`P3` finding is
 answered, and its disposition is the person's. The step after `wait_for_pr` is that one
 command, and its order is the script's, not the rule's: it SHALL refuse while the head's
-`agent-review` run is running (the review of the head is in when the run concluded,
-Codex's or the fallback's the run started when none came), resolve the thread, re-run that
+`agent-review` run is running (the review of the head is in when the run concluded), resolve the thread, re-run that
 run (a resolve has no event of its own, and the required context is the head's
 `pull_request` run) and post the reply last. A review fix that changes a spec SHALL go
 through a change of its own on the PR branch — a delta under

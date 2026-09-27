@@ -4,8 +4,7 @@ Tests drive the transitions — preview, release selection, write, interruption,
 conflict — against real `git` and a local bare repository whose tag `v{CURRENT}` carries this
 tree's `skills/agent-process/` and whose tag `v{OTHER}` carries a recording stub `init.py`.
 The runner is the process boundary: it logs every command, emulates `npx` (writing the
-observed OpenSpec file set) and, for rows of the other platform, the link command, and
-runs everything else for real. The module is imported inside the tests so that a missing
+observed OpenSpec file set) and runs everything else for real. The module is imported inside the tests so that a missing
 symbol fails its own test body.
 
 `gh` never reaches GitHub: the runner hands it to `FakeGitHub` (change
@@ -38,8 +37,6 @@ from tests.publisher.init_harness import (
     git,
     head_commit,
     install,
-    is_link,
-    link_command,
     load_init,
     relative,
     snapshot,
@@ -89,7 +86,6 @@ def test_lifecycle(
         else:
             assert seen == {
                 "checkout": "written" if mode == "confirm" else "unchanged",
-                "link": "unchanged",
                 "hand-off": "planned",
             }
             assert head_commit(sandbox.checkout) == tag_commit(sandbox, f"v{OTHER}")
@@ -147,23 +143,28 @@ def test_confirm_selects_release_before_composing(
     assert snapshot(sandbox.root) == {}
 
 
-@pytest.mark.parametrize("platform", ["win32", "linux"])
-def test_skill_link_resolves_to_selected_release(sandbox: Sandbox, platform: str) -> None:
+def test_openspec_tools_are_claude_only(sandbox: Sandbox) -> None:
+    """Scenario: Fresh repository — OpenSpec writes the Claude Code tool files only."""
     init = load_init()
-    runner = Runner(init, platform, sandbox.github)
-    target = sandbox.checkout / "skills" / "agent-process"
-    for version, tag in ((CURRENT, f"v{CURRENT}"), (OTHER, f"v{OTHER}")):
-        code = install(
-            init, sandbox, "--confirm", "--version", version, platform=platform, runner=runner
-        )
-        assert code == 0
-        assert is_link(sandbox.link)
-        assert os.path.realpath(sandbox.link) == os.path.realpath(target)
-        assert head_commit(sandbox.checkout) == tag_commit(sandbox, tag)
-    links = [cmd for cmd in runner.log if link_command(cmd)]
-    assert len(links) == 1
-    name = Path(links[0][0]).name.lower()
-    assert name.startswith("cmd" if platform == "win32" else "ln")
+    runner = Runner(init, HOST, sandbox.github)
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
+    npx = [cmd for cmd in runner.log if Path(cmd[0]).name.lower().startswith("npx")]
+    openspec = next(cmd for cmd in npx if "init" in cmd)
+    assert openspec[openspec.index("--tools") + 1] == "claude"
+    assert not [rel for rel in init.OPENSPEC_OUTPUT if rel.startswith(".agents/")]
+
+
+def test_user_skill_path_is_left_alone(sandbox: Sandbox) -> None:
+    """Scenario: Target the installer does not own — a directory at the former Codex skill
+    link is the person's: a confirmed run succeeds and leaves it byte-identical."""
+    init = load_init()
+    sandbox.link.mkdir(parents=True)
+    (sandbox.link / "SKILL.md").write_text("mine\n", encoding="utf-8")
+    before = snapshot(sandbox.link)
+
+    assert install(init, sandbox, "--confirm") == 0
+
+    assert snapshot(sandbox.link) == before
 
 
 # --- interruption and retry -------------------------------------------------------------
@@ -185,7 +186,6 @@ def _final(sb: Sandbox) -> dict[str, Any]:
     return {
         "root": relative(snapshot(sb.root), sb.root),
         "head": head_commit(sb.checkout),
-        "link": os.path.relpath(os.path.realpath(sb.link), os.path.realpath(sb.home)),
         "github": sb.github.state(),
     }
 

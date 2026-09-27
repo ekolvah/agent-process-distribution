@@ -135,19 +135,19 @@ def test_roles_and_carriers() -> None:
     assert yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["schema"] == "spec-driven"
     for heading in ("## Proposal", "## Specifications", "## Tasks", "## Architect review"):
         assert heading in _skill()
-    # Both carriers reach the same review contract through the shared skill.
-    for carrier in (
+    # Claude Code is the only carrier: the review is the `architect-reviewer` subagent's.
+    for part in (
         "architect-review.json",
         "architect-review.schema.json",
         "architect-reviewer",
-        "self-review",
         "approve",
     ):
-        assert carrier in _skill(), carrier
-    # The file states which carrier wrote it: a self-review stays visible past the gate.
+        assert part in _skill(), part
+    for absent in ("self-review", "Codex"):
+        assert absent not in _skill(), absent
     schema = _schema()
     assert "reviewer" in schema["required"]
-    assert schema["properties"]["reviewer"]["enum"] == ["architect-reviewer", "self-review"]
+    assert schema["properties"]["reviewer"]["enum"] == ["architect-reviewer"]
 
 
 def test_review_finding() -> None:
@@ -245,12 +245,10 @@ def test_tasks_of_a_new_change() -> None:
         < text.index("check_red.py")
         < text.index("archive_change.py")
         < text.index("gh pr create")
-        < text.index("@codex review")
         < text.index("wait_for_pr.py")
     )
     for part in (
         "tracking issue <N>",
-        "Claude fallback",
         "three rounds",
         "no tick",
         "never a direct edit of `openspec/specs/`",
@@ -322,12 +320,12 @@ def test_the_resolve_step_names_every_refusal_the_script_has() -> None:
     assert "still running" in delivery
 
 
-def test_group0_names_each_carrier_and_asks_when_the_planner_is_unknown() -> None:
-    """The provenance the issue records is a fact: an unknown planner is asked for, not assumed."""
+def test_group0_names_claude_as_the_carrier() -> None:
+    """Claude Code is the only carrier: the provenance is fixed, nothing is asked."""
     group0 = _group0()
     command = next(span for span in _printed_commands(group0) if "start_change.py" in span)
-    assert "propose run" in command, "`--planner` does not say whose carrier it names"
-    assert "ask" in group0 and "unknown" in group0
+    assert "--planner Claude --implementer Claude" in command
+    assert "ask the person" not in group0 and "unknown" not in group0
 
 
 def test_the_header_promises_the_resolution_its_commands_use() -> None:

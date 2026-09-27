@@ -23,7 +23,7 @@ parentheses, not narrative. A document under `.claude/rules/`, and the skill's
 - **THEN** CI reports it
 
 ### Requirement: Native first
-A process script SHALL exist only when GitHub, `gh`, OpenSpec, Claude Code or Codex are
+A process script SHALL exist only when GitHub, `gh`, OpenSpec or Claude Code are
 shown not to do the job. The ADR for any core addition SHALL carry a section "Native
 alternatives considered".
 

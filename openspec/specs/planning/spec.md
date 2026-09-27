@@ -71,8 +71,7 @@ fixture-capture script; reproduction is a step of planning.
 
 ### Requirement: Architect review is the last step of the propose run
 The `tasks` rule of `openspec/config.yaml` SHALL end the propose run with the architect
-review: the `architect-reviewer` subagent in Claude, the planner as a self-review in Codex,
-writes `openspec/changes/<change>/architect-review.json` against `principles.md` §I–VII and
+review: the `architect-reviewer` subagent writes `openspec/changes/<change>/architect-review.json` against `principles.md` §I–VII and
 the scenario → test map of `tasks.md`. The file SHALL be valid against
 `skills/agent-process/architect-review.schema.json`: the verdict, the reviewer, one entry per finding
 class with its evidence and `ok` or the finding, and the scenario coverage; the classes and

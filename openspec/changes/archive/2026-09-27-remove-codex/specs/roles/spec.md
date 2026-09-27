@@ -1,9 +1,4 @@
-# roles Specification
-
-## Purpose
-Which roles the process has and which Claude Code entry point carries each one.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: OpenSpec skills are the carriers of the procedure
 The planner, implementer, and archive entry points SHALL remain the OpenSpec skills
@@ -18,12 +13,19 @@ second role-specific entry point SHALL exist.
 - **WHEN** a portable planning or delivery rule changes
 - **THEN** one shared `agent-process` skill source changes and Claude Code follows it through its OpenSpec entry points without merging copied rule bodies
 
-### Requirement: Provenance is one line in the tracking issue
-"Who planned, who implemented" SHALL be one line in the tracking issue, not a catalogue file.
+## REMOVED Requirements
 
-#### Scenario: Reading provenance
-- **WHEN** a person opens the issue
-- **THEN** the planner and implementer carriers are visible without opening any other file
+### Requirement: Roles and carriers
+**Reason**: Codex left the process (decided 2026-09-27); "Claude Code carries every role"
+replaces it.
+**Migration**: none for a change planned by Claude; a `self-review` architect review no longer
+validates.
+
+### Requirement: Route selection is the person's
+**Reason**: with one carrier there is no route between agents to select.
+**Migration**: none; no file recorded a default adapter.
+
+## ADDED Requirements
 
 ### Requirement: Claude Code carries every role
 Claude Code SHALL be the only carrier of every agent role: planner — `/opsx:propose`;

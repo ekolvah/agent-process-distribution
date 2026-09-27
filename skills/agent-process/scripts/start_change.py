@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Group 0 of the `tasks` rule as one command: the gate, the branch, the Status, the provenance.
 
-Usage: python skills/agent-process/scripts/start_change.py <change> --planner <Claude|Codex>
-       --implementer <Claude|Codex>
+Usage: python skills/agent-process/scripts/start_change.py <change> --planner Claude
+       --implementer Claude
 
 First, a project whose `openspec/config.yaml` does not record this skill's release exits 2
 with `release drift` and the fix (`init.release_drift`; the publisher's own checkout is exempt).
@@ -42,7 +42,7 @@ from set_status import Gh, _linked_project, _repo, run_gh, set_status
 ROOT = Path.cwd()
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCHEMA = SCRIPT_DIR.parent / "architect-review.schema.json"
-CARRIERS = ("Claude", "Codex")
+CARRIERS = ("Claude",)
 PLACEHOLDER = "tracking issue <N>"
 _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
 NOT_FINISHED = (

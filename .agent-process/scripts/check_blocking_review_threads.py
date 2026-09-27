@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Fail the review check while an unresolved P0/P1 thread of either reviewer exists.
+"""Fail the review check while an unresolved P0/P1 thread of the review job exists.
 
 GitHub's native ``required_conversation_resolution`` setting is intentionally
 not used here: it treats advisory and blocking threads identically. This check
-reads only the label of a thread's first comment — by the Codex app or by the
-Claude review job, which comments under the workflow token — and whether the
-thread is resolved; it replies to nothing and resolves nothing (ADR 0027).
+reads only the label of a thread's first comment — by the Claude review job,
+which comments under the workflow token — and whether the thread is resolved; it replies to nothing and resolves nothing (ADR 0027).
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ try:
 except ModuleNotFoundError:  # Direct execution from the relocated payload.
     from gh_io import run_gh
 
-_REVIEWERS = frozenset({"chatgpt-codex-connector", "github-actions"})
+_REVIEWERS = frozenset({"github-actions"})
 _PRIORITY = re.compile(r"\bP(?P<number>[0-3])\b", re.IGNORECASE)
 _QUERY = """
 query($owner: String!, $name: String!, $number: Int!) {

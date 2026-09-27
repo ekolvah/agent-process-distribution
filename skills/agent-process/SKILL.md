@@ -5,7 +5,7 @@ description: Plan, implement, review, and deliver the shared GitHub agent develo
 
 # Agent process
 
-Use this procedure for both Claude Code and Codex. Repository-specific facts remain in
+Use this procedure with Claude Code. Repository-specific facts remain in
 `openspec/config.yaml`; this skill owns the portable planning and delivery procedure. Run
 repository operations, and every command printed below, from the repository root, where the
 paths those commands name resolve. Placing this skill in a repository that does not carry it
@@ -46,10 +46,8 @@ Write these groups in order and end `tasks.md` with `## Scenario → test map`, 
 delta scenario to a named test or `n/a: <reason>`.
 
 1. Group 0 — Delivery start: one task runs `python
-   skills/agent-process/scripts/start_change.py <change> --planner <carrier of the propose
-   run> --implementer <this carrier>` — Claude or Codex, and ask the person when the planner
-   is unknown, because the issue records the answer as provenance. Its text carries
-   `tracking issue <N>`; the propose tail
+   skills/agent-process/scripts/start_change.py <change> --planner Claude --implementer Claude`;
+   the issue records them as provenance. Its text carries `tracking issue <N>`; the propose tail
    replaces the placeholder, and both scripts read the token there. The script validates the
    architect review, reads its verdict and the Status of the issue, creates the linked branch
    from `origin/main`, sets In Progress and posts the provenance line. On `rework`, apply
@@ -73,7 +71,7 @@ delta scenario to a named test or `n/a: <reason>`.
 ## Architect review
 
 After `tasks.md`, review proposal, specifications, design, and tasks against principles
-§I–VII. Claude invokes `architect-reviewer`; Codex performs a stated self-review. Write
+§I–VII by invoking the `architect-reviewer` subagent. It writes
 `architect-review.json`, valid against `skills/agent-process/architect-review.schema.json`.
 
 Findings point at artifacts instead of restating them. On `rework`, answer every finding and
@@ -94,16 +92,13 @@ Start from a clean worktree. Run `python skills/agent-process/scripts/archive_ch
 tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
 deferrals. The archive is the head the PR opens on.
 
-After creating the PR and after every corrective push, run
-`gh pr comment <PR> --body "@codex review"`. The `agent-review`
-check waits for Codex's current-head review and runs the Claude fallback only when no valid
-Codex evidence arrives. Then run `python skills/agent-process/scripts/wait_for_pr.py <PR>`;
+The `agent-review` check reviews every head with the Claude review job. After creating the
+PR and after every corrective push, run `python skills/agent-process/scripts/wait_for_pr.py <PR>`;
 it waits until two reads 30 seconds apart agree that all checks on one head concluded, then
 reads unresolved threads on that head.
 
 Apply findings and repeat at most three rounds; the fourth leaves the rest to the person with
-a reply. After a push, re-request and run
-`wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
+a reply. After a push, run `wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
 settled review: `python skills/agent-process/scripts/resolve_review_thread.py --repo
 <owner/repo> --pr <PR> --list` prints the open threads with the `<id>` of each, then
 `python skills/agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
@@ -149,14 +144,9 @@ skill's own directory. Run from the consumer's root:
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.
 
-The Codex skill is user-wide: `~/.agents/skills/agent-process` links one checkout, so an
-install of another version in any repository moves it for every repository. Claude applies
-the plugin only after the person trusts the folder, and runs the release the machine last
+Claude applies the plugin only after the person trusts the folder, and runs the release the machine last
 fetched for the marketplace name: the `ref` in `.claude/settings.json` does not re-point a
 marketplace the machine already knows (#184). At each Claude session start the installed
 check prints `agent-process skill not loaded (<reason>)` when the plugin does not supply
 the skill; the fix is `/plugin marketplace update agent-process-marketplace` and a restart,
-or enabling the plugin for the project. Codex without this skill starts from a temporary clone of the
-release tag (`git clone --depth 1 --branch v<x.y.z>
-https://github.com/ekolvah/agent-process-distribution.git <dir>`) and runs that clone's
-`skills/agent-process/scripts/init.py` from the consumer's root.
+or enabling the plugin for the project.

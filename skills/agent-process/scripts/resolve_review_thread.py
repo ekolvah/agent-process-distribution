@@ -6,8 +6,8 @@ Usage: python skills/agent-process/scripts/resolve_review_thread.py --repo OWNER
 
 CI never infers whether a finding was addressed (ADR 0022): the required
 check (`check_blocking_review_threads.py`) answers "may this PR merge?" from
-the workflow token over the P0/P1 threads of either reviewer — the Codex app
-or the Claude review job — and this script answers "I, the fixer, addressed
+the workflow token over the P0/P1 threads of the Claude review job, and this
+script answers "I, the fixer, addressed
 this finding" from the maintainer's authenticated local session. Different
 actor, credential, and trigger — never wired into a workflow.
 
@@ -27,7 +27,7 @@ import sys
 from collections.abc import Callable, Mapping, Sequence
 from typing import NamedTuple
 
-_REVIEWERS = frozenset({"chatgpt-codex-connector", "github-actions"})
+_REVIEWERS = frozenset({"github-actions"})
 _PRIORITY = re.compile(r"\bP(?P<number>[0-3])\b", re.IGNORECASE)
 _QUERY = """
 query($owner: String!, $name: String!, $number: Int!) {
@@ -239,7 +239,7 @@ def close_round(  # noqa: PLR0913 -- baseline: one argument per input of the rou
 
     `head_run(head_sha) -> (run_id, status) | None` finds the `agent-review` run of
     the head; the step refuses until it concluded — the review of the head is in
-    then, Codex's or the fallback's the run started when none came. A resolve has
+    then. A resolve has
     no event of its own and the required context is that `pull_request` run, so
     `rerun(run_id)` re-executes it on the resolved state; `post_reply(comment_id,
     body)` answers on the thread last — a resolve is never the last write on a
@@ -265,8 +265,7 @@ def close_round(  # noqa: PLR0913 -- baseline: one argument per input of the rou
     if status != "completed":
         raise RuntimeError(
             f"the `agent-review` run {run_id} of the head {head} is still {status} — "
-            "`wait_for_pr.py <PR>` first: the review of the head, Codex's or the fallback's, "
-            "is in when it concluded"
+            "`wait_for_pr.py <PR>` first: the review of the head is in when it concluded"
         )
     threads = {thread.thread_id: thread for thread in review_threads(payload)}
     resolve(payload, thread_id, mutate=mutate)  # validates the thread; the lookup follows it

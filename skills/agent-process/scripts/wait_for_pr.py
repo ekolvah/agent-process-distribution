@@ -4,12 +4,11 @@
 Usage: python skills/agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 
 The implementing run ends only after checks and reviews: a check that has not concluded (the
-`agent-review` check waiting for the requested Codex review, or running the Claude fallback,
-included) is a pending review. The script reads the head (`gh pr view --json headRefOid`)
+`agent-review` check running the Claude review included) is a pending review. The script reads the head (`gh pr view --json headRefOid`)
 and its checks (`gh pr checks <PR> --json name,bucket,link`) every 30 s until two reads in a
 row report, on one head, the same non-empty set of checks with none in the `pending` bucket
 (the runs of one push attach one at a time, and a clean verdict ends the delivery loop),
-then reads the unresolved review threads of either reviewer (GraphQL) — on that head, or
+then reads the unresolved review threads of the review job (GraphQL) — on that head, or
 reads again. The sorting is gh's (`pkg/cmd/pr/checks/aggregate.go`, tag v2.87.3): `pass`,
 `skipping`, `fail`, `cancel`, `pending` (STALE included), the latest run per name — a rerun
 replaces its entry.

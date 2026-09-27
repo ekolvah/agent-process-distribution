@@ -5,11 +5,6 @@ Two routes, one policy. A shell command that reads a file has a tool that replac
 form of itself — a `Grep` or a slice (`read_budget_hint`). Both refusals name the
 replacement, and both are advisory about cost, never about safety.
 
-Deliberately separate from `.agent-process/scripts/agent_policy.py`. That module is the *security*
-policy shared with Codex, and its `denied_reason()` asserts danger; this one asserts only
-that a cheaper route exists. Routing token economy through the security carrier would emit
-a false reason in Codex's PreToolUse hook.
-
 Why a parser and not a `permissions.deny` pattern. One utility lives in two roles — reading
 the filesystem (a tool replaces it) and trimming another command's output in a pipe (nothing
 does) — and a static prefix pattern cannot tell them apart. Measured over the transcript

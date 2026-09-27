@@ -1,8 +1,7 @@
 # Code review contract
 
-The review policy both reviewers read: Codex through the link in `AGENTS.md`,
-the Claude review job through the trusted checkout of this repository. Nothing
-of ours parses a review (ADR 0027); do not copy these rules into workflow YAML.
+The review policy the Claude review job reads through the trusted checkout of
+this repository. Nothing of ours parses a review (ADR 0027); do not copy these rules into workflow YAML.
 
 - Policy source: the trusted repository conventions — `AGENTS.md` and the
   documents it links to at the reviewed repository's default branch. Every

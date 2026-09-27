@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
+
+from scripts import head_review
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -59,9 +65,10 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
         )
 
 
-def test_source_review_caller_passes_only_the_claude_fallback_secret() -> None:
+def test_source_review_caller_passes_only_the_secret() -> None:
     caller = _workflow("agent-review.yml")["jobs"]["agent-review"]
 
+    assert "with" not in caller
     assert caller["secrets"] == {
         "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}"
     }
@@ -338,12 +345,11 @@ def test_the_v1_quality_callee_is_gone() -> None:
         assert "reusable-quality" not in path.read_text(encoding="utf-8"), path
 
 
-def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads() -> None:
-    """ADR 0027, v2-2b: the job reads whether a Codex review of the head exists,
-    runs the Claude action only when it does not, and fails on an unresolved
-    P0/P1 thread. Nothing parses a review. Every event runs the same path: a
-    review-event run that skipped the wait and the fallback would pass on a head
-    without any review and become the required context (#137, round 3)."""
+def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
+    """Scenario: New head — the job reads once whether its closing comment names the head,
+    runs the Claude action only when it does not, verifies the action published, and fails
+    on an unresolved P0/P1 thread. Nothing parses a review and nobody requests one. Every
+    event runs the same path: a skipped job would pass the required check (#137)."""
     document = _workflow("reusable-agent-review.yml")
     job = document["jobs"]["agent-review"]
     steps = _steps("reusable-agent-review.yml")
@@ -353,13 +359,15 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
         "Require the called workflow commit",
         "Checkout trusted review source",
         "Detect a release PR",
-        "Wait for the Codex review of the head",
+        "Read the Claude review of the head",
         "Claude review",
         "Verify the Claude review of the head",
         "Enforce unresolved P0/P1 threads",
     ]
     assert len(job["steps"]) == len(steps)
-    assert "codex-timeout-seconds" in _trigger(document)["workflow_call"]["inputs"]
+    assert "inputs" not in (_trigger(document)["workflow_call"] or {})
+    text = (WORKFLOWS / "reusable-agent-review.yml").read_text(encoding="utf-8")
+    assert "codex" not in text.lower()
 
     assert steps["Checkout reviewed PR head"]["with"] == {
         "fetch-depth": 0,
@@ -367,39 +375,38 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     }
     assert steps["Checkout trusted review source"]["with"] == TRUSTED_CHECKOUT
 
-    # Absence (exit 3) is the step's recorded output, not its failure; a crash of the
-    # reader (exit 2) fails the step and with it the job — the fallback never runs on
-    # a read that did not establish absence.
-    wait = steps["Wait for the Codex review of the head"]
-    assert wait["id"] == "codex"
-    assert "continue-on-error" not in wait
-    assert wait["working-directory"] == "trusted"
-    assert wait["if"] == NOT_RELEASE
-    assert "request_codex_review.py --wait" in wait["run"]
-    assert "inputs.codex-timeout-seconds" in wait["run"]
-    # Scenario: Re-run on a fallback head — presence is a review of the head by any
-    # login the check trusts; a re-run on a head the fallback reviewed returns on that
-    # review instead of waiting for Codex and reviewing the head again (issue 139).
-    assert "--reviewer chatgpt-codex-connector" in wait["run"]
-    assert "--reviewer github-actions" in wait["run"]
-    assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in wait["run"]
-    assert '*) exit "$rc"' in wait["run"]
+    # Scenarios: Re-run on a reviewed head, Reader failure — one read, no wait: `gh run
+    # rerun` re-executes every step, so a head the job reviewed returns on its closing
+    # comment (issue 139). Absence (exit 3) is the step's recorded output; a crash of the
+    # reader (exit 2) fails the step and the job, so the action never runs on a read that
+    # did not establish absence.
+    read = steps["Read the Claude review of the head"]
+    assert read["id"] == "review"
+    assert "continue-on-error" not in read
+    assert read["working-directory"] == "trusted"
+    assert read["if"] == NOT_RELEASE
+    assert "head_review.py --wait" in read["run"]
+    assert "--timeout-seconds 0" in read["run"]
+    assert '0) echo "absent=false" >> "$GITHUB_OUTPUT"' in read["run"]
+    assert '3) echo "absent=true" >> "$GITHUB_OUTPUT"' in read["run"]
+    assert '*) exit "$rc"' in read["run"]
 
-    # Absence is the only condition: no event filter (a skipped job passes a required
-    # check) and no fork guard — the platform withholds every secret but GITHUB_TOKEN
-    # from a run of a fork PR on `pull_request` and `pull_request_review` alike, and the
-    # repository requires approval for every run from an external contributor (ADR 0027).
+    # Scenarios: Event other than a push, Head from a fork — absence is the only
+    # condition: no event filter and no fork guard; the platform withholds every secret
+    # but GITHUB_TOKEN from a fork run and requires approval for an external contributor
+    # (ADR 0027).
+    absent = "steps.review.outputs.absent == 'true'"
     claude = steps["Claude review"]
-    assert claude["if"] == "steps.codex.outputs.absent == 'true'"
+    assert claude["if"] == absent
     assert claude["uses"].startswith("anthropics/claude-code-action@")
     assert claude["with"]["claude_code_oauth_token"] == "${{ secrets.claude_code_oauth_token }}"
     assert claude["with"]["github_token"] == "${{ github.token }}"
     assert "mcp__github_inline_comment__create_inline_comment" in claude["with"]["claude_args"]
     assert "--json-schema" not in claude["with"]["claude_args"]
     prompt = claude["with"]["prompt"]
-    # The closing comment is the fallback's review: the action publishes finding by
-    # finding, so an interrupted action has left inline comments and no closing
-    # comment, and the second attempt reviews again (Codex's P1 on PR 140).
+    # The closing comment is the review: the action publishes finding by finding, so an
+    # interrupted action has left inline comments and no closing comment, and the
+    # second attempt reviews again (issue 139).
     for anchor in (
         "trusted/.agent-process/REVIEW_CONTRACT.md",
         "untrusted",
@@ -410,16 +417,15 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
     ):
         assert anchor in prompt
 
-    # A fallback that completes without publishing is no review of the head (ADR 0004
-    # records the action finishing green without a comment): the same presence read as
-    # for Codex, on the job's own login, fails the check instead of leaving it green.
+    # Scenario: Silent action — the action can finish green without publishing
+    # (ADR 0004); a bounded read of its closing comment fails the check instead.
     verify = steps["Verify the Claude review of the head"]
-    assert verify["if"] == "steps.codex.outputs.absent == 'true'"
+    assert verify["if"] == absent
     assert "continue-on-error" not in verify
     assert verify["working-directory"] == "trusted"
-    assert "request_codex_review.py --wait" in verify["run"]
-    assert "--reviewer github-actions" in verify["run"]
-    assert "chatgpt-codex-connector" not in verify["run"]
+    assert "head_review.py --wait" in verify["run"]
+    assert "--timeout-seconds 60" in verify["run"]
+    assert "|| rc" not in verify["run"]
 
     enforce = steps["Enforce unresolved P0/P1 threads"]
     assert enforce["if"] == "always()"
@@ -433,6 +439,44 @@ def test_agent_review_waits_for_codex_falls_back_to_claude_and_enforces_threads(
         "reusable-agent-review.yml@"
         in _workflow("agent-review.yml")["jobs"]["agent-review"]["uses"]
     )
+
+
+_HEAD = "a" * 40
+_EXPRESSIONS = {
+    "github.repository": "owner/repo",
+    "github.event.pull_request.number": "1",
+    "github.event.pull_request.head.sha": _HEAD,
+}
+
+
+def test_review_steps_call_head_review_with_its_arguments(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: New head — the argv of both workflow calls is the reader's own CLI: a
+    drift on either side fails here instead of failing every head's review."""
+    steps = _steps("reusable-agent-review.yml")
+    closing = {
+        "author": {"login": "github-actions[bot]"},
+        "body": f"No findings. Reviewed head SHA: {_HEAD}",
+    }
+    pull = {"headRefOid": _HEAD, "reviews": {"nodes": []}, "comments": {"nodes": [closing]}}
+    payload = {"data": {"repository": {"pullRequest": pull}}}
+    monkeypatch.setattr(head_review, "run_gh", lambda args: json.dumps(payload))
+    monkeypatch.setattr(head_review.time, "sleep", lambda seconds: None)
+    script = ".agent-process/scripts/head_review.py"
+
+    for name in ("Read the Claude review of the head", "Verify the Claude review of the head"):
+        run = re.sub(
+            r"\$\{\{\s*(.*?)\s*\}\}", lambda m: _EXPRESSIONS[m.group(1)], steps[name]["run"]
+        )
+        assert script in run, name
+        call = run[run.index(script) :].split("||")[0].replace("\\\n", " ")
+        argv = shlex.split(call)
+        assert argv[0] == script
+
+        head_review.main(argv[1:])
+
+        assert "present" in capsys.readouterr().out, name
 
 
 def test_agent_review_caller_runs_on_pushes_alone() -> None:
@@ -526,16 +570,16 @@ def test_quality_skips_the_link_on_a_release_pr() -> None:
 
 
 def test_agent_review_skips_the_review_on_a_release_pr() -> None:
-    """ADR 0031: a release PR waits for no review and gets no fallback; the P0/P1
-    enforcement still runs on its head."""
+    """ADR 0031: a release PR reads no review and gets none; the P0/P1 enforcement still
+    runs on its head."""
     raw = _workflow("reusable-agent-review.yml")["jobs"]["agent-review"]["steps"]
     steps = _steps("reusable-agent-review.yml")
 
     _assert_detects_a_release_pr(raw)
-    assert steps["Wait for the Codex review of the head"]["if"] == NOT_RELEASE
-    assert steps["Claude review"]["if"] == "steps.codex.outputs.absent == 'true'"
+    assert steps["Read the Claude review of the head"]["if"] == NOT_RELEASE
+    assert steps["Claude review"]["if"] == "steps.review.outputs.absent == 'true'"
     assert steps["Verify the Claude review of the head"]["if"] == (
-        "steps.codex.outputs.absent == 'true'"
+        "steps.review.outputs.absent == 'true'"
     )
     assert steps["Enforce unresolved P0/P1 threads"]["if"] == "always()"
 
