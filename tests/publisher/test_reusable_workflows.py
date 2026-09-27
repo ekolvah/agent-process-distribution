@@ -514,5 +514,18 @@ def test_release_workflow_enables_auto_merge() -> None:
     merge = raw[raw.index(action) + 1]
     assert merge["if"] == "steps.release.outputs.prs_created == 'true'"
     assert merge["env"]["GH_TOKEN"] == "${{ secrets.RELEASE_PLEASE_TOKEN }}"
-    assert merge["env"]["PR"] == "${{ fromJSON(steps.release.outputs.pr).number }}"
+    assert merge["env"]["PR_JSON"] == "${{ steps.release.outputs.pr }}"
+    assert "PR" not in merge["env"]
+    assert "jq -er .number" in merge["run"]
     assert 'gh pr merge --auto --squash "$PR"' in merge["run"]
+
+
+def test_release_workflow_parses_no_unset_output() -> None:
+    """#213: the runner evaluates a step's `env` although its `if` is false, and an output
+    the guarded step needs may be unset then; `fromJSON('')` fails the run."""
+    (job,) = _workflow("release-please.yml")["jobs"].values()
+    guarded = [s for s in job["steps"] if "steps." in str(s.get("if", ""))]
+    assert guarded
+    for step in guarded:
+        for value in step.get("env", {}).values():
+            assert "fromJSON" not in str(value), step.get("name")
