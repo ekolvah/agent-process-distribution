@@ -13,8 +13,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes (locally every check but `secrets`, which exits with WinError 206 — the argv of all tracked files exceeds the Windows command-line limit; `secrets` runs in the `agent-process / quality` job on Linux)
 
 ## 4. Deliver
 

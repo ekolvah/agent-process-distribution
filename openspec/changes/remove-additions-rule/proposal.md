@@ -1,6 +1,6 @@
 ## Why
 
-Issue #186. Reproduction (`ekolvah/agent-process-sandbox`, #117 step 7a): a first ordinary feature
+Reproduction (issue 186; `ekolvah/agent-process-sandbox` issue 117, step 7a): a first ordinary feature
 (`add-smoke-test-script`: `smoke.py` and its test) was proposed with no prior issue. Under
 `approve`, `architect-review.schema.json` requires each `additions` entry — every "script, check
 or non-test file" — to cite an issue, PR or run as `problem`; the tracking issue is created only
@@ -10,7 +10,7 @@ Root cause: the guard against bespoke additions is itself bespoke — a regex on
 format, not a judgement of relevance, and scoped to every non-test file, so ordinary product
 code falls under it. The industry form of this guard is a decision record with the alternatives
 considered (MADR "Considered Options", Rust RFC "Rationale and alternatives", OpenSpec
-`design.md` Decisions) judged by a reviewer; the research is in the #186 thread. This plan keeps
+`design.md` Decisions) judged by a reviewer; the research is in the thread of issue 186. This plan keeps
 that form: the justification of a new script or check lives in `design.md`, the `bespoke` class
 of the review judges it.
 

@@ -54,7 +54,7 @@ the standard for its job and why it does not fit.
   Then the Claude review job of `agent-review` on each PR head, whose contract carries the §VII
   simplicity triggers, and the person's merge.
 - **What stops proving:** that the reviewer's judgement is sound; the regex never proved that
-  either — #117 step 7a passed it with `#1`.
+  either — sandbox issue 117 step 7a passed it with `#1`.
 
 ## Risks / Trade-offs
 
