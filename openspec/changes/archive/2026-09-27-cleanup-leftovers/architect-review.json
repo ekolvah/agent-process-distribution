@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every path, line number and claim of the four artifacts checks out against the tree, the plan adds no file, script or test, and each edit either has an existing catcher or provably cannot regress.",
+  "classes": {
+    "simpler": {
+      "evidence": "The change is four text edits plus one `git mv`; no new file, helper, test or script (§VII). Two alternatives are rejected with reasons that hold: D1 rejects a test forbidding the string `kinozal_scraper maintainers` (it pins this audit, not an invariant), and D3 rejects `.agent-process/docs/adr/` as the destination — verified, since `tests/agent_process/test_adr_records.py::_record_files` globs every `*.md` in `_ADR_DIR` except `template.md` deliberately without prefiltering by `_RECORD_NAME` (line 66), so `telemetry-measurement-setup.md` there would fail `test_filename_matches_convention`. The one simpler option the design does not name — deleting the revision condition of `navigation_policy.py` outright instead of rewording it — is not a gap: the retained clause states an observable trigger (refusals fire, context growth before the first edit does not fall) and the rewrite is shorter than today's three lines, so the stale half leaves and nothing unexecutable is added.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "`.openspec.yaml` carries `skip_specs: true`, there is no `specs/` directory in the change, and the proposal's Modified Capabilities states why (no requirement names these files). The `## Scenario → test map` section of tasks.md says so and names the one existing test that pins the move, so there is no scenario left unmapped.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 is `no RED: <reason>` pointing at design D1, and the reason matches §I's narrow exceptions (b) documentation-only and (c) non-behavioural: the manifest edit touches display names only, the docstring and `AGENTS.md` edits are prose, and the move's links are already guarded by `tests/agent_process/test_doc_links.py` (`git ls-files`-scoped, `_problems`/`target_problem` resolve every relative target and anchor, lines 171-228). Nothing today pins the names: `tests/publisher/test_plugin.py` reads both manifests for structure and version only (paths at lines 12-13, `json.loads` at 41, release-please jsonpath at 163-166) and never asserts `author.name` or `owner.name`, and `token_trend` occurs nowhere but the docstring being rewritten, so the only way to make these edits RED-able is the string test D1 rejects.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The only platform claim the plan rests on is that the manifest names are display fields: observed live in `~/.claude/plugins/installed_plugins.json`, where an install is keyed `<plugin>@<marketplace>` with its cache path `cache/agent-process-marketplace/agent-process/<version>/` — identity comes from `name`/`version`, which this change does not touch, not from `author.name` or `owner.name`. The proposal's own observations verify: `git log --all --oneline -- '*token_trend*'` is empty (no such file ever existed) and `git ls-files docs/` returns exactly one path. The move does not change what a consumer receives: issue #216 records that the whole repository ships today (`\"source\": \".\"` plus `init.py`'s clone), so both `docs/` and `.agent-process/docs/` are inside the shipped tree and #216 owns that separation.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Dropped text listed with why: the measurer name and the `do not build a second measurer` clause of `navigation_policy.py:281-283` (D2 — the clause only refers to the non-existent file; the condition itself survives), and the `AGENTS.md:29-31` placeholder bullet, which is shipped to nobody (no `AGENTS.md` under `skills/agent-process/templates/`, no reference in `init.py`) and whose only test readers check unrelated content (`tests/publisher/test_reusable_workflows.py:413-419` asserts the REVIEW_CONTRACT link, `tests/publisher/test_planning_workflow.py:266-280` asserts the string's absence from SKILL.md). The vanishing `docs/` directory creates no guard vacuum (§IV): `_EXPECTED_SCOPE_DIRS` in `tests/agent_process/test_doc_links.py:84-88` is `skills/agent-process`, `.agent-process/docs/adr`, `.claude/rules` — `docs` is not among them, and `tests/agent_process/test_doc_headers.py` scopes only `principles.md` and `.claude/rules`, so the moved document neither leaves nor enters a guard.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Traced: 0.1 `start_change.py` reads this review; 2.1 `tests/publisher/test_plugin.py` (structure and version, so a malformed manifest edit is red, while the name itself is deliberately untested per D1); 2.2 `tests/agent_process/test_navigation_policy.py` (behaviour; the rewritten text is a function docstring of `read_budget_hint`, read by no test and by no argparse description, so nothing can silently depend on the deleted words); 3.1 `tests/agent_process/test_doc_links.py` for the three link rewrites (0026's `../../../docs/…` at line 189, and the document's two ADR links at lines 40 and 145 — the only relative links it contains) plus `tests/agent_process/test_adr_records.py` for D3's placement; 4.1 `openspec validate --strict --all` and `ci_check.py` (format, lint, module-size, test-imports, secrets, pytest, pip-audit, pip-audit-dev, requirements — `CHECKS`, ci_check.py:352-362); 5.3 the agent-review check and `wait_for_pr.py`. The one edit no gate can catch is the placeholder deletion, and it is a deletion of an HTML comment: there is nothing left to drift.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "No rule or spec sentence is added: `skip_specs: true`, no ADR, no edit to `skills/`, `openspec/specs/` or `.claude/rules/`. The prose balance is negative — `navigation_policy.py:281-283` (~43 words) becomes one condition of ~25 words, and `AGENTS.md:29-31` (~22 words of placeholder) disappears; the words removed were asserted by no test and the retained condition is asserted by none either, which is exactly why it stays a docstring rather than becoming a check.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The proposal's Impact and the design name no script, check or non-test file: one `git mv` of an existing document, one link fix in ADR 0026, two manifest values, one docstring and one deleted bullet. `additions` is therefore empty, and D1 explicitly declines the one candidate addition (a string-pinning test), matching the repository's standing rule that a new deterministic check waits for an observed problem.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [],
+  "additions": []
+}

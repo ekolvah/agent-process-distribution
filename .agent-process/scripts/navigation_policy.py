@@ -278,9 +278,8 @@ def read_budget_hint(file_path: object, offset: object = None, limit: object = N
     name, not just `Bash`, and `permissionDecisionReason` is delivered to the model —
     https://code.claude.com/docs/en/hooks
 
-    Revision condition: the maintainer watches context growth before the first edit through
-    the existing `.agent-process/scripts/token_trend.py`. If refusals fire and that growth does not fall,
-    tighten the threshold or revert the rule; do not build a second measurer.
+    Revision condition: if refusals fire and context growth before the first edit does not
+    fall, tighten the threshold or revert the rule.
     """
     if not isinstance(file_path, str):
         return None
