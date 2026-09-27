@@ -95,11 +95,15 @@ def _fields(gh: Gh, owner: str, project: dict[str, Any]) -> dict[str, dict[str, 
     return {str(f["name"]): f for f in data["fields"]}
 
 
-def _option_id(fields: dict[str, dict[str, Any]], field_name: str, option_name: str) -> str:
+def _options(fields: dict[str, dict[str, Any]], field_name: str) -> dict[str, str]:
     field = fields.get(field_name)
     if field is None:
         raise ValueError(f"no field {field_name!r} in the Project; fields: {', '.join(fields)}")
-    options = {str(o["name"]): str(o["id"]) for o in field.get("options") or []}
+    return {str(o["name"]): str(o["id"]) for o in field.get("options") or []}
+
+
+def _option_id(fields: dict[str, dict[str, Any]], field_name: str, option_name: str) -> str:
+    options = _options(fields, field_name)
     try:
         return options[option_name]
     except KeyError:
@@ -155,6 +159,11 @@ def _board(gh: Gh) -> tuple[str, dict[str, Any], dict[str, dict[str, Any]]]:
     project = _linked_project(owner, name, projects)
     project_owner = _project_owner(project)
     return project_owner, project, _fields(gh, project_owner, project)
+
+
+def area_options(gh: Gh = run_gh) -> list[str]:
+    """The `Area` options of the linked Project, for the planner to choose from."""
+    return list(_options(_board(gh)[2], "Area"))
 
 
 def check_area(area: str, gh: Gh = run_gh) -> None:

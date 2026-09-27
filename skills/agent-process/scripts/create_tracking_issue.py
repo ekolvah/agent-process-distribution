@@ -7,8 +7,8 @@ A release drift exits 2 first, as in `start_change`. The architect review is val
 next, as `start_change` reads it: an invalid file or a
 verdict other than approve is exit 2 and nothing is created. Then `tasks.md` of the change
 decides the branch through its `tracking issue <N>` token (Group 0;
-the same read as `start_change`): while it carries the placeholder, `--area` is required and
-is resolved against the Project's `Area` options first (a missing field or option is exit 2
+the same read as `start_change`): while it carries the placeholder, `--area` is required (its
+refusal lists the Project's `Area` options for the planner to choose from) and is resolved against the Project's `Area` options first (a missing field or option is exit 2
 and no issue exists) — `gh issue create --title "<change>" --body-file openspec/changes/<change>/proposal.md`, the
 number (the last path segment of the printed URL; `gh issue create` has no `--json`) is written
 into the token at once, and only then `set_status <N> "Planned" --area <A>`, so a failure
@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 from init import release_drift
-from set_status import Gh, check_area, run_gh, set_status
+from set_status import Gh, area_options, check_area, run_gh, set_status
 from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue, verdict
 
 
@@ -68,7 +68,8 @@ def create_tracking_issue(
         return 0
     if area is None:
         print(
-            "area required: the change has no tracking issue yet — --area <name>",
+            "area required: the change has no tracking issue yet — --area <one of: "
+            f"{', '.join(area_options(gh))}>",
             file=sys.stderr,
         )
         return 2

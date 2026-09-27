@@ -1,10 +1,10 @@
 ## 1. RED first
 
-- [ ] 1.1 `test_plan_approved_creates_the_issue`: without `--area` on the placeholder, stderr lists `Observability`, `Distribution`, `Token efficiency` and no issue is created. `test_plan_approved`: the Architect review section says "choose the area" before `create_tracking_issue.py` and has no "ask". Run `check_red.py` on both; commit as `test(state): the planner chooses the area`
+- [x] 1.1 `test_plan_approved_creates_the_issue`: without `--area` on the placeholder, stderr lists `Observability`, `Distribution`, `Token efficiency` and no issue is created. `test_plan_approved`: the Architect review section says "choose the area" before `create_tracking_issue.py` and has no "ask". Run `check_red.py` on both; commit as `test(state): the planner chooses the area`
 
 ## 2. Implementation
 
-- [ ] 2.1 `set_status.area_options(gh)`; `create_tracking_issue` lists them in the `area required` message; `SKILL.md` and `.claude/rules/workflow.md` say "choose". Commit as `feat(state): the planner chooses the area, asking nothing`
+- [x] 2.1 `set_status.area_options(gh)`; `create_tracking_issue` lists them in the `area required` message; `SKILL.md` and `.claude/rules/workflow.md` say "choose". Commit as `feat(state): the planner chooses the area, asking nothing`
 
 ## 3. Deliver
 

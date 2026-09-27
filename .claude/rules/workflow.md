@@ -21,7 +21,8 @@ task list carries the delivery steps
 ([tasks](../../skills/agent-process/SKILL.md#tasks), [delivery](../../skills/agent-process/SKILL.md#delivery)),
 so one agent carries a change from approved plan to archived PR.
 
-When creating an issue, ask the user for the area and set the GitHub Project
-field with `python skills/agent-process/scripts/set_status.py <N> --area <name>`
+When creating an issue, choose its area from the Project's `Area` options yourself and set
+it with `python skills/agent-process/scripts/set_status.py <N> --area <name>` (an unknown
+name exits 2 listing the options)
 (`Todo` comes from the Project's own workflow). The propose run creates the
 tracking issue of a change and leaves it in `Planned`.

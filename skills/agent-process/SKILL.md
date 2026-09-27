@@ -77,10 +77,10 @@ After `tasks.md`, review proposal, specifications, design, and tasks against pri
 `architect-review.json`, valid against `skills/agent-process/architect-review.schema.json`.
 
 Findings point at artifacts instead of restating them. On `rework`, answer every finding and
-review again. The propose run ends on `approve`: if the change has no issue, ask once for
-the area (an option of the Project's `Area` field) and run
-`python skills/agent-process/scripts/create_tracking_issue.py <change> --area <name>`;
-otherwise run it without area. It validates the review
+review again. The propose run ends on `approve`: if the change has no issue, choose the area
+that fits the change from the Project's `Area` options and run
+`python skills/agent-process/scripts/create_tracking_issue.py <change> --area <name>` (without
+`--area` it lists the options); otherwise run it without area. It validates the review
 first; send its errors back to the reviewer. The issue must be `Planned` before the
 plan is ready. Then explain the plan in plain words — what changes, why, what the person
 decides — as a page linked in the final message, or in that message when the carrier cannot
