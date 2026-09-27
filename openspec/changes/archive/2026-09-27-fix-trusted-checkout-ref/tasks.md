@@ -18,7 +18,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py fix-trusted-checkout-ref`. Verify that it archives the delta into `openspec/specs/`, commits, and pushes the branch
+- [x] 4.1 With a clean worktree, run `python skills/agent-process/scripts/archive_change.py fix-trusted-checkout-ref`. Verify that it archives the delta into `openspec/specs/`, commits, and pushes the branch
 - [ ] 4.2 Run `gh pr create --title "fix: fix-trusted-checkout-ref" --body-file <report>`. The report names tracking issue 226 as a plain reference (never `Closes`), carries the scenario → test map, and states that the `@main` review callee is observed only after the merge (design, Risks)
 - [ ] 4.3 In the log of the PR's `agent-process / link` job, verify that `Require the called workflow commit` passed and that the `with:` block of `Checkout trusted process source` lists a non-empty `ref:`. If it is empty, stop and report it to the person
 - [ ] 4.4 Run `python skills/agent-process/scripts/wait_for_pr.py <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `python skills/agent-process/scripts/resolve_review_thread.py --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
