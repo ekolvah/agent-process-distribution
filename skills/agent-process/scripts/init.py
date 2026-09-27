@@ -53,7 +53,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-VERSION = "2.4.0"  # x-release-please-version
+VERSION = "2.4.1"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
 REPOSITORY_ENV = "AGENT_PROCESS_REPOSITORY"
 GITHUB_REPO = "ekolvah/agent-process-distribution"
