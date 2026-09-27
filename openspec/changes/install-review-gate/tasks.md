@@ -8,8 +8,8 @@
 
 ## 2. Installer (D1, D2)
 
-- [ ] 2.1 Write `templates/agent-review.yml` per D1, each GitHub expression spelled `$${{ ... }}`, and `render_review_workflow` through the unchanged strict `_template`; generalise `_workflow_text` over path and renderer and add `_file_step(ctx, "review", REVIEW_WORKFLOW, ...)` after `workflow`; update the module docstring's step list. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_conflicts.py tests/publisher/test_init_remote.py::test_installed_footprint_is_closed -q` passes
-- [ ] 2.2 Per D2, have `_project_steps` return the consumer's `owner/name` beside the URL and add the row to `_manual(url, repo)`. Verify `python -m pytest tests/publisher/test_init_remote.py tests/publisher/test_plugin.py -q` passes, including `test_only_project_writes_remote`. Commit Group 2 as `feat(distribution): install the review caller in every consumer`
+- [x] 2.1 Write `templates/agent-review.yml` per D1, each GitHub expression spelled `$${{ ... }}`, and `render_review_workflow` through the unchanged strict `_template`; generalise `_workflow_text` over path and renderer and add `_file_step(ctx, "review", REVIEW_WORKFLOW, ...)` after `workflow`; update the module docstring's step list. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_conflicts.py tests/publisher/test_init_remote.py::test_installed_footprint_is_closed -q` passes
+- [x] 2.2 Per D2, have `_project_steps` return the consumer's `owner/name` beside the URL and add the row to `_manual(url, repo)`. Verify `python -m pytest tests/publisher/test_init_remote.py tests/publisher/test_plugin.py -q` passes, including `test_only_project_writes_remote`. Commit Group 2 as `feat(distribution): install the review caller in every consumer`
 
 ## 3. Activation (D3)
 
