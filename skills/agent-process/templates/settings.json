@@ -9,9 +9,6 @@
       "autoUpdate": true
     }
   },
-  "enabledPlugins": {
-    "agent-process@agent-process-marketplace": true
-  },
   "hooks": {
     "SessionStart": [
       {

@@ -152,14 +152,19 @@ Run from the consumer's root:
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.
 
-Claude applies the plugin only after the person trusts the folder, and runs the release the machine last
-fetched for the marketplace name: the `ref` in `.claude/settings.json` does not re-point a
-marketplace the machine already knows (#184). The marketplace follows the branch `stable`,
-which each release fast-forwards, with auto-update on, so a machine that did the
-`plugin-channel` row gets a release within a session. At each Claude session start the installed
-check prints `agent-process skill not loaded (<reason>)` when the plugin does not supply
-the skill; the fix is `claude plugin update agent-process@agent-process-marketplace --scope
-<user|project>` and a restart, or enabling the plugin for the project. A machine still on a
+The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude
+plugin install agent-process@agent-process-marketplace`), and applies in every project with no
+project setting: a project that enables it gets a project-scope install per spelling of its path
+(#256). Claude runs the release the machine last fetched for the marketplace name: the `ref` in
+`.claude/settings.json` does not re-point a marketplace the machine already knows (#184). The
+marketplace follows the branch `stable`, which each release fast-forwards, with auto-update on,
+so a machine that did the `plugin-channel` row gets a release within a session. At each Claude
+session start the installed check prints `agent-process skill not loaded (<reason>)` when the
+user-scope install does not supply the skill; the fix is the reason's `claude plugin install`,
+or `claude plugin update agent-process@agent-process-marketplace --scope user` for a stale
+release, and a restart. It prints `agent-process project-scope install applies` with one `claude
+plugin uninstall` command per project-level install of the project, each run from that
+install's path spelling; the person runs them once. A machine still on a
 release tag migrates once, outside any project: set the `ref` of `agent-process-marketplace`
 in `~/.claude/settings.json` to `stable`, run `claude plugin marketplace add
 "ekolvah/agent-process-distribution#stable"`, turn on Enable auto-update for it under

@@ -28,8 +28,8 @@ the installer or the check changing plugin state; the drift message of `start_ch
   (#90519).
 - **D2 — Install removes the entry it wrote.** `_settings_text` drops the plugin's `true` entry
   (an `enabledPlugins` left empty stays, as consumer key); a `false` entry stays a conflict (the consumer's choice, as
-  today); a settings file not in the form init writes stays a conflict whose hand-edit hint no
-  longer names `enabledPlugins`. Already-converged = marketplace entry equal, no plugin entry,
+  today); a settings file not in the form init writes stays a conflict whose hand-edit hint asks
+  to remove the plugin's `enabledPlugins` entry instead of adding it. Already-converged = marketplace entry equal, no plugin entry,
   hooks equal.
 - **D3 — the check's rule, in order:** (1) any enabled non-user record whose `projectPath` folds
   to the project → headline `agent-process project-scope install applies`, one `<version>:

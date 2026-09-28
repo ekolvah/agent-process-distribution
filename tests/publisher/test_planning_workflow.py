@@ -110,6 +110,7 @@ def _launcher_commands(text: str) -> list[str]:
         and len(span.split()) > 1
         and span.split()[1] != "/"  # the check name `agent-process / quality`
         and not span.startswith("agent-process skill not loaded")
+        and not span.startswith("agent-process project-scope install applies")
     ]
 
 
