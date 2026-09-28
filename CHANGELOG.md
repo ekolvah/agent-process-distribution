@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.1...v3.0.2) (2026-09-28)
+
+
+### Bug Fixes
+
+* runnable-skill-commands ([#254](https://github.com/ekolvah/agent-process-distribution/issues/254)) ([2c009af](https://github.com/ekolvah/agent-process-distribution/commit/2c009af2d68b9098cae279043cf148f980852d65))
+
 ## [3.0.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.0...v3.0.1) (2026-09-28)
 
 
