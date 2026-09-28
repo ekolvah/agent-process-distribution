@@ -8,7 +8,7 @@
 
 ## 2. Procedure (D1)
 
-- [ ] 2.1 `skills/agent-process/SKILL.md` Group 0: replace "Its text carries `tracking issue <N>`; the propose tail replaces the placeholder, and both scripts read the token there." with "Its text carries `tracking issue <N>`: the number of the issue the change is planned from, else the placeholder, which the propose tail replaces; both scripts read the token there." `.claude/rules/workflow.md`: "The propose run creates the tracking issue of a change and leaves it in `Planned`." becomes "The propose run leaves the tracking issue of a change in `Planned`, creating it when the change has none." Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit as `fix(planning): Group 0 names the source issue's number`
+- [x] 2.1 `skills/agent-process/SKILL.md` Group 0: replace "Its text carries `tracking issue <N>`; the propose tail replaces the placeholder, and both scripts read the token there." with "Its text carries `tracking issue <N>`: the number of the issue the change is planned from, else the placeholder, which the propose tail replaces; both scripts read the token there." `.claude/rules/workflow.md`: "The propose run creates the tracking issue of a change and leaves it in `Planned`." becomes "The propose run leaves the tracking issue of a change in `Planned`, creating it when the change has none." Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit as `fix(planning): Group 0 names the source issue's number`
 
 ## 3. Verify
 

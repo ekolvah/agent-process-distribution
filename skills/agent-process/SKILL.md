@@ -49,8 +49,9 @@ delta scenario to a named test or `n/a: <reason>`.
 
 1. Group 0 — Delivery start: one task runs `python
    skills/agent-process/scripts/start_change.py <change> --planner Claude --implementer Claude`;
-   the issue records them as provenance. Its text carries `tracking issue <N>`; the propose tail
-   replaces the placeholder, and both scripts read the token there. The script validates the
+   the issue records them as provenance. Its text carries `tracking issue <N>`: the number of
+   the issue the change is planned from, else the placeholder, which the propose tail
+   replaces; both scripts read the token there. The script validates the
    architect review, reads its verdict and the Status of the issue, removes the clean
    worktrees of merged changes, creates the linked branch from `origin/main` in its own
    worktree `.claude/worktrees/<change>`, moves the change's files there, sets In Progress

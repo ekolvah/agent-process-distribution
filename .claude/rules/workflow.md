@@ -24,5 +24,5 @@ so one agent carries a change from approved plan to archived PR.
 When creating an issue, choose its area from the Project's `Area` options yourself and set
 it with `python skills/agent-process/scripts/set_status.py <N> --area <name>` (an unknown
 name exits 2 listing the options)
-(`Todo` comes from the Project's own workflow). The propose run creates the
-tracking issue of a change and leaves it in `Planned`.
+(`Todo` comes from the Project's own workflow). The propose run leaves the
+tracking issue of a change in `Planned`, creating it when the change has none.
