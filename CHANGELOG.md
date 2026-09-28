@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.7.0...v3.0.0) (2026-09-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* the marketplace follows the `stable` branch with auto-update instead of a release tag. Once per machine, outside any project: set the `ref` of `agent-process-marketplace` in `~/.claude/settings.json` to `stable`, run `claude plugin marketplace add "ekolvah/agent-process-distribution#stable"`, turn on Enable auto-update for it under `/plugin` → Marketplaces, then re-run Install in each repository.
+
+### Features
+
+* releases-through-auto-update ([62b0eb0](https://github.com/ekolvah/agent-process-distribution/commit/62b0eb07f88feb2c19f3f28415aff3cab7102f45))
+
 ## [2.7.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.6.1...v2.7.0) (2026-09-28)
 
 
