@@ -12,8 +12,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
 
 ## 4. Deliver
 

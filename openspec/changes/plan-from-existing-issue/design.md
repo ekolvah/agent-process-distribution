@@ -10,7 +10,7 @@ what is missing is the step that puts the number there.
 **Goals:** the planner writes the source issue's number into the token when it writes
 `tasks.md`, so the tail takes the existing-issue branch.
 
-**Non-Goals:** no change to either script; no cleanup of #241 (closed by hand).
+**Non-Goals:** no change to either script; no cleanup of the duplicate, already closed by hand (#241).
 
 ## Decisions
 
@@ -25,15 +25,15 @@ Alternatives:
   proposal need not cite it), so any guard is a heuristic that can refuse a genuine new issue.
 - An `--issue <N>` flag on the tail: a second carrier beside the token that `start_change`
   would still need in `tasks.md`, and the same planner choice at a later step.
-- Rewording the `area required` refusal: #199's run passed `--area` directly, so the refusal
-  was never printed; no observation shows it would have helped.
+- Rewording the `area required` refusal: the observed run passed `--area` directly (#199),
+  so the refusal was never printed; no observation shows it would have helped.
 
 No new script or check, so the bespoke-check decision does not apply.
 
 ## Risks / Trade-offs
 
 - [The planner still writes `<N>` for an issue-born change] → the tail creates a duplicate as
-  in #242, visibly: its output names the new issue number, which differs from the source
+  before (#242), visibly: its output names the new issue number, which differs from the source
   issue the planner started from, and the source issue stays out of `Planned`. The rule sits
   in Group 0, the text the planner copies when writing the token.
 

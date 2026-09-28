@@ -1,10 +1,11 @@
 ## Why
 
 A change planned from an existing issue got a second tracking issue (#242). Observed
-2026-09-28: the propose run for #199 ended with `create_tracking_issue.py
-releases-through-auto-update --area Distribution` on a `tasks.md` that still carried
-`tracking issue <N>`; the script took its create branch and opened #241, a duplicate, while #199
-stayed in `Todo` (fixed by hand: token set to `199`, the tail re-run, #241 closed).
+2026-09-28: the propose run of `releases-through-auto-update`, planned from its issue (#199),
+ended with `create_tracking_issue.py releases-through-auto-update --area Distribution` on a
+`tasks.md` that still carried `tracking issue <N>`; the script took its create branch and
+opened a duplicate (#241), while the source issue stayed in `Todo` (fixed by hand: token set
+to `199`, the tail re-run, the duplicate closed).
 
 Root cause: the procedure never tells the planner where an existing issue's number goes.
 `SKILL.md` Group 0 says only that "the propose tail replaces the placeholder", so the planner
