@@ -2,7 +2,8 @@
 """Publish whether a PR is a release PR: `release=true|false` (ADR 0031).
 
 A release PR changes only the files release-please versions, and each of them (the changelog
-aside) equals its base with the manifest's old versions replaced by the new ones. The config
+aside) has its base's lines, each unchanged or with the manifest's old versions replaced by the
+new ones. The config
 and the manifest are read at the base, so a PR cannot widen the set it is judged by.
 """
 
@@ -77,12 +78,20 @@ def _beyond_the_version(
     for path, status in sorted(statuses.items()):
         if status != "modified":
             return f"{path} is {status}, not modified"
-        expected = base_text[path]
-        for old, new in bumps.items():
-            expected = expected.replace(old, new)
-        if head_text[path] != expected:
+        base_lines = base_text[path].splitlines(keepends=True)
+        head_lines = head_text[path].splitlines(keepends=True)
+        if len(head_lines) != len(base_lines) or not all(
+            head in (base, _bumped(base, bumps))
+            for base, head in zip(base_lines, head_lines, strict=True)
+        ):
             return f"{path} changes more than the version"
     return None
+
+
+def _bumped(line: str, bumps: dict[str, str]) -> str:
+    for old, new in bumps.items():
+        line = line.replace(old, new)
+    return line
 
 
 def _read(repo: str, path: str, ref: str) -> str:

@@ -58,10 +58,24 @@ def test_other_change_in_a_version_file_is_not_a_release_pr() -> None:
     assert reason is not None
     assert PLUGIN in reason
 
-    edited = dict(HEAD, **{INIT: HEAD[INIT].replace("import sys", "import os")})
-    reason = _verdict(head=edited)
-    assert reason is not None
-    assert INIT in reason
+    line = 'VERSION = "2.1.0"  # x-release-please-version\n'
+    for edit in (
+        HEAD[INIT].replace("import sys", "import os"),
+        HEAD[INIT] + "import os\n",
+        HEAD[INIT].replace("import sys\n", ""),
+        HEAD[INIT].rstrip("\n"),
+        HEAD[INIT].replace(line, 'VERSION = "2.1.0"  # edited\n'),
+    ):
+        reason = _verdict(head=dict(HEAD, **{INIT: edit}))
+        assert reason is not None
+        assert INIT in reason
+
+
+def test_old_version_kept_elsewhere_is_a_release_pr() -> None:
+    comment = "# rendered up to 2.0.0\n"
+    base = dict(BASE, **{INIT: comment + BASE[INIT]})
+    head = dict(HEAD, **{INIT: comment + HEAD[INIT]})
+    assert release_verdict(CONFIG, CHANGES, base, head) is None
 
 
 def test_file_outside_the_set_is_not_a_release_pr() -> None:

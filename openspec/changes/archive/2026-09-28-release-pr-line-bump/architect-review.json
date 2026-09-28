@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Root cause observed on PR #258, the line rule is the minimum that fixes it, every delta scenario has a test with RED first, and the loosened guard now names the proof that stops and the catcher reached on the same head.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md Decisions lists the simpler alternative — drop the `3.0.2` literal from the init.py comment — and rejects it because the next literal of an old version blocks the next release (proposal Why, #260); the other alternative (mirror release-please's updaters) is larger, not simpler. The scenario `Old version kept elsewhere` is the one the dropped-literal alternative cannot satisfy for the next release. No indirection or abstraction is added: `_beyond_the_version` keeps its signature and its reason string.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Six scenarios in specs/review-and-merge/spec.md, six entries in tasks.md `## Scenario → test map`: Release PR → test_release_pr_is_recognised (unchanged), Old version kept elsewhere → test_old_version_kept_elsewhere_is_a_release_pr (new, task 1.1), Other change in a version file → test_other_change_in_a_version_file_is_not_a_release_pr (extended, task 1.1), File outside the set → test_file_outside_the_set_is_not_a_release_pr, No release configuration → test_no_release_configuration_means_no_release_pr, Failed read → test_failed_read_fails_the_check. Every named test exists in tests/publisher/test_release_pr.py except the new one.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.2 runs `agent-process check_red tests/publisher/test_release_pr.py::test_old_version_kept_elsewhere_is_a_release_pr`; the test calls the existing `release_verdict` and asserts `None`, so it fails in its body, and the RED commit precedes task 2.1. The extension of test_other_change_in_a_version_file_is_not_a_release_pr passes before the fix by design (it guards the D1 class across the change) and 1.2 records that it stays out of the check_red node ids.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The behaviour the design rests on — release-please rewrites only the annotated line and the JSON version fields — is observed, not inferred: proposal Why cites run 36472852057 (base 1e14286, head 26000da) and PR #258's diff; `gh pr diff 258` confirms the only init.py hunk is `VERSION = \"3.0.2\"  # x-release-please-version` → `\"3.0.3\"`, while skills/agent-process/scripts/init.py:452 keeps the literal `3.0.2` in a comment. The `.release-please-manifest.json`, plugin.json and marketplace.json hunks in the same diff are the version fields only.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D1 replaces whole-file equality by per-line equality and now states beside the decision what stops proving — that every place of the old version was bumped, since an unchanged line passes — with the catcher that is reached: tests/publisher/test_plugin.py::test_version_drift, run by ci_check.py in the `check` job on the release PR's head (ADR 0031 D3, which the tests run on a release PR as on every PR). The catcher is real: test_version_drift asserts plugin.json, marketplace.json and the annotated `VERSION` line of init.py hold the manifest version, so a stale place is red on that head. tasks.md 2.2 rewrites both D1 and D3 of ADR 0031 in the same commit, so the record stops describing the old rule. The reads, the release set and the gates are untouched (design Non-Goals, proposal Impact).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "One catcher is named — tests/publisher/test_plugin.py::test_version_drift — and the delivery step it reaches is traced above: the declared `test` of .github/agent-process-quality.json (`python .agent-process/scripts/ci_check.py`) in the `check` job that runs on a release PR head, and locally at tasks 2.2 and 3.2. The plan's other verification steps (pytest at 2.1, `openspec validate --strict --all` at 3.1) are the repository's standard ones.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec requirement gains 24 words (\"has as many lines as its base, and each of its lines equals the base line or the base line with each old manifest version replaced by the new one\"), each clause asserted: line count by the appended-line and removed-line cases of task 1.1, per-line equality by the edited-line and dropped-final-newline cases, the substituted-line branch by the unchanged Release PR test, the base-line branch by the new test. The new scenario (30 words) is asserted by the new test end to end. The reworded \"Other change in a version file\" scenario (28 words) is asserted by the extended test. The design's added catcher sentence and the ADR D1/D3 rewrites are prose over code the tests already cover (test_version_drift, the release_pr tests) and carry the repository's structural doc tests at 2.2.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script or check is added: D1 states \"No new script or check: the existing check's rule is corrected\", and Impact lists edits to .agent-process/scripts/release_pr.py, its test, the ADR and the archived spec, with \"Added and removed: none\". The verification commands are the repository's standard ones (pytest, openspec validate, ci_check.py).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
