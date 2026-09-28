@@ -32,7 +32,8 @@ Steps 8-9 are classified from `gh` reads of the repository's linked Projects and
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
-`CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change. Nothing is committed or pushed, and the Project copy and link are
+`CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
+once-per-machine step that points the marketplace at `stable` with auto-update. Nothing is committed or pushed, and the Project copy and link are
 the only GitHub writes. `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -358,7 +359,8 @@ def release_drift(root: Path, script_dir: Path) -> str | None:
     if parsed and _release(parsed[0]) > _release(VERSION):
         return (
             f"{head} — update the skill to {recorded}: "
-            f"`/plugin marketplace update agent-process-marketplace`; then restart the session"
+            "`claude plugin update agent-process@agent-process-marketplace --scope <user|project>` "
+            "(the scope `claude plugin list` shows for this project); then restart the session"
         )
     install = TEMPLATES.parent / "SKILL.md"
     return f"{head} — re-run Install with this skill ({install}#install)"
@@ -728,6 +730,9 @@ def _manual(url: str | None, repo: str) -> list[str]:
         "views with this repository's own",
         f"manual review-secret: https://github.com/{repo}/settings/secrets/actions -- set "
         "CLAUDE_CODE_OAUTH_TOKEN, the token the review caller passes to the review",
+        "manual plugin-channel: once per machine -- claude plugin marketplace add "
+        f'"{GITHUB_REPO}#stable", then /plugin -> Marketplaces -> '
+        "Enable auto-update for agent-process-marketplace",
     ]
 
 

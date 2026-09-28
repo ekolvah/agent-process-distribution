@@ -140,7 +140,8 @@ skill's own directory. Run from the consumer's root:
 3. Ask once; on yes run the same command with `--confirm` instead of `--dry-run`.
 4. Tell the person to review and commit the changed files and to do the `manual` rows:
    the `project-*` rows in the Project's UI, and the `review-secret` row, which sets the
-   repository's `CLAUDE_CODE_OAUTH_TOKEN` secret the review caller passes to the review.
+   repository's `CLAUDE_CODE_OAUTH_TOKEN` secret the review caller passes to the review, and
+   the `plugin-channel` row, once per machine and outside any project.
    The installer never commits or pushes; its only GitHub writes are the copy of the
    template Project and its link to the repository.
 5. Once the installation PR shows `agent-process / quality` and `agent-review / agent-review`
@@ -152,7 +153,13 @@ skill's own directory. Run from the consumer's root:
 
 Claude applies the plugin only after the person trusts the folder, and runs the release the machine last
 fetched for the marketplace name: the `ref` in `.claude/settings.json` does not re-point a
-marketplace the machine already knows (#184). At each Claude session start the installed
+marketplace the machine already knows (#184). The marketplace follows the branch `stable`,
+which each release fast-forwards, with auto-update on, so a machine that did the
+`plugin-channel` row gets a release within a session. At each Claude session start the installed
 check prints `agent-process skill not loaded (<reason>)` when the plugin does not supply
-the skill; the fix is `/plugin marketplace update agent-process-marketplace` and a restart,
-or enabling the plugin for the project.
+the skill; the fix is `claude plugin update agent-process@agent-process-marketplace --scope
+<user|project>` and a restart, or enabling the plugin for the project. A machine still on a
+release tag migrates once, outside any project: set the `ref` of `agent-process-marketplace`
+in `~/.claude/settings.json` to `stable`, run `claude plugin marketplace add
+"ekolvah/agent-process-distribution#stable"`, turn on Enable auto-update for it under
+`/plugin` → Marketplaces, then re-run Install in each repository.
