@@ -209,7 +209,7 @@ def test_rework_verdict() -> None:
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     assert "review again" in text and "propose run ends on `approve`" in text
     # The gate is `start_change.py` reading the verdict (v2-2f), not a grep in the procedure.
-    assert "start_change.py" in text
+    assert "agent-process start_change" in text
     assert 'grep -q "^approve"' not in text
     # The gate is stated once: no second copy as apply guidance.
     assert "apply" not in config.get("operations", {})
@@ -257,11 +257,11 @@ def test_review_archives_with_the_change(tmp_path: Path) -> None:
 def test_tasks_of_a_new_change() -> None:
     text = _skill()
     assert (
-        text.index("start_change.py")
-        < text.index("check_red.py")
-        < text.index("archive_change.py")
+        text.index("agent-process start_change")
+        < text.index("agent-process check_red")
+        < text.index("agent-process archive_change")
         < text.index("gh pr create")
-        < text.index("wait_for_pr.py")
+        < text.index("agent-process wait_for_pr")
     )
     for part in (
         "tracking issue <N>",
@@ -396,17 +396,17 @@ def test_reviewer_adapter_reads_the_shared_contract() -> None:
 def test_plan_approved() -> None:
     text = _skill()
     review = _section("Architect review")
-    assert text.index("## Architect review") < text.index("create_tracking_issue.py")
+    assert text.index("## Architect review") < text.index("agent-process create_tracking_issue")
     # The tail is one command: the planner chooses the area, asking the person nothing.
-    assert review.index("choose the area") < review.index("create_tracking_issue.py")
+    assert review.index("choose the area") < review.index("agent-process create_tracking_issue")
     assert re.search(r"\bask", review) is None
-    assert review.index("create_tracking_issue.py") < review.index("--area")
+    assert review.index("agent-process create_tracking_issue") < review.index("--area")
     assert "priority" not in review
     assert "Planned" in review
     # Group 0 asks nothing and creates nothing: the token is how the number reaches the
     # implementer of another session, and a propose run that stopped short is a visible stop.
     group0 = _group0()
-    assert "start_change.py" in group0
+    assert "agent-process start_change" in group0
     assert "tracking issue <N>" in group0
     assert "propose run not finished" in group0
     for absent in ("create_tracking_issue", "priority", "--area", "Planned", "gh issue view"):

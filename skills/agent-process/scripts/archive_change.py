@@ -55,17 +55,23 @@ def _runner(root: Path) -> Run:
 
 
 def _mark_own_task(tasks: Path, change: str) -> None:
-    """Tick the task item naming `archive_change.py <change>` anywhere in its lines."""
+    """Tick the task item naming `agent-process archive_change <change>` anywhere in its lines.
+
+    The older `archive_change.py <change>` of an in-flight `tasks.md` ticks too.
+    """
     text = tasks.read_text(encoding="utf-8")
     # A task item runs from its `- [ ] ` line to the next list item or heading.
     item = re.compile(r"^- \[ \] (?:(?!^- \[|^#).)*", re.M | re.S)
-    command = re.compile(rf"archive_change\.py {re.escape(change)}\b")
+    command = re.compile(rf"archive_change(?:\.py)? {re.escape(change)}\b")
     for match in item.finditer(text):
         if command.search(match.group()):
             text = text[: match.start()] + "- [x] " + text[match.start() + len("- [ ] ") :]
             tasks.write_text(text, encoding="utf-8")
             return
-    print(f"note: no unchecked `archive_change.py {change}` task in {tasks}; nothing marked")
+    print(
+        f"note: no unchecked `agent-process archive_change {change}` task in {tasks}; "
+        "nothing marked"
+    )
 
 
 def archive_change(change: str, *, root: Path = Path("."), run: Run | None = None) -> int:

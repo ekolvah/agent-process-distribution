@@ -16,8 +16,8 @@
 
 ## 3. Procedure and archive tick (D4, D5)
 
-- [ ] 3.1 `skills/agent-process/SKILL.md`: every printed `python skills/agent-process/scripts/<name>.py` becomes `agent-process <name>` with the same arguments (Tasks groups 0–1, Architect review, Delivery, Install steps 2 and 5); the header says the commands run through the Bash tool from the repository root, `agent-process` being the plugin's launcher; drop the Install sentence mapping `skills/agent-process/` to the skill's own directory. Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_plugin.py -q` passes
-- [ ] 3.2 `skills/agent-process/scripts/archive_change.py::_mark_own_task`: match `archive_change(?:\.py)? <change>\b` and name `agent-process archive_change <change>` in the docstring and the `note:` line. Verify `python -m pytest tests/publisher/test_pr_delivery.py -q` passes. Commit as `fix(distribution): skill commands name the plugin launcher`
+- [x] 3.1 `skills/agent-process/SKILL.md`: every printed `python skills/agent-process/scripts/<name>.py` becomes `agent-process <name>` with the same arguments (Tasks groups 0–1, Architect review, Delivery, Install steps 2 and 5); the header says the commands run through the Bash tool from the repository root, `agent-process` being the plugin's launcher; drop the Install sentence mapping `skills/agent-process/` to the skill's own directory. Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_plugin.py -q` passes
+- [x] 3.2 `skills/agent-process/scripts/archive_change.py::_mark_own_task`: match `archive_change(?:\.py)? <change>\b` and name `agent-process archive_change <change>` in the docstring and the `note:` line. Verify `python -m pytest tests/publisher/test_pr_delivery.py -q` passes. Commit as `fix(distribution): skill commands name the plugin launcher`
 
 ## 4. Verify
 
