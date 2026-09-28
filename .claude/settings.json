@@ -3,8 +3,7 @@
     "agent-process-marketplace": {
       "source": {
         "source": "github",
-        "repo": "ekolvah/agent-process-distribution",
-        "sparsePaths": [".claude-plugin", "agents", "commands", "skills/agent-process"]
+        "repo": "ekolvah/agent-process-distribution"
       }
     }
   },
