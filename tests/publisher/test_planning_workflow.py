@@ -395,6 +395,14 @@ def test_plan_approved() -> None:
         assert absent not in group0, absent
 
 
+def test_plan_from_an_existing_issue() -> None:
+    """Scenario: Plan from an existing issue — the planner writes its number (#242: a
+    placeholder sent the tail down its create branch and duplicated #199 as #241)."""
+    group0 = _group0()
+    assert "tracking issue <N>" in group0
+    assert "the number of the issue the change is planned from" in group0
+
+
 def test_plan_is_explained_for_solution_review() -> None:
     """Scenario: Plan ready — the explanation follows `Planned` and never goes silent."""
     review = _section("Architect review")
