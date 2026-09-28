@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Root cause and every platform behaviour are observed, the design is the smaller of the two plans and adds no script, each dropped guard has a replacement with a catcher, every delta scenario names a test, and Group 1's twelve node ids all fail in their body today.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 names the simpler alternative (the previous plan: keep `enabledPlugins`, print a per-record `claude plugin update`) and rejects it with two observations of proposal — Why: the duplicates come from our own entry, and `update` on a spelling miss updates another repository (#90519). The smaller variant (drop `enabledPlugins`, leave the check alone) is rejected by the load-order observation: with user 3.0.2 first and a stale `C:` record, 3.0.2 loaded while the check printed `several installs apply` — the false alarm the `Project-scope install applies` scenario removes. Nothing new is introduced: D3 is one ordered rule of four branches inside the existing `verdict`, D4 two shell forms of one string, D2 an edit of `_settings_text`.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Ten delta scenarios, ten rows, every one a named test that exists in tests/publisher/: Process change and Repository settings → test_plugin.py::test_publisher_dogfoods_process; Fresh repository → test_init_remote.py::test_installed_footprint_is_closed; Installation of another release → test_init_config.py::test_rerender_replaces_only_owned_content; Skill loaded → test_skill_check.py::test_loaded_is_silent; Project-scope install applies → ::test_project_record_is_reported, ::test_drive_letter_records_name_cmd_commands, ::test_posix_record_uses_cd; Skill not loaded → ::test_not_loaded_is_marked; Check cannot decide → ::test_undecidable_is_marked; Channel render → test_plugin.py::test_marketplace_follows_stable (its docstring already carries that scenario); Machine channel step → test_init_remote.py::test_manual_actions_are_printed.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 (1.1 skill-check tests, 1.2 installer/settings/SKILL.md tests, 1.3 the gate and the RED commit) runs before group 2, and 1.3 now passes `check_red` twelve explicit node ids, each of which fails in its body against today's code: the three new tests (`verdict` returns `str | None`, so the importlib tests' unpack raises, and a user + project listing yields `several installs apply`, not `PROJECT_MARKER`); `test_not_loaded_is_marked[no-entry|disabled|other-project]` (today's `not enabled for this project` names no install command) and `[several-user]` (today's reason is `several installs apply: 0.1.0, 2.0.0`, the assertion `several user-scope installs: 0.1.0, 2.0.0`, which also pins D3's new branch); and the five changed installer, settings and Install-text tests, whose files still carry the `enabledPlugins` entry and `trusts the folder`. `[no-skill]` stays out with its reason, and the two unchanged cases of the map (test_loaded_is_silent, test_undecidable_is_marked) are not in the list — so the gate, which exits 1 on any green test, sees only reds.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every behaviour the design rests on carries its observation in proposal — Why (2026-09-28, `claude` 2.1.283, `-p` sessions against a copied plugins root): the cwd-keyed project record and the settings that create none; first-in-file-order loading; the `c:`/`C:` duplicate (anthropics/claude-code#75855); `uninstall --scope project` removing only the exactly-spelled record and exiting 1 otherwise, unlike `update` (#90519); cmd's `cd /d` keeping the lowercase drive letter (D4). The freshness of the single user record is observed in the person's registry at the release-3.0.2 auto-update pass (2026-09-28 15:05:10Z: the user record moved to 3.0.2 while other repositories' project records stayed behind, sandbox-2 on 3.0.1) and backed by the plugins/loading sentence on auto-update; D1 cites both for Install's \"gets a release within a session\".",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The project-declared `enabledPlugins` is replaced by a per-machine user-scope install: design — Risks names the failure mode (a collaborator without the `plugin-channel` row) and the catcher (the session-start check printing `not installed at user scope` with the install command), and Migration Plan the per-repository and per-machine steps. The dropped `several installs apply` guard is replaced case by case: D3 (1) for a project record that does load, (3) for several distinct enabled user installs → `several user-scope installs: <versions>`, keeping today's `installPath` dedupe as the catcher; the spec's `Skill not loaded` scenario names \"several distinct ones\" and task 1.1 asserts that reason text.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Each named catcher reaches a delivery step: the installed `.claude/agent-process-check.py`, run by the installer-owned `hooks.SessionStart` entry, fires at every consumer session start, so a machine that skipped the `plugin-channel` row, every leftover project record, and a duplicate user record are reported with the command that fixes them; this repository's own settings are held by tests/publisher/test_plugin.py::test_publisher_dogfoods_process and the installer footprint by test_init_remote.py::test_installed_footprint_is_closed and test_init_config.py::test_rerender_replaces_only_owned_content — all inside the `test` the Verify group runs (task 3.2) and the pre-delivery gate.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The `enabledPlugins`-when-empty clause is gone from both the requirement `The installed footprint is closed` (it ends at \"that is `true`\") and D2 (\"an `enabledPlugins` left empty stays, as consumer key\"). In the session-start requirement the project-scope branch's words are asserted: the scenario names the Install URL and 1.1 asserts `URL` in the `systemMessage` and `PROJECT_MARKER` in the `additionalContext`, beside the headline, the `cd /d`/`cd` forms with the record's spelling and `--scope project`. The other edits are small and asserted: +9 words in the dogfood requirement (1.2's `\"enabledPlugins\" not in settings`), +16 in the channel requirement (test_manual_actions_are_printed), +5 in the `Skill not loaded` scenario (the `several-user` case).",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design.md closes Decisions with \"No new script or check: the change edits an existing installer step, template, and check\", and proposal — Impact matches: only templates/settings.json, scripts/init.py, templates/skill_check.py, SKILL.md and .claude/settings.json are edited, with no new file.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

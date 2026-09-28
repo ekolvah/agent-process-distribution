@@ -82,7 +82,7 @@ def test_rerender_replaces_only_owned_content(
                 }
             },
         },
-        "enabledPlugins": {"mine@mine": True},
+        "enabledPlugins": {"mine@mine": True, PLUGIN: True},
         "hooks": {
             "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "mine"}]}],
             "SessionStart": [
@@ -124,7 +124,7 @@ def test_rerender_replaces_only_owned_content(
     )
     assert data["extraKnownMarketplaces"][MARKETPLACE]["source"]["ref"] == "stable"
     assert data["extraKnownMarketplaces"][MARKETPLACE]["autoUpdate"] is True
-    assert data["enabledPlugins"] == {"mine@mine": True, PLUGIN: True}
+    assert data["enabledPlugins"] == {"mine@mine": True}
     assert data["hooks"] == {
         "PreToolUse": consumer_settings["hooks"]["PreToolUse"],
         "SessionStart": [consumer_settings["hooks"]["SessionStart"][0], CHECK_GROUP],

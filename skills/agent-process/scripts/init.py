@@ -21,7 +21,8 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 3. workflow  the managed `.github/workflows/agent-process.yml`
 4. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
 5. dependabot  the marker block of `.github/dependabot.yml`
-6. settings  two keys and the owned `SessionStart` hook group of `.claude/settings.json`
+6. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
+             removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
 7. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
 8. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
@@ -32,7 +33,8 @@ owner's Projects, never from a previous run's output, so a retry reuses a copy t
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
 `CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
-once-per-machine step that points the marketplace at `stable` with auto-update. While
+once-per-machine step that points the marketplace at `stable` with auto-update and installs the
+plugin at user scope. While
 `.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
 installer asks for no quality command and never writes that file, which the change that adds
 the first tests declares (#249). Nothing is committed or pushed, and the Project copy and link are
@@ -507,21 +509,29 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     if plugins.get(PLUGIN, True) is not True:
         raise Conflict(f"`{PLUGIN}` is set to {json.dumps(plugins[PLUGIN])}")
     entry = wanted["extraKnownMarketplaces"][MARKETPLACE]
-    if market == entry and plugins.get(PLUGIN) is True and starts == new_starts:
+    if market == entry and PLUGIN not in plugins and starts == new_starts:
         return text, text or ""
     # Re-serialising is lossless only from the form written here; any other form (spacing,
     # key order, escapes, repeated keys) is the person's to edit.
     if text is not None and text != json.dumps(data, indent=2, ensure_ascii=False) + "\n":
         raise Conflict(
             f'is not in the form init writes; add `"extraKnownMarketplaces": {{"{MARKETPLACE}":'
-            f' {json.dumps(entry)}}}`, `"enabledPlugins": {{"{PLUGIN}": true}}` and the'
-            f" `hooks.SessionStart` group {json.dumps(group)} by hand"
+            f" {json.dumps(entry)}}}` and the `hooks.SessionStart` group {json.dumps(group)},"
+            f" and remove the `{PLUGIN}` entry of `enabledPlugins`, by hand"
         )
-    updated = dict(data)
+    updated = _without_plugin(data)
     updated["extraKnownMarketplaces"] = {**marketplaces, MARKETPLACE: entry}
-    updated["enabledPlugins"] = {**plugins, PLUGIN: True}
     updated["hooks"] = {**hooks, "SessionStart": new_starts}
     return text, json.dumps(updated, indent=2, ensure_ascii=False) + "\n"
+
+
+def _without_plugin(data: dict[str, Any]) -> dict[str, Any]:
+    """A copy of `data` without the plugin's `enabledPlugins` entry, which earlier releases wrote.
+    An emptied `enabledPlugins` stays: the key is the consumer's."""
+    if "enabledPlugins" not in data:
+        return dict(data)
+    plugins = {k: v for k, v in data["enabledPlugins"].items() if k != PLUGIN}
+    return {**data, "enabledPlugins": plugins}
 
 
 def _session_starts(
@@ -762,7 +772,8 @@ def _manual(url: str | None, repo: str, root: Path) -> list[str]:
         "CLAUDE_CODE_OAUTH_TOKEN, the token the review caller passes to the review",
         "manual plugin-channel: once per machine -- claude plugin marketplace add "
         f'"{GITHUB_REPO}#stable", then /plugin -> Marketplaces -> '
-        "Enable auto-update for agent-process-marketplace",
+        "Enable auto-update for agent-process-marketplace, then claude plugin install "
+        f"{PLUGIN}",
     ]
 
 

@@ -1,0 +1,40 @@
+## 0. Delivery start
+
+- [x] 0.1 Run `agent-process start_change user-scope-plugin --planner Claude --implementer Claude` for tracking issue 256. Verify that it reads the approved review, creates the linked branch from `origin/main` in `.claude/worktrees/user-scope-plugin`, moves the change there, sets In Progress and posts the provenance line; enter that worktree with `EnterWorktree` and run every later task there
+
+## 1. RED first
+
+- [x] 1.1 `tests/publisher/test_skill_check.py` (D3, D5): add `PROJECT_MARKER = "agent-process project-scope install applies"`. Replace `test_case_differing_project_paths_are_one_project` with `test_project_record_is_reported`: a user record (`2.0.0`) and a project record with `projectPath` = the swapcased project dir → `systemMessage` and `additionalContext` name `PROJECT_MARKER` and not `MARKER`, the `systemMessage` holds `URL` and `"<swapcased path>" && claude plugin uninstall agent-process@agent-process-marketplace --scope project`. Replace the `several-installs` case of `test_not_loaded_is_marked` with `several-user` (two user records on distinct installs `2.0.0`, `0.1.0`; assert `several user-scope installs: 0.1.0, 2.0.0` in the `systemMessage`); for `no-entry`, `disabled` and `other-project` assert `claude plugin install agent-process@agent-process-marketplace` in the `systemMessage`. Add `test_drive_letter_records_name_cmd_commands`: `verdict` loaded with `importlib.util.spec_from_file_location` from `CHECK`, project `c:\Users\u\repo`, listing = user record + project records `c:\Users\u\repo` (3.0.2) and `C:\Users\u\repo` (3.0.1) on real skill dirs under `tmp_path` → headline is `PROJECT_MARKER`, reason holds `cd /d "c:\Users\u\repo" && claude plugin uninstall agent-process@agent-process-marketplace --scope project` and the same with `C:`. Add `test_posix_record_uses_cd`: project `/home/u/repo`, user + project record → `cd "/home/u/repo" && …--scope project`, no `cd /d`
+- [x] 1.2 Installer and settings tests (D2): in `test_init_remote.py::test_installed_footprint_is_closed` expect no `enabledPlugins`; in `test_init_config.py::test_rerender_replaces_only_owned_content` start from `{"mine@mine": True, PLUGIN: True}` and expect `{"mine@mine": True}`; in `test_init_remote.py::test_manual_actions_are_printed` assert `claude plugin install agent-process@agent-process-marketplace` in the `plugin-channel` row; in `test_plugin.py::test_publisher_dogfoods_process` assert `"enabledPlugins" not in settings`; in `test_planning_workflow.py::test_install_names_the_skill_marker` assert `agent-process project-scope install applies`, `claude plugin install agent-process@agent-process-marketplace` and `claude plugin uninstall` in Install, and `trusts the folder` not in it
+- [x] 1.3 Run `agent-process check_red tests/publisher/test_skill_check.py::test_project_record_is_reported "tests/publisher/test_skill_check.py::test_not_loaded_is_marked[no-entry]" "tests/publisher/test_skill_check.py::test_not_loaded_is_marked[disabled]" "tests/publisher/test_skill_check.py::test_not_loaded_is_marked[other-project]" "tests/publisher/test_skill_check.py::test_not_loaded_is_marked[several-user]" tests/publisher/test_skill_check.py::test_drive_letter_records_name_cmd_commands tests/publisher/test_skill_check.py::test_posix_record_uses_cd tests/publisher/test_init_remote.py::test_installed_footprint_is_closed tests/publisher/test_init_remote.py::test_manual_actions_are_printed tests/publisher/test_init_config.py::test_rerender_replaces_only_owned_content tests/publisher/test_plugin.py::test_publisher_dogfoods_process tests/publisher/test_planning_workflow.py::test_install_names_the_skill_marker` (`[no-skill]` is unchanged and stays out) and verify each fails in its body. Commit as `test(distribution): plugin at user scope, project records reported`
+
+## 2. Fix
+
+- [x] 2.1 `skills/agent-process/templates/skill_check.py` (D3, D4): `verdict` returns `(headline, reason)` or `None` by the rule of D3; `main` prints the headline it gets and, for the project-scope headline, an `additionalContext` telling the agent to tell the person. Update the module docstring. Verify `python -m pytest tests/publisher/test_skill_check.py -q` passes
+- [x] 2.2 `skills/agent-process/templates/settings.json`: drop `enabledPlugins`. `skills/agent-process/scripts/init.py`: `_settings_text` per D2; the `plugin-channel` row appends `, then claude plugin install agent-process@agent-process-marketplace`; the module docstring's footprint sentence. `.claude/settings.json`: drop `enabledPlugins`. Verify `python -m pytest tests/publisher/test_init_remote.py tests/publisher/test_init_config.py tests/publisher/test_init_conflicts.py tests/publisher/test_plugin.py -q` passes
+- [x] 2.3 `skills/agent-process/SKILL.md` Install (lines 155–166): the plugin is installed at user scope by the `plugin-channel` row and needs no folder trust; the check prints `agent-process skill not loaded (<reason>)` or `agent-process project-scope install applies` with the `claude plugin uninstall` command per record; the fix for a stale release is `claude plugin update agent-process@agent-process-marketplace --scope user`. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit as `fix(distribution): plugin at user scope, project records reported`
+
+## 3. Verify
+
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
+
+## 4. Deliver
+
+- [x] 4.1 With a clean worktree, run `agent-process archive_change user-scope-plugin`. Verify that it archives the delta into `openspec/specs/distribution/spec.md`, commits, and pushes the branch
+- [ ] 4.2 Run `gh pr create --title "fix: user-scope-plugin" --body-file <report>`. The report references the tracking issue plainly, never with `Closes` (#256), and carries the scenario → test map, the observations of proposal — Why, and the per-machine migration (design — Migration Plan)
+- [ ] 4.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
+- [ ] 4.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change in the final message. The person merges it
+
+## Scenario → test map
+
+- `distribution` / Process change → `tests/publisher/test_plugin.py::test_publisher_dogfoods_process` (hook runs the repository's template)
+- `distribution` / Repository settings → `tests/publisher/test_plugin.py::test_publisher_dogfoods_process`
+- `distribution` / Fresh repository → `tests/publisher/test_init_remote.py::test_installed_footprint_is_closed`
+- `distribution` / Installation of another release → `tests/publisher/test_init_config.py::test_rerender_replaces_only_owned_content`
+- `distribution` / Skill loaded → `tests/publisher/test_skill_check.py::test_loaded_is_silent` (unchanged)
+- `distribution` / Project-scope install applies → `tests/publisher/test_skill_check.py::test_project_record_is_reported`; `::test_drive_letter_records_name_cmd_commands`; `::test_posix_record_uses_cd`
+- `distribution` / Skill not loaded → `tests/publisher/test_skill_check.py::test_not_loaded_is_marked`
+- `distribution` / Check cannot decide → `tests/publisher/test_skill_check.py::test_undecidable_is_marked` (unchanged)
+- `distribution` / Channel render → `tests/publisher/test_plugin.py::test_marketplace_follows_stable` (unchanged)
+- `distribution` / Machine channel step → `tests/publisher/test_init_remote.py::test_manual_actions_are_printed`
