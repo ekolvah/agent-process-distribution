@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.0.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.2...v3.0.3) (2026-09-28)
+
+
+### Bug Fixes
+
+* declare-quality-with-first-tests ([#257](https://github.com/ekolvah/agent-process-distribution/issues/257)) ([dd92525](https://github.com/ekolvah/agent-process-distribution/commit/dd92525f99e3bd65da3b414334767231cbc9bc33))
+* release-pr-line-bump ([#261](https://github.com/ekolvah/agent-process-distribution/issues/261)) ([1e159c2](https://github.com/ekolvah/agent-process-distribution/commit/1e159c2a04b9c8231409b9ffb122b2a61e16ffe7))
+* user-scope-plugin ([#259](https://github.com/ekolvah/agent-process-distribution/issues/259)) ([1e14286](https://github.com/ekolvah/agent-process-distribution/commit/1e14286d8929f688b209bfa2d10f02a54fa3d4a5))
+
 ## [3.0.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.1...v3.0.2) (2026-09-28)
 
 

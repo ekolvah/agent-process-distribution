@@ -59,7 +59,7 @@ from typing import Any, Callable
 
 import quality
 
-VERSION = "3.0.2"  # x-release-please-version
+VERSION = "3.0.3"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
 REPOSITORY_ENV = "AGENT_PROCESS_REPOSITORY"
 GITHUB_REPO = "ekolvah/agent-process-distribution"
