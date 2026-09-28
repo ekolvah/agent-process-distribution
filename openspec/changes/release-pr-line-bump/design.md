@@ -30,7 +30,7 @@ Alternatives:
 - *Accept only lines annotated `x-release-please-version` and JSON `version` fields* —
   mirrors release-please's updaters (generic annotations, blocks, JSON paths, TOML, YAML) in
   bespoke code that drifts with them; the line rule needs no knowledge of formats.
-- *Drop the `3.0.2` literal from the `init.py` comment* — unblocks #258 only; the next literal
+- *Drop the `3.0.2` literal from the `init.py` comment* — unblocks PR 258 only; the next literal
   of an old version blocks the next release again.
 
 ## Risks / Trade-offs
@@ -44,4 +44,4 @@ Alternatives:
 ## Migration Plan
 
 None for consumers: the gates read the script from the trusted process source. After the merge
-release-please rebuilds #258 and its gates re-run. Rollback: revert the PR.
+release-please rebuilds PR 258 and its gates re-run. Rollback: revert the PR.

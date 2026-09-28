@@ -28,8 +28,10 @@ Chosen: **recognise the release PR by its diff, exempt it, and let auto-merge me
 * **D1 — the diff.** `.agent-process/scripts/release_pr.py` reads `release-please-config.json`
   and `.release-please-manifest.json` at the base (a PR cannot widen the set it is judged by).
   A release PR changes only the config's `extra-files`, the manifest and the changelog; the
-  manifest changes a version; every changed file but the changelog is `modified` and equals its
-  base with each `old → new` version replaced. A compare listing 300 files (the API's limit) is
+  manifest changes a version; every changed file but the changelog is `modified`, has as many
+  lines as its base, and each line equals its base line or that line with each `old → new`
+  version replaced (issue 260: release-please rewrites only the version places, so a comment
+  keeping the old version must pass). A compare listing 300 files (the API's limit) is
   not a release PR. A repository without the config has no release PR.
 * **D2 — one script from the trusted source.** `quality.yml` job `link` and
   `reusable-agent-review.yml` check out this repository at `job.workflow_sha` (issue 226: the former name was never set) and run the
@@ -38,8 +40,9 @@ Chosen: **recognise the release PR by its diff, exempt it, and let auto-merge me
   Codex wait, so the Claude fallback and its verification do not run either; the tests
   (`plan`, `check`) and the P0/P1 thread enforcement run as on every PR.
 * **D3 — what stops proving.** The issue link: the changelog entries name the `feat`/`fix` PRs,
-  each linked on its own head. The review: only version substitutions pass D1, and
-  `test_version_drift` runs in `check` on the same head. The person's look at `CHANGELOG.md`
+  each linked on its own head. The review: D1 passes only lines unchanged or changed by the
+  version; a version place left unbumped fails `test_version_drift`, which runs in `check` on
+  the same head. The person's look at `CHANGELOG.md`
   before the tag: nothing replaces it, so a wrong but valid type (`docs` on a behaviour change)
   shows in the release notes after the release and the next `fix` corrects it.
 * **D4 — auto-merge.** `release-please.yml` runs `gh pr merge --auto --squash` on the PR the

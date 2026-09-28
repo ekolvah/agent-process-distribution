@@ -1,6 +1,6 @@
 ## Why
 
-Release PR #258 (`chore(main): release 3.0.3`) fails `agent-process / link` with
+Release PR 258 (`chore(main): release 3.0.3`) fails `agent-process / link` with
 `not a release PR: skills/agent-process/scripts/init.py changes more than the version`, and
 `agent-process / quality` fails after it (run 36472852057, base `1e14286`, head `26000da`). The
 PR's diff of that file is the one annotated line `VERSION = "3.0.2"  # x-release-please-version`
@@ -35,5 +35,5 @@ in a versioned file blocks the next release this way (#260).
   `.agent-process/docs/adr/0031-release-prs-merge-without-the-person.md` (D1 wording),
   `openspec/specs/review-and-merge/spec.md` (by the archive).
 - Added and removed: none.
-- After the merge, release-please rebuilds #258 on the new `main` and its gates run again with
+- After the merge, release-please rebuilds PR 258 on the new `main` and its gates run again with
   the fixed detector; no consumer action.

@@ -9,8 +9,8 @@
 
 ## 2. Fix
 
-- [ ] 2.1 `.agent-process/scripts/release_pr.py` (D1): `_beyond_the_version` compares `splitlines(keepends=True)` of base and head — the counts match and each head line equals its base line or that line with every bump applied — and keeps the reason `<path> changes more than the version`; the module docstring states the line rule. Verify `python -m pytest tests/publisher/test_release_pr.py -q` passes
-- [ ] 2.2 `.agent-process/docs/adr/0031-release-prs-merge-without-the-person.md` D1: "equals its base with each `old → new` version replaced" becomes the line rule of D1; D3's "only version substitutions pass D1" becomes "D1 passes only lines unchanged or changed by the version; a version place left unbumped fails `test_version_drift`, which runs in `check` on the same head". Verify `python -m pytest tests/agent_process/test_doc_narrative.py tests/agent_process/test_adr_records.py tests/agent_process/test_doc_links.py -q` passes. Commit as `fix(review): release PR recognised line by line`
+- [x] 2.1 `.agent-process/scripts/release_pr.py` (D1): `_beyond_the_version` compares `splitlines(keepends=True)` of base and head — the counts match and each head line equals its base line or that line with every bump applied — and keeps the reason `<path> changes more than the version`; the module docstring states the line rule. Verify `python -m pytest tests/publisher/test_release_pr.py -q` passes
+- [x] 2.2 `.agent-process/docs/adr/0031-release-prs-merge-without-the-person.md` D1: "equals its base with each `old → new` version replaced" becomes the line rule of D1; D3's "only version substitutions pass D1" becomes "D1 passes only lines unchanged or changed by the version; a version place left unbumped fails `test_version_drift`, which runs in `check` on the same head". Verify `python -m pytest tests/agent_process/test_doc_narrative.py tests/agent_process/test_adr_records.py tests/agent_process/test_doc_links.py -q` passes. Commit as `fix(review): release PR recognised line by line`
 
 ## 3. Verify
 
