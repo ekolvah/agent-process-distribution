@@ -10,5 +10,4 @@ rules:
     - Follow the Design section of the agent-process skill.
   tasks:
     - Follow the Tasks, Architect review, and Delivery sections of the agent-process skill.
-    - ${quality}
 # agent-process:end

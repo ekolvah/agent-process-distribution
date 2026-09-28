@@ -30,7 +30,12 @@ def load_init() -> ModuleType:
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    # As `python init.py` does: the script's directory resolves its sibling imports.
+    sys.path.insert(0, str(INIT.parent))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(INIT.parent))
     return module
 
 
