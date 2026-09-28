@@ -238,8 +238,16 @@ def test_archive_runner_reports_a_failed_command_whose_output_is_not_utf8() -> N
         runner([sys.executable, "-c", child])
 
 
-def test_archive_commit(tmp_path: Path) -> None:
-    """Scenarios: Archive commit, Stale archive lock."""
+@pytest.mark.parametrize(
+    "own_task",
+    [
+        "python skills/agent-process/scripts/archive_change.py {change}",
+        "agent-process archive_change {change}",
+    ],
+    ids=["python", "agent-process"],
+)
+def test_archive_commit(tmp_path: Path, own_task: str) -> None:
+    """Scenarios: Archive commit, Stale archive lock; either command form ticks the own task."""
     archive_change = load_script("archive_change")
     change = "v2-9-example"
     change_dir = tmp_path / "openspec" / "changes" / change
@@ -252,7 +260,7 @@ def test_archive_commit(tmp_path: Path) -> None:
     tasks.write_text(
         "- [x] 1.1 done\n"
         "- [ ] 4.1 `git status --short` empty;\n"
-        f"  `python skills/agent-process/scripts/archive_change.py {change}` archives, commits, pushes.\n"
+        f"  `{own_task.format(change=change)}` archives, commits, pushes.\n"
         "- [ ] 4.2 `gh pr create`; the person merges.\n",
         encoding="utf-8",
     )

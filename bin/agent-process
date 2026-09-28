@@ -1,0 +1,30 @@
+#!/bin/sh
+# agent-process <script> [args] - run a script of the agent-process skill.
+# The current directory's skills/agent-process/scripts/ wins (the publisher checkout,
+# exempt from release drift); otherwise the plugin's own copy beside this bin/.
+plugin_scripts="$(dirname "$0")/../skills/agent-process/scripts"
+
+usage() {
+    echo "usage: agent-process <script> [args]" >&2
+    printf 'scripts:' >&2
+    for path in "$plugin_scripts"/*.py; do
+        base="${path##*/}"
+        printf ' %s' "${base%.py}" >&2
+    done
+    echo >&2
+    exit 2
+}
+
+name="$1"
+case "$name" in
+    '' | *[!A-Za-z0-9_]*) usage ;;
+esac
+if [ -f "skills/agent-process/scripts/$name.py" ]; then
+    file="skills/agent-process/scripts/$name.py"
+elif [ -f "$plugin_scripts/$name.py" ]; then
+    file="$plugin_scripts/$name.py"
+else
+    usage
+fi
+shift
+exec python "$file" "$@"

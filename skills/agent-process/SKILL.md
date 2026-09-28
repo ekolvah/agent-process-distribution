@@ -7,9 +7,9 @@ description: Plan, implement, review, and deliver the shared GitHub agent develo
 
 Use this procedure with Claude Code. Repository-specific facts remain in
 `openspec/config.yaml`; this skill owns the portable planning and delivery procedure. Run
-repository operations, and every command printed below, from the repository root, where the
-paths those commands name resolve. Placing this skill in a repository that does not carry it
-at those paths is the installer's to define.
+repository operations, and every command printed below, through the Bash tool from the
+repository root. `agent-process`, the first word of each script command, is the plugin's
+launcher of this skill's scripts, on the Bash tool's `PATH` while the plugin is enabled.
 
 ## Proposal
 
@@ -47,9 +47,8 @@ at those paths is the installer's to define.
 Write these groups in order and end `tasks.md` with `## Scenario → test map`, mapping every
 delta scenario to a named test or `n/a: <reason>`.
 
-1. Group 0 — Delivery start: one task runs `python
-   skills/agent-process/scripts/start_change.py <change> --planner Claude --implementer Claude`;
-   the issue records them as provenance. Its text carries `tracking issue <N>`: the number of
+1. Group 0 — Delivery start: one task runs
+   `agent-process start_change <change> --planner Claude --implementer Claude`; the issue records them as provenance. Its text carries `tracking issue <N>`: the number of
    the issue the change is planned from, else the placeholder, which the propose tail
    replaces; both scripts read the token there. The script validates the
    architect review, reads its verdict and the Status of the issue, removes the clean
@@ -61,9 +60,8 @@ delta scenario to a named test or `n/a: <reason>`.
    the findings and run the review again. It prints `propose run not finished` and exits 2
    while the token still carries `<N>` or the issue is not a Project item in the Status the
    propose run leaves it in: nothing is asked and nothing is created there.
-2. Group 1 — RED first: write the tests in the scenario-to-test map and run `python
-   skills/agent-process/scripts/check_red.py <node ids>`. It runs `python -m pytest` of its
-   own interpreter under its own configuration, with a report path of its own and the node
+2. Group 1 — RED first: write the tests in the scenario-to-test map and run
+   `agent-process check_red <node ids>`. It runs `python -m pytest` of its own interpreter under its own configuration, with a report path of its own and the node
    ids, and takes nothing else. Commit RED before implementation. When
    the map names no test for docs-only, `skip_specs`, or a rename, record
    `no RED: <reason>` as the task.
@@ -84,7 +82,7 @@ After `tasks.md`, review proposal, specifications, design, and tasks against pri
 Findings point at artifacts instead of restating them. On `rework`, answer every finding and
 review again. The propose run ends on `approve`: if the change has no issue, choose the area
 that fits the change from the Project's `Area` options and run
-`python skills/agent-process/scripts/create_tracking_issue.py <change> --area <name>` (without
+`agent-process create_tracking_issue <change> --area <name>` (without
 `--area` it lists the options); otherwise run it without area. It validates the review
 first; send its errors back to the reviewer. The issue must be `Planned` before the
 plan is ready. Then explain the plan in plain words — what changes, why, what the person
@@ -94,27 +92,27 @@ reads it.
 
 ## Delivery
 
-Start from a clean worktree. Run `python skills/agent-process/scripts/archive_change.py
+Start from a clean worktree. Run `agent-process archive_change
 <change>` before `gh pr create --title "<type>: <change>" --body-file <report>`. The report names the
 tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
 deferrals. The archive is the head the PR opens on.
 
 The `agent-review` check reviews every head with the Claude review job. After creating the
-PR and after every corrective push, run `python skills/agent-process/scripts/wait_for_pr.py <PR>`;
+PR and after every corrective push, run `agent-process wait_for_pr <PR>`;
 it waits until two reads 30 seconds apart agree that all checks on one head concluded, then
 reads unresolved threads on that head.
 
 Apply findings and repeat at most three rounds; the fourth leaves the rest to the person with
 a reply. After a push, run `wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
-settled review: `python skills/agent-process/scripts/resolve_review_thread.py --repo
+settled review: `agent-process resolve_review_thread --repo
 <owner/repo> --pr <PR> --list` prints the open threads with the `<id>` of each, then
-`python skills/agent-process/scripts/resolve_review_thread.py --repo <owner/repo> --pr <PR>
+`agent-process resolve_review_thread --repo <owner/repo> --pr <PR>
 --thread <id> --reply-file <path>` closes one; the script
 refuses a thread reported against the current head and refuses while the head's check is
 still running, then resolves, re-runs that check and replies last. A P2/P3 thread is
 answered, never resolved by the process. A spec correction goes through a change of its own on
 the PR branch — `npx -y @fission-ai/openspec@1.13.0 new change <name>`, the delta under its
-`specs/`, `validate --strict`, then `python skills/agent-process/scripts/archive_change.py
+`specs/`, `validate --strict`, then `agent-process archive_change
 <name>` — never a direct edit of `openspec/specs/`. A changed design decision amends the archived
 `design.md` and scenario map in the same push. A finding on script behavior must be closed by its class:
 test the violated invariant, the other inputs that violate it from the tool's own
@@ -128,13 +126,12 @@ resume from `gh pr view <change>` — open the PR when there is none — not Ope
 
 ## Install
 
-In a consumer repository, `skills/agent-process/` in the commands of this skill means this
-skill's own directory. Run from the consumer's root:
+Run from the consumer's root:
 
 1. Ask the person for the repository's complete quality command (`--test`) and an optional
    dependency setup command (`--setup`). `gh` must be authenticated with the `project`
    scope: even the dry-run reads the repository's Projects.
-2. Run `python skills/agent-process/scripts/init.py --test "<command>" --dry-run` (add
+2. Run `agent-process init --test "<command>" --dry-run` (add
    `--setup "<command>"` and `--version <x.y.z>` when given) and show its whole output. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
@@ -146,7 +143,7 @@ skill's own directory. Run from the consumer's root:
    The installer never commits or pushes; its only GitHub writes are the copy of the
    template Project and its link to the repository.
 5. Once the installation PR shows `agent-process / quality` and `agent-review / agent-review`
-   green and the person has merged it, run `python skills/agent-process/scripts/activate_protection.py --pr <N> --dry-run` with
+   green and the person has merged it, run `agent-process activate_protection --pr <N> --dry-run` with
    that PR's number (admin rights on
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never

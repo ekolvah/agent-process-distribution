@@ -99,10 +99,23 @@ def _printed_commands(text: str) -> list[str]:
     return [span for span in spans if ".py" in span and " " in span]
 
 
+def _launcher_commands(text: str) -> list[str]:
+    """Code spans that run a script through the plugin launcher `agent-process <script>`."""
+    spans = re.findall(r"`([^`]+)`", " ".join(text.split()))
+    return [
+        span
+        for span in spans
+        if span.split()[0] == "agent-process"
+        and len(span.split()) > 1
+        and span.split()[1] != "/"  # the check name `agent-process / quality`
+        and not span.startswith("agent-process skill not loaded")
+    ]
+
+
 def _argv(command: str) -> list[str]:
     """The arguments of a printed command, placeholders filled so the parser can read them."""
     argv: list[str] = []
-    for token in shlex.split(command)[2:]:  # drop `python <script path>`
+    for token in shlex.split(command)[2:]:  # drop `agent-process <script>`
         if token.startswith("<"):
             argv.append("1" if argv and argv[-1] == "--pr" else "placeholder")
         else:
@@ -196,7 +209,7 @@ def test_rework_verdict() -> None:
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
     assert "review again" in text and "propose run ends on `approve`" in text
     # The gate is `start_change.py` reading the verdict (v2-2f), not a grep in the procedure.
-    assert "start_change.py" in text
+    assert "agent-process start_change" in text
     assert 'grep -q "^approve"' not in text
     # The gate is stated once: no second copy as apply guidance.
     assert "apply" not in config.get("operations", {})
@@ -244,11 +257,11 @@ def test_review_archives_with_the_change(tmp_path: Path) -> None:
 def test_tasks_of_a_new_change() -> None:
     text = _skill()
     assert (
-        text.index("start_change.py")
-        < text.index("check_red.py")
-        < text.index("archive_change.py")
+        text.index("agent-process start_change")
+        < text.index("agent-process check_red")
+        < text.index("agent-process archive_change")
         < text.index("gh pr create")
-        < text.index("wait_for_pr.py")
+        < text.index("agent-process wait_for_pr")
     )
     for part in (
         "tracking issue <N>",
@@ -288,8 +301,8 @@ def test_documented_resolve_commands_parse() -> None:
     module = _script("resolve_review_thread")
     printed = [
         command
-        for command in _printed_commands(SKILL.read_text(encoding="utf-8"))
-        if "resolve_review_thread.py" in command
+        for command in _launcher_commands(SKILL.read_text(encoding="utf-8"))
+        if command.split()[1] == "resolve_review_thread"
     ]
     parsed = [module._parse_options(_argv(command)) for command in printed]
     assert [options for options in parsed if options.list], "no `--list` step prints the ids"
@@ -299,12 +312,13 @@ def test_documented_resolve_commands_parse() -> None:
 
 
 def test_printed_commands_run_as_printed() -> None:
-    """No script is on `PATH`: a printed command names its interpreter and a file that exists."""
-    printed = _printed_commands(SKILL.read_text(encoding="utf-8"))
+    """A printed command runs from a consumer root: the plugin launcher names an existing script."""
+    text = SKILL.read_text(encoding="utf-8")
+    assert not [span for span in _printed_commands(text) if "skills/agent-process/scripts/" in span]
+    printed = _launcher_commands(text)
     assert len(printed) >= 6
     for command in printed:
-        assert command.startswith("python "), command
-        assert (ROOT / command.split()[1]).is_file(), command
+        assert (SCRIPTS / f"{command.split()[1]}.py").is_file(), command
 
 
 def test_group0_names_what_stops_the_start() -> None:
@@ -328,7 +342,7 @@ def test_the_resolve_step_names_every_refusal_the_script_has() -> None:
 def test_group0_names_claude_as_the_carrier() -> None:
     """Claude Code is the only carrier: the provenance is fixed, nothing is asked."""
     group0 = _group0()
-    command = next(span for span in _printed_commands(group0) if "start_change.py" in span)
+    command = next(span for span in _launcher_commands(group0) if span.split()[1] == "start_change")
     assert "--planner Claude --implementer Claude" in command
     assert "ask the person" not in group0 and "unknown" not in group0
 
@@ -337,14 +351,18 @@ def test_the_header_promises_the_resolution_its_commands_use() -> None:
     """Every printed command resolves from the repository root: the header promises no other base."""
     skill = _skill()
     header = skill[: skill.index("## Proposal")]
-    printed = _printed_commands(SKILL.read_text(encoding="utf-8"))
+    printed = _launcher_commands(SKILL.read_text(encoding="utf-8"))
     assert printed
     for command in printed:
-        path = command.split()[1]
-        assert (ROOT / path).is_file(), command
-        assert not (SKILL.parent / path).is_file(), command
-    assert "repository root" in header
+        assert (SCRIPTS / f"{command.split()[1]}.py").is_file(), command
+    for promise in ("agent-process", "Bash tool", "repository root"):
+        assert promise in header, promise
     assert "skill directory" not in header
+
+
+def test_install_asks_no_path_translation() -> None:
+    """The launcher resolves the scripts; the agent translates no path."""
+    assert "means this skill's own directory" not in _section("Install")
 
 
 def test_verify_runs_the_repository_quality_command() -> None:
@@ -378,17 +396,17 @@ def test_reviewer_adapter_reads_the_shared_contract() -> None:
 def test_plan_approved() -> None:
     text = _skill()
     review = _section("Architect review")
-    assert text.index("## Architect review") < text.index("create_tracking_issue.py")
+    assert text.index("## Architect review") < text.index("agent-process create_tracking_issue")
     # The tail is one command: the planner chooses the area, asking the person nothing.
-    assert review.index("choose the area") < review.index("create_tracking_issue.py")
+    assert review.index("choose the area") < review.index("agent-process create_tracking_issue")
     assert re.search(r"\bask", review) is None
-    assert review.index("create_tracking_issue.py") < review.index("--area")
+    assert review.index("agent-process create_tracking_issue") < review.index("--area")
     assert "priority" not in review
     assert "Planned" in review
     # Group 0 asks nothing and creates nothing: the token is how the number reaches the
     # implementer of another session, and a propose run that stopped short is a visible stop.
     group0 = _group0()
-    assert "start_change.py" in group0
+    assert "agent-process start_change" in group0
     assert "tracking issue <N>" in group0
     assert "propose run not finished" in group0
     for absent in ("create_tracking_issue", "priority", "--area", "Planned", "gh issue view"):

@@ -64,7 +64,6 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
                     "source": "github",
                     "repo": "ekolvah/agent-process-distribution",
                     "ref": "stable",
-                    "sparsePaths": [".claude-plugin", "agents", "commands", "skills/agent-process"],
                 },
                 "autoUpdate": True,
             }
