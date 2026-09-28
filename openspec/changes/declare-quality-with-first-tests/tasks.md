@@ -23,7 +23,7 @@
 
 ## 4. Procedure (D1, D4)
 
-- [ ] 4.1 `skills/agent-process/SKILL.md`: Install step 1 asks for no command and step 2 prints `agent-process init --dry-run`; step 4 adds the `quality-command` row to the `manual` rows the person reads; Tasks group 1 gets one sentence: `check_red` exits 2 until `.github/agent-process-quality.json` declares a `test`, so the change that brings the first tests declares it; Verify (step 4) runs the `test` declared there instead of the config's quality command. `openspec/config.yaml` context: the quality-command sentence names the declaration instead of repeating the command. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit as `docs(distribution): the procedure reads the quality declaration`
+- [x] 4.1 `skills/agent-process/SKILL.md`: Install step 1 asks for no command and step 2 prints `agent-process init --dry-run`; step 4 adds the `quality-command` row to the `manual` rows the person reads; Tasks group 1 gets one sentence: `check_red` exits 2 until `.github/agent-process-quality.json` declares a `test`, so the change that brings the first tests declares it; Verify (step 4) runs the `test` declared there instead of the config's quality command. `openspec/config.yaml` context: the quality-command sentence names the declaration instead of repeating the command. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit as `docs(distribution): the procedure reads the quality declaration`
 
 ## 5. Verify
 

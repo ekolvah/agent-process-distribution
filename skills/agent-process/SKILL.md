@@ -62,13 +62,15 @@ delta scenario to a named test or `n/a: <reason>`.
    propose run leaves it in: nothing is asked and nothing is created there.
 2. Group 1 — RED first: write the tests in the scenario-to-test map and run
    `agent-process check_red <node ids>`. It runs `python -m pytest` of its own interpreter under its own configuration, with a report path of its own and the node
-   ids, and takes nothing else. Commit RED before implementation. When
+   ids, and takes nothing else. It exits 2 until `.github/agent-process-quality.json` declares
+   a `test`, so the change that brings the first tests declares it. Commit RED before
+   implementation. When
    the map names no test for docs-only, `skip_specs`, or a rename, record
    `no RED: <reason>` as the task.
 3. Implementation groups: one task per scenario, design decision, or review finding, each
    with its verification command. End each coherent group with a commit.
-4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the complete
-   quality command the repository names in the context of `openspec/config.yaml`.
+4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the `test`
+   that `.github/agent-process-quality.json` declares.
 5. Deliver using the procedure below; the Deliver task titles the PR `<type>: <change>` with
    the Conventional Commit type the planner chose — `feat` or `fix` when behaviour changes,
    otherwise `docs`, `test`, `refactor` or `chore`. The person merges.
@@ -128,18 +130,19 @@ resume from `gh pr view <change>` — open the PR when there is none — not Ope
 
 Run from the consumer's root:
 
-1. Ask the person for the repository's complete quality command (`--test`) and an optional
-   dependency setup command (`--setup`). `gh` must be authenticated with the `project`
-   scope: even the dry-run reads the repository's Projects.
-2. Run `agent-process init --test "<command>" --dry-run` (add
-   `--setup "<command>"` and `--version <x.y.z>` when given) and show its whole output. A
+1. Ask for no quality command: the change that adds the repository's first tests declares
+   it. `gh` must be authenticated with the `project` scope: even the dry-run reads the
+   repository's Projects.
+2. Run `agent-process init --dry-run` (add `--version <x.y.z>` when given) and show its
+   whole output. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
 3. Ask once; on yes run the same command with `--confirm` instead of `--dry-run`.
 4. Tell the person to review and commit the changed files and to do the `manual` rows:
    the `project-*` rows in the Project's UI, and the `review-secret` row, which sets the
    repository's `CLAUDE_CODE_OAUTH_TOKEN` secret the review caller passes to the review, and
-   the `plugin-channel` row, once per machine and outside any project.
+   the `plugin-channel` row, once per machine and outside any project. The `quality-command`
+   row stays while no `test` is declared: CI runs no tests until then.
    The installer never commits or pushes; its only GitHub writes are the copy of the
    template Project and its link to the repository.
 5. Once the installation PR shows `agent-process / quality` and `agent-review / agent-review`
