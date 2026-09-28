@@ -502,5 +502,10 @@ def test_label_change() -> None:
 def test_install_names_the_skill_marker() -> None:
     install = _section("Install")
     assert "agent-process skill not loaded" in install
-    assert "/plugin marketplace update" in install
+    assert "claude plugin update agent-process@agent-process-marketplace" in install
+    assert "stable" in install
+    assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in install
+    assert "/plugin marketplace update" not in install
     assert "pinned per repository" not in install
+    manual_step = install.split("\n4. ", 1)[1].split("\n5. ", 1)[0]
+    assert "plugin-channel" in manual_step

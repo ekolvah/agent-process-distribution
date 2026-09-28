@@ -21,7 +21,6 @@ import pytest
 from tests.publisher.init_harness import (
     CHECK_GROUP,
     CONSUMER_FILES,
-    CURRENT,
     HOST,
     LABELS,
     MARKETPLACE,
@@ -64,9 +63,10 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
                 "source": {
                     "source": "github",
                     "repo": "ekolvah/agent-process-distribution",
-                    "ref": f"v{CURRENT}",
+                    "ref": "stable",
                     "sparsePaths": [".claude-plugin", "agents", "commands", "skills/agent-process"],
-                }
+                },
+                "autoUpdate": True,
             }
         },
         "enabledPlugins": {PLUGIN: True},
@@ -225,6 +225,11 @@ def test_manual_actions_are_printed(
     assert len(workflows) == 1 and all(name in workflows[0] for name in WORKFLOWS)
     areas = [ln for ln in lines if ln.startswith("manual project-areas: ")]
     assert len(areas) == 1 and "Area" in areas[0]
+    channel = [ln for ln in lines if ln.startswith("manual plugin-channel: ")]
+    assert len(channel) == 1, channel
+    assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in channel[0]
+    assert "Enable auto-update" in channel[0]
+    assert not [cmd for cmd in runner.log if Path(cmd[0]).stem.lower() == "claude"]
     for args in runner.gh():
         _gh_kind(args)
 
