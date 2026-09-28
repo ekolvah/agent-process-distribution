@@ -4,7 +4,8 @@
       "source": {
         "source": "github",
         "repo": "ekolvah/agent-process-distribution",
-        "ref": "v${version}"
+        "ref": "v${version}",
+        "sparsePaths": [".claude-plugin", "agents", "commands", "skills/agent-process"]
       }
     }
   },

@@ -16,8 +16,6 @@ from tests.publisher.init_harness import (
     MARKETPLACE,
     PLUGIN,
     Sandbox,
-    _installed,
-    git,
     host_link,
     install,
     load_init,
@@ -40,11 +38,6 @@ def _write_bytes(sb: Sandbox, rel: str, data: bytes) -> None:
     path.write_bytes(data)
 
 
-def _home_file(sb: Sandbox, rel: str) -> None:
-    sb.home.mkdir(parents=True, exist_ok=True)
-    (sb.home / rel).write_bytes(b"")
-
-
 def _settings(repo: str = "ekolvah/agent-process-distribution", enabled: Any = True) -> str:
     return json.dumps(
         {
@@ -52,22 +45,6 @@ def _settings(repo: str = "ekolvah/agent-process-distribution", enabled: Any = T
             "enabledPlugins": {PLUGIN: enabled},
         }
     )
-
-
-def _checkout_dirty(init: ModuleType, sb: Sandbox) -> None:
-    _installed(init, sb)
-    skill = sb.checkout / "skills" / "agent-process" / "SKILL.md"
-    skill.write_text(skill.read_text(encoding="utf-8") + "local\n", encoding="utf-8")
-
-
-def _checkout_other_origin(init: ModuleType, sb: Sandbox) -> None:
-    _installed(init, sb)
-    git("remote", "set-url", "origin", "https://example.invalid/other.git", cwd=sb.checkout)
-
-
-def _checkout_not_repository(init: ModuleType, sb: Sandbox) -> None:
-    sb.checkout.mkdir(parents=True)
-    (sb.checkout / "file").write_text("mine\n", encoding="utf-8")
 
 
 CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
@@ -170,8 +147,6 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         lambda init, sb: host_link(sb.home / "missing", sb.root / ".claude" / "settings.json"),
     ),
     "workflow-parent-file": ("workflow", lambda init, sb: _write(sb, ".github/workflows", "")),
-    # The user-profile targets have parents too (review of PR 159, round 3).
-    "checkout-parent-file": ("checkout", lambda init, sb: _home_file(sb, ".agent-process")),
     "config-rules-escaped": (
         "config",
         lambda init, sb: _write(sb, "openspec/config.yaml", '"r\\u0075les":\n  proposal: []\n'),
@@ -219,9 +194,6 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         "check",
         lambda init, sb: _write(sb, ".claude/agent-process-check.py", "print('mine')\n"),
     ),
-    "checkout-dirty": ("checkout", _checkout_dirty),
-    "checkout-other-origin": ("checkout", _checkout_other_origin),
-    "checkout-not-repository": ("checkout", _checkout_not_repository),
 }
 
 
