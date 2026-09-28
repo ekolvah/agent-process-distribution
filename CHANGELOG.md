@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.6.1...v2.7.0) (2026-09-28)
+
+
+### Features
+
+* ship-only-distributed-paths ([#239](https://github.com/ekolvah/agent-process-distribution/issues/239)) ([c05dc84](https://github.com/ekolvah/agent-process-distribution/commit/c05dc8470aacf68bd3e2a434197bb541cbe39d19))
+
 ## [2.6.1](https://github.com/ekolvah/agent-process-distribution/compare/v2.6.0...v2.6.1) (2026-09-27)
 
 
