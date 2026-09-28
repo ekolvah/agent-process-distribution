@@ -4,6 +4,7 @@ name: Release Please
 # The token is the person's fine-grained PAT, so the required contexts run on the
 # release PR; events created with GITHUB_TOKEN start no workflow. The release PR
 # merges itself once its required contexts are green (ADR 0031).
+# A created release fast-forwards `stable`, the consumers' marketplace channel.
 on:
   push:
     branches: [main]
@@ -35,3 +36,13 @@ jobs:
         run: |
           PR=$(jq -er .number <<< "$PR_JSON")
           gh pr merge --auto --squash "$PR"
+
+      # The consumers' marketplace follows `stable` with auto-update. `force=false` makes the
+      # update a fast-forward or a refusal, and a refusal fails the run (#199).
+      - name: Move stable to the release
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ steps.release.outputs.sha }}
+        run: gh api -X PATCH "repos/$GH_REPO/git/refs/heads/stable" -f sha="$SHA" -F force=false
