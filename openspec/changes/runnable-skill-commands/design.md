@@ -16,7 +16,7 @@ across releases; the publisher keeps running its working-tree scripts.
 
 ## Decisions
 
-**D1 — One plugin executable, `bin/agent-process <script> [args]`.** Problem: #253. Standard: the
+**D1 — One plugin executable, `bin/agent-process <script> [args]`.** Problem: a printed command does not resolve in a consumer (#253). Standard: the
 plugin `bin/` directory, "on the Bash tool's `PATH` while the plugin is enabled" (plugins
 reference). The auto-updated install moves the directory, `PATH` follows it, so the command text
 carries no release. Alternatives: `${CLAUDE_PLUGIN_ROOT}` in the skill body — substituted with the

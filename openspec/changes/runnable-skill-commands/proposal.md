@@ -1,6 +1,6 @@
 ## Why
 
-Issue #253. Reproduction, observed 2026-09-28 driving `add-greet-function` through release
+Reproduction (#253), observed 2026-09-28 driving `add-greet-function` through release
 3.0.0 in `ekolvah/agent-process-sandbox-2` (issue #3, PR #4 there): SKILL.md prints every script
 as `python skills/agent-process/scripts/<script>.py`, the `tasks` rule has the planner copy those
 commands into `tasks.md`, and in a consumer repository that path does not exist — the scripts
