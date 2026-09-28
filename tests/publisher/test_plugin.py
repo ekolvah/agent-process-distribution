@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -133,7 +136,6 @@ def test_publisher_dogfoods_process() -> None:
             "source": {
                 "source": "github",
                 "repo": "ekolvah/agent-process-distribution",
-                "sparsePaths": SPARSE_PATHS,
             }
         }
     }
@@ -148,31 +150,112 @@ def test_publisher_dogfoods_process() -> None:
     )
 
 
-SPARSE_PATHS = [".claude-plugin", "agents", "commands", "skills/agent-process"]
+COMPONENT_ROOTS = [".claude-plugin", "agents", "bin", "commands", "skills/agent-process"]
+# The default locations of the plugin reference's "Standard layout", plus the manifest directory.
+DEFAULT_LOCATIONS = [
+    ".claude-plugin",
+    "SKILL.md",
+    "commands",
+    "agents",
+    "hooks",
+    ".mcp.json",
+    ".lsp.json",
+    "output-styles",
+    "workflows",
+    "themes",
+    "monitors",
+    "bin",
+    "settings.json",
+]
 
 
 def _component_roots() -> list[str]:
     """The plugin component roots the repository has at its top level."""
-    names = ["commands", "agents", "hooks", "output-styles", ".mcp.json", ".lsp.json"]
-    roots = [name for name in names if (ROOT / name).exists()]
+    roots = [name for name in DEFAULT_LOCATIONS if (ROOT / name).exists()]
     roots += [f"skills/{path.name}" for path in (ROOT / "skills").iterdir() if path.is_dir()]
-    return [*roots, ".claude-plugin"]
+    return sorted(roots)
 
 
-def test_marketplace_fetches_only_the_package() -> None:
-    """Scenario: Settings render — the marketplace source fetches the package paths only."""
+def test_plugin_component_roots_are_closed() -> None:
+    """Scenario: Component roots — nothing but the package acts in a whole-cloned consumer."""
+    roots = _component_roots()
+    extra = sorted(set(roots) - set(COMPONENT_ROOTS))
+    missing = sorted(set(COMPONENT_ROOTS) - set(roots))
+    assert not extra and not missing, f"extra component roots {extra}, missing {missing}"
+
+
+def test_marketplace_source_is_whole() -> None:
+    """Scenario: Settings render — the marketplace source names no `sparsePaths`."""
     init = load_init()
     rendered = init._render_settings(init.VERSION)
     for settings in (rendered, _json(SETTINGS)):
         source = settings["extraKnownMarketplaces"]["agent-process-marketplace"]["source"]
-        assert source.get("sparsePaths") == SPARSE_PATHS
-    assert all((ROOT / entry).exists() for entry in SPARSE_PATHS)
-    uncovered = [
-        root
-        for root in _component_roots()
-        if not any(root == entry or root.startswith(f"{entry}/") for entry in SPARSE_PATHS)
-    ]
-    assert not uncovered
+        assert "sparsePaths" not in source
+
+
+LAUNCHER = ROOT / "bin" / "agent-process"
+PROBE = "import sys\nprint({where!r}, sys.argv[1:])\nsys.exit(3)\n"
+
+
+def _run_launcher(tmp_path: Path, cwd: Path, args: str) -> subprocess.CompletedProcess[str]:
+    """Run the bare command as the Bash tool does: `sh -c`, the plugin's `bin/` on `PATH`."""
+    plugin = tmp_path / "plugin"
+    (plugin / "bin").mkdir(parents=True, exist_ok=True)
+    shutil.copy(LAUNCHER, plugin / "bin" / "agent-process")
+    (plugin / "bin" / "agent-process").chmod(0o755)
+    scripts = plugin / "skills" / "agent-process" / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    (scripts / "probe.py").write_text(PROBE.format(where="plugin"), encoding="utf-8")
+    sh = shutil.which("sh")
+    assert sh, "sh is not on PATH"
+    env = {**os.environ, "PATH": os.pathsep.join([str(plugin / "bin"), os.environ["PATH"]])}
+    cwd.mkdir(parents=True, exist_ok=True)
+    return subprocess.run(
+        [sh, "-c", f"agent-process {args}"],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+def test_launcher_runs_the_plugin_script_from_a_consumer(tmp_path: Path) -> None:
+    """Scenario: Printed command in a consumer."""
+    result = _run_launcher(tmp_path, tmp_path / "consumer", "probe a 'b c'")
+    assert result.returncode == 3, result.stderr
+    assert result.stdout.strip() == "plugin ['a', 'b c']"
+
+
+def test_launcher_prefers_the_checkout_scripts(tmp_path: Path) -> None:
+    """Scenario: Publisher checkout runs its own scripts."""
+    checkout = tmp_path / "checkout"
+    scripts = checkout / "skills" / "agent-process" / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "probe.py").write_text(PROBE.format(where="checkout"), encoding="utf-8")
+    result = _run_launcher(tmp_path, checkout, "probe x")
+    assert result.returncode == 3, result.stderr
+    assert result.stdout.strip() == "checkout ['x']"
+
+
+def test_launcher_refuses_an_unknown_script(tmp_path: Path) -> None:
+    """Scenario: Unknown script."""
+    for args in ("", "nope", "../probe"):
+        result = _run_launcher(tmp_path, tmp_path / "consumer", args)
+        assert result.returncode == 2, (args, result.stdout, result.stderr)
+        assert "probe" in result.stdout + result.stderr
+        assert "plugin [" not in result.stdout
+
+
+def test_launcher_is_executable_in_git() -> None:
+    staged = subprocess.run(
+        ["git", "ls-files", "-s", "bin/agent-process"],
+        cwd=ROOT,
+        capture_output=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout
+    assert staged.startswith("100755 "), staged
 
 
 def test_marketplace_follows_stable() -> None:
