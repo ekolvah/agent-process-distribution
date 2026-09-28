@@ -43,7 +43,10 @@ Documentation-only, rename and one-line non-behavioural changes are exempt (`pri
 configuration — fail-fast cancelled, the cache-driven selection and stepping disabled, a
 JUnit XML report path of its own choosing — with the node ids appended, and SHALL take the
 verdict per test from that report, whole; it SHALL require no runner declaration and no
-report path of the project.
+report path of the project. Before running anything, `check_red` SHALL exit 2 while
+`.github/agent-process-quality.json` of the current directory declares no valid `test`, naming
+that file and the fault, so the change that brings a repository's first tests declares its
+quality command.
 
 #### Scenario: Behavioural change
 - **WHEN** the implementer starts a behavioural task
@@ -56,6 +59,10 @@ report path of the project.
 #### Scenario: Configuration that cuts the run
 - **WHEN** the project's pytest configuration carries a flag that stops the run early or replays a previous run (`-x`, `--maxfail`, `--stepwise`, `--lf`, `--ff`)
 - **THEN** `check_red` either runs every node id regardless or exits 2 with the runner's output, never RED from a partial report
+
+#### Scenario: No quality command declared
+- **WHEN** `check_red` runs where `.github/agent-process-quality.json` is absent or declares no valid `test`
+- **THEN** it exits 2 naming the declaration file and the fault, and runs no test
 
 ### Requirement: GitHub links branch, PR and issue
 The delivery tasks SHALL create the linked branch with `gh issue develop N --name <change>`,
