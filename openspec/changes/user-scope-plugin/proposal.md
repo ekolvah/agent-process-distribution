@@ -1,9 +1,9 @@
 ## Why
 
-Issue #256: after release 3.0.2 a session in this repository got
+After release 3.0.2 a session in this repository got
 `agent-process skill not loaded (several installs apply: 3.0.1, 3.0.2)`; the person repaired
 `~/.claude/plugins/installed_plugins.json` by hand, the second time (first: session `bbf1d92b`,
-2026-09-28 04:51Z).
+2026-09-28 04:51Z) (#256).
 
 **Root cause** (Principle V; observed 2026-09-28, `claude` 2.1.283, `-p` sessions against a
 copied plugins root under `CLAUDE_CODE_PLUGIN_CACHE_DIR`, the person's registry untouched):
@@ -12,8 +12,9 @@ copied plugins root under `CLAUDE_CODE_PLUGIN_CACHE_DIR`, the person's registry 
   project-scope record keyed by the session's exact cwd string, even when a user-scope record
   exists. A project with no settings, or with only `extraKnownMarketplaces`, gets no record and
   loads the skill from the user record.
-- A session started from cmd with `c:\…` beside an existing `C:\…` record wrote a second record:
-  the duplicate of #256 (VS Code passes `c:`, CLI shells `C:`; anthropics/claude-code#75855).
+- A session started from cmd with `c:\…` beside an existing `C:\…` record wrote a second record,
+  the reported duplicate (#256). VS Code passes `c:`, CLI shells `C:`
+  (anthropics/claude-code#75855).
 - The session loads the **first** record in file order whose path equals the cwd exactly (case
   included) or that is user scope: user 3.0.1 first → 3.0.1 loads; project 3.0.2 first → 3.0.2;
   a `c:` record first with cwd `C:` → skipped. With user 3.0.2 first and a stale `C:` record,
