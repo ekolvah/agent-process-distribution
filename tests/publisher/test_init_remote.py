@@ -68,7 +68,6 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
                 "autoUpdate": True,
             }
         },
-        "enabledPlugins": {PLUGIN: True},
         "hooks": {"SessionStart": [CHECK_GROUP]},
     }
 
@@ -228,6 +227,7 @@ def test_manual_actions_are_printed(
     assert len(channel) == 1, channel
     assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in channel[0]
     assert "Enable auto-update" in channel[0]
+    assert f"claude plugin install {PLUGIN}" in channel[0]
     assert not [cmd for cmd in runner.log if Path(cmd[0]).stem.lower() == "claude"]
     for args in runner.gh():
         _gh_kind(args)

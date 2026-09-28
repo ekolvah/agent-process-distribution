@@ -538,6 +538,10 @@ def test_label_change() -> None:
 def test_install_names_the_skill_marker() -> None:
     install = _section("Install")
     assert "agent-process skill not loaded" in install
+    assert "agent-process project-scope install applies" in install
+    assert "claude plugin install agent-process@agent-process-marketplace" in install
+    assert "claude plugin uninstall" in install
+    assert "trusts the folder" not in install
     assert "claude plugin update agent-process@agent-process-marketplace" in install
     assert "stable" in install
     assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in install

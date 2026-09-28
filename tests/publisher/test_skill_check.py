@@ -7,6 +7,7 @@ listing a test gives it and exits with the test's code.
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -21,6 +22,9 @@ CHECK = ROOT / "skills" / "agent-process" / "templates" / "skill_check.py"
 PLUGIN = "agent-process@agent-process-marketplace"
 URL = "https://example.invalid/blob/v9.9.9/skills/agent-process/SKILL.md#install"
 MARKER = "agent-process skill not loaded"
+PROJECT_MARKER = "agent-process project-scope install applies"
+INSTALL = f"claude plugin install {PLUGIN}"
+UNINSTALL = f"claude plugin uninstall {PLUGIN} --scope project"
 
 
 def _fake_claude(bin_dir: Path, stdout: str, code: int) -> None:
@@ -97,12 +101,54 @@ def test_loaded_is_silent(tmp_path: Path) -> None:
     assert (done.returncode, done.stdout) == (0, ""), done.stderr
 
 
-def test_case_differing_project_paths_are_one_project(tmp_path: Path) -> None:
-    project = str(tmp_path / "project")
-    install = _install(tmp_path, "2.0.0")
-    listing = [_entry(install, scope="project", projectPath=project.swapcase())]
+def test_project_record_is_reported(tmp_path: Path) -> None:
+    spelled = str(tmp_path / "project").swapcase()
+    listing = [
+        _entry(_install(tmp_path, "2.0.0")),
+        _entry(_install(tmp_path, "1.0.0"), scope="project", projectPath=spelled),
+    ]
     done = _run(tmp_path, json.dumps(listing))
-    assert (done.returncode, done.stdout) == (0, ""), done.stderr
+    assert done.returncode == 0, done.stderr
+    out = json.loads(done.stdout)
+    for text in (out["systemMessage"], out["hookSpecificOutput"]["additionalContext"]):
+        assert PROJECT_MARKER in text
+        assert MARKER not in text
+    assert URL in out["systemMessage"]
+    assert f'"{spelled}" && {UNINSTALL}' in out["systemMessage"]
+
+
+def _verdict() -> Any:
+    spec = importlib.util.spec_from_file_location("skill_check", CHECK)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.verdict
+
+
+def test_drive_letter_records_name_cmd_commands(tmp_path: Path) -> None:
+    project = r"c:\Users\u\repo"
+    current = _install(tmp_path, "3.0.2")
+    listing = [
+        _entry(current),
+        _entry(current, scope="project", projectPath=project),
+        _entry(_install(tmp_path, "3.0.1"), scope="project", projectPath="C" + project[1:]),
+    ]
+    headline, reason = _verdict()(listing, project)
+    assert headline == PROJECT_MARKER
+    for spelling in (project, "C" + project[1:]):
+        assert f'cd /d "{spelling}" && {UNINSTALL}' in reason
+
+
+def test_posix_record_uses_cd(tmp_path: Path) -> None:
+    project = "/home/u/repo"
+    listing = [
+        _entry(_install(tmp_path, "3.0.2")),
+        _entry(_install(tmp_path, "3.0.1"), scope="project", projectPath=project),
+    ]
+    headline, reason = _verdict()(listing, project)
+    assert headline == PROJECT_MARKER
+    assert f'cd "{project}" && {UNINSTALL}' in reason
+    assert "cd /d" not in reason
 
 
 def _not_loaded(tmp_path: Path, case: str) -> list[dict[str, Any]]:
@@ -113,23 +159,23 @@ def _not_loaded(tmp_path: Path, case: str) -> list[dict[str, Any]]:
         return [_entry(good, enabled=False)]
     if case == "other-project":
         return [_entry(good, scope="project", projectPath=str(tmp_path / "elsewhere"))]
-    if case == "several-installs":
-        old = _install(tmp_path, "0.1.0")
-        return [
-            _entry(good),
-            _entry(old, scope="project", projectPath=str(tmp_path / "project")),
-        ]
+    if case == "several-user":
+        return [_entry(good), _entry(_install(tmp_path, "0.1.0"))]
     assert case == "no-skill"
     return [_entry(_install(tmp_path, "0.1.0", skill=False))]
 
 
 @pytest.mark.parametrize(
-    "case", ["no-entry", "disabled", "other-project", "several-installs", "no-skill"]
+    "case", ["no-entry", "disabled", "other-project", "several-user", "no-skill"]
 )
 def test_not_loaded_is_marked(tmp_path: Path, case: str) -> None:
     out = _marked(_run(tmp_path, json.dumps(_not_loaded(tmp_path, case))))
     for text in (out["systemMessage"], out["hookSpecificOutput"]["additionalContext"]):
         assert URL in text
+    if case in ("no-entry", "disabled", "other-project"):
+        assert INSTALL in out["systemMessage"]
+    if case == "several-user":
+        assert "several user-scope installs: 0.1.0, 2.0.0" in out["systemMessage"]
 
 
 @pytest.mark.parametrize(

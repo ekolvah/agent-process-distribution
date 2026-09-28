@@ -140,7 +140,7 @@ def test_publisher_dogfoods_process() -> None:
             }
         }
     }
-    assert settings["enabledPlugins"] == {"agent-process@agent-process-marketplace": True}
+    assert "enabledPlugins" not in settings
     commands = [
         hook["command"] for group in settings["hooks"]["SessionStart"] for hook in group["hooks"]
     ]
