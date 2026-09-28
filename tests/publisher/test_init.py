@@ -110,7 +110,7 @@ def test_other_version_dry_run_leaves_no_state(
     assert f"stub-release v{OTHER}" in out
     lines = out.splitlines()
     argv = json.loads(next(ln for ln in lines if ln.startswith("argv "))[5:])
-    assert argv == ["--test", "pytest -q", "--dry-run", "--version", OTHER, "--selected-release"]
+    assert argv == ["--dry-run", "--version", OTHER, "--selected-release"]
     assert f"cwd {sandbox.root}" in lines
     assert snapshot(sandbox.root, sandbox.home) == before
     assert list(scratch.iterdir()) == []
@@ -225,33 +225,12 @@ def test_retry_after_each_write(
 
 # --- rendering and arguments ------------------------------------------------------------
 
-LITERALS = [
-    "pytest -q",
-    'echo "a: b" # c',
-    "it's {x} [y] & *z | %p @q `r`",
-    "yes",
-    "null",
-    "1.0",
-    "- dash",
-    "a\\b",
-    "ünïcødé → ✓",
-    "line1\nline2",
-]
-
-
-@pytest.mark.parametrize("literal", LITERALS)
-def test_literal_commands_are_yaml_safe(literal: str) -> None:
-    init = load_init()
-    workflow = yaml.safe_load(init.render_workflow(CURRENT, literal, literal))
-    (job,) = workflow["jobs"].values()
-    assert job["with"] == {"setup": literal, "test": literal}
-    block = yaml.safe_load(init.render_config_block(literal))
-    assert any(literal in rule for rule in block["rules"]["tasks"])
-
 
 def test_caller_inputs() -> None:
+    """The caller passes no command: the quality commands are the repository's declaration
+    (declare-quality-with-first-tests D2)."""
     init = load_init()
-    text = init.render_workflow(CURRENT, "", "pytest -q")
+    text = init.render_workflow(CURRENT)
     assert text.splitlines()[0] == "# agent-process:managed"
     workflow = yaml.safe_load(text)
     assert list(workflow["jobs"]) == ["agent-process"]
@@ -259,7 +238,7 @@ def test_caller_inputs() -> None:
     assert job["uses"] == (
         f"ekolvah/agent-process-distribution/.github/workflows/quality.yml@v{CURRENT}"
     )
-    assert set(job["with"]) == {"setup", "test"}
+    assert "with" not in job
 
 
 _LEVELS = {"none": 0, "read": 1, "write": 2}
@@ -292,15 +271,47 @@ def test_review_caller_render() -> None:
         assert _LEVELS[granted.get(scope, "none")] >= _LEVELS[level], scope
 
 
-@pytest.mark.parametrize("test", ["", "   "])
-def test_empty_test_command_is_refused(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], test: str
-) -> None:
+def test_init_takes_no_quality_command(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Install asks for no quality command: a repository without tests has none, and the
+    change that adds the first tests declares it (issue 249)."""
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
-    assert install(init, sandbox, "--confirm", runner=runner, test=test) == 2
+    for flag in ["--test", "--setup"]:
+        assert install(init, sandbox, "--confirm", flag, "x", runner=runner) == 2, flag
     assert runner.log == []
     assert snapshot(sandbox.root, sandbox.home) == {}
+
+
+QUALITY = ".github/agent-process-quality.json"
+
+
+@pytest.mark.parametrize("declared", ["absent", "malformed", "declared"])
+def test_quality_command_marker(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], declared: str
+) -> None:
+    """Scenarios: Install without tests, Declared quality command — while the repository
+    declares no `test`, every run prints one `manual quality-command:` row; the installer
+    never writes the declaration."""
+    init = load_init()
+    declaration = sandbox.root / QUALITY
+    text = {"absent": None, "malformed": '{"test": ""}', "declared": '{"test": "pytest -q"}'}
+    if text[declared] is not None:
+        declaration.parent.mkdir(parents=True, exist_ok=True)
+        declaration.write_text(text[declared], encoding="utf-8")
+    for mode in ["--dry-run", "--confirm"]:
+        capfd.readouterr()
+        assert install(init, sandbox, mode) == 0
+        lines = capfd.readouterr().out.splitlines()
+        rows = [ln for ln in lines if ln.startswith("manual quality-command: ")]
+        if declared == "declared":
+            assert rows == [], rows
+        else:
+            assert len(rows) == 1, lines
+            assert QUALITY in rows[0]
+        if text[declared] is None:
+            assert not declaration.exists()
+        else:
+            assert declaration.read_text(encoding="utf-8") == text[declared]
 
 
 def test_version_matches_plugin() -> None:
@@ -341,8 +352,6 @@ def test_failure_keeps_absent_streams_visible(
         which=lambda name: name,
         repository="",
         version="",
-        setup="",
-        test="",
     )
     with pytest.raises(init.InstallError) as raised:
         ctx.call("tool", "arg")
@@ -365,8 +374,6 @@ def test_gh_read_keeps_absent_stdout_visible(
         which=lambda name: name,
         repository="",
         version="",
-        setup="",
-        test="",
     )
     with pytest.raises(init.InstallError) as raised:
         init._gh_json(ctx, "repo", "view", "--json", "owner,name,projectsV2")

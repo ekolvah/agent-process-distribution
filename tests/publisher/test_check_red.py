@@ -42,12 +42,44 @@ def _fake_pytest(
     return commands
 
 
-def test_behavioural_change(monkeypatch: pytest.MonkeyPatch) -> None:
+QUALITY = ".github/agent-process-quality.json"
+
+
+def _root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, declaration: str | None) -> None:
+    """Run from `tmp_path`, whose quality declaration is `declaration` (`None`: absent)."""
+    monkeypatch.chdir(tmp_path)
+    if declaration is not None:
+        path = tmp_path / QUALITY
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(declaration, encoding="utf-8")
+
+
+@pytest.mark.parametrize("declaration", [None, '{"test": ""}'], ids=["absent", "malformed"])
+def test_refuses_without_quality_declaration(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    declaration: str | None,
+) -> None:
+    """Scenario: No quality command declared — a repository whose tests have no declared
+    command gets no verdict: CI would run none of them (issue 249)."""
+    check_red = load_script("check_red")
+    _root(monkeypatch, tmp_path, declaration)
+    commands = _fake_pytest(monkeypatch, "<testsuites/>")
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["tests/test_x.py::test_a"])
+    assert exc.value.code == 2
+    assert QUALITY in capsys.readouterr().err
+    assert commands == []
+
+
+def test_behavioural_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Scenarios: Behavioural change, Runner given, Configuration that cuts the run —
     `check_red` runs `python -m pytest` of its own interpreter under its own configuration
     with its own report path and the node ids, and judges RED from that report; no runner
     argument exists."""
     check_red = load_script("check_red")
+    _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
     node = "tests/publisher/test_x.py::test_a"
     red = (
         '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_a">'
@@ -91,13 +123,14 @@ def test_behavioural_change(monkeypatch: pytest.MonkeyPatch) -> None:
     assert exc.value.code == 2
 
 
-def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The report is the runner's answer to the node ids it received: `check_red` judges
     every testcase in it and re-derives no selection of its own. A node id spelled `./` or
     as an absolute path, or a project whose `rootdir` differs, spells the classname its own
     way; a second interpreter of the node id would drop the test and report "no tests
     collected" (PR 145)."""
     check_red = load_script("check_red")
+    _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
     _fake_pytest(
         monkeypatch,
         '<testsuites><testsuite><testcase classname="tests.test_x" name="test_a">'
@@ -108,13 +141,16 @@ def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize("returncode", [2, 3, 4])
-def test_interrupted_run_is_no_verdict(monkeypatch: pytest.MonkeyPatch, returncode: int) -> None:
+def test_interrupted_run_is_no_verdict(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, returncode: int
+) -> None:
     """Scenario: Configuration that cuts the run — pytest's exit code is the signal that the
     run reached the end: 0, 1 and 5 are complete runs; 2 (interrupted: `pytest.exit()` from a
     hook, `--stepwise`, Ctrl-C), 3 (internal error) and 4 (usage error) are not, and the
     report they leave — partial or absent — is no verdict (exit 2), never RED (PR 145,
     round 9)."""
     check_red = load_script("check_red")
+    _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
     red = (
         '<testsuites><testsuite><testcase classname="tests.test_x" name="test_a">'
         '<failure message="boom"/></testcase></testsuite></testsuites>'

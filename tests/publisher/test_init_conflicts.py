@@ -194,7 +194,36 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         "check",
         lambda init, sb: _write(sb, ".claude/agent-process-check.py", "print('mine')\n"),
     ),
+    # A caller of the previous release passes the command this repository ran; the new
+    # caller passes none, so the rewrite would drop it silently (declare-quality D5).
+    "workflow-passes-test": ("workflow", lambda init, sb: _passed_test(sb)),
 }
+
+QUALITY = ".github/agent-process-quality.json"
+PASSED_CALLER = """\
+# agent-process:managed
+# Rendered by the agent-process installer (init.py); rerun it instead of editing this file.
+name: agent-process
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  agent-process:
+    uses: ekolvah/agent-process-distribution/.github/workflows/quality.yml@v3.0.2
+    with:
+      setup: ""
+      test: "pytest -q"
+"""
+
+
+def _passed_test(sb: Sandbox) -> None:
+    _write(sb, ".github/workflows/agent-process.yml", PASSED_CALLER)
 
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
@@ -213,3 +242,27 @@ def test_conflict_fails_closed(
     assert transitions(out)[label] == "conflict", out
     assert "written" not in transitions(out).values()
     assert snapshot(sandbox.root, sandbox.home) == before
+
+
+@pytest.mark.parametrize("declared", ["absent", "malformed"])
+def test_upgrade_over_passed_test_conflicts(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], declared: str
+) -> None:
+    """Scenario: Upgrade over a passed test command — the conflict quotes the passed command
+    and names the declaration that would carry it; once that file declares a `test`, the
+    caller is rewritten."""
+    init = load_init()
+    _passed_test(sandbox)
+    if declared == "malformed":
+        _write(sandbox, QUALITY, '{"test": ""}')
+    capfd.readouterr()
+    code = install(init, sandbox, "--dry-run")
+    captured = capfd.readouterr()
+    assert code == 2, captured.out
+    assert "Traceback" not in captured.out + captured.err
+    (line,) = [ln for ln in captured.out.splitlines() if ln.startswith("conflict workflow:")]
+    assert "pytest -q" in line and QUALITY in line, line
+
+    _write(sandbox, QUALITY, '{"test": "pytest -q"}')
+    assert install(init, sandbox, "--dry-run") == 0
+    assert transitions(capfd.readouterr().out)["workflow"] == "planned"

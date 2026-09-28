@@ -26,6 +26,7 @@ MOVED_SCRIPTS = {
     "check_red.py",
     "create_tracking_issue.py",
     "init.py",
+    "quality.py",
     "resolve_review_thread.py",
     "set_status.py",
     "start_change.py",
@@ -90,7 +91,7 @@ def _change(
     change_dir = tmp_path / "openspec" / "changes" / _CHANGE
     change_dir.mkdir(parents=True)
     if config is None:
-        config = load_script("init").render_config_block("t").encode("utf-8")
+        config = load_script("init").render_config_block().encode("utf-8")
     (tmp_path / "openspec" / "config.yaml").write_bytes(config)
     (change_dir / "architect-review.json").write_text(
         json.dumps(review or _review(verdict)), encoding="utf-8"
@@ -439,7 +440,7 @@ def _clone(tmp_path: Path) -> Path:
     origin, root = tmp_path / "origin.git", tmp_path / "root"
     _git("init", "--bare", "-b", "main", str(origin))
     _git("clone", "-q", str(origin), str(root))
-    config = load_script("init").render_config_block("t").encode("utf-8")
+    config = load_script("init").render_config_block().encode("utf-8")
     (root / "openspec").mkdir()
     (root / "openspec" / "config.yaml").write_bytes(config)
     _git("-C", str(root), "add", "openspec/config.yaml")
@@ -699,7 +700,7 @@ def test_area_field_drift_creates_no_issue(
 
 def _release_config(recorded: str | None) -> bytes:
     """A config block recording `recorded`; `None` drops the release line."""
-    lines = load_script("init").render_config_block("t").splitlines()
+    lines = load_script("init").render_config_block().splitlines()
     kept = [line for line in lines if not line.startswith("# agent-process release: ")]
     assert len(kept) == len(lines) - 1, "the rendered block records no release"
     if recorded is not None:

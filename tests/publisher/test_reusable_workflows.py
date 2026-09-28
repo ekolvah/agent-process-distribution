@@ -227,19 +227,17 @@ def _assert_checkout_and_python(steps: list[dict[str, Any]]) -> None:
     assert steps[1]["with"]["python-version"] == "3.12"
 
 
-def test_quality_callee_runs_the_callers_commands() -> None:
-    """quality-checks-per-job D1: `link` verifies the PR → issue link; `plan` lists the
-    caller's checks (or one unnamed leg without `checks`); `check` runs `setup`, then
-    `test --only <name>` per listed check, the name passed through `env`."""
+def test_quality_callee_runs_the_declared_commands() -> None:
+    """quality-checks-per-job D1, declare-quality-with-first-tests D2/D3: `link` verifies the
+    PR → issue link; `plan` reads the repository's `.github/agent-process-quality.json` with
+    the trusted process source and lists its checks (or one unnamed leg without `checks`);
+    `check` runs `setup`, then `test --only <name>` per listed check. Every command and check
+    name reaches the shell through `env`, never through `${{ }}` in `run:`."""
+    text = (ROOT / ".github" / "workflows" / "quality.yml").read_text(encoding="utf-8")
+    assert "${{ inputs." not in text
     document = _workflow("quality.yml")
     assert set(_trigger(document)) == {"workflow_call"}
-    inputs = _trigger(document)["workflow_call"]["inputs"]
-    assert set(inputs) == {"setup", "test", "checks"}
-    assert inputs["setup"]["required"] is False
-    assert inputs["setup"]["default"] == ""
-    assert inputs["test"]["required"] is True
-    assert inputs["checks"]["required"] is False
-    assert inputs["checks"]["default"] == ""
+    assert not (_trigger(document)["workflow_call"] or {}).get("inputs")
     assert document["permissions"] == {
         "contents": "read",
         "pull-requests": "read",
@@ -258,20 +256,34 @@ def test_quality_callee_runs_the_callers_commands() -> None:
 
     plan = jobs["plan"]
     _assert_checkout_and_python(plan["steps"])
-    listed, single = plan["steps"][2], plan["steps"][3]
-    assert len(plan["steps"]) == 4
-    assert listed["if"] == "inputs.checks != ''"
-    assert "${{ inputs.checks }}" in listed["run"]
+    guard, trusted, declared, listed, single = plan["steps"][2:]
+    assert guard["name"] == "Require the called workflow commit"
+    assert trusted["with"] == {
+        "repository": "ekolvah/agent-process-distribution",
+        "ref": "${{ job.workflow_sha }}",
+        "path": "trusted",
+    }
+    assert (
+        declared["run"] == "python trusted/skills/agent-process/scripts/quality.py --github-output"
+    )
+    assert "if" not in declared
+    outputs = f"steps.{declared['id']}.outputs"
+    assert listed["if"] == f"{outputs}.checks != ''"
+    assert listed["env"] == {"CHECKS": f"${{{{ {outputs}.checks }}}}"}
+    assert '"$CHECKS"' in listed["run"] and "${{" not in listed["run"]
     assert "jq -e" in listed["run"]
     assert "length > 0" in listed["run"]
     assert "^[A-Za-z0-9._-]+$" in listed["run"]
     assert '>> "$GITHUB_OUTPUT"' in listed["run"]
-    assert single["if"] == "inputs.checks == ''"
-    assert "${{ inputs.checks }}" not in single["run"]
+    assert single["if"] == f"{outputs}.checks == ''"
     assert 'checks=[""]' in single["run"]
-    assert plan["outputs"]["checks"] == (
-        f"${{{{ steps.{listed['id']}.outputs.checks || steps.{single['id']}.outputs.checks }}}}"
-    )
+    assert plan["outputs"] == {
+        "setup": f"${{{{ {outputs}.setup }}}}",
+        "test": f"${{{{ {outputs}.test }}}}",
+        "checks": (
+            f"${{{{ steps.{listed['id']}.outputs.checks || steps.{single['id']}.outputs.checks }}}}"
+        ),
+    }
 
     check = jobs["check"]
     assert check["needs"] == "plan"
@@ -280,11 +292,16 @@ def test_quality_callee_runs_the_callers_commands() -> None:
     _assert_checkout_and_python(check["steps"])
     setup, test = check["steps"][2], check["steps"][3]
     assert len(check["steps"]) == 4
-    assert setup["run"] == "${{ inputs.setup }}"
-    assert setup["if"] == "inputs.setup != ''"
-    assert test["env"] == {"CHECK": "${{ matrix.check }}"}
-    assert test["run"] == '${{ inputs.test }} ${CHECK:+--only "$CHECK"}'
-    assert "if" not in test
+    assert setup["if"] == "needs.plan.outputs.setup != ''"
+    assert setup["env"] == {"SETUP": "${{ needs.plan.outputs.setup }}"}
+    assert '"$SETUP"' in setup["run"] and "${{" not in setup["run"]
+    assert test["if"] == "needs.plan.outputs.test != ''"
+    assert test["env"] == {
+        "TEST": "${{ needs.plan.outputs.test }}",
+        "CHECK": "${{ matrix.check }}",
+    }
+    assert '"$TEST"' in test["run"] and "${{" not in test["run"]
+    assert '${CHECK:+--only "$CHECK"}' in test["run"]
 
     for job in jobs.values():
         for step in job["steps"]:
@@ -309,14 +326,17 @@ def test_quality_gate_requires_every_job() -> None:
 
 def test_publisher_caller_reaches_callee_by_same_commit_path() -> None:
     """v2-2h D3: the publisher caller takes the callee from its own commit, so the PR
-    that lands `quality.yml` already runs it."""
+    that lands `quality.yml` already runs it; its commands are the publisher's own
+    declaration (declare-quality-with-first-tests D2)."""
     document = _workflow("agent-process.yml")
     assert set(_trigger(document)) == {"pull_request"}
     assert _trigger(document)["pull_request"] is None
     assert list(document["jobs"]) == ["agent-process"]
     job = document["jobs"]["agent-process"]
     assert job["uses"] == "./.github/workflows/quality.yml"
-    assert job["with"] == {
+    assert "with" not in job
+    declaration = ROOT / ".github" / "agent-process-quality.json"
+    assert json.loads(declaration.read_text(encoding="utf-8")) == {
         "setup": "python -m pip install -r .agent-process/requirements.txt"
         " -r .agent-process/requirements-dev.txt",
         "test": "python .agent-process/scripts/ci_check.py",
