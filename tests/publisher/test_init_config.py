@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tests.publisher.init_harness import (
     CHECK_COMMAND,
@@ -121,7 +122,8 @@ def test_rerender_replaces_only_owned_content(
         data["extraKnownMarketplaces"]["mine"]
         == consumer_settings["extraKnownMarketplaces"]["mine"]
     )
-    assert data["extraKnownMarketplaces"][MARKETPLACE]["source"]["ref"] == f"v{CURRENT}"
+    assert data["extraKnownMarketplaces"][MARKETPLACE]["source"]["ref"] == "stable"
+    assert data["extraKnownMarketplaces"][MARKETPLACE]["autoUpdate"] is True
     assert data["enabledPlugins"] == {"mine@mine": True, PLUGIN: True}
     assert data["hooks"] == {
         "PreToolUse": consumer_settings["hooks"]["PreToolUse"],
@@ -142,6 +144,17 @@ def test_config_block_records_release(sandbox: Sandbox) -> None:
     _installed(init, sandbox)
     block = _only_block(config.read_text(encoding="utf-8")).splitlines()
     assert line in block and old not in block
+
+
+def test_dependabot_leaves_process_refs_to_install(sandbox: Sandbox) -> None:
+    """Scenario: Dependabot render — the process refs are ignored; Install moves them (#199)."""
+    init = load_init()
+    _installed(init, sandbox)
+    dependabot = yaml.safe_load(
+        (sandbox.root / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    )
+    [entry] = [e for e in dependabot["updates"] if e["package-ecosystem"] == "github-actions"]
+    assert entry.get("ignore") == [{"dependency-name": "ekolvah/agent-process-distribution*"}]
 
 
 def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:

@@ -175,6 +175,17 @@ def test_marketplace_fetches_only_the_package() -> None:
     assert not uncovered
 
 
+def test_marketplace_follows_stable() -> None:
+    """Scenario: Channel render — every release declares the `stable` ref with auto-update."""
+    init = load_init()
+    for version in (init.VERSION, "0.0.1"):
+        entry = init._render_settings(version)["extraKnownMarketplaces"][
+            "agent-process-marketplace"
+        ]
+        assert entry["source"]["ref"] == "stable"
+        assert entry["autoUpdate"] is True
+
+
 def test_version_drift() -> None:
     release = _json(ROOT / ".release-please-manifest.json")["."]
     assert _json(PLUGIN)["version"] == release

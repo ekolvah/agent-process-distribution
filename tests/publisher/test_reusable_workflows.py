@@ -610,3 +610,22 @@ def test_release_workflow_parses_no_unset_output() -> None:
     for step in guarded:
         for value in step.get("env", {}).values():
             assert "fromJSON" not in str(value), step.get("name")
+
+
+def test_release_workflow_moves_stable() -> None:
+    """Scenarios: Release created, No release — a release fast-forwards `stable` to its
+    tagged commit with the tagging token; a refused update fails the run (#199)."""
+    (job,) = _workflow("release-please.yml")["jobs"].values()
+    raw = job["steps"]
+    merge = next(s for s in raw if s.get("name") == "Enable auto-merge on the release PR")
+    assert raw.index(merge) + 1 < len(raw), "no step after the auto-merge step"
+    move = raw[raw.index(merge) + 1]
+    assert move["if"] == "steps.release.outputs.release_created == 'true'"
+    assert move["env"]["GH_TOKEN"] == "${{ secrets.RELEASE_PLEASE_TOKEN }}"
+    assert move["env"]["SHA"] == "${{ steps.release.outputs.sha }}"
+    run = move["run"]
+    assert "-X PATCH" in run and "git/refs/heads/stable" in run
+    assert '-f sha="$SHA"' in run and "-F force=false" in run
+    assert "--force" not in run and "force=true" not in run
+    assert "continue-on-error" not in move
+    assert "|| true" not in run and "set +e" not in run

@@ -714,7 +714,7 @@ def _mixed_line_endings() -> bytes:
 
 _SCRIPTS = {"start_change": _START, "create_tracking_issue": [_CHANGE]}
 _INSTALL_FIX = "re-run Install"
-_SKILL_FIX = "/plugin marketplace update"
+_SKILL_FIX = "claude plugin update agent-process@agent-process-marketplace --scope"
 # case -> (config: a release to record, `None` for no release line, or a bytes factory;
 #          the release the message names for the project; the fix it names)
 _DRIFT: dict[str, tuple[Any, str, str]] = {
@@ -754,6 +754,7 @@ def test_release_drift(
         assert "release drift" in err and "verdict" not in err
         assert f"project records {recorded}" in err and f"skill is {version}" in err
         assert fix in err
+        assert "#v" not in err
         assert "Codex" not in err
 
 
