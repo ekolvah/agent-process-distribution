@@ -24,7 +24,7 @@ The declaration is `.github/agent-process-quality.json`: `{"test": str, "setup"?
 with the same meaning as today's inputs. `init` never writes it, and the change that brings the
 first tests adds it (D4).
 
-- **Problem closed:** #249.
+- **Problem closed:** the install-time placeholder (#249).
 - **Standard for the job and why it does not fit:** workflow `with:` inputs are GitHub's
   carrier for a caller's values, but here they sit in a file `init` manages ("rerun it instead
   of editing"), so a change cannot set them without re-running Install. No language-agnostic
@@ -59,7 +59,7 @@ may use a delimiter". A value with a line break would therefore add a further ou
 whose second line is `checks=…`). The reader rejects a line break in any value as malformed
 instead of choosing a delimiter: a quality command fits one line.
 
-- **Problem closed:** #249; a single parser avoids a jq reader in CI drifting from the Python
+- **Problem closed:** the install-time placeholder (#249); a single parser avoids a jq reader in CI drifting from the Python
   readers.
 - **Standard:** none reads this file; `json` does the parsing, and the script only validates
   the shape.
@@ -109,7 +109,7 @@ holds today's three literals. `quality.yml` has one input path, and the publishe
 ### D7 — Release
 
 The PR is titled `fix: declare-quality-with-first-tests`, and its body ends with a
-`BREAKING CHANGE:` footer, as #243 did for 3.0.0: `init --test/--setup` are removed, and an
+`BREAKING CHANGE:` footer, as 3.0.0 did (#243): `init --test/--setup` are removed, and an
 upgraded consumer declares its command once.
 
 ### Replaced input: failure modes and catchers

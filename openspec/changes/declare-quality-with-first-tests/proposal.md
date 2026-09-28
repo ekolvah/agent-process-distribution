@@ -1,11 +1,11 @@
 ## Why
 
-Issue #249. `init` requires `--test` at install time, before the consumer has any tests, so the
-operator has to invent a placeholder, and nothing ever asks for it to be replaced.
+`init` requires `--test` at install time, before the consumer has any tests, so the
+operator has to invent a placeholder, and nothing ever asks for it to be replaced (#249).
 
 **Observation (2026-09-28, `ekolvah/agent-process-sandbox-2`, release 3.0.0).**
 `gh api repos/ekolvah/agent-process-sandbox-2/contents/.github/workflows/agent-process.yml`
-shows the managed caller passing `test: "python -c \"pass\""`. PR #4 (`feat: add-greet-function`)
+shows the managed caller passing `test: "python -c \"pass\""`. The PR `feat: add-greet-function` (#4)
 added `tests/test_greet.py`, and `agent-process / quality` stayed green without running it: its
 only proof was local, through `check_red` at RED and a manual `python -m pytest` in Verify. A
 regression after the merge would not turn CI red.

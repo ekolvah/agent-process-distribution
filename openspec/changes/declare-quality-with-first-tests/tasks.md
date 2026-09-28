@@ -13,7 +13,7 @@
 
 ## 2. Declaration reader and CI (D1–D3, D6)
 
-- [x] 2.1 Add `skills/agent-process/scripts/quality.py` per D2: module docstring naming #249 and the file shape; `DECLARATION = ".github/agent-process-quality.json"`; `read(root) -> Declaration | None` (a frozen dataclass `setup`, `test`, `checks`) raising `ValueError` per the spec's malformed forms; `main(["--github-output"])` reads the cwd and appends the outputs to `$GITHUB_OUTPUT`. Output values are single-line: a command with a newline is a malformed declaration. Verify `python -m pytest tests/publisher/test_quality.py -q` passes
+- [x] 2.1 Add `skills/agent-process/scripts/quality.py` per D2: module docstring naming the issue (#249) and the file shape; `DECLARATION = ".github/agent-process-quality.json"`; `read(root) -> Declaration | None` (a frozen dataclass `setup`, `test`, `checks`) raising `ValueError` per the spec's malformed forms; `main(["--github-output"])` reads the cwd and appends the outputs to `$GITHUB_OUTPUT`. Output values are single-line: a command with a newline is a malformed declaration. Verify `python -m pytest tests/publisher/test_quality.py -q` passes
 - [x] 2.2 Add `.github/agent-process-quality.json` with the publisher's current `setup`, `test` and `checks`; drop `with:` from `.github/workflows/agent-process.yml`. Rewrite `.github/workflows/quality.yml` per D2/D3: no inputs; the plan job adds the trusted checkout (with its `Require the called workflow commit` guard, as the link job) and the declaration step; listing and check steps take commands through `env` and `eval`; replace the header comment's trust sentence with D3's. Verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes. Commit as `fix(distribution): quality reads the repository's declaration`
 
 ## 3. Installer and RED gate (D4, D5)
@@ -27,13 +27,13 @@
 
 ## 5. Verify
 
-- [ ] 5.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 5.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
+- [x] 5.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 5.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
 
 ## 6. Deliver
 
 - [ ] 6.1 With a clean worktree, run `agent-process archive_change declare-quality-with-first-tests`. Verify that it archives the deltas into `openspec/specs/distribution/spec.md` and `openspec/specs/implementation/spec.md`, commits, and pushes the branch
-- [ ] 6.2 Run `gh pr create --title "fix: declare-quality-with-first-tests" --body-file <report>`. The report names tracking issue #249 as a plain reference (never `Closes`), carries the scenario → test map, notes that this PR's own `agent-process / quality` is the first run reading the publisher's declaration, and ends with the footer `BREAKING CHANGE: init no longer takes --test or --setup; a repository declares its quality commands in .github/agent-process-quality.json, and an upgrade over a caller that passes a test command stops with a conflict until that file declares it.` (D7)
+- [ ] 6.2 Run `gh pr create --title "fix: declare-quality-with-first-tests" --body-file <report>`. The report names the tracking issue as a plain reference (#249) (never `Closes`), carries the scenario → test map, notes that this PR's own `agent-process / quality` is the first run reading the publisher's declaration, and ends with the footer `BREAKING CHANGE: init no longer takes --test or --setup; a repository declares its quality commands in .github/agent-process-quality.json, and an upgrade over a caller that passes a test command stops with a conflict until that file declares it.` (D7)
 - [ ] 6.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 6.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change in the final message. The person merges it
 
