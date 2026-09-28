@@ -3,7 +3,8 @@ name: agent-process
 # Publisher caller of quality.yml. The `./` path takes the callee from this
 # commit, so the PR that changes quality.yml runs its own version; consumers
 # pin `@v<version>` instead. Ruleset `agent-process default branch` requires
-# the context `agent-process / quality` (issue 154).
+# the context `agent-process / quality` (issue 154). The commands are the
+# repository's declaration, .github/agent-process-quality.json (issue 249).
 on:
   pull_request:
 
@@ -15,7 +16,3 @@ permissions:
 jobs:
   agent-process:
     uses: ./.github/workflows/quality.yml
-    with:
-      setup: python -m pip install -r .agent-process/requirements.txt -r .agent-process/requirements-dev.txt
-      test: python .agent-process/scripts/ci_check.py
-      checks: python .agent-process/scripts/ci_check.py --list
