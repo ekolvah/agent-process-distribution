@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.0...v3.0.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* plan-from-existing-issue ([#245](https://github.com/ekolvah/agent-process-distribution/issues/245)) ([d5c66e8](https://github.com/ekolvah/agent-process-distribution/commit/d5c66e8fc33f106941129d322a52331815e043f6))
+
 ## [3.0.0](https://github.com/ekolvah/agent-process-distribution/compare/v2.7.0...v3.0.0) (2026-09-28)
 
 
