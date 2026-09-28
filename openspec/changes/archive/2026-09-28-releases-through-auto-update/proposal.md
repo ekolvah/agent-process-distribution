@@ -4,8 +4,8 @@ A consumer machine never moves to a new release by itself (#199): Install writes
 marketplace declaration with `ref: v<version>`, auto-update is off for a third-party
 marketplace by default, and a project's `ref` does not re-point a marketplace the machine
 already knows (#184). Auto-update re-reads the declared ref, so a tag pin never sees a newer
-release. #216 kept the release on `main` tags (`sparsePaths`, no release branch), so the
-channel ref is this change's decision.
+release. An earlier change kept the release on `main` tags (`sparsePaths`, no release
+branch) (#216), so the channel ref is this change's decision.
 
 Platform behaviour, observed with Claude Code 2.1.283 on Windows (the table of steps 1–5 is on
 record in the [#199 comment](https://github.com/ekolvah/agent-process-distribution/issues/199#issuecomment-5859573019)):

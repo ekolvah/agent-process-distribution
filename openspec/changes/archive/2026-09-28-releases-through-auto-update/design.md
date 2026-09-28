@@ -1,9 +1,9 @@
 ## Context
 
 The observations this design rests on are in the proposal (Why). `stable` already exists on
-origin at `v2.6.0` (45876bf) from the #199 experiment; `v2.6.1` and `v2.7.0` were released since
-without moving it. No ruleset of the repository targets `stable` (`agent-process default
-branch` includes `refs/heads/main`, `pr-title` includes `~DEFAULT_BRANCH`).
+origin at `v2.6.0` (45876bf) from the experiment of the issue (#199); `v2.6.1` and `v2.7.0`
+were released since without moving it. The one ruleset that targets `stable` is `stable
+channel` (Risks).
 
 ## Decisions
 
@@ -34,14 +34,14 @@ tagged at", release-please-action README, root component outputs; the package pa
 `force=false` makes the REST update a fast-forward or a refusal (docs.github.com, "Update a
 reference": "Indicates whether to force the update or to make sure the update is a fast-forward
 update"); a refusal fails the step and the run (Principle IV) instead of rewriting the channel.
-The token already writes tags; no new secret. Problem it closes: #199. Standard: the reference's
+The token already writes tags; no new secret. It closes the problem of the issue (#199). Standard: the reference's
 release-channel pattern; no release-please option moves a branch.
 
 **D3 — Dependabot ignores the process refs.** The marker block of `templates/dependabot.yml`
 gains `ignore: [{dependency-name: "ekolvah/agent-process-distribution*"}]` (Dependabot options
 reference: `dependency-name` "optionally using `*` to match zero or more characters"). The
 wildcard covers both the `owner/repo` form and a workflow-path form of a reusable-workflow
-dependency, since the name form was not observed. Decided in the #199 comment; no bespoke
+dependency, since the name form was not observed. Decided in a comment of the issue (#199); no bespoke
 quality check.
 
 **D4 — The drift fix names a plugin update.** `release_drift`'s skill-older message becomes
