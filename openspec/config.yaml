@@ -21,9 +21,9 @@ context: |
   is skills/agent-process/SKILL.md.
   Principles §I–VII (skills/agent-process/principles.md) bind every artifact:
   test-first, protocol boundaries, root cause before fix, visible degradation, minimal diff.
-  The complete quality command of this repository is `python .agent-process/scripts/ci_check.py`
-  (format, lint, secrets, tests, dependency audit); it is what the Verify group and the
-  pre-delivery gate run.
+  The complete quality command of this repository is the `test` that
+  `.github/agent-process-quality.json` declares (format, lint, secrets, tests, dependency
+  audit); it is what the Verify group and the pre-delivery gate run.
   A propose run does not end when the last schema artifact exists: its last step is the
   architect review of the `tasks` rule, and the artifacts are reported ready only once
   openspec/changes/<name>/architect-review.json is valid with verdict `approve`

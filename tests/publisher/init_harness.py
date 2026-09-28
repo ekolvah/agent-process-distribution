@@ -30,7 +30,12 @@ def load_init() -> ModuleType:
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    # As `python init.py` does: the script's directory resolves its sibling imports.
+    sys.path.insert(0, str(INIT.parent))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(INIT.parent))
     return module
 
 
@@ -259,14 +264,13 @@ def which(name: str) -> str:
     return shutil.which(name) or name
 
 
-def install(  # noqa: PLR0913 -- baseline: mirrors the fields of init.Host
+def install(
     init: ModuleType,
     sb: Sandbox,
     *args: str,
     platform: str = HOST,
     runner: Runner | None = None,
     on_write: Callable[[str], None] | None = None,
-    test: str = "pytest -q",
 ) -> int:
     host = init.Host(
         root=sb.root,
@@ -276,7 +280,7 @@ def install(  # noqa: PLR0913 -- baseline: mirrors the fields of init.Host
         which=which,
         on_write=on_write or (lambda label: None),
     )
-    return init.install(["--test", test, *args], host)
+    return init.install(list(args), host)
 
 
 def snapshot(*bases: Path) -> dict[str, Any]:

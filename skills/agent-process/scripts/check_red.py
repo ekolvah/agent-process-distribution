@@ -24,6 +24,9 @@ wherever it came from (rc 1 either way); an empty `cache_dir` of the script's ow
 the project's `addopts` (`-k`, `-m`, `--deselect`) is the project's configuration: the
 gate judges the run under it, as the project runs its tests.
 
+It exits 2 before running anything while `.github/agent-process-quality.json` of the current
+directory declares no `test` (#249): tests CI would never run prove nothing.
+
 Exits 0 only when the given tests are RED: no test is green AND at least one
 failed. Used by the implementer adapter to gate the RED→GREEN transition: if the
 freshly-written tests already pass, the test plan does not cover the intended
@@ -52,6 +55,8 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+import quality
 
 # Child `<testcase>` elements, each of which means the test is not green.
 # `skipped` is included: a skipped test checked nothing, so treating it as green
@@ -172,6 +177,20 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     paths = args.paths
+    try:
+        declared = quality.read(Path.cwd())
+        fault = None if declared else f"{quality.DECLARATION} is absent"
+    except ValueError as exc:
+        fault = str(exc)
+    if fault:
+        # A precondition of the gate, not "tests are not red": CI would run none of them.
+        print(
+            f"check_red: {fault}; declare the repository's quality command in "
+            f'{quality.DECLARATION} as {{"test": "<command>"}} — the change that adds '
+            "the first tests declares it",
+            file=sys.stderr,
+        )
+        sys.exit(2)
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "red.xml"
         # No `-q` here: the verbosity of this run has one home, `addopts` in

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Install the agent process into the consumer repository at the current directory.
 
-Usage: python init.py --test <command> [--setup <command>] [--version <x.y.z>]
-       (--dry-run | --confirm)
+Usage: python init.py [--version <x.y.z>] (--dry-run | --confirm)
 
 The requested release owns its run. With `--version` equal to `VERSION` this file runs
 itself; otherwise it clones the requested tag into a temporary directory, removed afterwards,
@@ -33,7 +32,10 @@ owner's Projects, never from a previous run's output, so a retry reuses a copy t
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
 `CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
-once-per-machine step that points the marketplace at `stable` with auto-update. Nothing is committed or pushed, and the Project copy and link are
+once-per-machine step that points the marketplace at `stable` with auto-update. While
+`.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
+installer asks for no quality command and never writes that file, which the change that adds
+the first tests declares (#249). Nothing is committed or pushed, and the Project copy and link are
 the only GitHub writes. `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -52,6 +54,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+
+import quality
 
 VERSION = "3.0.2"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
@@ -155,11 +159,9 @@ def _template(name: str, **values: str) -> str:
     return string.Template(text).substitute(values)
 
 
-def render_workflow(version: str, setup: str, test: str) -> str:
-    """The managed caller; each command is a JSON string, a valid YAML scalar for any literal."""
-    return _template(
-        "agent-process.yml", version=version, setup=json.dumps(setup), test=json.dumps(test)
-    )
+def render_workflow(version: str) -> str:
+    """The managed caller; it passes no command — the repository declares them (#249)."""
+    return _template("agent-process.yml", version=version)
 
 
 def render_review_workflow(version: str) -> str:
@@ -167,9 +169,8 @@ def render_review_workflow(version: str) -> str:
     return _template("agent-review.yml", version=version)
 
 
-def render_config_block(test: str) -> str:
-    quality = f"The repository's complete quality command is: {test}"
-    return _template("config.yaml", openspec=OPENSPEC, version=VERSION, quality=json.dumps(quality))
+def render_config_block() -> str:
+    return _template("config.yaml", openspec=OPENSPEC, version=VERSION)
 
 
 def _render_settings(version: str) -> dict[str, Any]:
@@ -278,8 +279,6 @@ class Context:
     which: Callable[[str], str | None]
     repository: str
     version: str
-    setup: str
-    test: str
 
     @property
     def tag(self) -> str:
@@ -429,7 +428,7 @@ def _config_text(ctx: Context) -> tuple[str | None, str]:
         raise Conflict("holds more than one YAML document")
     if any(TOP_LEVEL_RULES.match(line) for line in outside):
         raise Conflict("has a top-level `rules` outside the agent-process block")
-    block = render_config_block(ctx.test).splitlines()
+    block = render_config_block().splitlines()
     return text, "\n".join(_replace_block(lines, block))
 
 
@@ -440,8 +439,29 @@ def _managed_text(ctx: Context, rel: str, rendered: str) -> tuple[str | None, st
     return text, rendered
 
 
+def _test_declared(root: Path) -> bool:
+    """Whether the repository declares a `test`; a malformed declaration declares none (D5)."""
+    try:
+        return quality.read(root) is not None
+    except ValueError:
+        return False
+
+
+# The `test:` input of a caller rendered by `init` up to 3.0.2.
+_PASSED_TEST = re.compile(r"^ +test: *\S.*$", re.MULTILINE)
+
+
 def _workflow_text(ctx: Context) -> tuple[str | None, str]:
-    return _managed_text(ctx, WORKFLOW, render_workflow(ctx.version, ctx.setup, ctx.test))
+    text, rendered = _managed_text(ctx, WORKFLOW, render_workflow(ctx.version))
+    passed = _PASSED_TEST.search(text or "")
+    if passed and not _test_declared(ctx.root):
+        # The new caller passes no command: rewriting it would stop the tests silently.
+        raise Conflict(
+            f"passes the quality command `{passed.group().strip()}`; declare it in "
+            f'{quality.DECLARATION} as {{"test": "<command>"}}, or delete this caller '
+            "when the repository has no tests"
+        )
+    return text, rendered
 
 
 def _review_text(ctx: Context) -> tuple[str | None, str]:
@@ -718,11 +738,21 @@ def _project_steps(ctx: Context) -> tuple[list[Step], str | None, str]:
     )
 
 
-def _manual(url: str | None, repo: str) -> list[str]:
+def _manual(url: str | None, repo: str, root: Path) -> list[str]:
     """What only the Project's UI or the repository's settings can do; `init` prints it and
-    never performs it (a secret is never read or written by `init`)."""
+    never performs it (a secret is never read or written by `init`, nor the quality
+    declaration, which the change that adds the first tests writes)."""
     where = url or "the new copy"
+    declared = (
+        []
+        if _test_declared(root)
+        else [
+            f"manual quality-command: {quality.DECLARATION} declares no test -- CI runs no tests "
+            'until the change that adds the first tests declares {"test": "<command>"}'
+        ]
+    )
     return [
+        *declared,
         f"manual project-visibility: {where}/settings -- a copy is private; "
         "set its visibility as intended",
         f"manual project-workflows: {where}/workflows -- check {WORKFLOWS}",
@@ -739,12 +769,6 @@ def _manual(url: str | None, repo: str) -> list[str]:
 # --- the run ----------------------------------------------------------------------------
 
 
-def _command(value: str) -> str:
-    if not value.strip():
-        raise argparse.ArgumentTypeError("must not be empty")
-    return value
-
-
 def _version(value: str) -> str:
     if not re.fullmatch(r"\d+\.\d+\.\d+", value):
         raise argparse.ArgumentTypeError("expected <major>.<minor>.<patch>")
@@ -753,8 +777,6 @@ def _version(value: str) -> str:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="init.py", description=__doc__.splitlines()[0])
-    parser.add_argument("--test", required=True, type=_command, help="complete quality command")
-    parser.add_argument("--setup", default="", help="dependency setup command (optional)")
     parser.add_argument("--version", type=_version, default=VERSION, help="release to install")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="print the plan and write nothing")
@@ -786,8 +808,6 @@ def install(argv: list[str], host: Host) -> int:
         which=host.which,
         repository=override or REPOSITORY,
         version=args.version,
-        setup=args.setup,
-        test=args.test,
     )
     try:
         return _run(ctx, args, argv, host.on_write)
@@ -818,7 +838,7 @@ def _run(
     steps = _consumer_steps(ctx)
     project, url, repo = _project_steps(ctx)
     steps.extend(project)
-    manual = _manual(url, repo)
+    manual = _manual(url, repo, ctx.root)
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     for line in manual:

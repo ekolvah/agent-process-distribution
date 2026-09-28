@@ -13,6 +13,3 @@ permissions:
 jobs:
   agent-process:
     uses: ekolvah/agent-process-distribution/.github/workflows/quality.yml@v${version}
-    with:
-      setup: ${setup}
-      test: ${test}

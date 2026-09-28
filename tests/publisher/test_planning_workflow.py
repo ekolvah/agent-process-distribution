@@ -17,6 +17,7 @@ from tests.publisher.openspec_cli import OPENSPEC, _openspec
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "openspec" / "config.yaml"
+QUALITY = ".github/agent-process-quality.json"
 SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 SCRIPTS = ROOT / "skills" / "agent-process" / "scripts"
@@ -276,8 +277,8 @@ def test_tasks_of_a_new_change() -> None:
     # Group 0 and the propose tail are scripts (v2-2f): the shell steps left the procedure.
     # `check_red` owns its runner and report path (v2-2d): the procedure names neither a
     # runner argument nor a declaration in AGENTS.md. The resolve order lives in the
-    # script, so the procedure spells no rerun and no reply step of its own. The installer's
-    # own `--test` lives in `## Install`, outside the delivery procedure.
+    # script, so the procedure spells no rerun and no reply step of its own. `## Install`
+    # follows the delivery procedure and is checked by `test_install_asks_no_quality_command`.
     procedure = text[: text.index("## Install")]
     for absent in (
         "gh issue create",
@@ -366,15 +367,24 @@ def test_install_asks_no_path_translation() -> None:
 
 
 def test_verify_runs_the_repository_quality_command() -> None:
-    """The portable Verify step defers to the repository, which names a command that exists."""
+    """The portable Verify step and the RED gate defer to the repository's declaration, which
+    names a command that exists (issue 249)."""
     tasks = _section("Tasks")
-    assert "quality command" in tasks and "openspec/config.yaml" in tasks
-    context = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))["context"]
-    printed = _printed_commands(context)
-    assert printed
-    for command in printed:
-        assert command.startswith("python "), command
-        assert (ROOT / command.split()[1]).is_file(), command
+    group1 = tasks[tasks.index("Group 1") : tasks.index(" 3. ")]
+    verify = tasks[tasks.index(" 4. Verify") : tasks.index(" 5. ")]
+    assert QUALITY in group1 and QUALITY in verify
+    assert "check_red" in group1 and "exits 2" in group1 and "`test`" in group1
+    declared = json.loads((ROOT / QUALITY).read_text(encoding="utf-8"))["test"]
+    assert declared.startswith("python "), declared
+    assert (ROOT / declared.split()[1]).is_file(), declared
+
+
+def test_install_asks_no_quality_command() -> None:
+    """Install asks for no quality command; the `quality-command` row reminds the person that
+    none is declared until the first tests declare it (issue 249)."""
+    install = _section("Install")
+    assert "--test" not in install and "--setup" not in install
+    assert "quality-command" in install
 
 
 def test_reviewer_adapter_reads_the_shared_contract() -> None:
