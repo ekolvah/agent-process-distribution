@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.3...v3.1.0) (2026-09-29)
+
+
+### Features
+
+* install-links-an-issue ([#262](https://github.com/ekolvah/agent-process-distribution/issues/262)) ([630a9ed](https://github.com/ekolvah/agent-process-distribution/commit/630a9ed5d67bd2f93f97f12bce1ed20df7262c6f))
+
 ## [3.0.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.2...v3.0.3) (2026-09-28)
 
 
