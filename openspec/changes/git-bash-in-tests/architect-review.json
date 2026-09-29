@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Reproduction, root cause and D1's alternatives are observed command output, the RED test fails in its body independently of the ambient PATH, and the one consumer of the replaced interpreter path now keeps its proof by asserting the hook's own diagnostic.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects `git var GIT_SHELL_PATH` (observed: prints the MSYS `/bin/sh`), a System32/WindowsApps denylist, a hardcoded `C:\\Program Files\\Git`, and `git hook run pre-push` (git would read the test's GIT_DIR, so test_clears_repository_local_git_environment stops proving). D3 keeps one helper for two call sites (test_pre_push_hook.py:50, test_reusable_workflows.py:99), so it is not a single-caller indirection. Nothing outside tests/ is touched; the proposal's full-suite evidence (1 failed, 428 passed) shows no third PATH-resolved shell site needs the helper (`tests/publisher/test_plugin.py:212` resolves `sh`, which System32 does not carry).",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": ".openspec.yaml sets `skip_specs: true` and proposal — Capabilities lists no delta, so there is no scenario to map; tasks.md `## Scenario → test map` records `n/a: skip_specs` and names the covering tests (tests/agent_process/test_git_bash.py::test_launcher_first_on_path_is_not_selected plus task 2.2's run of the existing hook and guard tests under the registry PATH).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 adds the signature stub `git_bash()` keeping today's `shutil.which(\"bash\")` selection, so the failure lands in the test body, and task 1.2 runs `agent-process check_red` and requires the observed body failure before the commit. The test prepends `%SystemRoot%\\System32` to PATH itself, so it is RED even under the Bash tool's Git-first PATH. Note for the implementer: check_red counts `skipped` as not-green (skills/agent-process/scripts/check_red.py:61-64), so only task 1.2's stated verification distinguishes a real RED from the skip.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "D1: `git --exec-path` output, `parents[2]/usr/bin/bash.exe` run by Windows Python printing `/usr/bin/bash msys` and exiting 0, `git var GIT_SHELL_PATH` printing `/bin/sh`, and the probe hook run printing `MINGW64_NT-10.0-26200` / `BASH=/usr/bin/bash` — all command output, recorded beside the decision (proposal — Why for the third), plus `where.exe bash`, `shutil.which(\"bash\")` and the two pytest runs in proposal — Why. D3's two supports are repository facts on record: `[tool.tach]` in pyproject.toml:33-38 declares only `tests.**.test_*` as modules and .agent-process/scripts/ci_check.py:155-162 states helper modules stay importable (the existing `from tests.publisher.delivery_fakes import ...` imports pass `tach check` today); the checkout root reaches sys.path through `python -m pytest`, which matters because `-c .agent-process/pyproject.toml` leaves rootdir at `.agent-process/` (ci_check.py:267-271) so its `pythonpath = [\".\"]` does not point at the checkout root — task 2.1 runs both configurations.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The replaced input is the interpreter path: `shutil.which(\"bash\")` (environment PATH) becomes a path derived from `git --exec-path`. Failure modes are listed (design — Risks: a layout without `usr/bin/bash.exe`; D2: no PATH fallback, fail with the expected path, §IV). Both consumers are now listed: `TestPrePushHook._run`, and `test_missing_interpreter_fails_loudly`, whose lost proof D1 names — `Git\\usr\\bin` holds no `git.exe`, so the hook would exit 2 at `git rev-parse --local-env-vars` (.agent-process/.githooks/pre-push:6-9) before its interpreter loop and the test would still pass. Task 2.1 restores the proof: PATH becomes the bash directory plus the directory of `shutil.which(\"git\")`, and the test asserts `pre-push: no supported Python interpreter found`, the hook's own line 27. That PATH excludes every candidate of the loop on both platforms (the `.venv/...` candidates are relative to the empty tmp tree; `py` lives in C:\\Windows on Windows and does not exist on Linux), so the assertion fails if the run stops earlier.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "D2's catcher is the helper's own assertion (the missing path, or the failed `git --exec-path` under `check=True`), reached as a test failure in every run of the two suites — tasks 2.1 and 2.2 locally, task 3.2's `python .agent-process/scripts/ci_check.py` (`==> pytest`, ci_check.py:265-273) and the same command on the pre-push route. The catcher for the consumer above is the stderr assertion of task 2.1, reached on every platform including Linux CI. On Linux the Windows branch of `git_bash()` is inert by design (design — Context), which is the defect's own scope.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds no rule or spec sentence: `skip_specs`, and proposal — Impact lists only two added test files and two edited test files, no doc or rule text.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The only addition is the test helper `tests/agent_process/git_bash.py` (no new script or gate). D1 names the problem it closes (#88, with the reproduction in proposal — Why) and the standards for its job — `shutil.which(\"bash\")` and `git var GIT_SHELL_PATH` — with the observed reason each does not fit; D3 explains why one helper serves both harnesses instead of a second copy.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

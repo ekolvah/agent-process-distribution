@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.agent_process.git_bash import git_bash
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _HOOK = _REPO_ROOT / ".agent-process" / ".githooks" / "pre-push"
 
@@ -47,18 +49,23 @@ class TestPrePushHook:
     @staticmethod
     def _bash() -> str:
         """Absolute path to `bash`—the test below must restrict PATH without losing the shell."""
-        bash = shutil.which("bash")
-        assert bash, "bash недоступен: хук нечем исполнить, гард выродился бы в grep"
-        return bash
+        return git_bash()
 
     @classmethod
     def _run(
         cls, tmp_path: Path, env: dict[str, str] | None = None
     ) -> subprocess.CompletedProcess[str]:
-        """Execute the real `.githooks/pre-push` in a temporary tree."""
+        """Execute the real `.githooks/pre-push` in a temporary tree.
+
+        Like Git, the bash directory goes first on PATH: the stubs' `#!/usr/bin/env bash`
+        would otherwise reach the WSL launcher of a Windows registry PATH (#88).
+        """
         subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+        bash = cls._bash()
+        env = dict(os.environ if env is None else env)
+        env["PATH"] = str(Path(bash).parent) + os.pathsep + env.get("PATH", "")
         return subprocess.run(
-            [cls._bash(), _HOOK.as_posix()],
+            [bash, _HOOK.as_posix()],
             cwd=tmp_path,
             capture_output=True,
             text=True,
@@ -151,7 +158,9 @@ class TestPrePushHook:
 
     def test_missing_interpreter_fails_loudly(self, tmp_path: Path) -> None:
         """No candidate found—visible failure, not a silently skipped gate (§IV)."""
-        env = {"PATH": str(Path(self._bash()).parent)}
+        git = shutil.which("git")
+        assert git, "git недоступен: хук не дойдёт до поиска интерпретатора"
+        env = {"PATH": str(Path(git).parent)}  # `_run` puts the bash directory first
         result = self._run(tmp_path, env=env)
         assert result.returncode != 0
-        assert result.stderr.strip(), "молчаливый отказ хука неотличим от зелёного прогона"
+        assert "pre-push: no supported Python interpreter found" in result.stderr, result.stderr

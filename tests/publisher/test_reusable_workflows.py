@@ -6,7 +6,6 @@ import json
 import os
 import re
 import shlex
-import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -15,6 +14,7 @@ import pytest
 import yaml
 
 from scripts import head_review
+from tests.agent_process.git_bash import git_bash
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -96,10 +96,8 @@ NOT_RELEASE = "steps.release.outputs.release != 'true'"
 
 
 def _run_guard(run: str, sha: str) -> subprocess.CompletedProcess[str]:
-    bash = shutil.which("bash")
-    assert bash, "bash is unavailable: the guard's run cannot be executed"
     return subprocess.run(
-        [bash, "-c", run],
+        [git_bash(), "-c", run],
         env={**os.environ, "SHA": sha},
         capture_output=True,
         encoding="utf-8",
