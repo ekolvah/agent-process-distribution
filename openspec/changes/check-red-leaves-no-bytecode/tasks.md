@@ -9,7 +9,7 @@
 
 ## 2. Gate
 
-- [ ] 2.1 `skills/agent-process/scripts/check_red.py` (D1): pass `env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}` to the pytest `subprocess.run`, with a comment naming issue 250 and why the variable rather than `-B`; add the bytecode switch to the module docstring's configuration sentence. Verify `python -m pytest tests/publisher/test_check_red.py -q` passes. Commit as `fix(implementation): check_red leaves no bytecode in the worktree`
+- [x] 2.1 `skills/agent-process/scripts/check_red.py` (D1): pass `env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}` to the pytest `subprocess.run`, with a comment naming issue 250 and why the variable rather than `-B`; add the bytecode switch to the module docstring's configuration sentence. Verify `python -m pytest tests/publisher/test_check_red.py -q` passes. Commit as `fix(implementation): check_red leaves no bytecode in the worktree`
 
 ## 3. Verify
 
