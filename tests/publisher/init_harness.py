@@ -70,6 +70,14 @@ TITLE = f"{REPO_NAME} agent process"
 PUBLISHER = "ekolvah/agent-process-distribution"
 
 
+def _done(
+    args: list[str], payload: Any = None, code: int = 0, out: str = ""
+) -> subprocess.CompletedProcess[str]:
+    """`gh`'s completion: JSON `payload` or plain `out` on stdout, a fault on stderr."""
+    text = out if payload is None else json.dumps(payload)
+    return subprocess.CompletedProcess(args, code, text, "fault" if code else "")
+
+
 @dataclass
 class Project:
     owner: str
@@ -86,13 +94,25 @@ class Project:
 class FakeGitHub:
     """GitHub behind `gh` for the consumer `ekolvah/consumer`. It starts with template
     Project 4 linked to the publisher; `faults[command]` makes the next `copy` or `link`
-    exit 1 either before its effect or after it (the lost response)."""
+    exit 1 either before its effect or after it (the lost response). Issues and PRs share
+    one numbering, as on GitHub; `pr create` needs its head pushed to `origin`."""
 
     def __init__(self) -> None:
         self.projects = [Project(OWNER, 4, "agent-process-distribution agent process")]
         self.projects[0].repositories.add(PUBLISHER)
         self.faults: dict[str, str] = {}
         self.hidden = 0  # Projects the owner has beyond the first page
+        self.issues: list[dict[str, Any]] = []
+        self.pulls: list[dict[str, Any]] = []
+        self.origin: Path | None = None
+
+    def issue(self, title: str, state: str = "OPEN") -> dict[str, Any]:
+        issue = {"number": self._item(), "title": title, "state": state, "body": ""}
+        self.issues.append(issue)
+        return issue
+
+    def _item(self) -> int:
+        return len(self.issues) + len(self.pulls) + 1
 
     def add(self, title: str = TITLE, *, closed: bool = False, linked: str = "") -> Project:
         project = Project(OWNER, self._next(), title, closed)
@@ -104,18 +124,68 @@ class FakeGitHub:
     def _next(self) -> int:
         return max(p.number for p in self.projects) + 1
 
-    def state(self) -> list[tuple[str, int, str, bool, list[str]]]:
-        return [
-            (p.owner, p.number, p.title, p.closed, sorted(p.repositories)) for p in self.projects
-        ]
+    def state(self) -> dict[str, Any]:
+        return {
+            "projects": [
+                (p.owner, p.number, p.title, p.closed, sorted(p.repositories))
+                for p in self.projects
+            ],
+            "issues": json.loads(json.dumps(self.issues)),
+            "pulls": json.loads(json.dumps(self.pulls)),
+        }
+
+    def _pushed(self, branch: str) -> bool:
+        assert self.origin is not None
+        return bool(git("ls-remote", "--heads", str(self.origin), branch))
 
     def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
+
+    def _items(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """Issues and PRs in the observed shapes of design D4 (install-links-an-issue)."""
+        flags = dict(zip(args[2::2], args[3::2]))
+        assert flags.pop("--repo") == f"{OWNER}/{REPO_NAME}", args
+        if args[:2] == ["issue", "list"]:
+            assert flags == {"--state": "open", "--json": "number,title", "--limit": "1000"}
+            opened = [i for i in self.issues if i["state"] == "OPEN"]
+            return _done(args, [{"number": i["number"], "title": i["title"]} for i in opened])
+        if args[:2] == ["issue", "create"]:
+            assert set(flags) == {"--title", "--body"}, args
+            issue = self.issue(flags["--title"])
+            issue["body"] = flags["--body"]
+            number = issue["number"]
+            return _done(args, out=f"https://github.com/{OWNER}/{REPO_NAME}/issues/{number}\n")
+        if args[:2] == ["pr", "list"]:
+            fields, state = flags.pop("--json").split(","), flags.pop("--state")
+            assert set(flags) == {"--head"} and state in {"open", "all"}, args
+            assert set(fields) <= {"number", "state", "url"}, args
+            listed = [
+                {name: p[name] for name in fields}
+                for p in self.pulls
+                if p["head"] == flags["--head"] and state in {"all", p["state"].lower()}
+            ]
+            return _done(args, listed)
+        assert args[:2] == ["pr", "create"], args
+        assert set(flags) == {"--base", "--head", "--title", "--body"}, args
+        head = flags["--head"]
+        if any(p["head"] == head and p["state"] == "OPEN" for p in self.pulls):
+            return _done(args, code=1)
+        if not self._pushed(head):
+            return _done(args, code=1)
+        number = self._item()
+        url = f"https://github.com/{OWNER}/{REPO_NAME}/pull/{number}"
+        pull = {"number": number, "head": head, "base": flags["--base"], "url": url}
+        self.pulls.append(
+            {**pull, "title": flags["--title"], "body": flags["--body"], "state": "OPEN"}
+        )
+        return _done(args, out=url + "\n")
+
+    def _projects(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         def done(payload: Any = None, code: int = 0) -> subprocess.CompletedProcess[str]:
-            out = "" if payload is None else json.dumps(payload)
-            return subprocess.CompletedProcess(args, code, out, "fault" if code else "")
+            return _done(args, payload, code)
 
         if args[:2] == ["repo", "view"]:
-            assert args[2:] == ["--json", "owner,name,projectsV2"], args
+            assert args[2:] == ["--json", "owner,name,projectsV2,defaultBranchRef"], args
             repo = f"{OWNER}/{REPO_NAME}"
             linked = [
                 {
@@ -129,7 +199,12 @@ class FakeGitHub:
                 if repo in p.repositories
             ]
             return done(
-                {"name": REPO_NAME, "owner": {"login": OWNER}, "projectsV2": {"Nodes": linked}}
+                {
+                    "name": REPO_NAME,
+                    "owner": {"login": OWNER},
+                    "projectsV2": {"Nodes": linked},
+                    "defaultBranchRef": {"name": "main"},
+                }
             )
         if args[:2] == ["api", "graphql"]:
             assert f"login={OWNER}" in args, args
@@ -179,6 +254,39 @@ class Sandbox:
     @property
     def link(self) -> Path:
         return self.home / ".agents" / "skills" / "agent-process"
+
+    @property
+    def origin(self) -> Path:
+        return self.root.parent / "origin.git"
+
+
+BRANCH = f"agent-process/install-{CURRENT}"
+
+
+def consumer_repo(sb: Sandbox) -> None:
+    """`root` becomes a clone of the bare `origin` whose `main` holds one empty commit. The
+    identity is the clone's own (HOME is the sandbox), and no end-of-line conversion makes a
+    checkout differ from the bytes `init` wrote."""
+    git("init", "-q", "--bare", "-b", "main", str(sb.origin))
+    git("clone", "-q", str(sb.origin), str(sb.root))
+    for key, value in {
+        "user.name": "t",
+        "user.email": "t@t",
+        "commit.gpgsign": "false",
+        "core.autocrlf": "false",
+    }.items():
+        git("config", key, value, cwd=sb.root)
+    git("symbolic-ref", "HEAD", "refs/heads/main", cwd=sb.root)
+    git("commit", "-q", "--allow-empty", "-m", "initial", cwd=sb.root)
+    git("push", "-q", "origin", "main", cwd=sb.root)
+    sb.github.origin = sb.origin
+
+
+def commit_seed(sb: Sandbox) -> None:
+    """The consumer's own files, seeded by a test, as committed and pushed on `main`."""
+    git("add", "-A", cwd=sb.root)
+    git("commit", "-q", "-m", "seed", cwd=sb.root)
+    git("push", "-q", "origin", "main", cwd=sb.root)
 
 
 def host_link(target: Path, link: Path) -> None:
@@ -249,11 +357,19 @@ class Runner:
                 keys.append("npx")
             elif is_gh(cmd) and cmd[1:2] == ["project"]:
                 keys.append(f"gh-{cmd[2]}")
+            elif is_gh(cmd) and cmd[2:3] == ["create"]:
+                keys.append(f"gh-{cmd[1]}-create")
+            elif name.startswith("git") and cmd[1:2] == ["-C"] and cmd[3] in GIT_WRITES:
+                keys.append(cmd[3])
             elif name.startswith("git") and cmd[1:2] != ["-C"] and "clone" in cmd:
                 keys.append("clone")
             elif name.startswith("git") and ("fetch" in cmd or "checkout" in cmd):
                 keys.append(cmd[3] if cmd[1] == "-C" else cmd[1])
         return keys
+
+
+# The consumer checkout's persistent git writes of the onboarding steps.
+GIT_WRITES = {"switch", "commit", "push"}
 
 
 def is_gh(cmd: list[str]) -> bool:
@@ -284,13 +400,16 @@ def install(
 
 
 def snapshot(*bases: Path) -> dict[str, Any]:
-    """Every file's bytes and every link's resolved target, keyed by path."""
+    """Every file's bytes and every link's resolved target, keyed by path; git state is
+    asserted explicitly, so `.git` is skipped."""
     state: dict[str, Any] = {}
     for base in bases:
         for top, dirs, files in os.walk(base):
             for name in list(dirs):
                 path = Path(top) / name
-                if is_link(path):
+                if name == ".git":
+                    dirs.remove(name)
+                elif is_link(path):
                     state[str(path)] = ("link", os.path.realpath(path))
                     dirs.remove(name)
             for name in files:
@@ -323,6 +442,7 @@ def tag_commit(sb: Sandbox, tag: str) -> str:
 # Names shared by the `test_init*.py` modules.
 
 LABELS = [
+    "onboarding-branch",
     "openspec",
     "config",
     "workflow",
@@ -332,6 +452,10 @@ LABELS = [
     "check",
     "project-copy",
     "project-link",
+    "onboarding-commit",
+    "onboarding-issue",
+    "onboarding-push",
+    "onboarding-pr",
 ]
 CONSUMER_FILES = {
     ".github/workflows/agent-process.yml",

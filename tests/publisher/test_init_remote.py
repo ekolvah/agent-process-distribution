@@ -1,10 +1,12 @@
-"""The installer's footprint, its remote writes and the Project phase.
+"""The installer's footprint, its remote writes, the installation PR and the Project phase.
 
 `test_installed_footprint_is_closed` runs the real pinned OpenSpec.
 
 `gh` never reaches GitHub: the runner hands it to `FakeGitHub` (change
-v2-2g-c-project-provisioning, design D6), which answers the two reads in their observed
-shapes and applies `project copy` and `project link` to its own Projects.
+v2-2g-c-project-provisioning, design D6), which answers the reads in their observed
+shapes and applies `project copy`, `project link`, `issue create` and `pr create` to its own
+state (change install-links-an-issue, design D4). The consumer is a clone of a local bare
+`origin`, so the branch, commit and push are real git.
 
 The module is imported inside the tests so that a missing symbol fails its own test
 body. The fixture repository and the runner are described in `test_init.py`.
@@ -14,13 +16,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable
 
 import pytest
 
 from tests.publisher.init_harness import (
+    BRANCH,
     CHECK_GROUP,
     CONSUMER_FILES,
+    CURRENT,
     HOST,
     LABELS,
     MARKETPLACE,
@@ -31,6 +36,7 @@ from tests.publisher.init_harness import (
     FakeGitHub,
     Runner,
     Sandbox,
+    _installed,
     git,
     install,
     load_init,
@@ -40,22 +46,28 @@ from tests.publisher.init_harness import (
 
 # --- footprint and remote writes --------------------------------------------------------
 
+ISSUE_TITLE = f"Install agent-process {CURRENT}"
+ONBOARDING = [label for label in LABELS if label.startswith("onboarding-")]
 
-def _consumer_repo(sb: Sandbox) -> None:
-    (sb.root / "README.md").write_text("consumer\n", encoding="utf-8")
-    git("init", "-q", cwd=sb.root)
-    git("add", "-A", cwd=sb.root)
-    git("commit", "-q", "-m", "initial", cwd=sb.root)
+
+def _refs(path: Path) -> str:
+    return git("for-each-ref", "--format=%(refname) %(objectname)", cwd=path)
+
+
+def _git_state(sb: Sandbox) -> tuple[str, str, str]:
+    """The consumer's refs and HEAD, and `origin`'s refs."""
+    return _refs(sb.root), git("rev-parse", "HEAD", cwd=sb.root), _refs(sb.origin)
 
 
 def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
+    """Scenario: Fresh repository — the installation commit carries exactly the installer's
+    files, and nothing is left uncommitted."""
     init = load_init()
-    _consumer_repo(sandbox)
     runner = Runner(init, HOST, sandbox.github, real_npx=True)
     assert install(init, sandbox, "--confirm", runner=runner) == 0
-    status = git("status", "--porcelain", "--untracked-files=all", cwd=sandbox.root)
-    changed = {line[3:] for line in status.splitlines()}
-    assert changed == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
+    assert git("status", "--porcelain", "--untracked-files=all", cwd=sandbox.root) == ""
+    changed = git("diff", "--name-only", "main..HEAD", cwd=sandbox.root)
+    assert set(changed.splitlines()) == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
     settings = json.loads((sandbox.root / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert settings == {
         "extraKnownMarketplaces": {
@@ -73,41 +85,173 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
 
 
 def _gh_kind(args: list[str]) -> str:
-    """`read`, `copy`, or `link`; any other `gh` command fails the test."""
-    if args[:2] == ["repo", "view"]:
+    """`read`, `copy`, `link`, `issue` or `pr`; any other `gh` command fails the test."""
+    if args[:2] in (["repo", "view"], ["issue", "list"], ["pr", "list"]):
         return "read"
     if args[:2] == ["api", "graphql"] and not any("mutation" in part for part in args):
         return "read"
-    if args[:2] == ["project", "copy"]:
-        return "copy"
-    if args[:2] == ["project", "link"]:
-        return "link"
-    raise AssertionError(f"gh command that is not a read, the copy, or the link: {args}")
+    kinds = {
+        ("project", "copy"): "copy",
+        ("project", "link"): "link",
+        ("issue", "create"): "issue",
+        ("pr", "create"): "pr",
+    }
+    if tuple(args[:2]) in kinds:
+        return kinds[args[0], args[1]]
+    raise AssertionError(f"gh command that is not a read or an allowed write: {args}")
 
 
-def test_only_project_writes_remote(sandbox: Sandbox) -> None:
+def _pushes(runner: Runner) -> list[list[str]]:
+    return [cmd for cmd in runner.log if Path(cmd[0]).stem.lower() == "git" and "push" in cmd]
+
+
+def test_remote_writes_are_project_and_pr(sandbox: Sandbox) -> None:
+    """Scenario: Confirmed run."""
     init = load_init()
-    _consumer_repo(sandbox)
     runner = Runner(init, HOST, sandbox.github)
+    main = git("rev-parse", "main", cwd=sandbox.root)
     assert install(init, sandbox, "--confirm", runner=runner) == 0
-    kinds = [_gh_kind(args) for args in runner.gh()]
-    assert (kinds.count("copy"), kinds.count("link")) == (1, 1), kinds
+    kinds = sorted(_gh_kind(args) for args in runner.gh())
+    assert [kind for kind in kinds if kind != "read"] == ["copy", "issue", "link", "pr"], kinds
+    (push,) = _pushes(runner)
+    assert push[-1] == BRANCH, push
     for cmd in runner.log:
         assert not any("api.github.com" in part for part in cmd), cmd
-        if Path(cmd[0]).name.lower().startswith("git"):
-            assert not {"commit", "push"} & set(cmd), cmd
-    assert git("rev-list", "--count", "HEAD", cwd=sandbox.root) == "1"
-    assert git("status", "--porcelain", cwd=sandbox.root)
+    assert git("rev-parse", "main", cwd=sandbox.root) == main
+    assert git("rev-parse", "main", cwd=sandbox.origin) == main
+    assert git("rev-list", "--count", "main", cwd=sandbox.root) == "1"
 
 
 def test_dry_run_writes_nothing_remote(sandbox: Sandbox) -> None:
+    """Scenario: Dry-run."""
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
-    before = sandbox.github.state()
+    before = sandbox.github.state(), _git_state(sandbox)
     assert install(init, sandbox, "--dry-run", runner=runner) == 0
     assert runner.gh("repo", "view") and runner.gh("api", "graphql")
     assert {_gh_kind(args) for args in runner.gh()} == {"read"}
-    assert sandbox.github.state() == before
+    assert (sandbox.github.state(), _git_state(sandbox)) == before
+
+
+# --- the installation PR ----------------------------------------------------------------
+
+
+def test_install_opens_the_pr(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Fresh install opens the PR."""
+    init = load_init()
+    assert install(init, sandbox, "--confirm") == 0
+    out = capfd.readouterr().out
+    (issue,) = sandbox.github.issues
+    assert (issue["title"], issue["state"]) == (ISSUE_TITLE, "OPEN")
+    (pull,) = sandbox.github.pulls
+    assert (pull["head"], pull["base"], pull["state"]) == (BRANCH, "main", "OPEN")
+    assert pull["body"].startswith(f"Closes #{issue['number']}"), pull["body"]
+    (line,) = [ln for ln in out.splitlines() if ln.startswith("written onboarding-pr:")]
+    assert pull["url"] in line, line
+    assert git("rev-list", "--count", f"main..{BRANCH}", cwd=sandbox.origin) == "1"
+    changed = git("diff", "--name-only", f"main..{BRANCH}", cwd=sandbox.origin)
+    assert set(changed.splitlines()) == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
+    assert git("branch", "--show-current", cwd=sandbox.root) == BRANCH
+
+
+def test_open_issue_is_reused(sandbox: Sandbox) -> None:
+    """Scenario: Open issue is reused — matched on the exact title."""
+    init = load_init()
+    sandbox.github.issue(f"{ISSUE_TITLE} (draft)")
+    issue = sandbox.github.issue(ISSUE_TITLE)
+    runner = Runner(init, HOST, sandbox.github)
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
+    assert not runner.gh("issue", "create")
+    (pull,) = sandbox.github.pulls
+    assert pull["body"].startswith(f"Closes #{issue['number']}"), pull["body"]
+
+
+def test_nothing_to_install(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Nothing to install — the installation merged into the default branch."""
+    init = load_init()
+    _installed(init, sandbox)
+    git("switch", "-q", "main", cwd=sandbox.root)
+    git("merge", "-q", "--ff-only", BRANCH, cwd=sandbox.root)
+    runner = Runner(init, HOST, sandbox.github)
+    before = sandbox.github.state(), _git_state(sandbox)
+    capfd.readouterr()
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
+    out = capfd.readouterr().out
+    assert not [label for label in transitions(out) if label.startswith("onboarding-")], out
+    assert {_gh_kind(args) for args in runner.gh()} == {"read"}
+    assert (sandbox.github.state(), _git_state(sandbox)) == before
+
+
+def test_rerun_after_merge(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Rerun after the merge — still on the installation branch."""
+    init = load_init()
+    _installed(init, sandbox)
+    (pull,) = sandbox.github.pulls
+    pull["state"] = "MERGED"
+    runner = Runner(init, HOST, sandbox.github)
+    before = sandbox.github.state(), _git_state(sandbox)
+    capfd.readouterr()
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
+    out = capfd.readouterr().out
+    seen = transitions(out)
+    assert {label: seen.get(label) for label in ONBOARDING} == dict.fromkeys(
+        ONBOARDING, "unchanged"
+    ), out
+    for label in ONBOARDING:
+        lines = [ln for ln in out.splitlines() if ln.startswith(f"unchanged {label}:")]
+        assert lines and all(pull["url"] in ln for ln in lines), (label, out)
+    assert {_gh_kind(args) for args in runner.gh()} == {"read"}
+    assert not _pushes(runner)
+    assert (sandbox.github.state(), _git_state(sandbox)) == before
+
+
+def _dirty(init: ModuleType, sb: Sandbox) -> None:
+    (sb.root / "notes.txt").write_text("mine\n", encoding="utf-8")
+
+
+def _other_branch(init: ModuleType, sb: Sandbox) -> None:
+    git("switch", "-q", "-c", "feature", cwd=sb.root)
+
+
+def _branch_on_origin(init: ModuleType, sb: Sandbox) -> None:
+    git("push", "-q", "origin", f"main:refs/heads/{BRANCH}", cwd=sb.root)
+
+
+def _pr_closed(init: ModuleType, sb: Sandbox) -> None:
+    _installed(init, sb)
+    sb.github.pulls[0]["state"] = "CLOSED"
+
+
+# Each row: arrange the starting point, and what the conflict line names.
+UNSAFE: dict[str, tuple[Callable[[ModuleType, Sandbox], None], str]] = {
+    "dirty": (_dirty, "git stash"),
+    "other-branch": (_other_branch, "git switch main"),
+    "branch-not-checked-out": (_branch_on_origin, f"git switch {BRANCH}"),
+    "pr-closed": (_pr_closed, "closed"),
+}
+
+
+@pytest.mark.parametrize("case", list(UNSAFE))
+def test_unsafe_starting_point(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str
+) -> None:
+    """Scenario: Unsafe starting point."""
+    init = load_init()
+    arrange, cause = UNSAFE[case]
+    arrange(init, sandbox)
+    before = (
+        snapshot(sandbox.root, sandbox.home),
+        sandbox.github.state(),
+        _git_state(sandbox),
+    )
+    capfd.readouterr()
+    assert install(init, sandbox, "--confirm") == 2
+    out = capfd.readouterr().out
+    (line,) = [ln for ln in out.splitlines() if ln.startswith("conflict onboarding-branch:")]
+    assert cause in line, line
+    assert "written" not in transitions(out).values()
+    after = (snapshot(sandbox.root, sandbox.home), sandbox.github.state(), _git_state(sandbox))
+    assert after == before
 
 
 # --- the Project phase ------------------------------------------------------------------

@@ -15,21 +15,32 @@ A run first classifies every transition from observed state — `planned`, `unch
 write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order and print
 `written` or `unchanged`:
 
-1. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
-2. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
+1. onboarding-branch  `git switch -c agent-process/install-<version>` from the default branch
+2. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
+3. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
              `# agent-process release:` line, which `release_drift` compares (#190)
-3. workflow  the managed `.github/workflows/agent-process.yml`
-4. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
-5. dependabot  the marker block of `.github/dependabot.yml`
-6. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
+4. workflow  the managed `.github/workflows/agent-process.yml`
+5. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
+6. dependabot  the marker block of `.github/dependabot.yml`
+7. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
              removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
-7. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
-8. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+8. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+9. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
-9. project-link `gh project link` of that one unlinked copy to the repository
+10. project-link `gh project link` of that one unlinked copy to the repository
+11. onboarding-commit  `git add -A` and `git commit` on the installation branch
+12. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
+13. onboarding-push    `git push -u origin` of the installation branch
+14. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
+                       written line names the PR's URL
 
-Steps 8-9 are classified from `gh` reads of the repository's linked Projects and its
+Steps 9-10 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
+The onboarding steps exist only when a file step is planned or the checkout is on the
+installation branch, and are classified from git and `gh` reads the same way; a merged
+installation PR makes them `unchanged`, and any other starting point — another branch, a dirty
+worktree, the branch not checked out, a PR closed unmerged — is an `onboarding-branch` conflict
+naming the command that resolves it.
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
 `CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
@@ -37,8 +48,9 @@ once-per-machine step that points the marketplace at `stable` with auto-update a
 plugin at user scope. While
 `.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
 installer asks for no quality command and never writes that file, which the change that adds
-the first tests declares (#249). Nothing is committed or pushed, and the Project copy and link are
-the only GitHub writes. `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
+the first tests declares (#249). The default branch is never written: the installation branch is
+the only push, and the Project copy and link, the issue and the PR the only other GitHub writes.
+`AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
 
@@ -57,7 +69,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+import onboarding
 import quality
+from steps import InstallError, Step
 
 VERSION = "3.0.3"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
@@ -126,10 +140,6 @@ Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 class Conflict(Exception):
     """A target the installer does not own."""
-
-
-class InstallError(Exception):
-    """A tool or command failed; exit 1."""
 
 
 def run(
@@ -252,14 +262,6 @@ def _is_link(path: Path) -> bool:
 
 
 # --- transitions ------------------------------------------------------------------------
-
-
-@dataclass
-class Step:
-    label: str
-    status: str
-    detail: str
-    apply: Callable[[], bool] | None = None
 
 
 @dataclass
@@ -623,13 +625,15 @@ def _gh_json(ctx: Context, *args: str) -> Any:
         raise InstallError(f"`gh {args[0]} {args[1]}` printed no JSON") from None
 
 
-def _repository(ctx: Context) -> tuple[str, str, list[dict[str, Any]]]:
-    """Owner, name, and the Projects linked to the repository (gh prints them under `Nodes`)."""
-    data = _gh_json(ctx, "repo", "view", "--json", "owner,name,projectsV2")
+def _repository(ctx: Context) -> tuple[str, str, str, list[dict[str, Any]]]:
+    """Owner, name, default branch, and the Projects linked to the repository (gh prints them
+    under `Nodes`)."""
+    data = _gh_json(ctx, "repo", "view", "--json", "owner,name,projectsV2,defaultBranchRef")
     try:
         linked = data.get("projectsV2") or {}
         nodes = linked.get("Nodes", linked.get("nodes")) or []
-        return str(data["owner"]["login"]), str(data["name"]), list(nodes)
+        default = str(data["defaultBranchRef"]["name"])
+        return str(data["owner"]["login"]), str(data["name"]), default, list(nodes)
     except (AttributeError, KeyError, TypeError):
         raise InstallError(f"`gh repo view` printed an unexpected shape: {data}") from None
 
@@ -662,10 +666,11 @@ def _reusable(ctx: Context, owner: str, title: str) -> tuple[list[dict[str, Any]
     return reusable, named
 
 
-def _project_steps(ctx: Context) -> tuple[list[Step], str | None, str]:
-    """Steps 11-12 from the remote state alone, the Project's URL when one is decided, and
+def _project_steps(
+    ctx: Context, owner: str, name: str, linked: list[dict[str, Any]]
+) -> tuple[list[Step], str | None, str]:
+    """Steps 9-10 from the remote state alone, the Project's URL when one is decided, and
     the repository's `owner/name`."""
-    owner, name, linked = _repository(ctx)
     repo = f"{owner}/{name}"
     title = f"{name} agent process"
     if len(linked) == 1:
@@ -846,9 +851,20 @@ def _run(
                 str(tree),
             )
             return _hand_off(ctx, argv, tree)
-    steps = _consumer_steps(ctx)
-    project, url, repo = _project_steps(ctx)
-    steps.extend(project)
+    consumer = _consumer_steps(ctx)
+    owner, name, default, linked = _repository(ctx)
+    project, url, repo = _project_steps(ctx, owner, name, linked)
+    planned = any(step.status == "planned" for step in consumer)
+    to = onboarding.Target(
+        version=ctx.version,
+        repo=repo,
+        default=default,
+        git=lambda *args, check=True: ctx.git("-C", str(ctx.root), *args, check=check),
+        gh=lambda *args: ctx.call("gh", *args, cwd=ctx.root),
+        gh_json=lambda *args: _gh_json(ctx, *args),
+    )
+    before, after = onboarding.plan(to, planned)
+    steps = [*before, *consumer, *project, *after]
     manual = _manual(url, repo, ctx.root)
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")

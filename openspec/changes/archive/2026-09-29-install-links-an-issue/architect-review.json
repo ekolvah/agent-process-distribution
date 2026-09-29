@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The three findings are closed: the state-all read on B makes the post-merge rerun `unchanged` instead of a duplicate issue and PR, the read shapes are observed live and nothing depends on create output, and the review secret is now set before the yes, so the first head init pushes is reviewed with it.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 (lines 18-23) names the simpler designs the delta's scenarios reject: SKILL.md prose with `gh issue create`/`gh issue develop`, `init` printing a `Closes #N` row for the person, and exempting the installation PR from *A PR links its issue* (openspec/specs/review-and-merge/spec.md:41-48 exempts release PRs only); D2 rejects a `gh issue develop` branch on the dry-run-naming and retry-read cost. No mechanism is added: the five rows are existing `Step`s (init.py:258-264) classified and applied by the existing `_run`/`_perform` (init.py:849-871), and the one added read, `gh pr list --head B --state all` (design.md:48-52), is what keeps *Init reconciles from observable state* true rather than a new abstraction.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Seven delta scenarios, seven map entries (tasks.md:33-39): Confirmed run, Dry-run, Fresh install opens the PR, Open issue is reused, Nothing to install, Rerun after the merge, Unsafe starting point (four params, `pr-closed` among them). The map also carries the two existing scenarios the change re-aims (tasks.md:40-41), and the RENAMED delta (specs/distribution/spec.md:1-4) has its test rename in the same change (tasks.md 1.2).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is tasks.md 1.1-1.3: harness first (LABELS, `LINE`, the `sandbox` clone with a bare `origin`, FakeGitHub issues/pulls with settable `MERGED`/`CLOSED` state and required `--repo`), then the ten new or renamed tests, then `agent-process check_red` over twelve node ids with the RED commit before group 2. Every new test drives the existing entry point `install()` (tests/publisher/init_harness.py:267-283), so each fails in its own body.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design.md:66-70 records the read shapes observed live on ekolvah/agent-process-sandbox-2 (2026-09-29) for `gh repo view --json defaultBranchRef`, `gh issue list --state open --json number,title` and `gh pr list --head ... --state all|open --json number,state,url`, and tasks.md 1.1 makes the fake answer in those shapes; the closing-keyword link is observed in proposal.md:6-11 (run 36419437237) and the linked-branch naming in D2. What the creates print no longer matters: the issue number is re-read with `issue list` and the PR URL with `pr list` (design.md:59-61), every `gh issue`/`gh pr` command pins `--repo` from `_repository` so a fork's parent is never targeted, and `--head` is cited to `gh pr create --help` for not pushing or forking. Two behaviours are stated rather than observed and both fail loudly rather than silently: the creates themselves, deliberately not run live (outward writes on a real repository) and proved at runtime by the re-read that follows each plus end-to-end by the next installation run of #117 (tasks.md 5.2); and that a repository secret can exist before the workflow that reads it (design.md:82-83), whose only failure is the red `agent-review` the catcher class traces.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The dropped guard, *Init writes only the Project remotely* (openspec/specs/distribution/spec.md:86-97, 'Nothing is committed or pushed'), now has the lost proof listed beside the decision: on B the run reads `gh pr list --head B --state all` first, a `MERGED` PR makes all five steps `unchanged` naming it, a `MERGED` PR with a file step still planned is a `conflict` ('switch to <default> and pull'), and a `CLOSED` PR with no open one is a `conflict` (design.md:48-53). That restores *Init reconciles from observable state* (openspec/specs/distribution/spec.md:68-71) for the rerun init's own checkout makes likely, and it is a spec scenario with a test, not prose (specs/distribution/spec.md:51-53, tasks.md 1.2 `test_rerun_after_merge`). An empty `--state all` list still falls through to the table, so the interrupted-run retry keeps working; the branch-state consequence reaches the person in SKILL.md step 4, which says the checkout is left on that branch and to switch and pull after the merge (tasks.md 3.1). The commit row's remaining unclassified cell (on B, clean, no file step planned, B not ahead, no PR at all) is reachable only by building B by hand, so it stays out of the plan.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Each named catcher reaches a delivery step in its case. A rejected commit or missing git identity fails `git commit` with its stderr and the retry resumes at `onboarding-commit` (design.md:78-79 over init.py:865-871). The head pushed without `CLAUDE_CODE_OAUTH_TOKEN` is now prevented rather than recovered: the dry-run of step 2 already prints the `review-secret` row with its URL (init.py:771-772, printed by `_run` before the dry-run returns, init.py:852-861), and SKILL.md step 3 has the person set it before the yes, so the first head init pushes is reviewed with it and 3.0.0's rerun disappears (design.md:80-84, tasks.md 3.1). If the person skips it anyway the degradation stays visible and reachable: `agent-review` is red on that head (archive `2026-09-25-v2-5-delete-control-plane`, design.md:65), SKILL.md step 5 gates the activation on that check being green, and a re-run of the run reviews the head because no closing comment names it (openspec/specs/review-and-merge/spec.md:121-127, *Re-run on an interrupted review*) -- no new prose is needed for the recovery. A `link` step that reads too early fails printing the link ways and `gh run rerun` (openspec/specs/review-and-merge/spec.md:44-47), with the live check deferred to the next installation run of #117.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec delta: the ADDED requirement is ~145 words and every clause has a scenario and a test (tasks.md 1.2) -- branch/commit/push/PR shape, the `Closes #<N>` body, 'created only when none is open', the written PR line's URL, the four conflicts, and the two no-op runs; the MODIFIED requirement grows one clause, asserted by `test_remote_writes_are_project_and_pr`. SKILL.md Install is ~103 words in step 4 today (lines 141-147); task 3.1 drops the 24-word 'The installer never commits or pushes...' sentence, adds one clause to step 3 (~15 words) and ~40 to step 4, and names neither the branch nor the issue title because `init` prints both -- the advisory trim of the previous review is applied and the `gh run rerun` sentence is gone with the rerun itself. The tests assert `plugin-channel` (tests/publisher/test_planning_workflow.py:551-552) and the `review-secret` row (tests/publisher/test_init_remote.py:246); the rest is the person-facing half the change deliberately moves out of prose into init's printed rows.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script and no check is added: five `Step` rows join `init.py` and reuse `_run`/`_perform` (init.py:849-871). The standard for the job is named with its precedents (design.md D1: Renovate's `renovate/configure`, pre-commit.ci, Dependabot; D3: the tool-namespaced branch) and the problem it closes with the failing run (proposal.md:3-11, #247). Both added reads earn their place: `git ls-remote --heads origin B` keeps a rerun from printing `written push`, and `gh pr list --state all` classifies the post-merge rerun.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
