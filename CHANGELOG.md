@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.1.1...v3.2.0) (2026-09-29)
+
+
+### Features
+
+* consumer-pre-push-hook ([#267](https://github.com/ekolvah/agent-process-distribution/issues/267)) ([5e707bf](https://github.com/ekolvah/agent-process-distribution/commit/5e707bf6cb4c266f230ab2a7dd7f46273eb3d3f2))
+
 ## [3.1.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.1.0...v3.1.1) (2026-09-29)
 
 
