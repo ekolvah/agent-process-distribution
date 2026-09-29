@@ -8,6 +8,10 @@ inside the tests so that a missing script fails its own scenario.
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -112,3 +116,155 @@ def test_github_output_malformed_fails(
     code, out, _ = _github_output(monkeypatch, tmp_path, capsys)
     assert code == 1
     assert out.startswith("::error::") and DECLARATION in out, out
+
+
+# --- the pre-push hook (change consumer-pre-push-hook, issue 188) ------------------------
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, encoding="utf-8")
+
+
+def _pushed(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, declaration: dict | None) -> Path:
+    """A checkout being pushed, the hook's working directory (pre-commit runs from the root)."""
+    _git(tmp_path, "init", "-q")
+    if declaration is not None:
+        _declare(tmp_path, json.dumps(declaration))
+    monkeypatch.chdir(tmp_path)
+    return tmp_path
+
+
+def test_hook_exits_with_test_code(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Declared test fails — the test runs once, without `setup` or `checks`."""
+    quality = load_script("quality")
+    root = _pushed(
+        monkeypatch,
+        tmp_path,
+        {
+            "setup": "echo setup >> setup.txt",
+            "test": "echo run >> runs.txt; exit 3",
+            "checks": "echo checks >> checks.txt",
+        },
+    )
+    assert quality.hook() == 3, capfd.readouterr()
+    assert (root / "runs.txt").read_text(encoding="utf-8").splitlines() == ["run"]
+    assert not (root / "setup.txt").exists() and not (root / "checks.txt").exists()
+    _declare(root, json.dumps({"test": "exit 0"}))
+    assert quality.hook() == 0
+
+
+def test_hook_without_declaration_passes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: No declaration."""
+    quality = load_script("quality")
+    _pushed(monkeypatch, tmp_path, None)
+    assert quality.hook() == 0
+    err = capfd.readouterr().err
+    assert DECLARATION in err and "no quality command" in err, err
+
+
+def test_hook_malformed_declaration_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    quality = load_script("quality")
+    _pushed(monkeypatch, tmp_path, {"test": 1})
+    assert quality.hook() == 1
+    err = capfd.readouterr().err
+    assert DECLARATION in err and "`test` is not a string" in err, err
+
+
+def test_hook_hides_local_git_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Scenario: Push from a linked worktree — git hands the hook `GIT_DIR`."""
+    quality = load_script("quality")
+    root = _pushed(
+        monkeypatch,
+        tmp_path,
+        {"test": 'echo "${GIT_DIR-unset} ${GIT_INDEX_FILE-unset}" > seen.txt'},
+    )
+    monkeypatch.setenv("GIT_DIR", str(root / ".git"))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(root / ".git" / "index"))
+    assert quality.hook() == 0
+    assert (root / "seen.txt").read_text(encoding="utf-8").strip() == "unset unset"
+
+
+PREFIX_PROBE = (
+    "import os, sys; "
+    "open('seen.txt', 'w').write(sys.prefix + chr(10) + os.environ.get('VIRTUAL_ENV', 'unset'))"
+)
+
+
+def test_hook_keeps_the_pushers_venv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Scenario: This repository's push — `quality.py --hook` runs where pre-commit applied no
+    env patch, so the interpreter and venv it runs in are the pusher's own (design D4)."""
+    quality = load_script("quality")
+    root = _pushed(monkeypatch, tmp_path, {"test": f'python -c "{PREFIX_PROBE}"'})
+    monkeypatch.setenv("VIRTUAL_ENV", sys.prefix)
+    monkeypatch.setenv(
+        "PATH", os.pathsep.join([str(Path(sys.executable).parent), os.environ["PATH"]])
+    )
+    assert quality.hook(hook_env=False) == 0
+    prefix, venv = (root / "seen.txt").read_text(encoding="utf-8").splitlines()
+    assert Path(prefix).resolve() == Path(sys.prefix).resolve()
+    assert venv == sys.prefix
+
+
+@pytest.mark.parametrize("name", ["BASH", "GIT"], ids=["no-bash", "no-git"])
+def test_hook_faults_exit_2(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capfd: pytest.CaptureFixture[str],
+    name: str,
+) -> None:
+    quality = load_script("quality")
+    root = _pushed(monkeypatch, tmp_path, {"test": "echo ran > ran.txt"})
+    monkeypatch.setattr(quality, name, "agent-process-missing-executable")
+    assert quality.hook() == 2
+    assert "agent-process-missing-executable" in capfd.readouterr().err
+    assert not (root / "ran.txt").exists()
+
+
+def test_hook_repository_runs_at_pre_push(tmp_path: Path) -> None:
+    """Scenarios: Consumer render, Declared test runs python — pre-commit installs this
+    repository as a hook repository and runs `quality` at `pre-push`; the declared `python` is
+    the pusher's, not the hook env pre-commit built (design D1, D4, D5). Needs the network."""
+    probe = "import sys; print('prefix=' + sys.prefix)"
+    _git(tmp_path, "init", "-q")
+    _declare(tmp_path, json.dumps({"test": f'python -c "{probe}"; exit 7'}))
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "declare")
+    python = shutil.which("python")
+    assert python, "python is not on PATH"
+    expected = subprocess.run(
+        [python, "-c", "import sys; print(sys.prefix)"],
+        capture_output=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout.strip()
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pre_commit",
+            "try-repo",
+            str(ROOT),
+            "quality",
+            "--hook-stage",
+            "pre-push",
+            "--all-files",
+            "--verbose",
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    out = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0, out
+    assert f"prefix={expected}" in out, out

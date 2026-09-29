@@ -30,6 +30,8 @@ from pathlib import Path
 
 DECLARATION = ".github/agent-process-quality.json"
 _FIELDS = ("setup", "test", "checks")
+BASH = "bash"
+GIT = "git"
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,10 @@ def read(root: Path) -> Declaration | None:
     if not values["test"].strip():
         raise ValueError(f"{DECLARATION}: `test` is blank")
     return Declaration(**values)
+
+
+def hook(hook_env: bool = True) -> int:
+    raise NotImplementedError
 
 
 def main(argv: list[str] | None = None) -> int:

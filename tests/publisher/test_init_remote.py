@@ -372,6 +372,10 @@ def test_manual_actions_are_printed(
     assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in channel[0]
     assert "Enable auto-update" in channel[0]
     assert f"claude plugin install {PLUGIN}" in channel[0]
+    pre_push = [ln for ln in lines if ln.startswith("manual pre-push: ")]
+    assert len(pre_push) == 1, pre_push
+    assert "git config --unset-all core.hooksPath" in pre_push[0]
+    assert "pre-commit install --hook-type pre-push" in pre_push[0]
     assert not [cmd for cmd in runner.log if Path(cmd[0]).stem.lower() == "claude"]
     for args in runner.gh():
         _gh_kind(args)
