@@ -17,8 +17,8 @@
 
 ## 3. Installer
 
-- [ ] 3.1 Template and step (D6): add `skills/agent-process/templates/pre-commit-config.yaml`; generalize `_dependabot_text` into one marker-block helper used by `dependabot` and the new `pre-commit` step, placed after `dependabot` in `_consumer_steps`; `_manual` adds the `pre-push` row; the module docstring's step list names the step. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_remote.py tests/publisher/test_init_config.py tests/publisher/test_init_conflicts.py tests/publisher/test_plugin.py -q` passes
-- [ ] 3.2 `skills/agent-process/SKILL.md` Install step 4 names the `pre-push` row among the rows the person does. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit as `feat(distribution): init renders the pre-push hook`
+- [x] 3.1 Template and step (D6): add `skills/agent-process/templates/pre-commit-config.yaml`; generalize `_dependabot_text` into one marker-block helper used by `dependabot` and the new `pre-commit` step, placed after `dependabot` in `_consumer_steps`; `_manual` adds the `pre-push` row; the module docstring's step list names the step. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_remote.py tests/publisher/test_init_config.py tests/publisher/test_init_conflicts.py tests/publisher/test_plugin.py -q` passes
+- [x] 3.2 `skills/agent-process/SKILL.md` Install step 4 names the `pre-push` row among the rows the person does. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit as `feat(distribution): init renders the pre-push hook`
 
 ## 4. This repository's hook
 

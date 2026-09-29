@@ -144,7 +144,8 @@ Run from the consumer's root:
 4. The confirmed run commits the files on the installation branch, pushes it, and opens the
    installation PR, linked to its issue; it prints the PR and leaves the checkout on that
    branch. Tell the person to do the other `manual` rows — the `project-*` rows in the
-   Project's UI and the `plugin-channel` row, once per machine and outside any project — then
+   Project's UI, the `plugin-channel` row, once per machine and outside any project, and the
+   `pre-push` row, in each clone — then
    to review and merge the PR, switch to the default branch and pull. The `quality-command`
    row stays while no `test` is declared: CI runs no tests until then.
 5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and
