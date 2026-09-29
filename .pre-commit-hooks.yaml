@@ -1,0 +1,8 @@
+- id: quality
+  name: quality
+  description: Run the repository's declared quality `test` before a push.
+  entry: agent-process-quality
+  language: python
+  stages: [pre-push]
+  always_run: true
+  pass_filenames: false

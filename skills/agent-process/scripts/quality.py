@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Read the repository's quality declaration (issue 249).
 
-Usage: python skills/agent-process/scripts/quality.py --github-output
+Usage: python skills/agent-process/scripts/quality.py (--github-output | --hook)
 
 `.github/agent-process-quality.json` belongs to the repository, not to the installer: a
 repository without tests has no command to declare, and the change that adds the first
@@ -17,6 +17,10 @@ value is a single line: it becomes one `name=value` line of `$GITHUB_OUTPUT`.
 and `checks` to `$GITHUB_OUTPUT`. An absent file is a warning annotation and empty outputs
 (CI runs no tests, visibly); a malformed one is an error annotation and exit 1. `check_red`
 and the installer call `read`.
+
+`hook` is the pre-push hook (issue 188): the console script `agent-process-quality` for a
+consumer, through pre-commit, and `--hook` for this repository. It runs the declared `test`
+once through `bash` and exits with its code.
 """
 
 from __future__ import annotations
@@ -24,6 +28,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -68,19 +74,79 @@ def read(root: Path) -> Declaration | None:
     return Declaration(**values)
 
 
+def _pushed_env(hook_env: bool) -> dict[str, str] | str:
+    """The environment the declared test runs in, or the fault that stops the push."""
+    git = shutil.which(GIT)
+    if git is None:
+        return f"`{GIT}` is not on PATH; the repository-local git environment cannot be listed"
+    listed = subprocess.run(
+        [git, "rev-parse", "--local-env-vars"],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    if listed.returncode != 0:
+        return f"`{GIT} rev-parse --local-env-vars` failed: {listed.stderr.strip()}"
+    names = listed.stdout.split()
+    if not names:
+        return f"`{GIT} rev-parse --local-env-vars` printed no names"
+    env = {key: value for key, value in os.environ.items() if key not in names}
+    if hook_env:
+        # pre-commit's `language: python` env, which only this console script runs from.
+        own = os.path.normcase(os.path.dirname(sys.executable))
+        path = env.get("PATH", "").split(os.pathsep)
+        env["PATH"] = os.pathsep.join(p for p in path if os.path.normcase(p) != own)
+        if env.get("VIRTUAL_ENV") == sys.prefix:
+            del env["VIRTUAL_ENV"]
+    return env
+
+
 def hook(hook_env: bool = True) -> int:
-    raise NotImplementedError
+    """The pre-push hook: run the declared `test` once, as CI does, and return its exit code.
+
+    `hook_env` is true on the console script `agent-process-quality`, which pre-commit runs
+    from the hook env it built; `quality.py --hook` runs in the pusher's own environment."""
+    try:
+        declared = read(Path.cwd())
+    except ValueError as exc:
+        print(f"quality: {exc}", file=sys.stderr)
+        return 1
+    if declared is None:
+        print(
+            f"quality: {DECLARATION} is absent: no quality command is declared, so no test runs",
+            file=sys.stderr,
+        )
+        return 0
+    env = _pushed_env(hook_env)
+    if isinstance(env, str):
+        print(f"quality: {env}", file=sys.stderr)
+        return 2
+    bash = shutil.which(BASH, path=env.get("PATH"))
+    if bash is None:
+        print(
+            f"quality: `{BASH}` is not on PATH; the declared test is a bash command",
+            file=sys.stderr,
+        )
+        return 2
+    return subprocess.run([bash, "-c", declared.test], env=env, check=False).returncode
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Read the repository's quality declaration.")
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
         "--github-output",
         action="store_true",
-        required=True,
         help="append setup, test and checks to $GITHUB_OUTPUT",
     )
-    parser.parse_args(sys.argv[1:] if argv is None else argv)
+    mode.add_argument(
+        "--hook",
+        action="store_true",
+        help="run the declared test in the pusher's environment (this repository's pre-push)",
+    )
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
+    if args.hook:
+        return hook(hook_env=False)
     try:
         declared = read(Path.cwd())
     except ValueError as exc:
