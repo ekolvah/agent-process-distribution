@@ -137,17 +137,19 @@ Run from the consumer's root:
    whole output. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
-3. Ask once; on yes run the same command with `--confirm` instead of `--dry-run`.
-4. Tell the person to review and commit the changed files and to do the `manual` rows:
-   the `project-*` rows in the Project's UI, and the `review-secret` row, which sets the
-   repository's `CLAUDE_CODE_OAUTH_TOKEN` secret the review caller passes to the review, and
-   the `plugin-channel` row, once per machine and outside any project. The `quality-command`
+3. Before asking, have the person do the `review-secret` row — set the repository's
+   `CLAUDE_CODE_OAUTH_TOKEN` secret, which the review caller passes to the review — so the
+   first pushed head's `agent-review` runs with it. Ask once; on yes run the same command with
+   `--confirm` instead of `--dry-run`.
+4. The confirmed run commits the files on the installation branch, pushes it, and opens the
+   installation PR, linked to its issue; it prints the PR and leaves the checkout on that
+   branch. Tell the person to do the other `manual` rows — the `project-*` rows in the
+   Project's UI and the `plugin-channel` row, once per machine and outside any project — then
+   to review and merge the PR, switch to the default branch and pull. The `quality-command`
    row stays while no `test` is declared: CI runs no tests until then.
-   The installer never commits or pushes; its only GitHub writes are the copy of the
-   template Project and its link to the repository.
-5. Once the installation PR shows `agent-process / quality` and `agent-review / agent-review`
-   green and the person has merged it, run `agent-process activate_protection --pr <N> --dry-run` with
-   that PR's number (admin rights on
+5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and
+   the person has merged it, run `agent-process activate_protection --pr <N> --dry-run` with
+   its number (admin rights on
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.

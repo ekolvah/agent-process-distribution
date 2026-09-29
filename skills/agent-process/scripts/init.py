@@ -15,21 +15,32 @@ A run first classifies every transition from observed state — `planned`, `unch
 write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order and print
 `written` or `unchanged`:
 
-1. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
-2. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
+1. onboarding-branch  `git switch -c agent-process/install-<version>` from the default branch
+2. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
+3. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
              `# agent-process release:` line, which `release_drift` compares (#190)
-3. workflow  the managed `.github/workflows/agent-process.yml`
-4. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
-5. dependabot  the marker block of `.github/dependabot.yml`
-6. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
+4. workflow  the managed `.github/workflows/agent-process.yml`
+5. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
+6. dependabot  the marker block of `.github/dependabot.yml`
+7. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
              removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
-7. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
-8. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+8. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+9. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
-9. project-link `gh project link` of that one unlinked copy to the repository
+10. project-link `gh project link` of that one unlinked copy to the repository
+11. onboarding-commit  `git add -A` and `git commit` on the installation branch
+12. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
+13. onboarding-push    `git push -u origin` of the installation branch
+14. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
+                       written line names the PR's URL
 
-Steps 8-9 are classified from `gh` reads of the repository's linked Projects and its
+Steps 9-10 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
+The onboarding steps exist only when a file step is planned or the checkout is on the
+installation branch, and are classified from git and `gh` reads the same way; a merged
+installation PR makes them `unchanged`, and any other starting point — another branch, a dirty
+worktree, the branch not checked out, a PR closed unmerged — is an `onboarding-branch` conflict
+naming the command that resolves it.
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
 `CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
@@ -37,8 +48,9 @@ once-per-machine step that points the marketplace at `stable` with auto-update a
 plugin at user scope. While
 `.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
 installer asks for no quality command and never writes that file, which the change that adds
-the first tests declares (#249). Nothing is committed or pushed, and the Project copy and link are
-the only GitHub writes. `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
+the first tests declares (#249). The default branch is never written: the installation branch is
+the only push, and the Project copy and link, the issue and the PR the only other GitHub writes.
+`AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
 
@@ -623,13 +635,15 @@ def _gh_json(ctx: Context, *args: str) -> Any:
         raise InstallError(f"`gh {args[0]} {args[1]}` printed no JSON") from None
 
 
-def _repository(ctx: Context) -> tuple[str, str, list[dict[str, Any]]]:
-    """Owner, name, and the Projects linked to the repository (gh prints them under `Nodes`)."""
-    data = _gh_json(ctx, "repo", "view", "--json", "owner,name,projectsV2")
+def _repository(ctx: Context) -> tuple[str, str, str, list[dict[str, Any]]]:
+    """Owner, name, default branch, and the Projects linked to the repository (gh prints them
+    under `Nodes`)."""
+    data = _gh_json(ctx, "repo", "view", "--json", "owner,name,projectsV2,defaultBranchRef")
     try:
         linked = data.get("projectsV2") or {}
         nodes = linked.get("Nodes", linked.get("nodes")) or []
-        return str(data["owner"]["login"]), str(data["name"]), list(nodes)
+        default = str(data["defaultBranchRef"]["name"])
+        return str(data["owner"]["login"]), str(data["name"]), default, list(nodes)
     except (AttributeError, KeyError, TypeError):
         raise InstallError(f"`gh repo view` printed an unexpected shape: {data}") from None
 
@@ -662,10 +676,11 @@ def _reusable(ctx: Context, owner: str, title: str) -> tuple[list[dict[str, Any]
     return reusable, named
 
 
-def _project_steps(ctx: Context) -> tuple[list[Step], str | None, str]:
-    """Steps 11-12 from the remote state alone, the Project's URL when one is decided, and
+def _project_steps(
+    ctx: Context, owner: str, name: str, linked: list[dict[str, Any]]
+) -> tuple[list[Step], str | None, str]:
+    """Steps 9-10 from the remote state alone, the Project's URL when one is decided, and
     the repository's `owner/name`."""
-    owner, name, linked = _repository(ctx)
     repo = f"{owner}/{name}"
     title = f"{name} agent process"
     if len(linked) == 1:
@@ -746,6 +761,216 @@ def _project_steps(ctx: Context) -> tuple[list[Step], str | None, str]:
         None,
         repo,
     )
+
+
+# --- the installation PR (design D4 of install-links-an-issue) ---------------------------
+
+ONBOARDING = ("onboarding-commit", "onboarding-issue", "onboarding-push", "onboarding-pr")
+
+
+@dataclass
+class _Target:
+    """Where the installation PR goes, and the issue it closes once that is known."""
+
+    ctx: Context
+    repo: str
+    default: str
+    issue: int | None = None
+
+    @property
+    def branch(self) -> str:
+        return f"agent-process/install-{self.ctx.version}"
+
+    @property
+    def title(self) -> str:
+        return f"chore: install agent-process {self.ctx.version}"
+
+    @property
+    def issue_title(self) -> str:
+        return f"Install agent-process {self.ctx.version}"
+
+    def git(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+        return self.ctx.git("-C", str(self.ctx.root), *args, check=check)
+
+    def out(self, *args: str) -> str:
+        done = self.git(*args)
+        if done.stdout is None:
+            raise InstallError(f"`git {args[0]}` output not captured")
+        return done.stdout.strip()
+
+    def remote_head(self) -> str | None:
+        """The commit the branch points to on `origin`, read live, or None when absent."""
+        ref = f"refs/heads/{self.branch}"
+        for line in self.out("ls-remote", "--heads", "origin", ref).splitlines():
+            sha, _, name = line.partition("\t")
+            if name == ref:
+                return sha
+        return None
+
+    def listed(self, *args: str) -> list[dict[str, Any]]:
+        data = _gh_json(self.ctx, *args[:2], "--repo", self.repo, *args[2:])
+        if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+            raise InstallError(f"`gh {args[0]} {args[1]}` printed an unexpected shape: {data}")
+        return data
+
+    def open_issues(self) -> list[int]:
+        """The open issues titled exactly so, from the list API (no search-index lag)."""
+        fields = ("--state", "open", "--json", "number,title", "--limit", "1000")
+        listed = self.listed("issue", "list", *fields)
+        try:
+            return [int(i["number"]) for i in listed if i.get("title") == self.issue_title]
+        except (KeyError, TypeError, ValueError):
+            raise InstallError(f"`gh issue list` printed an unexpected shape: {listed}") from None
+
+
+def _blocked(detail: str) -> tuple[list[Step], list[Step]]:
+    return [Step("onboarding-branch", "conflict", detail)], []
+
+
+def _onboarding(
+    ctx: Context, repo: str, default: str, planned: bool
+) -> tuple[list[Step], list[Step]]:
+    """The branch step, which runs before the file steps, and the four that run after the
+    Project steps; none when no file step is planned and the checkout is not on the branch."""
+    to = _Target(ctx, repo, default)
+    current = to.out("branch", "--show-current")
+    if current == to.branch:
+        return _on_branch(to, planned)
+    if not planned:
+        return [], []
+    cause = _unsafe_start(to, current)
+    if cause:
+        return _blocked(cause)
+
+    def switch() -> bool:
+        to.git("switch", "-c", to.branch)
+        return True
+
+    start = Step("onboarding-branch", "planned", f"{to.branch} from {default}", switch)
+    committing = _commit_step(to, planned)
+    return [start], [committing, _issue_step(to), _push_step(to, committing), _pr_step(to, [])]
+
+
+def _unsafe_start(to: _Target, current: str) -> str | None:
+    """Why a run off the branch cannot start it, naming the command that resolves it."""
+    if current != to.default:
+        where = f"`{current}`" if current else "a detached HEAD"
+        return f"on {where}, not `{to.default}`; `git switch {to.default}`, then rerun"
+    if to.out("status", "--porcelain", "--untracked-files=all"):
+        return "the worktree has changes; commit or `git stash` them, then rerun"
+    local = to.git("rev-parse", "--verify", "--quiet", f"refs/heads/{to.branch}", check=False)
+    if local.returncode == 0 or to.remote_head():
+        return f"`{to.branch}` exists but is not checked out; `git switch {to.branch}`, then rerun"
+    return None
+
+
+def _on_branch(to: _Target, planned: bool) -> tuple[list[Step], list[Step]]:
+    """On the branch, its PRs decide: a merged one ends the onboarding, a closed one blocks."""
+    fields = ("--head", to.branch, "--state", "all", "--json", "number,state,url")
+    pulls = to.listed("pr", "list", *fields)
+    if not any(pull.get("state") == "OPEN" for pull in pulls):
+        merged = [pull.get("url") for pull in pulls if pull.get("state") == "MERGED"]
+        if merged and planned:
+            return _blocked(
+                f"the PR {merged[0]} of `{to.branch}` is merged; `git switch {to.default}` "
+                "and `git pull`, then rerun"
+            )
+        if merged:
+            done = [Step(label, "unchanged", f"{merged[0]} merged") for label in ONBOARDING]
+            return [Step("onboarding-branch", "unchanged", f"{merged[0]} merged")], done
+        if pulls:
+            return _blocked(
+                f"the PR {pulls[0].get('url')} of `{to.branch}` was closed unmerged; "
+                f"reopen it or remove `{to.branch}`"
+            )
+    committing = _commit_step(to, planned)
+    after = [committing, _issue_step(to), _push_step(to, committing), _pr_step(to, pulls)]
+    return [Step("onboarding-branch", "unchanged", to.branch)], after
+
+
+def _commit_step(to: _Target, planned: bool) -> Step:
+    def commit() -> bool:
+        to.git("add", "-A")
+        # A planned file write can restore the committed bytes: re-read what is staged.
+        if to.git("diff", "--cached", "--quiet", check=False).returncode == 0:
+            return False
+        to.git("commit", "--quiet", "-m", to.title)
+        return True
+
+    step = Step("onboarding-commit", "planned", f"{to.title!r} on {to.branch}", commit)
+    if planned or to.out("status", "--porcelain", "--untracked-files=all"):
+        return step
+    ahead = int(to.out("rev-list", "--count", f"origin/{to.default}..HEAD"))
+    if ahead:
+        return Step("onboarding-commit", "unchanged", f"{to.branch} is {ahead} ahead")
+    detail = f"nothing to commit and `{to.branch}` is not ahead of `origin/{to.default}`"
+    return Step("onboarding-commit", "conflict", detail)
+
+
+def _issue_step(to: _Target) -> Step:
+    numbers = to.open_issues()
+    if len(numbers) > 1:
+        listed = ", ".join(f"#{number}" for number in numbers)
+        return Step("onboarding-issue", "conflict", f"{listed} are titled {to.issue_title!r}")
+    if numbers:
+        to.issue = numbers[0]
+        return Step("onboarding-issue", "unchanged", f"#{numbers[0]} {to.issue_title!r}")
+
+    def open_issue() -> bool:
+        body = (
+            f"Install agent-process {to.ctx.version} with its `init.py`; "
+            "the installation PR closes this issue."
+        )
+        create = ("create", "--repo", to.repo, "--title", to.issue_title, "--body", body)
+        to.ctx.call("gh", "issue", *create, cwd=to.ctx.root)
+        found = to.open_issues()
+        if len(found) != 1:
+            raise InstallError(f"expected one open issue {to.issue_title!r} in {to.repo}: {found}")
+        to.issue = found[0]
+        return True
+
+    return Step("onboarding-issue", "planned", f"{to.issue_title!r} in {to.repo}", open_issue)
+
+
+def _push_step(to: _Target, committing: Step) -> Step:
+    def push() -> bool:
+        if to.remote_head() == to.out("rev-parse", "HEAD"):
+            return False
+        to.git("push", "--quiet", "-u", "origin", to.branch)
+        return True
+
+    step = Step("onboarding-push", "planned", f"{to.branch} -> origin", push)
+    if committing.status == "planned":
+        return step
+    head = to.out("rev-parse", "HEAD")
+    if to.remote_head() == head:
+        return Step("onboarding-push", "unchanged", f"origin/{to.branch} at {head[:12]}")
+    return step
+
+
+def _pr_step(to: _Target, pulls: list[dict[str, Any]]) -> Step:
+    opened = [pull for pull in pulls if pull.get("state") == "OPEN"]
+    if opened:
+        return Step("onboarding-pr", "unchanged", str(opened[0].get("url")))
+    step = Step("onboarding-pr", "planned", f"{to.branch} -> {to.default}, closing the issue")
+
+    def open_pr() -> bool:
+        if to.issue is None:
+            raise InstallError("the installation PR has no issue to close")
+        body = f"Closes #{to.issue}\n\nInstalls agent-process {to.ctx.version} with its `init.py`."
+        refs = ("--base", to.default, "--head", to.branch)
+        create = ("create", "--repo", to.repo, *refs, "--title", to.title, "--body", body)
+        to.ctx.call("gh", "pr", *create, cwd=to.ctx.root)
+        listed = to.listed(
+            "pr", "list", "--head", to.branch, "--state", "open", "--json", "number,url"
+        )
+        if len(listed) != 1:
+            raise InstallError(f"expected one open PR of `{to.branch}` in {to.repo}: {listed}")
+        step.detail = str(listed[0].get("url"))
+        return True
+
+    step.apply = open_pr
+    return step
 
 
 def _manual(url: str | None, repo: str, root: Path) -> list[str]:
@@ -846,9 +1071,12 @@ def _run(
                 str(tree),
             )
             return _hand_off(ctx, argv, tree)
-    steps = _consumer_steps(ctx)
-    project, url, repo = _project_steps(ctx)
-    steps.extend(project)
+    consumer = _consumer_steps(ctx)
+    owner, name, default, linked = _repository(ctx)
+    project, url, repo = _project_steps(ctx, owner, name, linked)
+    planned = any(step.status == "planned" for step in consumer)
+    before, after = _onboarding(ctx, repo, default, planned)
+    steps = [*before, *consumer, *project, *after]
     manual = _manual(url, repo, ctx.root)
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
