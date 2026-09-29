@@ -83,7 +83,7 @@ default branch.
   `review-secret` row and a repository secret can exist before its workflow, so SKILL.md step 3 has
   the person set it before the yes; on an upgrade it is already set.
 - [The first `link` run starts before GitHub records the keyword link] → `link` fails naming the
-  missing link and `gh run rerun`; the next installation run of #117 observes whether it happens.
+  missing link and `gh run rerun`; the next installation run observes whether it happens (#117).
 - [Tests need a consumer that is a git repository with an `origin`] → the `sandbox` fixture gets a
   bare `origin` and an initial commit on `main`; `snapshot` skips `.git`, and git state is asserted
   explicitly.

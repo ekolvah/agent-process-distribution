@@ -18,13 +18,13 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
+- [x] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 4.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
 
 ## 5. Deliver
 
 - [ ] 5.1 With a clean worktree, run `agent-process archive_change install-links-an-issue`. Verify that it archives the delta into `openspec/specs/distribution/spec.md`, commits, and pushes the branch
-- [ ] 5.2 Run `gh pr create --title "feat: install-links-an-issue" --body-file <report>`. The report references the tracking issue plainly, never with `Closes` (#247), carries the scenario → test map and the observation of proposal — Why, and notes that the first-run green `link` is observed on the next installation run of #117
+- [ ] 5.2 Run `gh pr create --title "feat: install-links-an-issue" --body-file <report>`. The report references the tracking issue plainly, never with `Closes` (#247), carries the scenario → test map and the observation of proposal — Why, and notes that the first-run green `link` is observed on the next installation run (#117)
 - [ ] 5.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 5.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change in the final message. The person merges it
 
