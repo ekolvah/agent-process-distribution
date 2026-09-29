@@ -43,10 +43,11 @@ Documentation-only, rename and one-line non-behavioural changes are exempt (`pri
 configuration — fail-fast cancelled, the cache-driven selection and stepping disabled, a
 JUnit XML report path of its own choosing — with the node ids appended, and SHALL take the
 verdict per test from that report, whole; it SHALL require no runner declaration and no
-report path of the project. Before running anything, `check_red` SHALL exit 2 while
-`.github/agent-process-quality.json` of the current directory declares no valid `test`, naming
-that file and the fault, so the change that brings a repository's first tests declares its
-quality command.
+report path of the project. `check_red` SHALL write nothing of its own into the working tree — no bytecode,
+no cache, no report. Before running
+anything, `check_red` SHALL exit 2 while `.github/agent-process-quality.json` of the current
+directory declares no valid `test`, naming that file and the fault, so the change that
+brings a repository's first tests declares its quality command.
 
 #### Scenario: Behavioural change
 - **WHEN** the implementer starts a behavioural task
@@ -63,6 +64,10 @@ quality command.
 #### Scenario: No quality command declared
 - **WHEN** `check_red` runs where `.github/agent-process-quality.json` is absent or declares no valid `test`
 - **THEN** it exits 2 naming the declaration file and the fault, and runs no test
+
+#### Scenario: Run leaves the tree clean
+- **WHEN** `check_red` runs in a git repository that has no ignore rule for bytecode caches
+- **THEN** `git status --porcelain` prints the same after the run as before it
 
 ### Requirement: GitHub links branch, PR and issue
 The delivery tasks SHALL create the linked branch with `gh issue develop N --name <change>`,

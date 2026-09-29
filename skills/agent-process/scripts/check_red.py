@@ -20,7 +20,9 @@ absent, is never judged. What stops or shortens a run without changing the exit 
 cancelled by the configuration: `--maxfail=0` cancels a fail-fast `-x`/`--maxfail`
 wherever it came from (rc 1 either way); an empty `cache_dir` of the script's own leaves
 `--lf`, `--ff`, `--nf` nothing to replay, and the `cache` fixture stays available;
-`-p no:stepwise` makes `--stepwise`/`--sw-skip` a usage error. An explicit selection in
+`-p no:stepwise` makes `--stepwise`/`--sw-skip` a usage error. The run writes nothing of
+its own into the working tree: the cache and the report live in a temporary directory, and
+`PYTHONDONTWRITEBYTECODE=1` stops the bytecode (issue 250). An explicit selection in
 the project's `addopts` (`-k`, `-m`, `--deselect`) is the project's configuration: the
 gate judges the run under it, as the project runs its tests.
 
@@ -50,6 +52,7 @@ message asks the operator to fix.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import tempfile
@@ -219,7 +222,16 @@ def main(argv: list[str] | None = None) -> None:
             f"--junitxml={report}",
             *paths,
         ]
-        completed = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
+        # No bytecode: in a project that does not ignore `__pycache__` it is untracked
+        # output, and `archive_change` refuses a dirty worktree (issue 250). The variable,
+        # not `-B`: it also reaches every Python process a test starts.
+        completed = subprocess.run(
+            cmd,
+            text=True,
+            capture_output=True,
+            encoding="utf-8",
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        )
         if completed.stdout is None or completed.stderr is None:
             # Capture failed. Code 2 means “gate broken,” not 1: replacing it
             # with an empty string would parse a report with no pytest output and print

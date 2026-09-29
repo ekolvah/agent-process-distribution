@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Root cause reproduced and located, the platform behaviour observed rather than asserted, a one-line fix with one live test that proves the outcome, every scenario mapped; the earlier finding is closed — the requirement now promises only what the gate itself writes.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 alternatives: `python -B -m pytest` (same switch, first interpreter only), `PYTHONPYCACHEPREFIX=<tmp>` (redirect into a directory deleted after the run anyway), an init.py-managed `.gitignore` fragment (the convention ADR 0027 deleted), `--untracked-files=no` in archive_change/start_change (drops the guard), `.git/info/exclude` (per-clone state, and the gate would still write). No scenario discriminates `-B` from the env var — the live test would pass under both — but the env form is the same one line and also covers a process a test spawns, so the broader option costs nothing extra; the diff stays one `env=` argument plus one test (§VII).",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md — Scenario → test map covers all five scenarios of specs/implementation/spec.md: Run leaves the tree clean → tests/publisher/test_check_red.py::test_run_leaves_the_tree_clean (new, task 1.1); Behavioural change, Runner given, Configuration that cuts the run, No quality command declared → the unchanged ::test_behavioural_change, ::test_interrupted_run_is_no_verdict, ::test_refuses_without_quality_declaration, all three present in the file today. No scenario is mapped to `n/a`.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.1 writes the test, 1.2 runs `agent-process check_red tests/publisher/test_check_red.py::test_run_leaves_the_tree_clean` and expects the porcelain assertion to fail naming `pkg/__pycache__/`, with the RED commit before the gate change in 2.1 (§I). The test is live rather than faked (D2): a fake `subprocess.run` could only assert that the variable was passed, which is the mechanism, not the outcome. 1.1 now commits the `tmp_path` repository with a git identity on the command line, as tests/agent_process/test_ci_check.py:28-29 and tests/publisher/init_harness.py:25 do, and states why (an uncommitted `pkg/` collapses to `?? pkg/` and would hide the bytecode).",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Two behaviours, both observed, not inferred. (1) `PYTHONDONTWRITEBYTECODE=1` suppresses the writes: proposal.md — Why records the planner's run of 2026-09-29 (Python 3.12, pytest 9.0.3) where `check_red.py tests/test_f.py::test_f` left `?? pkg/__pycache__/` and `?? tests/__pycache__/`, and the same run with the variable set left `git status --porcelain` empty. (2) pytest's assertion rewriter honours the same switch: `_pytest/assertion/rewrite.py:173`, `write = not sys.dont_write_bytecode` — verified in this review against the installed pytest 9.0.3, the cited line matches verbatim. The two guards the design rests on are read from the code it names: archive_change.py:87-94 (exit 2 on any porcelain output) and start_change.py:156 (`kept: <path> — uncommitted changes`).",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped: the change adds an environment variable to the child of `check_red`'s own `subprocess.run`, and design.md — Non-Goals keeps the clean-worktree guards of archive_change and start_change as they are, with `--untracked-files=no` listed as a rejected alternative and the proof it would lose named (a source or test file forgotten outside the commit, which nothing else catches before the PR).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "One catcher is named, for the case the change leaves out (design.md — Non-Goals: the consumer's own `test` command and ad-hoc pytest runs): `archive_change` refusing. Traced to archive_change.py:88-94 — it prints `error: the worktree is not clean ... \\n{dirty}` with every untracked path and returns 2, reached at the Deliver step (tasks.md 4.1) before `gh pr create`, so that case is a visible stop, not a silent skip (§IV). Note for the plan's readers, not a finding: in a consumer without `.gitignore` the Verify group's own test run writes the same bytecode immediately before that step, so this change closes issue 250's brief (the process's own gate) without by itself making such a consumer's archive succeed; tasks.md 4.2 carries this non-goal into the PR report.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The spec delta adds one sentence to the requirement — \"`check_red` SHALL write nothing of its own into the working tree — no bytecode, no cache, no report.\" (17 words) — and one scenario (Run leaves the tree clean, 36 words). Every word is now asserted by the new test: `of its own` is the scope D1 delivers, and the three named writes are exactly what an empty `git status --porcelain` after a live run in a repository with no ignore rule proves (bytecode suppressed by the variable, cache by `-o cache_dir=<tmp>`, report by `--junitxml=<tmp>`). The earlier unbounded form (\"leave no file in the working tree\"), which promised more than the gate can control and invited a later cleanup shim, is gone.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The change adds no script and no check: it is one `env=` argument in the existing `subprocess.run` of skills/agent-process/scripts/check_red.py plus one test, with the problem it closes named as issue 250 in design.md D1 and in the comment tasks.md 2.1 requires at the call site. Nothing is added to `ci_check.py`, to the hooks, or to init.py's managed files (design.md rejects the managed `.gitignore` fragment).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
