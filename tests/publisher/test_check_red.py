@@ -2,8 +2,8 @@
 
 ``check_red`` is exercised at the ``subprocess.run`` boundary: a fake that records the
 command it received, writes the fixture report at the ``--junitxml=`` argument and returns
-a ``CompletedProcess``. pytest itself is not spawned in the suite; the delivery of the
-change runs it live.
+a ``CompletedProcess``. The fakes cover the configuration; one live test spawns pytest,
+because what the run leaves in the working tree is observable only there (issue 250).
 
 One test per scenario of the change's spec deltas that a script can prove; the
 scenario name is the test name. Scripts are imported inside the tests so that a
@@ -138,6 +138,39 @@ def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     )
     check_red.main(["sub/tests/test_x.py::test_a"])
     check_red.main(["./tests/test_x.py::test_a"])
+
+
+def test_run_leaves_the_tree_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Scenario: Run leaves the tree clean — in a repository with no ignore rule for bytecode,
+    a real RED run leaves `git status --porcelain` as it was: no bytecode, no cache, no report
+    (issue 250: `__pycache__` blocked `archive_change` and the merged-worktree cleanup)."""
+    check_red = load_script("check_red")
+    # An outer setting would make the test pass whatever `check_red` does.
+    monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg" / "__init__.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_f.py").write_text(
+        "from pkg import f\n\n\ndef test_f():\n    assert f() == 2\n", encoding="utf-8"
+    )
+    _root(monkeypatch, tmp_path, '{"test": "python -m pytest"}')
+    # Committed: an untracked `pkg/` would collapse to `?? pkg/` and hide the bytecode.
+    git = ["git", "-c", "user.email=test@example.com", "-c", "user.name=Test"]
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run([*git, "commit", "--quiet", "-m", "init"], cwd=tmp_path, check=True)
+
+    check_red.main(["tests/test_f.py::test_f"])
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
+    )
+    assert status.stdout == ""
 
 
 @pytest.mark.parametrize("returncode", [2, 3, 4])
