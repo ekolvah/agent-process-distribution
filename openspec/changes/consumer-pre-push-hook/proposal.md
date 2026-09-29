@@ -2,15 +2,15 @@
 
 A consumer clone gets no local check before a push (#188). Install step 4 once told each clone
 to set `core.hooksPath .agent-process/.githooks`, but the installer creates no such path, and
-#185 removed the sentence. The publisher's own hook cannot be copied: it is a bash script that
+the sentence was removed (#185). The publisher's own hook cannot be copied: it is a bash script that
 runs this repository's `ci_check.py`, and the footprint forbids copying publisher files. The
 first delivery push is covered by the Verify group; a corrective push after review findings can
 reach CI unchecked, and `agent-process / quality` then blocks the merge only after an extra CI
 round, push and review request.
 
-The issue's plan (bake the `init --test` value into a `repo: local` hook) is overtaken: since
-#249 `init` takes no command and never writes `.github/agent-process-quality.json`, which the
-change that adds the first tests declares after installation. The hook has to read that
+The issue's plan (bake the `init --test` value into a `repo: local` hook) is overtaken: `init`
+now takes no command and never writes `.github/agent-process-quality.json`, which the change
+that adds the first tests declares after installation (#249). The hook has to read that
 declaration when it runs.
 
 **Observations (2026-09-29, Windows 11, Git for Windows bash 5.2.26, pre-commit 4.6.0, scratch

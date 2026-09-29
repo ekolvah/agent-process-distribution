@@ -1,0 +1,13 @@
+# This repository runs the hook entry from its own commit, as its quality caller runs `./`:
+# `language: unsupported` applies no env patch, so the declared test runs in the pusher's venv.
+default_install_hook_types: [pre-push]
+repos:
+  - repo: local
+    hooks:
+      - id: quality
+        name: quality
+        entry: python skills/agent-process/scripts/quality.py --hook
+        language: unsupported
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false

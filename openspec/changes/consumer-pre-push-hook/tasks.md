@@ -22,7 +22,7 @@
 
 ## 4. This repository's hook
 
-- [ ] 4.1 Add `.pre-commit-config.yaml` per D7; delete `.agent-process/.githooks/pre-push`, `.agent-process/.gitattributes` and `tests/agent_process/test_pre_push_hook.py`; `git grep -n "githooks\|hooksPath"` finds no live reference outside `openspec/changes/archive/` and this change. Verify in the worktree with `pre-commit run quality --hook-stage pre-push` (it runs `ci_check`, passes) without changing git config. Commit as `feat(distribution): this repository pushes through pre-commit` with footer `BREAKING CHANGE: a clone of this repository runs no pre-push hook until git config --unset-all core.hooksPath and pre-commit install --hook-type pre-push`
+- [x] 4.1 Add `.pre-commit-config.yaml` per D7; delete `.agent-process/.githooks/pre-push`, `.agent-process/.gitattributes` and `tests/agent_process/test_pre_push_hook.py`; `git grep -n "githooks\|hooksPath"` finds no live reference outside `openspec/changes/archive/` and this change. Verify in the worktree with `pre-commit run quality --hook-stage pre-push` (it runs `ci_check`, passes) without changing git config. Commit as `feat(distribution): this repository pushes through pre-commit` with footer `BREAKING CHANGE: a clone of this repository runs no pre-push hook until git config --unset-all core.hooksPath and pre-commit install --hook-type pre-push`
 
 ## 5. Verify
 
