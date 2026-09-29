@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.1.0...v3.1.1) (2026-09-29)
+
+
+### Bug Fixes
+
+* check-red-leaves-no-bytecode ([#265](https://github.com/ekolvah/agent-process-distribution/issues/265)) ([e13c0bd](https://github.com/ekolvah/agent-process-distribution/commit/e13c0bd60e64478936ae234f833baab95d4da58e))
+
 ## [3.1.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.0.3...v3.1.0) (2026-09-29)
 
 
