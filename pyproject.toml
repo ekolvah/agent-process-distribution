@@ -1,3 +1,22 @@
+# The pre-commit hook repository (issue 188): pre-commit's `language: python` installs this
+# checkout with `pip install .` and runs the console script `.pre-commit-hooks.yaml` names.
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-process-hooks"
+version = "3.1.1"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+agent-process-quality = "quality:hook"
+
+[tool.setuptools]
+py-modules = ["quality"]
+package-dir = {"" = "skills/agent-process/scripts"}
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

@@ -33,6 +33,8 @@ from tests.publisher.init_harness import (
     transitions,
 )
 
+ROOT = Path(__file__).resolve().parents[2]
+
 
 def _block(text: str) -> str:
     """The text with the marker block removed."""
@@ -70,6 +72,13 @@ def test_rerender_replaces_only_owned_content(
         "  # agent-process:begin\n  - old\n  # agent-process:end\n",
         encoding="utf-8",
     )
+    pre_commit = root / ".pre-commit-config.yaml"
+    pre_commit.write_text(
+        "default_install_hook_types: [pre-push]\nrepos:\n  - repo: local\n    hooks:\n"
+        "      - id: mine\n        name: mine\n        entry: mine\n        language: system\n"
+        "  # agent-process:begin\n  - old\n  # agent-process:end\n",
+        encoding="utf-8",
+    )
     settings = root / ".claude" / "settings.json"
     consumer_settings = {
         "permissions": {"allow": ["Bash(ls)"]},
@@ -102,7 +111,7 @@ def test_rerender_replaces_only_owned_content(
     # The form `init` writes: an update re-serialises losslessly only from it (design D4).
     settings.write_text(json.dumps(consumer_settings, indent=2) + "\n", encoding="utf-8")
     commit_seed(sandbox)
-    before = {path: path.read_text(encoding="utf-8") for path in (config, dependabot)}
+    before = {path: path.read_text(encoding="utf-8") for path in (config, dependabot, pre_commit)}
     untouched = {
         rel: data
         for rel, data in relative(snapshot(root), root).items()
@@ -112,7 +121,7 @@ def test_rerender_replaces_only_owned_content(
     assert install(init, sandbox, "--confirm", runner=runner) == 0, capfd.readouterr().out
 
     assert sum(Path(cmd[0]).name.lower().startswith("npx") for cmd in runner.log) == 1
-    for path in (config, dependabot):
+    for path in (config, dependabot, pre_commit):
         text = path.read_text(encoding="utf-8")
         assert _block(text) == _block(before[path])
         assert "# agent-process:begin" in text and "old" not in _only_block(text)
@@ -157,6 +166,25 @@ def test_dependabot_leaves_process_refs_to_install(sandbox: Sandbox) -> None:
     )
     [entry] = [e for e in dependabot["updates"] if e["package-ecosystem"] == "github-actions"]
     assert entry.get("ignore") == [{"dependency-name": "ekolvah/agent-process-distribution*"}]
+
+
+def test_pre_commit_block_references_the_hook(sandbox: Sandbox) -> None:
+    """Scenario: Consumer render — the block pins this repository's `quality` hook at the
+    installed release, and pre-commit installs it at `pre-push` (#188)."""
+    init = load_init()
+    _installed(init, sandbox)
+    config = yaml.safe_load((sandbox.root / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    assert config["default_install_hook_types"] == ["pre-push"]
+    assert config["repos"] == [
+        {
+            "repo": "https://github.com/ekolvah/agent-process-distribution",
+            "rev": f"v{CURRENT}",
+            "hooks": [{"id": "quality"}],
+        }
+    ]
+    hooks = yaml.safe_load((ROOT / ".pre-commit-hooks.yaml").read_text(encoding="utf-8"))
+    [quality] = [hook for hook in hooks if hook["id"] == "quality"]
+    assert quality["stages"] == ["pre-push"]
 
 
 def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:

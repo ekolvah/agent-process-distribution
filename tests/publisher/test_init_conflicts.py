@@ -79,6 +79,10 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         "dependabot",
         lambda init, sb: _write(sb, ".github/dependabot.yml", "version: 2\nupdates: []\n"),
     ),
+    "pre-commit-without-block": (
+        "pre-commit",
+        lambda init, sb: _write(sb, ".pre-commit-config.yaml", "repos: []\n"),
+    ),
     "settings-invalid-json": (
         "settings",
         lambda init, sb: _write(sb, ".claude/settings.json", "{"),

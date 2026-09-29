@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -40,6 +41,7 @@ TEMPLATES = {
     "agent-review.yml",
     "config.yaml",
     "dependabot.yml",
+    "pre-commit-config.yaml",
     "ruleset.json",
     "settings.json",
     "skill_check.py",
@@ -281,6 +283,8 @@ def test_version_drift() -> None:
     )
     assert version_line is not None
     assert version_line.group(0) == f'VERSION = "{release}"  # x-release-please-version'
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert pyproject["project"]["version"] == release
     extra_files = _json(ROOT / "release-please-config.json")["packages"]["."]["extra-files"]
     assert sorted(extra_files, key=lambda place: place["path"]) == [
         {
@@ -289,5 +293,29 @@ def test_version_drift() -> None:
             "jsonpath": "$.plugins[0].version",
         },
         {"type": "json", "path": ".claude-plugin/plugin.json", "jsonpath": "$.version"},
+        {"type": "toml", "path": "pyproject.toml", "jsonpath": "$.project.version"},
         {"type": "generic", "path": "skills/agent-process/scripts/init.py"},
+    ]
+
+
+def test_publisher_pre_push_runs_the_entry() -> None:
+    """Scenario: This repository's push — its own checkout's `quality.py --hook` runs at
+    `pre-push` in the pusher's environment (design D7)."""
+    config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    assert config["default_install_hook_types"] == ["pre-push"]
+    assert config["repos"] == [
+        {
+            "repo": "local",
+            "hooks": [
+                {
+                    "id": "quality",
+                    "name": "quality",
+                    "entry": "python skills/agent-process/scripts/quality.py --hook",
+                    "language": "unsupported",
+                    "stages": ["pre-push"],
+                    "always_run": True,
+                    "pass_filenames": False,
+                }
+            ],
+        }
     ]

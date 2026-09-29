@@ -22,19 +22,21 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 4. workflow  the managed `.github/workflows/agent-process.yml`
 5. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
 6. dependabot  the marker block of `.github/dependabot.yml`
-7. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
+7. pre-commit  the marker block of `.pre-commit-config.yaml`: the `pre-push` hook that runs
+               the declared test (#188)
+8. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
              removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
-8. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
-9. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+9. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+10. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
-10. project-link `gh project link` of that one unlinked copy to the repository
-11. onboarding-commit  `git add -A` and `git commit` on the installation branch
-12. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
-13. onboarding-push    `git push -u origin` of the installation branch
-14. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
+11. project-link `gh project link` of that one unlinked copy to the repository
+12. onboarding-commit  `git add -A` and `git commit` on the installation branch
+13. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
+14. onboarding-push    `git push -u origin` of the installation branch
+15. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
                        written line names the PR's URL
 
-Steps 9-10 are classified from `gh` reads of the repository's linked Projects and its
+Steps 10-11 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The onboarding steps exist only when a file step is planned or the checkout is on the
 installation branch, and are classified from git and `gh` reads the same way; a merged
@@ -118,6 +120,7 @@ CONFIG = "openspec/config.yaml"
 WORKFLOW = ".github/workflows/agent-process.yml"
 REVIEW_WORKFLOW = ".github/workflows/agent-review.yml"
 DEPENDABOT = ".github/dependabot.yml"
+PRE_COMMIT = ".pre-commit-config.yaml"
 SETTINGS = ".claude/settings.json"
 CHECK = ".claude/agent-process-check.py"
 TEMPLATE_OWNER = "ekolvah"
@@ -473,8 +476,17 @@ def _review_text(ctx: Context) -> tuple[str | None, str]:
 
 
 def _dependabot_text(ctx: Context) -> tuple[str | None, str]:
-    text = _read(ctx.root / DEPENDABOT)
-    rendered = _template("dependabot.yml")
+    return _block_text(ctx, DEPENDABOT, _template("dependabot.yml"))
+
+
+def _pre_commit_text(ctx: Context) -> tuple[str | None, str]:
+    return _block_text(ctx, PRE_COMMIT, _template("pre-commit-config.yaml", version=ctx.version))
+
+
+def _block_text(ctx: Context, rel: str, rendered: str) -> tuple[str | None, str]:
+    """A consumer file whose marker block `init` owns: a fresh file gets the whole template,
+    a file with the block gets the block replaced, a file without it is a conflict."""
+    text = _read(ctx.root / rel)
     if text is None or not text.strip():
         return text, rendered
     lines = text.split("\n")
@@ -610,6 +622,7 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         _file_step(ctx, "workflow", WORKFLOW, _workflow_text),
         _file_step(ctx, "review", REVIEW_WORKFLOW, _review_text),
         _file_step(ctx, "dependabot", DEPENDABOT, _dependabot_text),
+        _file_step(ctx, "pre-commit", PRE_COMMIT, _pre_commit_text),
         _file_step(ctx, "settings", SETTINGS, _settings_text),
         _file_step(ctx, "check", CHECK, _check_text),
     ]
@@ -779,6 +792,8 @@ def _manual(url: str | None, repo: str, root: Path) -> list[str]:
         f'"{GITHUB_REPO}#stable", then /plugin -> Marketplaces -> '
         "Enable auto-update for agent-process-marketplace, then claude plugin install "
         f"{PLUGIN}",
+        "manual pre-push: in each clone -- git config --unset-all core.hooksPath where it is "
+        "set, then pre-commit install --hook-type pre-push, so a push runs the declared test",
     ]
 
 

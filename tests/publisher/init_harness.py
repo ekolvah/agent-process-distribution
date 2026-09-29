@@ -448,6 +448,7 @@ LABELS = [
     "workflow",
     "review",
     "dependabot",
+    "pre-commit",
     "settings",
     "check",
     "project-copy",
@@ -461,6 +462,7 @@ CONSUMER_FILES = {
     ".github/workflows/agent-process.yml",
     ".github/workflows/agent-review.yml",
     ".github/dependabot.yml",
+    ".pre-commit-config.yaml",
     ".claude/settings.json",
     ".claude/agent-process-check.py",
 }
