@@ -26,6 +26,7 @@ import pytest
 import yaml
 
 from tests.publisher.init_harness import (
+    BRANCH,
     CURRENT,
     HOST,
     LABELS,
@@ -33,6 +34,8 @@ from tests.publisher.init_harness import (
     ROOT,
     Runner,
     Sandbox,
+    commit_seed,
+    consumer_repo,
     git,
     install,
     load_init,
@@ -177,6 +180,9 @@ def _final(sb: Sandbox) -> dict[str, Any]:
     return {
         "root": relative(snapshot(sb.root), sb.root),
         "github": sb.github.state(),
+        "origin": git("for-each-ref", "--format=%(refname)", cwd=sb.origin).splitlines(),
+        "tree": git("rev-parse", f"{BRANCH}^{{tree}}", cwd=sb.origin),
+        "ahead": git("rev-list", "--count", f"main..{BRANCH}", cwd=sb.origin),
     }
 
 
@@ -196,6 +202,7 @@ def test_retry_after_each_write(
             path.mkdir(parents=True)
         monkeypatch.setenv("HOME", str(sb.home))
         monkeypatch.setenv("USERPROFILE", str(sb.home))
+        consumer_repo(sb)
         return sb
 
     reference = fresh_sandbox("reference")
@@ -298,6 +305,7 @@ def test_quality_command_marker(
     if text[declared] is not None:
         declaration.parent.mkdir(parents=True, exist_ok=True)
         declaration.write_text(text[declared], encoding="utf-8")
+        commit_seed(sandbox)
     for mode in ["--dry-run", "--confirm"]:
         capfd.readouterr()
         assert install(init, sandbox, mode) == 0

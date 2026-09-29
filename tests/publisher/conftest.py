@@ -13,6 +13,7 @@ from tests.publisher.init_harness import (
     PACKAGE,
     STUB,
     Sandbox,
+    consumer_repo,
     git,
 )
 
@@ -46,4 +47,6 @@ def sandbox(tmp_path: Path, process_repo: Path, monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setenv("AGENT_PROCESS_REPOSITORY", str(process_repo))
     monkeypatch.delenv("STUB_EXIT", raising=False)
-    return Sandbox(root, home, process_repo, other)
+    sb = Sandbox(root, home, process_repo, other)
+    consumer_repo(sb)
+    return sb

@@ -16,6 +16,7 @@ from tests.publisher.init_harness import (
     MARKETPLACE,
     PLUGIN,
     Sandbox,
+    commit_seed,
     host_link,
     install,
     load_init,
@@ -264,5 +265,6 @@ def test_upgrade_over_passed_test_conflicts(
     assert "pytest -q" in line and QUALITY in line, line
 
     _write(sandbox, QUALITY, '{"test": "pytest -q"}')
+    commit_seed(sandbox)
     assert install(init, sandbox, "--dry-run") == 0
     assert transitions(capfd.readouterr().out)["workflow"] == "planned"

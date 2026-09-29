@@ -25,6 +25,7 @@ from tests.publisher.init_harness import (
     Runner,
     Sandbox,
     _installed,
+    commit_seed,
     install,
     load_init,
     relative,
@@ -100,6 +101,7 @@ def test_rerender_replaces_only_owned_content(
     }
     # The form `init` writes: an update re-serialises losslessly only from it (design D4).
     settings.write_text(json.dumps(consumer_settings, indent=2) + "\n", encoding="utf-8")
+    commit_seed(sandbox)
     before = {path: path.read_text(encoding="utf-8") for path in (config, dependabot)}
     untouched = {
         rel: data
