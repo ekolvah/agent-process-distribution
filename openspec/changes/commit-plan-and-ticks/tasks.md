@@ -13,8 +13,8 @@
 
 ## 2. Scripts
 
-- [ ] 2.1 `skills/agent-process/scripts/archive_change.py` (D1, D2): `_mark_own_task` becomes public `mark_own_task(tasks, script, change)` matching `<script>(?:\.py)? <change>`; the clean check drops only a ` M`/`M `/`MM` line whose path is `openspec/changes/<change>/tasks.md` and prints the rest; the docstring states both. Verify `python -m pytest tests/publisher/test_pr_delivery.py -q` passes
-- [ ] 2.2 `skills/agent-process/scripts/start_change.py` (D1): after the move, `mark_own_task(target / "tasks.md", "start_change", change)`, then `git -C <worktree> add openspec/changes/<change>` and `git -C <worktree> commit -m "chore: plan <change>"`, a step of `left` between the move and `set_status` that names the tick, the add and the commit; the docstring and the `ok:` line name the plan commit. Verify `python -m pytest tests/publisher/test_start_change.py -q` passes. Commit with the group's ticks as `fix(implementation): start_change commits the plan, archive_change carries the ticks`
+- [x] 2.1 `skills/agent-process/scripts/archive_change.py` (D1, D2): `_mark_own_task` becomes public `mark_own_task(tasks, script, change)` matching `<script>(?:\.py)? <change>`; the clean check drops only a ` M`/`M `/`MM` line whose path is `openspec/changes/<change>/tasks.md` and prints the rest; the docstring states both. Verify `python -m pytest tests/publisher/test_pr_delivery.py -q` passes
+- [x] 2.2 `skills/agent-process/scripts/start_change.py` (D1): after the move, `mark_own_task(target / "tasks.md", "start_change", change)`, then `git -C <worktree> add openspec/changes/<change>` and `git -C <worktree> commit -m "chore: plan <change>"`, a step of `left` between the move and `set_status` that names the tick, the add and the commit; the docstring and the `ok:` line name the plan commit. Verify `python -m pytest tests/publisher/test_start_change.py -q` passes. Commit with the group's ticks as `fix(implementation): start_change commits the plan, archive_change carries the ticks`
 
 ## 3. Skill
 

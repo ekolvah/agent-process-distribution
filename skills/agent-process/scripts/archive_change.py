@@ -9,10 +9,11 @@ is the archived one and no push follows the last review round. `openspec archive
 its own box first (the whole task item, continuation lines included), then archives,
 removes the lock a successful archive leaves behind, commits and pushes. The review
 request and `wait_for_pr` are the PR tasks that follow; they leave no tick in the
-repository (a pushed tick would move the reviewed head) — the PR is their record. Exit
-codes: 0 done; 1 when a command
-fails; 2 when the worktree is not clean (the archive commit must be the only thing left to
-push) or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
+repository (a pushed tick would move the reviewed head) — the PR is their record. The
+change's own `tasks.md`, modified only, is the one uncommitted change it takes: the Verify
+ticks ride in the archive commit. Exit codes: 0 done; 1 when a command fails; 2 when the
+worktree holds any other change (the archive commit must be the only thing left to push,
+and the offending paths are printed) or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
 archive aborted and its state must be inspected before anything is archived on top of it.
 """
 
@@ -54,24 +55,21 @@ def _runner(root: Path) -> Run:
     return run
 
 
-def _mark_own_task(tasks: Path, change: str) -> None:
-    """Tick the task item naming `agent-process archive_change <change>` anywhere in its lines.
+def mark_own_task(tasks: Path, script: str, change: str) -> None:
+    """Tick the task item naming `agent-process <script> <change>` anywhere in its lines.
 
-    The older `archive_change.py <change>` of an in-flight `tasks.md` ticks too.
+    The older `<script>.py <change>` of an in-flight `tasks.md` ticks too.
     """
     text = tasks.read_text(encoding="utf-8")
     # A task item runs from its `- [ ] ` line to the next list item or heading.
     item = re.compile(r"^- \[ \] (?:(?!^- \[|^#).)*", re.M | re.S)
-    command = re.compile(rf"archive_change(?:\.py)? {re.escape(change)}\b")
+    command = re.compile(rf"{re.escape(script)}(?:\.py)? {re.escape(change)}\b")
     for match in item.finditer(text):
         if command.search(match.group()):
             text = text[: match.start()] + "- [x] " + text[match.start() + len("- [ ] ") :]
             tasks.write_text(text, encoding="utf-8")
             return
-    print(
-        f"note: no unchecked `agent-process archive_change {change}` task in {tasks}; "
-        "nothing marked"
-    )
+    print(f"note: no unchecked `agent-process {script} {change}` task in {tasks}; nothing marked")
 
 
 def archive_change(change: str, *, root: Path = Path("."), run: Run | None = None) -> int:
@@ -84,17 +82,24 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
             file=sys.stderr,
         )
         return 2
-    dirty = run(["git", "status", "--porcelain"]).strip()
+    # The Verify ticks are the one change the archive commit carries: `openspec archive`
+    # moves `tasks.md`, so no later commit could.
+    own = f"openspec/changes/{change}/tasks.md"
+    dirty = [
+        line
+        for line in run(["git", "status", "--porcelain"]).splitlines()
+        if not (line[:2] in (" M", "M ", "MM") and line[3:] == own)
+    ]
     if dirty:
         print(
             "error: the worktree is not clean — commit or drop these before archiving, or "
-            f"the pushed head would not carry them:\n{dirty}",
+            "the pushed head would not carry them:\n" + "\n".join(dirty),
             file=sys.stderr,
         )
         return 2
     tasks = root / "openspec" / "changes" / change / "tasks.md"
     if tasks.exists():
-        _mark_own_task(tasks, change)
+        mark_own_task(tasks, "archive_change", change)
     run(["npx", "-y", "@fission-ai/openspec@1.13.0", "archive", change, "-y"])
     if lock.exists():
         lock.unlink()
