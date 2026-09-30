@@ -95,7 +95,9 @@ class FakeGitHub:
     """GitHub behind `gh` for the consumer `ekolvah/consumer`. It starts with template
     Project 4 linked to the publisher; `faults[command]` makes the next `copy` or `link`
     exit 1 either before its effect or after it (the lost response). Issues and PRs share
-    one numbering, as on GitHub; `pr create` needs its head pushed to `origin`."""
+    one numbering, as on GitHub; `pr create` needs its head and base pushed to `origin`.
+    `default_branch` is the settings' name; `empty` makes `repo view` print the empty
+    `defaultBranchRef.name` of a repository with no commits (change init-empty-repository)."""
 
     def __init__(self) -> None:
         self.projects = [Project(OWNER, 4, "agent-process-distribution agent process")]
@@ -105,6 +107,8 @@ class FakeGitHub:
         self.issues: list[dict[str, Any]] = []
         self.pulls: list[dict[str, Any]] = []
         self.origin: Path | None = None
+        self.default_branch = "main"
+        self.empty = False
 
     def issue(self, title: str, state: str = "OPEN") -> dict[str, Any]:
         issue = {"number": self._item(), "title": title, "state": state, "body": ""}
@@ -139,6 +143,8 @@ class FakeGitHub:
         return bool(git("ls-remote", "--heads", str(self.origin), branch))
 
     def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
+            return _done(args, {"name": REPO_NAME, "default_branch": self.default_branch})
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
 
     def _items(self, args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -170,7 +176,7 @@ class FakeGitHub:
         head = flags["--head"]
         if any(p["head"] == head and p["state"] == "OPEN" for p in self.pulls):
             return _done(args, code=1)
-        if not self._pushed(head):
+        if not (self._pushed(head) and self._pushed(flags["--base"])):
             return _done(args, code=1)
         number = self._item()
         url = f"https://github.com/{OWNER}/{REPO_NAME}/pull/{number}"
@@ -203,7 +209,7 @@ class FakeGitHub:
                     "name": REPO_NAME,
                     "owner": {"login": OWNER},
                     "projectsV2": {"Nodes": linked},
-                    "defaultBranchRef": {"name": "main"},
+                    "defaultBranchRef": {"name": "" if self.empty else self.default_branch},
                 }
             )
         if args[:2] == ["api", "graphql"]:
@@ -280,6 +286,20 @@ def consumer_repo(sb: Sandbox) -> None:
     git("commit", "-q", "--allow-empty", "-m", "initial", cwd=sb.root)
     git("push", "-q", "origin", "main", cwd=sb.root)
     sb.github.origin = sb.origin
+
+
+def empty_origin(sb: Sandbox) -> None:
+    """`origin` loses its only branch: a repository with no commits, whose settings name
+    `trunk`, unlike the clone's `main` (change init-empty-repository, design D5)."""
+    git("update-ref", "-d", "refs/heads/main", cwd=sb.origin)
+    sb.github.empty, sb.github.default_branch = True, "trunk"
+
+
+def empty_repository(sb: Sandbox) -> None:
+    """`empty_origin` and the refs of its clone: an unborn `main` and no `origin/main`."""
+    empty_origin(sb)
+    git("update-ref", "-d", "refs/heads/main", cwd=sb.root)
+    git("update-ref", "-d", "refs/remotes/origin/main", cwd=sb.root)
 
 
 def commit_seed(sb: Sandbox) -> None:

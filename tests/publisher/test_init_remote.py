@@ -37,6 +37,8 @@ from tests.publisher.init_harness import (
     Runner,
     Sandbox,
     _installed,
+    empty_origin,
+    empty_repository,
     git,
     install,
     load_init,
@@ -55,8 +57,10 @@ def _refs(path: Path) -> str:
 
 
 def _git_state(sb: Sandbox) -> tuple[str, str, str]:
-    """The consumer's refs and HEAD, and `origin`'s refs."""
-    return _refs(sb.root), git("rev-parse", "HEAD", cwd=sb.root), _refs(sb.origin)
+    """The consumer's refs and HEAD, and `origin`'s refs. HEAD is read as written, so that an
+    unborn one is a state too."""
+    head = (sb.root / ".git" / "HEAD").read_text(encoding="utf-8")
+    return _refs(sb.root), head, _refs(sb.origin)
 
 
 def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
@@ -87,6 +91,8 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
 def _gh_kind(args: list[str]) -> str:
     """`read`, `copy`, `link`, `issue` or `pr`; any other `gh` command fails the test."""
     if args[:2] in (["repo", "view"], ["issue", "list"], ["pr", "list"]):
+        return "read"
+    if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
         return "read"
     if args[:2] == ["api", "graphql"] and not any("mutation" in part for part in args):
         return "read"
@@ -152,6 +158,33 @@ def test_install_opens_the_pr(sandbox: Sandbox, capfd: pytest.CaptureFixture[str
     changed = git("diff", "--name-only", f"main..{BRANCH}", cwd=sandbox.origin)
     assert set(changed.splitlines()) == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
     assert git("branch", "--show-current", cwd=sandbox.root) == BRANCH
+
+
+def test_repository_with_no_commits(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Repository with no commits — the base is the branch the settings name,
+    `trunk`, not the clone's unborn `main` (change init-empty-repository, design D5)."""
+    init = load_init()
+    empty_repository(sandbox)
+    runner = Runner(init, HOST, sandbox.github)
+    before = sandbox.github.state(), _git_state(sandbox)
+    capfd.readouterr()
+    assert install(init, sandbox, "--dry-run", runner=runner) == 0
+    assert "planned onboarding-root:" in capfd.readouterr().out
+    assert (sandbox.github.state(), _git_state(sandbox)) == before
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
+    kinds = sorted(_gh_kind(args) for args in runner.gh())
+    assert [kind for kind in kinds if kind != "read"] == ["copy", "issue", "link", "pr"], kinds
+    origin = sandbox.origin
+    assert not git("for-each-ref", "refs/heads/main", cwd=origin)
+    root = git("rev-parse", "trunk", cwd=origin)
+    assert git("rev-list", "--parents", "-n", "1", root, cwd=origin) == root
+    assert not git("ls-tree", "-r", root, cwd=origin)
+    assert git("rev-list", "--count", f"trunk..{BRANCH}", cwd=origin) == "1"
+    changed = git("diff", "--name-only", f"trunk..{BRANCH}", cwd=origin)
+    assert set(changed.splitlines()) == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
+    assert [push[-1] for push in _pushes(runner)] == [f"{root}:refs/heads/trunk", BRANCH]
+    (pull,) = sandbox.github.pulls
+    assert (pull["head"], pull["base"], pull["state"]) == (BRANCH, "trunk", "OPEN")
 
 
 def test_open_issue_is_reused(sandbox: Sandbox) -> None:
@@ -222,12 +255,24 @@ def _pr_closed(init: ModuleType, sb: Sandbox) -> None:
     sb.github.pulls[0]["state"] = "CLOSED"
 
 
+def _unborn_checkout(init: ModuleType, sb: Sandbox) -> None:
+    git("update-ref", "-d", "refs/heads/main", cwd=sb.root)
+
+
+def _empty_dirty(init: ModuleType, sb: Sandbox) -> None:
+    empty_repository(sb)
+    _dirty(init, sb)
+
+
 # Each row: arrange the starting point, and what the conflict line names.
 UNSAFE: dict[str, tuple[Callable[[ModuleType, Sandbox], None], str]] = {
     "dirty": (_dirty, "git stash"),
     "other-branch": (_other_branch, "git switch main"),
     "branch-not-checked-out": (_branch_on_origin, f"git switch {BRANCH}"),
     "pr-closed": (_pr_closed, "closed"),
+    "unpushed-history": (lambda init, sb: empty_origin(sb), "git push -u origin HEAD:trunk"),
+    "unborn-checkout": (_unborn_checkout, "git pull origin main"),
+    "empty-dirty": (_empty_dirty, "move them out of the worktree"),
 }
 
 
@@ -249,6 +294,7 @@ def test_unsafe_starting_point(
     out = capfd.readouterr().out
     (line,) = [ln for ln in out.splitlines() if ln.startswith("conflict onboarding-branch:")]
     assert cause in line, line
+    assert "``" not in line, line  # no empty branch name
     assert "written" not in transitions(out).values()
     after = (snapshot(sandbox.root, sandbox.home), sandbox.github.state(), _git_state(sandbox))
     assert after == before
