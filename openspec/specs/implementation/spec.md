@@ -39,7 +39,9 @@ or fail closed, never pass silently.
 The implementer SHALL write the failing test named in `tasks.md` and prove it red with
 `check_red` before writing code; this is a `config.yaml` rule on `tasks`.
 Documentation-only, rename and one-line non-behavioural changes are exempt (`principles.md`
-§I). `check_red` SHALL run `python -m pytest` of its own interpreter under its own
+§I). The RED commit SHALL be the first commit after the plan commit of `start_change` and
+SHALL carry the Group 1 ticks; the commit that ends every later group SHALL carry that
+group's ticks. `check_red` SHALL run `python -m pytest` of its own interpreter under its own
 configuration — fail-fast cancelled, the cache-driven selection and stepping disabled, a
 JUnit XML report path of its own choosing — with the node ids appended, and SHALL take the
 verdict per test from that report, whole; it SHALL require no runner declaration and no
@@ -51,7 +53,7 @@ brings a repository's first tests declares its quality command.
 
 #### Scenario: Behavioural change
 - **WHEN** the implementer starts a behavioural task
-- **THEN** the first commit contains a test that `check_red` reports as failing
+- **THEN** the first commit after the plan commit contains a test that `check_red` reports as failing, and the Group 1 ticks
 
 #### Scenario: Runner given
 - **WHEN** `check_red` is called with node ids
@@ -165,15 +167,20 @@ develop` closes the issue on merge.
 
 ### Requirement: `archive_change` archives the change before its PR
 One script, `archive_change <change>`, SHALL archive a change on its branch before the PR
-opens: it SHALL refuse to run on a worktree that is not clean or while an archive lock
-already exists; otherwise it SHALL mark its own task done, run `openspec archive <change> -y`,
-remove the lock a successful archive leaves behind, commit and push, leaving a clean
-worktree. It SHALL NOT request a review or wait for the PR: those are the delivery tasks that
-follow it, recorded by the PR itself.
+opens: it SHALL refuse to run while the worktree holds any change other than a modification
+of `openspec/changes/<change>/tasks.md` or while an archive lock already exists; otherwise it
+SHALL mark its own task done, run `openspec archive <change> -y`, remove the lock a successful
+archive leaves behind, commit — the ticks left in `tasks.md` included — and push, leaving a
+clean worktree. It SHALL NOT request a review or wait for the PR: those are the delivery tasks
+that follow it, recorded by the PR itself.
 
 #### Scenario: Archive commit
 - **WHEN** `archive_change` runs on a clean worktree
 - **THEN** the archive commit is pushed before any PR exists, and the run continues with the PR tasks
+
+#### Scenario: Ticks left for the archive
+- **WHEN** `archive_change` runs while the only uncommitted change is ticks in `openspec/changes/<change>/tasks.md`, again while another file is also changed, and again while that `tasks.md` is deleted
+- **THEN** the first run's archive commit carries those ticks and leaves the worktree clean; the second and third exit 2 naming the other file or the deleted `tasks.md`, before archiving or committing
 
 #### Scenario: Stale archive lock
 - **WHEN** an archive lock exists before `archive_change` runs
@@ -251,7 +258,9 @@ when any batch reports a finding.
 `start_change <change>` SHALL carry the change in a worktree of its own at
 `.claude/worktrees/<change>` of the repository's main worktree, wherever it runs, on the linked branch tracking `origin/<change>`, and SHALL move
 the untracked `openspec/changes/<change>/` of the checkout it runs in into that worktree; it
-SHALL NOT change the branch, the index or any other file of the checkout it runs in. Group 0
+SHALL NOT change the branch, the index or any other file of the checkout it runs in. There it
+SHALL tick its own Group 0 task and commit `openspec/changes/<change>/` on the linked branch —
+the plan commit, not pushed — leaving that worktree clean. Group 0
 SHALL enter that worktree, and every later task of the apply SHALL run there. A failure once
 the remote branch exists SHALL name the steps left, beginning with the worktree step that did
 not run; a run interrupted before the archive SHALL resume by entering the same worktree.
@@ -275,6 +284,10 @@ worktree untouched, and not fail the start on a cleanup failure.
 #### Scenario: Parallel changes
 - **WHEN** `start_change` runs for change `b` in a checkout on `main` that also holds the untracked `openspec/changes/a/` of another change
 - **THEN** the checkout is still on `main` and still holds `openspec/changes/a/`, and `openspec/changes/b/` is in `.claude/worktrees/b`, whose worktree is on branch `b` tracking `origin/b`
+
+#### Scenario: Plan committed
+- **WHEN** `start_change` has moved `openspec/changes/<change>/` into its worktree
+- **THEN** the worktree's `git status --porcelain` is empty, its head commit carries `openspec/changes/<change>/` with the Group 0 task ticked, and `origin/<change>` does not carry that commit
 
 #### Scenario: Worktree step fails after the branch exists
 - **WHEN** `gh issue develop` created the remote branch and a later worktree step fails

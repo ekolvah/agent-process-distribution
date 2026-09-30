@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Two script edits plus the SKILL wording are the minimum that closes #252, every delta scenario has a test that pins its boundary, and both earlier findings are answered: the migration premise now cites only what was observed, and the archive requirement grants exactly what D2 implements.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects the two simpler routes with the observation of proposal.md — Why (a prose rule to the implementer: the invented `docs: add-greet-function plan` commit shows prose is improvised; committing in the propose run: no branch, and the plan must not land on `main`); D2 rejects a prose rule that the Verify group ends with a commit (the improvised `chore: … verified`). Neither decision is droppable: D2 alone leaves the plan directory untracked, so archive_change.py:87-94 would still exit 2; D1 alone leaves the Verify ticks dirty. No new module, no new script, no new flag — two edits of existing scripts and five clauses in SKILL.md.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md `## Scenario → test map` names a test for all 15 scenarios of the three MODIFIED requirements, no `n/a`; the new or extended tests are tasks 1.2-1.4 and the unchanged ones exist (test_check_red.py, test_pr_delivery.py::test_archive_commit, the test_start_change.py worktree tests). The changed half of `Behavioural change` (RED after the plan commit, carrying the Group 1 ticks) is proven by SKILL.md text in test_group_commits_carry_their_ticks only, which matches design.md — Non-Goals (no check of commit history); `Plan committed`, `Ticks left for the archive` (all three runs, task 1.3) and the continuation scenarios are proven against the scripts.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is tasks 1.1-1.5: the fake (1.1), the three test tasks, then 1.5 running `check_red` on six node ids and committing RED as `test(implementation): …`. Every symbol under test already exists (start_change, archive_change, SKILL.md), so each planned failure lands in the call phase — needed, since check_red.py:150-158 does not count `error` as RED. Task 0.2 carries the one-off hand commit of the plan because the installed `start_change` predates D1, so the RED commit still follows a plan commit as the new requirement states.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "(a) `git status --porcelain` line shape `XY PATH` — design.md D2 cites git-status(1) \"Short Format\"; the path form the exact comparison rests on is additionally pinned by the real-git test of task 1.3, and archive_change always runs with cwd=root (archive_change.py:33-54, 77-79). (b) A consumer installs a pre-push hook only (skills/agent-process/templates/pre-commit-config.yaml:1-8 `default_install_hook_types: [pre-push]`, and this repository's .pre-commit-config.yaml:3-11), so D1's plan commit runs no quality hook and its \"no push here\" argument holds; a consumer's own commit hook is the risk design.md lists. (c) Migration state, re-checked in this review: `git worktree list` prints the main worktree alone, and openspec/changes/ holds the three planned changes proposal.md — Impact now names plus this one — which is what the corrected bullet and Migration Plan claim.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The only dropped guard is the all-or-nothing clean check, and design.md D2 lists the three items SKILL.md#design asks for: new input (the uncommitted `tasks.md`), its failure mode (edits beyond ticks), what stops proving (that `tasks.md` equals its last group commit at the archive), and what still proves the guarded invariant. No project-declared input is replaced by a caller-supplied one.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Two catchers, both traceable: the remaining path check of archive_change itself, reached on task 5.1 in the change's worktree (any path other than a modification of the change's `tasks.md` exits 2 and is printed — task 1.3 exercises both refusals); and the `agent-review` job on the pushed archive head, reached after task 5.2 and surfaced by `wait_for_pr` in 5.3 — the archived `tasks.md` is in that head's diff, so an edit beyond ticks is visible there. `git add -A openspec` is named as the mechanism that carries the ticks, not as a catcher.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec additions: worktree requirement +26 words (tick, commit on the linked branch, not pushed, clean) — every clause asserted by test_plan_committed (porcelain empty, `- [x] 0.1` at HEAD, rev-list count 1 against origin); archive requirement +16 words, each half asserted by the three runs of test_ticks_left_for_the_archive, the `modification of` boundary included; RED-first requirement +34 words asserted as SKILL.md phrases (plan commit, Group 1 ticks, the group's ticks), which the Non-Goal accepts since no script reads commit order. SKILL.md gains about 40 words in five clauses (Group 0, Group 1, implementation groups, Verify, Delivery) and task 1.4 now asserts all five.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script and no check is added: D1 and D2 edit start_change.py and archive_change.py, and `_mark_own_task` becomes `mark_own_task(tasks, script, change)` with a second caller — a shared helper with two call sites, not a single-caller indirection. Both decisions name the problem they close (issue #252 and the 2026-09-28 run of add-greet-function in ekolvah/agent-process-sandbox-2, PR #4) and the standard they could have used instead (a prose rule in SKILL.md) with why it does not fit (the observed improvised commits).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

@@ -23,8 +23,9 @@ closed or absent, is left. Then `gh issue develop <N> --name <change>` creates t
 branch without checkout (from the default branch, `--base` unset), `git fetch origin
 <change>` and `git worktree add --track -b <change> <main>/.claude/worktrees/<change>
 origin/<change>` carry it in its own worktree, `openspec/changes/<change>/` moves there from
-the cwd, then `set_status <N> "In Progress"` and one comment on the issue, `planner: <p>;
-implementer: <i>`. The checkout it runs in keeps its branch and every other file. A `gh`
+the cwd, its `start_change` task is ticked and the plan committed there (`chore: plan
+<change>`, not pushed), then `set_status <N> "In Progress"` and one comment on the issue,
+`planner: <p>; implementer: <i>`. The checkout it runs in keeps its branch and every other file. A `gh`
 failure is exit 1 with its stderr; an unresolved Project name is exit 2, as `set_status` maps
 it; a failure once the branch exists names the steps left, from the one that failed — a
 failed `gh issue develop` is followed by `git ls-remote --heads origin <change>`: listed, the
@@ -46,6 +47,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from archive_change import mark_own_task
 from init import release_drift
 from set_status import Gh, _linked_project, _repo, run_gh, set_status
 
@@ -167,6 +169,15 @@ def prune_merged_worktrees(
         print(f"removed: {path}")
 
 
+def commit_plan(change: str, worktree: Path, gh: Gh) -> None:
+    """Tick the `start_change` task of the moved plan and commit the plan in `worktree`
+    (not pushed): its first commit carries the Group 0 tick, as every later group's commit
+    carries its own."""
+    mark_own_task(worktree / "openspec" / "changes" / change / "tasks.md", "start_change", change)
+    gh(["git", "-C", str(worktree), "add", f"openspec/changes/{change}"])
+    gh(["git", "-C", str(worktree), "commit", "-m", f"chore: plan {change}"])
+
+
 def start_change(
     change: str, *, planner: str, implementer: str, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
@@ -209,6 +220,9 @@ def start_change(
         f"git fetch origin {change}",
         f'git worktree add --track -b {change} "{worktree}" origin/{change}',
         f'move "{source}" to "{target}"',
+        f'tick the `start_change` task of "{target / "tasks.md"}", '
+        f'git -C "{worktree}" add openspec/changes/{change} and '
+        f'git -C "{worktree}" commit -m "chore: plan {change}"',
         f'python "{SCRIPT_DIR / "set_status.py"}" {number} "In Progress"',
         f'gh issue comment {number} --body "{body}"',
     ]
@@ -229,6 +243,8 @@ def start_change(
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(source, target)
         left.pop(0)
+        commit_plan(change, worktree, gh)
+        left.pop(0)
         set_status(number, "In Progress", gh=gh)
         left.pop(0)
         gh(["gh", "issue", "comment", str(number), "--body", body])
@@ -238,7 +254,7 @@ def start_change(
         raise type(exc)(f"{exc}; {exists}: {'; then '.join(left)}") from exc
     print(
         f"ok: {change} on issue #{number} — worktree {worktree} (enter it), "
-        "In Progress, provenance posted"
+        "plan committed, In Progress, provenance posted"
     )
     return 0
 

@@ -388,6 +388,23 @@ def test_install_asks_no_quality_command() -> None:
     assert "quality-command" in install
 
 
+def test_group_commits_carry_their_ticks() -> None:
+    """Scenario: Behavioural change — the skill names the commit of every tick made before
+    the archive: the plan commit, RED with Group 1's, each group's own, Verify's in the
+    archive commit, and the one change the archive tolerates (issue 252)."""
+    tasks = " ".join(_section("Tasks").split())
+    group0 = tasks[tasks.index("Group 0") : tasks.index("Group 1")]
+    group1 = tasks[tasks.index("Group 1") : tasks.index(" 3. ")]
+    groups = tasks[tasks.index(" 3. ") : tasks.index(" 4. Verify")]
+    verify = tasks[tasks.index(" 4. Verify") : tasks.index(" 5. ")]
+    assert "ticks its task" in group0 and "commits the plan" in group0
+    assert "plan commit" in group1 and "Group 1 ticks" in group1
+    assert "carries its ticks" in groups
+    assert "archive commit" in verify
+    delivery = " ".join(_section("Delivery").split())
+    assert "own `tasks.md`" in delivery
+
+
 def test_reviewer_adapter_reads_the_shared_contract() -> None:
     """Every file the reviewer adapter names resolves from the repository it is invoked in."""
     text = REVIEWER.read_text(encoding="utf-8")
