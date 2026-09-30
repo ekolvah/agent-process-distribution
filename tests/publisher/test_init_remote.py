@@ -568,6 +568,29 @@ def test_pre_push_hook_is_installed(sandbox: Sandbox, capfd: pytest.CaptureFixtu
     assert _hooks(sandbox) == {"pre-push"}
 
 
+def test_sandbox_push_runs_the_local_hook(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """A later run's push goes through the hook the first run installed, and pre-commit
+    resolves the hook repository without the network (change hermetic-sandbox-push, D3)."""
+    init = load_init()
+    record = sandbox.home / "pre-push-ran"
+    _installed(init, sandbox)
+    assert not record.exists()
+    config = sandbox.root / "openspec" / "config.yaml"
+    text = config.read_text(encoding="utf-8")
+    config.write_text(
+        text.replace("# agent-process:begin\n", "# agent-process:begin\n# stale\n"),
+        encoding="utf-8",
+    )
+    capfd.readouterr()
+    assert install(init, sandbox, "--confirm") == 0, capfd.readouterr()
+    assert record.exists()
+    assert git("rev-parse", BRANCH, cwd=sandbox.origin) == git(
+        "rev-parse", "HEAD", cwd=sandbox.root
+    )
+
+
 class _NoHookRunner(Runner):
     """`pre-commit` exits 0 and writes nothing."""
 

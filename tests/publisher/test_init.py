@@ -37,6 +37,7 @@ from tests.publisher.init_harness import (
     commit_seed,
     consumer_repo,
     git,
+    home_baseline,
     install,
     load_init,
     relative,
@@ -130,7 +131,7 @@ def test_confirm_selects_release_before_composing(
     ran = Path(next(line[5:] for line in out.splitlines() if line.startswith("file ")))
     assert Path(os.path.realpath(sandbox.home)) not in Path(os.path.realpath(ran)).parents
     assert not ran.parents[3].exists()
-    assert snapshot(sandbox.home) == {}
+    assert snapshot(sandbox.home) == home_baseline(sandbox)
     handoff = next(i for i, cmd in enumerate(runner.log) if cmd[0] == sys.executable)
     assert any("clone" in cmd for cmd in runner.log[:handoff])
     assert not any(Path(cmd[0]).name.lower().startswith("npx") for cmd in runner.log)
@@ -286,7 +287,7 @@ def test_init_takes_no_quality_command(sandbox: Sandbox, capfd: pytest.CaptureFi
     for flag in ["--test", "--setup"]:
         assert install(init, sandbox, "--confirm", flag, "x", runner=runner) == 2, flag
     assert runner.log == []
-    assert snapshot(sandbox.root, sandbox.home) == {}
+    assert snapshot(sandbox.root, sandbox.home) == home_baseline(sandbox)
 
 
 QUALITY = ".github/agent-process-quality.json"
