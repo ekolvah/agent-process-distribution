@@ -75,7 +75,7 @@ with a newline, `additionalContext` with a space, each marker keeping its own ad
 pre-push marker's fix is the two commands, not the Install URL. Any exception in the pre-push
 verdict becomes its `cannot check` reason without suppressing the skill verdict.
 
-Problem closed: #270, the silent gap the archived `consumer-pre-push-hook` design accepted.
+Problem closed: the silent gap the archived `consumer-pre-push-hook` design accepted (#270).
 Standard for the job: pre-commit has no command that reports whether a clone's hook is
 installed (`pre-commit --help`, 4.6.0: `install`, `uninstall`, `init-templatedir`, … and no
 status); its `init-templatedir` with `git config init.templateDir` installs the hook in future
