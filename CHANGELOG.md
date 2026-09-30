@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.1...v3.2.2) (2026-09-30)
+
+
+### Bug Fixes
+
+* manual-rows-from-state ([#274](https://github.com/ekolvah/agent-process-distribution/issues/274)) ([008133e](https://github.com/ekolvah/agent-process-distribution/commit/008133e4a10aba06086dfe05508029fd957d879e))
+
 ## [3.2.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.0...v3.2.1) (2026-09-30)
 
 
