@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -65,16 +66,39 @@ def _entry(install_path: str, scope: str = "user", **fields: Any) -> dict[str, A
 
 
 def _run(
-    tmp_path: Path, stdout: str | None, code: int = 0, args: tuple[str, ...] = (URL,)
+    tmp_path: Path,
+    stdout: str | None,
+    code: int = 0,
+    args: tuple[str, ...] = (URL,),
+    *,
+    config: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
+    """`config` is the project's `.pre-commit-config.yaml`. A project that is a git clone gets the
+    real git on PATH after the fake bin; the profile is empty, so no user git config applies."""
     project = tmp_path / "project"
     project.mkdir(exist_ok=True)
+    if config is not None:
+        (project / ".pre-commit-config.yaml").write_text(config, encoding="utf-8")
     bin_dir = tmp_path / "bin"
     if stdout is None:
         bin_dir.mkdir()
     else:
         _fake_claude(bin_dir, stdout, code)
-    env = {**os.environ, "PATH": str(bin_dir), "CLAUDE_PROJECT_DIR": str(project)}
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+    path = [str(bin_dir)]
+    if (project / ".git").exists():
+        real = shutil.which("git")
+        assert real is not None
+        path.append(str(Path(real).parent))
+    env = {
+        **os.environ,
+        "PATH": os.pathsep.join(path),
+        "CLAUDE_PROJECT_DIR": str(project),
+        "HOME": str(home),
+        "USERPROFILE": str(home),
+        "GIT_CONFIG_NOSYSTEM": "1",
+    }
     return subprocess.run(
         [sys.executable, str(CHECK), *args],
         cwd=project,
@@ -193,3 +217,94 @@ def test_undecidable_is_marked(
 ) -> None:
     out = _marked(_run(tmp_path, stdout, code, args))
     assert "cannot check" in out["systemMessage"], case
+
+
+# --- this clone's pre-push hook (change init-installs-pre-push-hook) ---------------------
+
+PRE_PUSH_MARKER = "agent-process pre-push hook not installed"
+BLOCK = "repos:\n# agent-process:begin\n- repo: local\n# agent-process:end\n"
+UNSET = "git config --unset-all core.hooksPath"
+PRE_COMMIT = "pre-commit install --hook-type pre-push"
+
+
+def _clone(tmp_path: Path, *, hook: bool = False, hooks_path: bool = False) -> None:
+    project = tmp_path / "project"
+    subprocess.run(["git", "init", "-q", str(project)], check=True)
+    if hook:
+        hooks = project / ".git" / "hooks"
+        hooks.mkdir(exist_ok=True)
+        text = f"#!/usr/bin/env bash\n{_check().PRE_COMMIT_ID}\n"
+        (hooks / "pre-push").write_text(text, encoding="utf-8")
+    if hooks_path:
+        subprocess.run(
+            ["git", "-C", str(project), "config", "core.hooksPath", ".hooks"], check=True
+        )
+
+
+def _check() -> Any:
+    spec = importlib.util.spec_from_file_location("skill_check", CHECK)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _loaded(tmp_path: Path) -> str:
+    return json.dumps([_entry(_install(tmp_path, "2.0.0"))])
+
+
+def _texts(done: subprocess.CompletedProcess[str]) -> tuple[str, str]:
+    assert done.returncode == 0, done.stderr
+    out = json.loads(done.stdout)
+    return out["systemMessage"], out["hookSpecificOutput"]["additionalContext"]
+
+
+@pytest.mark.parametrize("case", ["no-hook", "hooks-path"])
+def test_pre_push_missing_is_marked(tmp_path: Path, case: str) -> None:
+    """Scenario: Hook missing."""
+    _clone(tmp_path, hook=case == "hooks-path", hooks_path=case == "hooks-path")
+    done = _run(tmp_path, _loaded(tmp_path), config=BLOCK)
+    for text in _texts(done):
+        assert PRE_PUSH_MARKER in text
+        assert MARKER not in text
+        assert UNSET in text
+        assert PRE_COMMIT in text
+        if case == "hooks-path":
+            assert "core.hooksPath is set" in text
+
+
+@pytest.mark.parametrize("case", ["no-block", "installed"])
+def test_pre_push_silent(tmp_path: Path, case: str) -> None:
+    """Scenario: Hook installed or not rendered."""
+    _clone(tmp_path, hook=case == "installed")
+    config = "repos: []\n" if case == "no-block" else BLOCK
+    done = _run(tmp_path, _loaded(tmp_path), config=config)
+    assert (done.returncode, done.stdout) == (0, ""), done.stderr
+
+
+def test_pre_push_undecidable(tmp_path: Path) -> None:
+    """Scenario: Hook state unreadable — git is not on PATH."""
+    done = _run(tmp_path, _loaded(tmp_path), config=BLOCK)
+    for text in _texts(done):
+        assert PRE_PUSH_MARKER in text
+        assert "cannot check" in text
+
+
+def test_pre_push_and_skill_markers_share_output(tmp_path: Path) -> None:
+    """Scenario: Hook missing — beside a skill marker, in one JSON object."""
+    _clone(tmp_path)
+    done = _run(tmp_path, "[]", config=BLOCK)
+    for text in _texts(done):
+        assert PRE_PUSH_MARKER in text
+        assert MARKER in text
+
+
+def test_pre_push_id_matches_installer() -> None:
+    """Scenario: Hook missing — the check reads the ID `init` reads."""
+    spec = importlib.util.spec_from_file_location(
+        "manual", ROOT / "skills" / "agent-process" / "scripts" / "manual.py"
+    )
+    assert spec is not None and spec.loader is not None
+    manual = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(manual)
+    assert _check().PRE_COMMIT_ID == manual.PRE_COMMIT_ID
