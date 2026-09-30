@@ -305,3 +305,62 @@ def test_archive_commit(tmp_path: Path, own_task: str) -> None:
     status = " M skills/agent-process/scripts/wait_for_pr.py\n"
     assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
     assert order == []
+
+
+def test_ticks_left_for_the_archive(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Ticks left for the archive — a modified own `tasks.md` rides in the archive
+    commit; another changed file, or that `tasks.md` deleted, still stops it (issue 252)."""
+    archive_change = load_script("archive_change")
+    change = "v2-9-example"
+    rel = f"openspec/changes/{change}/tasks.md"
+    real = archive_change._runner(tmp_path)
+
+    def git(*args: str) -> str:
+        return real(["git", *args])
+
+    def run(cmd: list[str]) -> str:
+        if cmd[0] == "npx":  # `openspec archive` moves the change under the archive
+            (tmp_path / "openspec" / "changes" / change).rename(
+                tmp_path / "openspec" / "changes" / "archive" / f"2026-01-01-{change}"
+            )
+            return ""
+        if cmd[:2] == ["git", "push"]:
+            return ""
+        return real(cmd)
+
+    git("init", "-q", "-b", change)
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
+    tasks = tmp_path / rel
+    tasks.parent.mkdir(parents=True)
+    (tmp_path / "openspec" / "changes" / "archive").mkdir()
+    tasks.write_text("- [ ] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8")
+    (tmp_path / "other.txt").write_text("a\n", encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-qm", "plan")
+    base = git("rev-parse", "HEAD")
+
+    # Another changed file beside the ticks: exit 2, the file named, nothing committed.
+    tasks.write_text("- [x] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8")
+    (tmp_path / "other.txt").write_text("b\n", encoding="utf-8")
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
+    assert "other.txt" in capsys.readouterr().err
+    assert git("rev-parse", "HEAD") == base
+
+    # The own `tasks.md` deleted: exit 2, it is named, nothing committed.
+    git("checkout", "-q", "--", ".")
+    tasks.unlink()
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
+    assert rel in capsys.readouterr().err
+    assert git("rev-parse", "HEAD") == base
+
+    # Only the ticks: the archive commit carries them and the worktree is clean.
+    git("checkout", "-q", "--", ".")
+    tasks.write_text("- [x] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8")
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 0
+    assert git("status", "--porcelain") == ""
+    archived = git("show", f"HEAD:openspec/changes/archive/2026-01-01-{change}/tasks.md")
+    assert archived.splitlines() == [
+        "- [x] 4.1 verify",
+        "- [x] 5.1 `archive_change.py v2-9-example`",
+    ]

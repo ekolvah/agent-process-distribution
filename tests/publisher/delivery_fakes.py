@@ -132,6 +132,8 @@ class Gh:
             return self._listing()
         if cmd[:2] == ["git", "-C"] and cmd[3:] == ["status", "--porcelain"]:
             return ""
+        if cmd[:2] == ["git", "-C"] and cmd[3] in ("add", "commit"):
+            return ""
         if head == ["git", "worktree", "remove"]:
             return ""
         if head == ["gh", "pr", "view"]:

@@ -346,6 +346,8 @@ def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
         str(root / ".claude" / "worktrees" / _CHANGE),
         f"origin/{_CHANGE}",
     ]
+    worktree = str(root / ".claude" / "worktrees" / _CHANGE)
+    commit = ["git", "-C", worktree, "commit", "-m", f"chore: plan {_CHANGE}"]
     edits = gh.edits()
     assert len(edits) == 1
     assert edits[0][edits[0].index("--single-select-option-id") + 1] == "S_PROG"
@@ -357,6 +359,7 @@ def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
         gh.calls.index(develop[0]),
         gh.calls.index(fetch),
         gh.calls.index(add),
+        gh.calls.index(commit),
         gh.calls.index(edits[0]),
         gh.calls.index(comments[0]),
     ]
@@ -405,6 +408,22 @@ def test_interrupted_start_names_the_continuation(
     err = capsys.readouterr().err
     assert comment_cmd in err and status_path not in err
 
+    # The plan commit fails (no identity, a commit hook): the continuation starts with it —
+    # the tick, the add and the commit — and still names the Status and the comment (#252).
+    root = _change(tmp_path / "e", tasks=_GROUP0.format(token="tracking issue 7"))
+    worktree = root / ".claude" / "worktrees" / _CHANGE
+    gh = Gh(fail_on=["git", "-C", str(worktree), "commit"], root=root)
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    rest = err[err.index("finish by hand") :]
+    assert rest.index("tick the `start_change` task") < rest.index(
+        f'commit -m "chore: plan {_CHANGE}"'
+    )
+    assert rest.index("chore: plan") < rest.index(status_path) < rest.index(comment_cmd)
+    assert "then move" not in rest and gh.edits() == []
+
     # `gh issue develop` can fail after it created the remote branch: the branch exists
     # (`git ls-remote --heads origin <change>` lists it) and the continuation starts with
     # the worktree steps, never `git switch` (PR 148, Codex P1, round 2; #236).
@@ -439,15 +458,18 @@ def _git(*args: str) -> str:
 
 def _clone(tmp_path: Path) -> Path:
     """A clone on `main` of a bare `origin` in `tmp_path`, with git's default fetch refspec:
-    the release-recording config is committed, the fixture change is untracked."""
+    the release-recording config is committed, the fixture change is untracked. Its config
+    carries an identity, so every worktree of it can commit the plan."""
     origin, root = tmp_path / "origin.git", tmp_path / "root"
     _git("init", "--bare", "-b", "main", str(origin))
     _git("clone", "-q", str(origin), str(root))
+    _git("-C", str(root), "config", "user.name", "t")
+    _git("-C", str(root), "config", "user.email", "t@t")
     config = load_script("init").render_config_block().encode("utf-8")
     (root / "openspec").mkdir()
     (root / "openspec" / "config.yaml").write_bytes(config)
     _git("-C", str(root), "add", "openspec/config.yaml")
-    _git("-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init")
+    _git("-C", str(root), "commit", "-qm", "init")
     _git("-C", str(root), "push", "-q", "origin", "main")
     _change(root, tasks=_GROUP0.format(token="tracking issue 7"), config=config)
     return root
@@ -489,6 +511,23 @@ def test_parallel_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     assert upstream.strip() == f"origin/{_CHANGE}"
 
 
+def test_plan_committed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Scenario: Plan committed — the worktree is clean, its head carries the plan with the
+    Group 0 task ticked, and the plan commit is not pushed (issue 252)."""
+    start_change = load_script("start_change")
+    root = _clone(tmp_path)
+    monkeypatch.chdir(root)
+
+    start_change.main(_START, gh=Gh(root=root, git_runner=_run), root=root)
+
+    worktree = str(root / ".claude" / "worktrees" / _CHANGE)
+    assert _git("-C", worktree, "status", "--porcelain") == ""
+    tasks = _git("-C", worktree, "show", f"HEAD:openspec/changes/{_CHANGE}/tasks.md")
+    assert tasks.startswith("- [x] 0.1 ")
+    ahead = _git("-C", worktree, "rev-list", "--count", f"origin/{_CHANGE}..HEAD")
+    assert ahead.strip() == "1"
+
+
 def test_worktree_step_fails_after_branch_exists(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -508,6 +547,7 @@ def test_worktree_step_fails_after_branch_exists(
     assert (
         rest.index("git worktree add")
         < rest.index("then move")
+        < rest.index(f'commit -m "chore: plan {_CHANGE}"')
         < rest.index(f'{status_path}" 7 "In Progress"')
         < rest.index("gh issue comment 7")
     )
