@@ -355,7 +355,10 @@ def test_project_states(
         return
     assert code == 0, out
     if case == "linked-one":
-        assert not runner.gh("api", "graphql")
+        # No listing of the owner's Projects; the manual rows read the linked one by number.
+        assert not [
+            a for a in runner.gh("api", "graphql") if a[3] == f"query={init.PROJECTS_QUERY}"
+        ]
     if mode == "--confirm":
         assert seen == dict.fromkeys(LABELS, "written") | {
             label: "written" if status == "planned" else status for label, status in plan.items()

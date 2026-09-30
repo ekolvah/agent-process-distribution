@@ -46,11 +46,13 @@ installation PR makes them `unchanged`, and any other starting point — another
 worktree, the branch not checked out, a PR closed unmerged, a checkout with commits of a
 repository with none, a checkout with none of a repository with commits — is an
 `onboarding-branch` conflict naming the command that resolves it.
-The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
-`Area` options and views copied from the template, and the review caller's
-`CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
-once-per-machine step that points the marketplace at `stable` with auto-update and installs the
-plugin at user scope. While
+The output ends with `manual` rows, read after the run's writes and printed only while their
+state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
+options and views copied from the template, and the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
+secret — that only a UI can change — the `plugin-channel` row, the once-per-machine step that
+points the marketplace at `stable` with auto-update and installs the plugin at user scope, and
+this clone's `pre-push` hook. A state `init` cannot read keeps its row with
+`(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
 installer asks for no quality command and never writes that file, which the change that adds
 the first tests declares (#249). The default branch is written only by `onboarding-root`: the
@@ -136,17 +138,37 @@ PROJECTS_QUERY = (
     "projectsV2(first:100){totalCount nodes{number title closed url repositories{totalCount}}}"
     "}}}"
 )
-# The built-in workflows of the template (the `state` spec's template requirement).
-WORKFLOWS = (
-    "Auto-add to project (this repository), Item added -> Todo, Item reopened -> Todo, "
-    "Item closed -> Done, Pull request merged -> Done"
+# The built-in workflows of the template by API name, with their targets (the `state` spec's
+# template requirement); the API exposes only a workflow's name and whether it is enabled.
+WORKFLOWS = {
+    "Auto-add to project": "Auto-add to project (this repository)",
+    "Item added to project": "Item added -> Todo",
+    "Item reopened": "Item reopened -> Todo",
+    "Item closed": "Item closed -> Done",
+    "Pull request merged": "Pull request merged -> Done",
+}
+AREA = 'field(name:"Area"){... on ProjectV2SingleSelectField{options{name}}}'
+# The linked Project's state the manual rows depend on, and the template's `Area` options.
+MANUAL_QUERY = (
+    "query($owner:String!,$number:Int!,$template:String!,$source:Int!){"
+    "linked:repositoryOwner(login:$owner){... on ProjectV2Owner{projectV2(number:$number){"
+    f"public workflows(first:50){{nodes{{name enabled}}}} {AREA}}}}}}}"
+    "template:repositoryOwner(login:$template){... on ProjectV2Owner{projectV2(number:$source){"
+    f"{AREA}}}}}}}}}"
 )
+SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
+# The line pre-commit writes into every hook it installs (observed with pre-commit 4.x).
+PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
 class Conflict(Exception):
     """A target the installer does not own."""
+
+
+class Unreadable(Exception):
+    """A `manual` row's state `init` cannot read; the row is printed with this reason."""
 
 
 def run(
@@ -695,9 +717,8 @@ def _reusable(ctx: Context, owner: str, title: str) -> tuple[list[dict[str, Any]
 
 def _project_steps(
     ctx: Context, owner: str, name: str, linked: list[dict[str, Any]]
-) -> tuple[list[Step], str | None, str]:
-    """Steps 9-10 from the remote state alone, the Project's URL when one is decided, and
-    the repository's `owner/name`."""
+) -> tuple[list[Step], str]:
+    """Steps 9-10 from the remote state alone, and the repository's `owner/name`."""
     repo = f"{owner}/{name}"
     title = f"{name} agent process"
     if len(linked) == 1:
@@ -707,7 +728,6 @@ def _project_steps(
                 Step("project-copy", "unchanged", detail),
                 Step("project-link", "unchanged", detail),
             ],
-            linked[0].get("url"),
             repo,
         )
     if len(linked) > 1:
@@ -717,7 +737,6 @@ def _project_steps(
                 Step("project-copy", "conflict", f"{numbers} are linked to {repo}; keep one"),
                 Step("project-link", "conflict", f"several Projects are linked to {repo}"),
             ],
-            None,
             repo,
         )
     reusable, named = _reusable(ctx, owner, title)
@@ -738,7 +757,6 @@ def _project_steps(
                 Step("project-copy", "unchanged", f"#{number} {title!r} of {owner}"),
                 Step("project-link", "planned", f"#{number} -> {repo}", link),
             ],
-            reusable[0].get("url"),
             repo,
         )
     if named:
@@ -749,7 +767,6 @@ def _project_steps(
                 Step("project-copy", "conflict", detail),
                 Step("project-link", "conflict", "no single Project to link"),
             ],
-            None,
             repo,
         )
 
@@ -775,40 +792,192 @@ def _project_steps(
             Step("project-copy", "planned", f"{source} -> {owner} as {title!r}", copy),
             Step("project-link", "planned", f"the copy -> {repo}", link),
         ],
-        None,
         repo,
     )
 
 
-def _manual(url: str | None, repo: str, root: Path) -> list[str]:
-    """What only the Project's UI or the repository's settings can do; `init` prints it and
-    never performs it (a secret is never read or written by `init`, nor the quality
-    declaration, which the change that adds the first tests writes)."""
-    where = url or "the new copy"
-    declared = (
+def _manual(ctx: Context, repo: str) -> list[str]:
+    """What only the Project's UI, the repository's settings, the machine or the clone can do,
+    while its state is not observed done; `init` prints it and never performs it (nor writes the
+    quality declaration, which the change that adds the first tests writes). Every read is
+    guarded: a state it cannot read keeps its row with `(cannot read: <reason>)`."""
+    rows = (
         []
-        if _test_declared(root)
+        if _test_declared(ctx.root)
         else [
             f"manual quality-command: {quality.DECLARATION} declares no test -- CI runs no tests "
             'until the change that adds the first tests declares {"test": "<command>"}'
         ]
     )
+    url, why = None, ""
+    try:
+        owner, number, url = _linked(ctx, repo)
+        public, missing, same = _project_state(ctx, owner, number)
+    except Unreadable as exc:
+        public, missing, same, why = False, list(WORKFLOWS), True, f" (cannot read: {exc})"
+    where = url or "the new copy"
+    if not public:
+        rows.append(
+            f"manual project-visibility: {where}/settings -- a copy is private; "
+            f"set its visibility as intended{why}"
+        )
+    if missing:
+        enable = ", ".join(WORKFLOWS[name] for name in missing)
+        rows.append(f"manual project-workflows: {where}/workflows -- enable {enable}{why}")
+    if same:
+        rows.append(
+            f"manual project-areas: {where}/settings -- replace the Area options and the area "
+            f"views with this repository's own{why}"
+        )
     return [
-        *declared,
-        f"manual project-visibility: {where}/settings -- a copy is private; "
-        "set its visibility as intended",
-        f"manual project-workflows: {where}/workflows -- check {WORKFLOWS}",
-        f"manual project-areas: {where}/settings -- replace the Area options and the area "
-        "views with this repository's own",
-        f"manual review-secret: https://github.com/{repo}/settings/secrets/actions -- set "
-        "CLAUDE_CODE_OAUTH_TOKEN, the token the review caller passes to the review",
-        "manual plugin-channel: once per machine -- claude plugin marketplace add "
-        f'"{GITHUB_REPO}#stable", then /plugin -> Marketplaces -> '
-        "Enable auto-update for agent-process-marketplace, then claude plugin install "
-        f"{PLUGIN}",
-        "manual pre-push: in each clone -- git config --unset-all core.hooksPath where it is "
-        "set, then pre-commit install --hook-type pre-push, so a push runs the declared test",
+        *rows,
+        *_outstanding(
+            lambda: _secret_set(ctx, repo),
+            f"manual review-secret: https://github.com/{repo}/settings/secrets/actions -- set "
+            f"{SECRET}, the token the review caller passes to the review",
+        ),
+        *_outstanding(
+            lambda: _plugin_channel(ctx.home),
+            "manual plugin-channel: once per machine -- claude plugin marketplace add "
+            f'"{GITHUB_REPO}#stable", then /plugin -> Marketplaces -> '
+            "Enable auto-update for agent-process-marketplace, then claude plugin install "
+            f"{PLUGIN}",
+        ),
+        *_outstanding(
+            lambda: _pre_push(ctx),
+            "manual pre-push: in each clone -- git config --unset-all core.hooksPath where it "
+            "is set, then pre-commit install --hook-type pre-push, so a push runs the declared "
+            "test",
+        ),
     ]
+
+
+def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
+    try:
+        return [] if done() else [row]
+    except Unreadable as exc:
+        return [f"{row} (cannot read: {exc})"]
+
+
+def _gh_read(ctx: Context, *args: str) -> Any:
+    """A `gh` read's JSON whatever its exit code (a GraphQL error beside `data` exits 1), or
+    `Unreadable` with its stderr."""
+    done = ctx.call("gh", *args, cwd=ctx.root, check=False)
+    try:
+        return json.loads(done.stdout)
+    except (TypeError, json.JSONDecodeError):
+        lines = (done.stderr or "").strip().splitlines()
+        raise Unreadable(
+            lines[0] if lines else f"`gh {args[0]} {args[1]}` printed no JSON"
+        ) from None
+
+
+def _linked(ctx: Context, repo: str) -> tuple[str, int, str | None]:
+    """The owner, number and URL of the one Project linked to the repository, read after the
+    run's writes."""
+    data = _gh_read(ctx, "repo", "view", "--json", "owner,name,projectsV2,defaultBranchRef")
+    try:
+        linked = data.get("projectsV2") or {}
+        nodes = linked.get("Nodes", linked.get("nodes")) or []
+        owner = str(data["owner"]["login"])
+        if len(nodes) != 1:
+            raise Unreadable(f"{len(nodes)} Projects linked to {repo}")
+        return owner, int(nodes[0]["number"]), nodes[0].get("url")
+    except (AttributeError, KeyError, TypeError, ValueError):
+        raise Unreadable(f"`gh repo view` printed an unexpected shape: {data}") from None
+
+
+def _areas(field: Any) -> set[str] | None:
+    """The `Area` option names; `None` when the Project has no `Area` field."""
+    return None if field is None else {str(option["name"]) for option in field["options"]}
+
+
+def _project_state(ctx: Context, owner: str, number: int) -> tuple[bool, list[str], bool]:
+    """Whether the Project is public, the template's workflows it lacks or has disabled, and
+    whether its `Area` options are still the template's (or it has no `Area` field)."""
+    data = _gh_read(
+        ctx,
+        "api",
+        "graphql",
+        "-f",
+        f"query={MANUAL_QUERY}",
+        "-f",
+        f"owner={owner}",
+        "-F",
+        f"number={number}",
+        "-f",
+        f"template={TEMPLATE_OWNER}",
+        "-F",
+        f"source={TEMPLATE_PROJECT}",
+    )
+    try:
+        project = data["data"]["linked"]["projectV2"]
+        enabled = {w["name"] for w in project["workflows"]["nodes"] if w["enabled"]}
+        areas = _areas(project["field"])
+        template = _areas(data["data"]["template"]["projectV2"]["field"])
+        public = project["public"] is True
+    except (KeyError, TypeError):
+        errors = data.get("errors") if isinstance(data, dict) else None
+        raise Unreadable(f"the Project #{number} of {owner} reads as {errors or data}") from None
+    missing = [name for name in WORKFLOWS if name not in enabled]
+    return public, missing, areas is None or areas == template
+
+
+def _secret_set(ctx: Context, repo: str) -> bool:
+    data = _gh_read(ctx, "secret", "list", "--repo", repo, "--json", "name")
+    try:
+        return SECRET in {str(secret["name"]) for secret in data}
+    except (KeyError, TypeError):
+        raise Unreadable(f"`gh secret list` printed an unexpected shape: {data}") from None
+
+
+def _plugin_file(path: Path) -> Any:
+    """A plugin file's JSON; `None` when it is absent (no plugin was ever installed)."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Unreadable(f"{path}: {exc}") from None
+
+
+def _plugin_channel(home: Path) -> bool:
+    """The machine's marketplace is at `stable` with auto-update and the plugin has a
+    user-scope install, from Claude Code's plugin files (its CLI prints no `autoUpdate`)."""
+    plugins = home / ".claude" / "plugins"
+    known = _plugin_file(plugins / "known_marketplaces.json")
+    installed = _plugin_file(plugins / "installed_plugins.json")
+    try:
+        entry = None if known is None else known.get(MARKETPLACE)
+        channel = entry is not None and entry["source"].get("repo") == GITHUB_REPO
+        channel = channel and entry["source"].get("ref") == "stable"
+        channel = channel and entry.get("autoUpdate") is True
+        installs = [] if installed is None else installed["plugins"].get(PLUGIN) or []
+        user = any(install["scope"] == "user" for install in installs)
+    except (AttributeError, KeyError, TypeError):
+        raise Unreadable(f"{plugins} holds plugin files of an unexpected shape") from None
+    return bool(channel) and user
+
+
+def _pre_push(ctx: Context) -> bool:
+    """This clone runs pre-commit's pre-push hook: no `core.hooksPath`, and the hook file
+    carries the line pre-commit writes."""
+    root = str(ctx.root)
+    configured = ctx.git("-C", root, "config", "--get", "core.hooksPath", check=False)
+    if configured.returncode == 0:
+        return False
+    if configured.returncode != 1:
+        raise Unreadable(f"`git config --get core.hooksPath` exited {configured.returncode}")
+    done = ctx.git("-C", root, "rev-parse", "--git-path", "hooks/pre-push", check=False)
+    if done.returncode != 0 or done.stdout is None:
+        raise Unreadable(f"`git rev-parse --git-path hooks/pre-push` exited {done.returncode}")
+    hook = ctx.root / done.stdout.strip()
+    try:
+        return PRE_COMMIT_ID in hook.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return False
+    except (OSError, UnicodeDecodeError) as exc:
+        raise Unreadable(f"{hook}: {exc}") from None
 
 
 # --- the run ----------------------------------------------------------------------------
@@ -885,7 +1054,7 @@ def _run(
     empty = not default
     if empty:
         default = _settings_default(ctx, owner, name)
-    project, url, repo = _project_steps(ctx, owner, name, linked)
+    project, repo = _project_steps(ctx, owner, name, linked)
     planned = any(step.status == "planned" for step in consumer)
     to = onboarding.Target(
         version=ctx.version,
@@ -898,17 +1067,17 @@ def _run(
     )
     before, after = onboarding.plan(to, planned)
     steps = [*before, *consumer, *project, *after]
-    manual = _manual(url, repo, ctx.root)
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
-    for line in manual:
+    conflict = any(step.status == "conflict" for step in steps)
+    code = 0 if conflict or args.dry_run else _perform(steps, on_write)
+    # Read after the writes, so a Project this run copied and linked is read too.
+    for line in _manual(ctx, repo):
         print(line)
-    if any(step.status == "conflict" for step in steps):
+    if conflict:
         print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
         return 2
-    if args.dry_run:
-        return 0
-    return _perform(steps, on_write)
+    return code
 
 
 def _perform(steps: list[Step], on_write: Callable[[str], None]) -> int:

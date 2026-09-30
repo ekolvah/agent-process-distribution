@@ -137,15 +137,16 @@ Run from the consumer's root:
    whole output. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
-3. Before asking, have the person do the `review-secret` row — set the repository's
-   `CLAUDE_CODE_OAUTH_TOKEN` secret, which the review caller passes to the review — so the
-   first pushed head's `agent-review` runs with it. Ask once; on yes run the same command with
+3. When the dry-run prints the `review-secret` row, have the person do it before asking —
+   set the repository's `CLAUDE_CODE_OAUTH_TOKEN` secret, which the review caller passes to
+   the review — so the first pushed head's `agent-review` runs with it. Ask once; on yes run the same command with
    `--confirm` instead of `--dry-run`.
 4. The confirmed run commits the files on the installation branch, pushes it, and opens the
    installation PR, linked to its issue; it prints the PR and leaves the checkout on that
-   branch. Tell the person to do the other `manual` rows — the `project-*` rows in the
-   Project's UI, the `plugin-channel` row, once per machine and outside any project, and the
-   `pre-push` row, in each clone — then
+   branch. Its output ends with the `manual` rows still outstanding; a row with
+   `(cannot read: <reason>)` is one `init` could not check. Tell the person to do those rows —
+   the `project-*` rows in the Project's UI, the `plugin-channel` row, once per machine and
+   outside any project, and the `pre-push` row, in each clone — then
    to review and merge the PR, switch to the default branch and pull. The `quality-command`
    row stays while no `test` is declared: CI runs no tests until then.
 5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and
