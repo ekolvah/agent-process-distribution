@@ -15,6 +15,7 @@ body. The fixture repository and the runner are described in `test_init.py`.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
@@ -45,6 +46,7 @@ from tests.publisher.init_harness import (
     load_init,
     snapshot,
     transitions,
+    which,
 )
 
 # --- footprint and remote writes --------------------------------------------------------
@@ -201,17 +203,21 @@ def test_open_issue_is_reused(sandbox: Sandbox) -> None:
 
 
 def test_nothing_to_install(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
-    """Scenario: Nothing to install — the installation merged into the default branch."""
+    """Scenarios: Nothing to install — the installation merged into the default branch; Hook
+    missing where nothing else is planned — the hook is installed without onboarding."""
     init = load_init()
     _installed(init, sandbox)
     git("switch", "-q", "main", cwd=sandbox.root)
     git("merge", "-q", "--ff-only", BRANCH, cwd=sandbox.root)
+    _hook(sandbox).unlink()
     runner = Runner(init, HOST, sandbox.github)
     before = sandbox.github.state(), _git_state(sandbox)
     capfd.readouterr()
     assert install(init, sandbox, "--confirm", runner=runner) == 0
     out = capfd.readouterr().out
     assert not [label for label in transitions(out) if label.startswith("onboarding-")], out
+    assert transitions(out)["pre-push"] == "written", out
+    assert init.manual.PRE_COMMIT_ID in _hook(sandbox).read_text(encoding="utf-8")
     assert {_gh_kind(args) for args in runner.gh()} == {"read"}
     assert (sandbox.github.state(), _git_state(sandbox)) == before
 
@@ -416,8 +422,8 @@ def _row(manual: list[str], label: str) -> str:
 def test_manual_actions_are_printed(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
 ) -> None:
-    """Scenarios: Manual actions, Machine channel step, Per-clone row. A dry-run has no linked
-    Project to read; a confirmed run reads the copy it made and linked."""
+    """Scenarios: Manual actions, Machine channel step. A dry-run has no linked Project to read;
+    a confirmed run reads the copy it made and linked."""
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     assert install(init, sandbox, mode, runner=runner) == 0
@@ -435,10 +441,6 @@ def test_manual_actions_are_printed(
     assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in channel[0]
     assert "Enable auto-update" in channel[0]
     assert f"claude plugin install {PLUGIN}" in channel[0]
-    pre_push = [ln for ln in manual if ln.startswith("manual pre-push: ")]
-    assert len(pre_push) == 1, pre_push
-    assert "git config --unset-all core.hooksPath" in pre_push[0]
-    assert "pre-commit install --hook-type pre-push" in pre_push[0]
     assert not [cmd for cmd in runner.log if Path(cmd[0]).stem.lower() == "claude"]
     for args in runner.gh():
         _gh_kind(args)
@@ -493,8 +495,10 @@ def test_observed_manual_rows_are_omitted(
     )
     init = load_init()
     assert install(init, sandbox, mode) == 0
-    manual = _manual_rows(capfd.readouterr().out)
+    out = capfd.readouterr().out
+    manual = _manual_rows(out)
     assert [row.split(":", 1)[0] for row in manual] == ["manual quality-command"], manual
+    assert transitions(out)["pre-push"] == "unchanged", out
 
 
 @pytest.mark.parametrize("case", ["secret-403", "plugin-malformed", "project-read"])
@@ -521,3 +525,120 @@ def test_unreadable_manual_state_is_printed(
         assert "(cannot read: " in _row(manual, label), manual
     if case == "secret-403":
         assert "HTTP 403" in _row(manual, "review-secret")
+
+
+# --- this clone's pre-push hook (change init-installs-pre-push-hook) ---------------------
+
+STATUSES = ("planned ", "unchanged ", "written ", "conflict ")
+
+
+def _hook(sb: Sandbox) -> Path:
+    return sb.root / ".git" / "hooks" / "pre-push"
+
+
+def _hooks(sb: Sandbox) -> set[str]:
+    """The clone's hooks other than git's samples."""
+    hooks = sb.root / ".git" / "hooks"
+    return {p.name for p in hooks.iterdir() if not p.name.endswith(".sample")}
+
+
+def _is(cmd: list[str], name: str) -> bool:
+    return Path(cmd[0]).stem.lower() == name
+
+
+def test_pre_push_hook_is_installed(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Hook installed in this clone; the `.git/hooks` half of Fresh repository."""
+    init = load_init()
+    runner = Runner(init, HOST, sandbox.github)
+    assert install(init, sandbox, "--dry-run", runner=runner) == 0
+    dry = capfd.readouterr().out
+    assert transitions(dry)["pre-push"] == "planned", dry
+    assert not _hook(sandbox).exists()
+    assert install(init, sandbox, "--confirm", runner=runner) == 0
+    out = capfd.readouterr().out
+    lines = [ln for ln in out.splitlines() if ln.startswith(STATUSES)]
+    assert lines[-2].startswith("written onboarding-pr:"), out
+    assert lines[-1].startswith("written pre-push:"), out
+    (hooked,) = [i for i, cmd in enumerate(runner.log) if _is(cmd, "pre-commit")]
+    assert runner.log[hooked][1:] == ["install", "--hook-type", "pre-push"]
+    pushed = [i for i, cmd in enumerate(runner.log) if _is(cmd, "git") and "push" in cmd]
+    assert pushed and hooked > max(pushed), runner.log
+    assert init.manual.PRE_COMMIT_ID in _hook(sandbox).read_text(encoding="utf-8")
+    assert "manual pre-push" not in dry + out
+    assert _hooks(sandbox) == {"pre-push"}
+
+
+class _NoHookRunner(Runner):
+    """`pre-commit` exits 0 and writes nothing."""
+
+    def __call__(
+        self,
+        cmd: list[str],
+        *,
+        cwd: Path | None = None,
+        env: dict[str, str] | None = None,
+        capture: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        if _is([str(cmd[0])], "pre-commit"):
+            self.log.append([str(part) for part in cmd])
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        return super().__call__(cmd, cwd=cwd, env=env, capture=capture)
+
+
+def test_pre_push_install_leaves_no_hook(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Install leaves no hook."""
+    init = load_init()
+    runner = _NoHookRunner(init, HOST, sandbox.github)
+    assert install(init, sandbox, "--confirm", runner=runner) == 1
+    captured = capfd.readouterr()
+    assert "written pre-push" not in captured.out, captured.out
+    assert str(_hook(sandbox)) in captured.err, captured.err
+
+
+BLOCKED = {"hooks-path": "core.hooksPath is set", "no-pre-commit": "pre-commit is not on PATH"}
+
+
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+@pytest.mark.parametrize("case", list(BLOCKED))
+def test_pre_push_blocked_is_manual(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str, mode: str
+) -> None:
+    """Scenario: Per-clone row."""
+    if case == "hooks-path":
+        git("config", "core.hooksPath", ".hooks", cwd=sandbox.root)
+    else:
+        sandbox.which = lambda name: None if name == "pre-commit" else which(name)
+    init = load_init()
+    assert install(init, sandbox, mode) == 0
+    out = capfd.readouterr().out
+    assert "pre-push" not in transitions(out), out
+    assert not _hook(sandbox).exists()
+    assert not (sandbox.root / ".hooks").exists()
+    row = _row(_manual_rows(out), "pre-push")
+    for part in (
+        BLOCKED[case],
+        "git config --unset-all core.hooksPath",
+        "pre-commit install --hook-type pre-push",
+    ):
+        assert part in row, row
+
+
+def test_foreign_pre_push_is_migrated(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Hook installed in this clone — over a hook pre-commit did not install, which
+    pre-commit's migration mode keeps (design D3)."""
+    foreign = b"#!/bin/sh\nexit 0\n"
+    _hook(sandbox).parent.mkdir(exist_ok=True)
+    _hook(sandbox).write_bytes(foreign)
+    init = load_init()
+    assert install(init, sandbox, "--dry-run") == 0
+    dry = capfd.readouterr().out
+    (line,) = [ln for ln in dry.splitlines() if ln.startswith("planned pre-push:")]
+    assert "pre-push.legacy" in line, line
+    assert install(init, sandbox, "--confirm") == 0
+    out = capfd.readouterr().out
+    assert transitions(out)["pre-push"] == "written", out
+    assert init.manual.PRE_COMMIT_ID in _hook(sandbox).read_text(encoding="utf-8")
+    assert (_hook(sandbox).parent / "pre-push.legacy").read_bytes() == foreign
+    assert _hooks(sandbox) == {"pre-push", "pre-push.legacy"}

@@ -24,6 +24,9 @@ from typing import Any
 PLUGIN = "agent-process@agent-process-marketplace"
 MARKER = "agent-process skill not loaded"
 PROJECT_MARKER = "agent-process project-scope install applies"
+PRE_PUSH_MARKER = "agent-process pre-push hook not installed"
+PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
+BEGIN = "# agent-process:begin"
 
 
 def verdict(listing: Any, project: str) -> tuple[str, str] | None:

@@ -316,13 +316,20 @@ class FakeGitHub:
         return _done(args, {"data": data})
 
 
+def which(name: str) -> str | None:
+    return shutil.which(name) or name
+
+
 @dataclass
 class Sandbox:
+    """`which` is the installer's PATH lookup; a test replaces it to report a tool absent."""
+
     root: Path
     home: Path
     repo: Path
     other: Path
     github: FakeGitHub = field(default_factory=FakeGitHub)
+    which: Callable[[str], str | None] = which
 
     @property
     def link(self) -> Path:
@@ -463,10 +470,6 @@ def is_gh(cmd: list[str]) -> bool:
     return Path(str(cmd[0])).stem.lower() == "gh"
 
 
-def which(name: str) -> str:
-    return shutil.which(name) or name
-
-
 def install(
     init: ModuleType,
     sb: Sandbox,
@@ -480,7 +483,7 @@ def install(
         home=sb.home,
         platform=platform,
         runner=runner or Runner(init, platform, sb.github),
-        which=which,
+        which=sb.which,
         on_write=on_write or (lambda label: None),
     )
     return init.install(list(args), host)
@@ -544,6 +547,7 @@ LABELS = [
     "onboarding-issue",
     "onboarding-push",
     "onboarding-pr",
+    "pre-push",
 ]
 CONSUMER_FILES = {
     ".github/workflows/agent-process.yml",
