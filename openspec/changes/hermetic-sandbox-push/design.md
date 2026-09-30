@@ -40,7 +40,7 @@ pre-commit's clone all stay real. Alternatives rejected:
 = https://`; the longer, process-repository match of D1 wins for that URL (observed). Any other
 `https://` git URL a future test or `init` change reaches fails at once with a clone error in the
 test's output (§IV), instead of passing only while the network and a tag exist. It is also the
-RED of this change: with the guard and without D1, the five tests of #277 and the new test fail
+RED of this change: with the guard and without D1, the five tests that failed on the release PR (#277) and the new test fail
 on `main` exactly as on the release branch.
 
 **D3 — A probe manifest in `process_repo`.** The fixture's `v{CURRENT}` commit adds a root

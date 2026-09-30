@@ -1,12 +1,12 @@
 ## Why
 
-Release PR #277 (3.2.3) fails `agent-process / pytest`: `test_update_keeps_consumer_bytes` and
+The 3.2.3 release PR (#277) fails `agent-process / pytest`: `test_update_keeps_consumer_bytes` and
 the four `test_consumer_session_start_is_not_owned[*]` in `tests/publisher/test_init_config.py`
 exit 1 from `install(..., "--confirm")`, while the same tests pass on `main`. The issue (#278)
 reproduced it on the release branch: `git checkout v3.2.3` → `error: pathspec 'v3.2.3' did not
 match any file(s) known to git`.
 
-Root cause: since #276 the first `init` run of a test installs the real pre-commit `pre-push`
+Root cause: since `init` installs the pre-push hook (#276), the first `init` run of a test installs the real pre-commit `pre-push`
 hook in the sandbox clone. A second run that re-renders an owned file commits and pushes the
 installation branch, the hook runs, and pre-commit clones the consumer config's
 `https://github.com/ekolvah/agent-process-distribution` at `rev: v<VERSION>` into the sandbox's
@@ -52,5 +52,5 @@ None. Only the test harness changes (`skip_specs`).
   `tests/publisher/conftest.py` (`process_repo`), `tests/publisher/test_init_remote.py` (the new
   test), `tests/publisher/test_init.py` (the two empty-profile assertions compare against the
   harness's own `.gitconfig`).
-- Added, removed: none. No consumer, CI or product change; #277 goes green once this lands on
-  `main` and release-please rebases it.
+- Added, removed: none. No consumer, CI or product change; the release PR goes green once this lands
+  on `main` and release-please rebases it (#277).
