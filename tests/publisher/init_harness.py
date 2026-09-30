@@ -68,6 +68,8 @@ OWNER = "ekolvah"
 REPO_NAME = "consumer"
 TITLE = f"{REPO_NAME} agent process"
 PUBLISHER = "ekolvah/agent-process-distribution"
+# The hook repository the rendered `.pre-commit-config.yaml` names.
+PROCESS_URL = f"https://github.com/{PUBLISHER}"
 
 
 def _done(
@@ -344,9 +346,13 @@ BRANCH = f"agent-process/install-{CURRENT}"
 
 
 def gitconfig(sb: Sandbox) -> str:
-    """The sandbox's global git config: no `https://` URL reaches the network (change
-    hermetic-sandbox-push, design D2)."""
-    return '[url "file:///no-network/"]\n\tinsteadOf = https://\n'
+    """The sandbox's global git config: no `https://` URL reaches the network, and the
+    process repository is the fixture's, which the pre-push hook's pre-commit clones (change
+    hermetic-sandbox-push, design D1, D2)."""
+    return (
+        '[url "file:///no-network/"]\n\tinsteadOf = https://\n'
+        f'[url "{sb.repo.as_posix()}"]\n\tinsteadOf = {PROCESS_URL}\n'
+    )
 
 
 def home_baseline(sb: Sandbox) -> dict[str, Any]:

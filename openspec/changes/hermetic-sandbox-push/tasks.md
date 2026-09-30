@@ -9,8 +9,8 @@
 
 ## 2. Fix
 
-- [ ] 2.1 D1 and D3: `gitconfig(sb)` adds the `[url "<sb.repo as posix>"]` section with `insteadOf = https://github.com/ekolvah/agent-process-distribution`; `tests/publisher/conftest.py::process_repo` writes the probe `.pre-commit-hooks.yaml` at the work tree's root before the `v{CURRENT}` commit. Verify that the three node ids of 1.2 pass
-- [ ] 2.2 Run `python -m pytest tests/publisher -q` and verify that it passes with no new skip. Commit as `test: sandbox pushes resolve the hook repository locally`
+- [x] 2.1 D1 and D3: `gitconfig(sb)` adds the `[url "<sb.repo as posix>"]` section with `insteadOf = https://github.com/ekolvah/agent-process-distribution`; `tests/publisher/conftest.py::process_repo` writes the probe `.pre-commit-hooks.yaml` at the work tree's root before the `v{CURRENT}` commit. Verify that the three node ids of 1.2 pass
+- [x] 2.2 Run `python -m pytest tests/publisher -q` and verify that it passes with no new skip. Commit as `test: sandbox pushes resolve the hook repository locally`
 
 ## 3. Verify
 

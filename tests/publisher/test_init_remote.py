@@ -580,7 +580,8 @@ def test_sandbox_push_runs_the_local_hook(
     config = sandbox.root / "openspec" / "config.yaml"
     text = config.read_text(encoding="utf-8")
     config.write_text(
-        text.replace("# agent-process:begin\n", "# agent-process:begin\n# stale\n"),
+        text.replace("# agent-process:begin\n", "# agent-process:begin\n# stale\n")
+        + "# consumer note\n",
         encoding="utf-8",
     )
     capfd.readouterr()
