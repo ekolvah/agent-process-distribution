@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.0...v3.2.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* init-empty-repository ([#272](https://github.com/ekolvah/agent-process-distribution/issues/272)) ([76480fa](https://github.com/ekolvah/agent-process-distribution/commit/76480fa8dd13dd888749e65a4c6a70e10f1a742e))
+
 ## [3.2.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.1.1...v3.2.0) (2026-09-29)
 
 
