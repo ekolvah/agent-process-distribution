@@ -1,6 +1,6 @@
 """The installation PR's steps of `init.py` (design D4 of install-links-an-issue); not a
-command. `onboarding-branch` runs before the file steps, and commit, issue, push and PR after
-the Project steps. They exist only when a file step is planned or the checkout is on the
+command. `onboarding-branch` runs before the file steps, preceded by `onboarding-root` in a
+repository with no commits, and commit, issue, push and PR after the Project steps. They exist only when a file step is planned or the checkout is on the
 installation branch, are classified from git and `gh` reads, and re-read in `apply`."""
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ ONBOARDING = ("onboarding-commit", "onboarding-issue", "onboarding-push", "onboa
 @dataclass
 class Target:
     """Where the installation PR goes, the process boundary `init` passes — `git` runs in the
-    consumer's root, `gh` checks its exit code, `gh_json` parses its output — and the issue the
-    PR closes once that is known."""
+    consumer's root, `gh` checks its exit code, `gh_json` parses its output — the issue the
+    PR closes once that is known, and whether `origin` has no commits yet."""
 
     version: str
     repo: str
@@ -28,6 +28,7 @@ class Target:
     gh: Callable[..., subprocess.CompletedProcess[str]]
     gh_json: Callable[..., Any]
     issue: int | None = None
+    empty: bool = False
 
     @property
     def branch(self) -> str:
@@ -77,33 +78,83 @@ def _blocked(detail: str) -> tuple[list[Step], list[Step]]:
 
 
 def plan(to: Target, planned: bool) -> tuple[list[Step], list[Step]]:
-    """The branch step, which runs before the file steps, and the four that run after the
-    Project steps; none when no file step is planned and the checkout is not on the branch."""
+    """The branch step (after `onboarding-root` in a repository with no commits), which runs
+    before the file steps, and the four that run after the Project steps; none when no file
+    step is planned and the checkout is not on the branch."""
     current = to.out("branch", "--show-current")
     if current == to.branch:
         return _on_branch(to, planned)
     if not planned:
         return [], []
-    cause = _unsafe_start(to, current)
+    cause = _empty_start(to) if to.empty else _unsafe_start(to, current)
     if cause:
         return _blocked(cause)
+    committing = _commit_step(to, planned)
+    after = [committing, _issue_step(to), _push_step(to, committing), _pr_step(to, [])]
+    if to.empty:
+        return [_root_step(to), _branch_step(to)], after
+    return [_branch_step(to)], after
+
+
+def _branch_step(to: Target) -> Step:
+    """The branch from the checkout, or from the initial commit `onboarding-root` fetched."""
+    if to.empty:
+        args = ("switch", "--no-track", "-c", to.branch, f"origin/{to.default}")
+        detail = f"{to.branch} from the initial commit"
+    else:
+        args, detail = ("switch", "-c", to.branch), f"{to.branch} from {to.default}"
 
     def switch() -> bool:
-        to.git("switch", "-c", to.branch)
+        to.git(*args)
         return True
 
-    start = Step("onboarding-branch", "planned", f"{to.branch} from {to.default}", switch)
-    committing = _commit_step(to, planned)
-    return [start], [committing, _issue_step(to), _push_step(to, committing), _pr_step(to, [])]
+    return Step("onboarding-branch", "planned", detail, switch)
+
+
+def _root_step(to: Target) -> Step:
+    """A commit with no files on the default branch of a repository with none, the base the PR
+    needs (#271). The push has no force, so a default branch pushed meanwhile rejects it."""
+
+    def push_root() -> bool:
+        # The worktree is clean, so the unborn checkout's index is the empty tree.
+        root = to.out("commit-tree", to.out("write-tree"), "-m", "Initial commit")
+        to.git("push", "--quiet", "origin", f"{root}:refs/heads/{to.default}")
+        to.git("fetch", "--quiet", "origin", to.default)
+        return True
+
+    detail = f"an empty initial commit -> origin/{to.default}"
+    return Step("onboarding-root", "planned", detail, push_root)
+
+
+def _empty_start(to: Target) -> str | None:
+    """Why a checkout cannot start a repository with no commits. Its branch is not compared
+    with the settings' name: an unborn branch has nothing to lose, and cannot switch to it."""
+    if to.git("rev-parse", "--verify", "--quiet", "HEAD", check=False).returncode == 0:
+        return (
+            "`origin` has no commits and the checkout has; "
+            f"`git push -u origin HEAD:{to.default}`, then rerun"
+        )
+    if to.out("status", "--porcelain", "--untracked-files=all"):
+        return (
+            "the worktree has changes and the repository has no commits; "
+            "move them out of the worktree, then rerun"
+        )
+    return _branch_exists(to)
 
 
 def _unsafe_start(to: Target, current: str) -> str | None:
     """Why a run off the branch cannot start it, naming the command that resolves it."""
+    if to.git("rev-parse", "--verify", "--quiet", "HEAD", check=False).returncode != 0:
+        return f"the checkout has no commits; `git pull origin {to.default}`, then rerun"
     if current != to.default:
         where = f"`{current}`" if current else "a detached HEAD"
         return f"on {where}, not `{to.default}`; `git switch {to.default}`, then rerun"
     if to.out("status", "--porcelain", "--untracked-files=all"):
         return "the worktree has changes; commit or `git stash` them, then rerun"
+    return _branch_exists(to)
+
+
+def _branch_exists(to: Target) -> str | None:
     local = to.git("rev-parse", "--verify", "--quiet", f"refs/heads/{to.branch}", check=False)
     if local.returncode == 0 or to.remote_head():
         return f"`{to.branch}` exists but is not checked out; `git switch {to.branch}`, then rerun"

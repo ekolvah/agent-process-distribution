@@ -11,19 +11,19 @@
 
 ## 2. The default branch's name (D2)
 
-- [ ] 2.1 `skills/agent-process/scripts/init.py`: when `_repository()` reads an empty `defaultBranchRef.name`, read `gh api repos/<owner>/<name>` through `_gh_json` and take `default_branch`; a missing or empty value raises `InstallError` naming the read. Pass `empty=True` to `onboarding.Target` (new field, default `False`). Verify `python -m pytest tests/publisher/test_init_remote.py -q` fails only the four tests of 1.4
+- [x] 2.1 `skills/agent-process/scripts/init.py`: when `_repository()` reads an empty `defaultBranchRef.name`, read `gh api repos/<owner>/<name>` through `_gh_json` and take `default_branch`; a missing or empty value raises `InstallError` naming the read. Pass `empty=True` to `onboarding.Target` (new field, default `False`). Verify `python -m pytest tests/publisher/test_init_remote.py -q` fails only the four tests of 1.4
 
 ## 3. The initial commit (D1, D3)
 
-- [ ] 3.1 `skills/agent-process/scripts/onboarding.py`: when `to.empty` and a file step is planned, `plan` returns `onboarding-root` (detail `an empty initial commit -> origin/<default>`) before `onboarding-branch`; its apply runs `write-tree`, `commit-tree -m "Initial commit"`, `push origin <sha>:refs/heads/<default>` (no force), `fetch origin <default>`; `onboarding-branch` then applies `git switch --no-track -c <branch> origin/<default>`, with detail `<branch> from the initial commit`. Comment naming #271. Verify `python -m pytest tests/publisher/test_init_remote.py::test_repository_with_no_commits -q` passes. Commit as `fix(distribution): init creates the base of a repository with no commits`
+- [x] 3.1 `skills/agent-process/scripts/onboarding.py`: when `to.empty` and a file step is planned, `plan` returns `onboarding-root` (detail `an empty initial commit -> origin/<default>`) before `onboarding-branch`; its apply runs `write-tree`, `commit-tree -m "Initial commit"`, `push origin <sha>:refs/heads/<default>` (no force), `fetch origin <default>`; `onboarding-branch` then applies `git switch --no-track -c <branch> origin/<default>`, with detail `<branch> from the initial commit`. Comment naming #271. Verify `python -m pytest tests/publisher/test_init_remote.py::test_repository_with_no_commits -q` passes. Commit as `fix(distribution): init creates the base of a repository with no commits`
 
 ## 4. Conflicts (D4)
 
-- [ ] 4.1 `skills/agent-process/scripts/onboarding.py`: in the empty case, `plan` skips the `current != to.default` check (D4); a checkout whose `rev-parse --verify --quiet HEAD` succeeds and a worktree with changes return the D4 conflicts; in `_unsafe_start`, an unborn `HEAD` returns the `git pull origin <default>` conflict before the existing checks. Verify `python -m pytest tests/publisher/test_init_remote.py -q` passes. Commit as `fix(distribution): init names the starting points of an empty repository`
+- [x] 4.1 `skills/agent-process/scripts/onboarding.py`: in the empty case, `plan` skips the `current != to.default` check (D4); a checkout whose `rev-parse --verify --quiet HEAD` succeeds and a worktree with changes return the D4 conflicts; in `_unsafe_start`, an unborn `HEAD` returns the `git pull origin <default>` conflict before the existing checks. Verify `python -m pytest tests/publisher/test_init_remote.py -q` passes. Commit as `fix(distribution): init names the starting points of an empty repository`
 
 ## 5. Docstrings
 
-- [ ] 5.1 `skills/agent-process/scripts/init.py` module docstring: `onboarding-root` in the step list (renumbering the rest and the `Steps 10-11` reference), the three conflicts in the conflict sentence, and the exception in "The default branch is never written". `onboarding.py`: the module and `plan` docstrings name `onboarding-root`. Verify `python -m pytest tests/publisher -q` passes. Commit as `docs(distribution): init's docstrings name the initial commit`
+- [x] 5.1 `skills/agent-process/scripts/init.py` module docstring: `onboarding-root` in the step list (renumbering the rest and the `Steps 10-11` reference), the three conflicts in the conflict sentence, and the exception in "The default branch is never written". `onboarding.py`: the module and `plan` docstrings name `onboarding-root`. Verify `python -m pytest tests/publisher -q` passes. Commit as `docs(distribution): init's docstrings name the initial commit`
 
 ## 6. Verify
 

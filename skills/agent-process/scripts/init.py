@@ -15,34 +15,37 @@ A run first classifies every transition from observed state — `planned`, `unch
 write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order and print
 `written` or `unchanged`:
 
-1. onboarding-branch  `git switch -c agent-process/install-<version>` from the default branch
-2. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
-3. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
+1. onboarding-root    in a repository with no commits only: one commit with no files pushed to
+                       the default branch the repository's settings name, and fetched (#271)
+2. onboarding-branch  `git switch -c agent-process/install-<version>` from the default branch
+3. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
+4. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
              `# agent-process release:` line, which `release_drift` compares (#190)
-4. workflow  the managed `.github/workflows/agent-process.yml`
-5. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
-6. dependabot  the marker block of `.github/dependabot.yml`
-7. pre-commit  the marker block of `.pre-commit-config.yaml`: the `pre-push` hook that runs
+5. workflow  the managed `.github/workflows/agent-process.yml`
+6. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
+7. dependabot  the marker block of `.github/dependabot.yml`
+8. pre-commit  the marker block of `.pre-commit-config.yaml`: the `pre-push` hook that runs
                the declared test (#188)
-8. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
+9. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
              removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
-9. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
-10. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+10. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+11. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
-11. project-link `gh project link` of that one unlinked copy to the repository
-12. onboarding-commit  `git add -A` and `git commit` on the installation branch
-13. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
-14. onboarding-push    `git push -u origin` of the installation branch
-15. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
+12. project-link `gh project link` of that one unlinked copy to the repository
+13. onboarding-commit  `git add -A` and `git commit` on the installation branch
+14. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
+15. onboarding-push    `git push -u origin` of the installation branch
+16. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
                        written line names the PR's URL
 
-Steps 10-11 are classified from `gh` reads of the repository's linked Projects and its
+Steps 11-12 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The onboarding steps exist only when a file step is planned or the checkout is on the
 installation branch, and are classified from git and `gh` reads the same way; a merged
 installation PR makes them `unchanged`, and any other starting point — another branch, a dirty
-worktree, the branch not checked out, a PR closed unmerged — is an `onboarding-branch` conflict
-naming the command that resolves it.
+worktree, the branch not checked out, a PR closed unmerged, a checkout with commits of a
+repository with none, a checkout with none of a repository with commits — is an
+`onboarding-branch` conflict naming the command that resolves it.
 The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
 `Area` options and views copied from the template, and the review caller's
 `CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
@@ -50,8 +53,9 @@ once-per-machine step that points the marketplace at `stable` with auto-update a
 plugin at user scope. While
 `.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
 installer asks for no quality command and never writes that file, which the change that adds
-the first tests declares (#249). The default branch is never written: the installation branch is
-the only push, and the Project copy and link, the issue and the PR the only other GitHub writes.
+the first tests declares (#249). The default branch is written only by `onboarding-root`: the
+installation branch is otherwise the only push, and the Project copy and link, the issue and the
+PR the only other GitHub writes.
 `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -651,6 +655,16 @@ def _repository(ctx: Context) -> tuple[str, str, str, list[dict[str, Any]]]:
         raise InstallError(f"`gh repo view` printed an unexpected shape: {data}") from None
 
 
+def _settings_default(ctx: Context, owner: str, name: str) -> str:
+    """The default branch the settings name: `repo view` names none in a repository with no
+    commits (#271)."""
+    data = _gh_json(ctx, "api", f"repos/{owner}/{name}")
+    default = data.get("default_branch") if isinstance(data, dict) else None
+    if not isinstance(default, str) or not default:
+        raise InstallError(f"`gh api repos/{owner}/{name}` names no default branch: {data}")
+    return default
+
+
 def _reusable(ctx: Context, owner: str, title: str) -> tuple[list[dict[str, Any]], list[str]]:
     """The owner's open, unlinked Projects titled `title`, and every one so titled, named."""
     data = _gh_json(ctx, "api", "graphql", "-f", f"query={PROJECTS_QUERY}", "-f", f"login={owner}")
@@ -868,6 +882,9 @@ def _run(
             return _hand_off(ctx, argv, tree)
     consumer = _consumer_steps(ctx)
     owner, name, default, linked = _repository(ctx)
+    empty = not default
+    if empty:
+        default = _settings_default(ctx, owner, name)
     project, url, repo = _project_steps(ctx, owner, name, linked)
     planned = any(step.status == "planned" for step in consumer)
     to = onboarding.Target(
@@ -877,6 +894,7 @@ def _run(
         git=lambda *args, check=True: ctx.git("-C", str(ctx.root), *args, check=check),
         gh=lambda *args: ctx.call("gh", *args, cwd=ctx.root),
         gh_json=lambda *args: _gh_json(ctx, *args),
+        empty=empty,
     )
     before, after = onboarding.plan(to, planned)
     steps = [*before, *consumer, *project, *after]
