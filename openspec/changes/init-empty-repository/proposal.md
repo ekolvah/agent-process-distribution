@@ -22,7 +22,7 @@ and `-2`, created empty):
 - Pushing a commit of the empty tree (`git write-tree` of the clean unborn checkout →
   `4b825dc6…`, `git commit-tree`) to `refs/heads/main`, then `git switch -c
   agent-process/install-probe origin/main`, one commit, push: `defaultBranchRef.name` → `main`,
-  `rev-list --count origin/main..HEAD` → `1`, `gh pr create --base main` → PR #1, exit 0.
+  `rev-list --count origin/main..HEAD` → `1`, `gh pr create --base main` → a PR opened, exit 0.
 
 Root cause: the installation PR needs an existing default branch as its base, and a repository
 with no commits has none; `_repository()` (`init.py:641`) passes the empty `defaultBranchRef.name`

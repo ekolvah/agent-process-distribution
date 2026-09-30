@@ -15,7 +15,7 @@
 
 ## 3. The initial commit (D1, D3)
 
-- [x] 3.1 `skills/agent-process/scripts/onboarding.py`: when `to.empty` and a file step is planned, `plan` returns `onboarding-root` (detail `an empty initial commit -> origin/<default>`) before `onboarding-branch`; its apply runs `write-tree`, `commit-tree -m "Initial commit"`, `push origin <sha>:refs/heads/<default>` (no force), `fetch origin <default>`; `onboarding-branch` then applies `git switch --no-track -c <branch> origin/<default>`, with detail `<branch> from the initial commit`. Comment naming #271. Verify `python -m pytest tests/publisher/test_init_remote.py::test_repository_with_no_commits -q` passes. Commit as `fix(distribution): init creates the base of a repository with no commits`
+- [x] 3.1 `skills/agent-process/scripts/onboarding.py`: when `to.empty` and a file step is planned, `plan` returns `onboarding-root` (detail `an empty initial commit -> origin/<default>`) before `onboarding-branch`; its apply runs `write-tree`, `commit-tree -m "Initial commit"`, `push origin <sha>:refs/heads/<default>` (no force), `fetch origin <default>`; `onboarding-branch` then applies `git switch --no-track -c <branch> origin/<default>`, with detail `<branch> from the initial commit`. A comment names the tracking issue (#271). Verify `python -m pytest tests/publisher/test_init_remote.py::test_repository_with_no_commits -q` passes. Commit as `fix(distribution): init creates the base of a repository with no commits`
 
 ## 4. Conflicts (D4)
 
@@ -27,8 +27,8 @@
 
 ## 6. Verify
 
-- [ ] 6.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 6.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
+- [x] 6.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 6.2 Run `python .agent-process/scripts/ci_check.py` and verify that it passes
 
 ## 7. Deliver
 
