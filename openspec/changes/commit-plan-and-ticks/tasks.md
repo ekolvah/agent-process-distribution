@@ -18,7 +18,7 @@
 
 ## 3. Skill
 
-- [ ] 3.1 `skills/agent-process/SKILL.md` (D3): Group 0 says the script ticks its task and commits the plan; Group 1 commits RED with the Group 1 ticks; implementation groups end with a commit that carries their ticks; Verify's ticks ride in the archive commit; Delivery starts from a worktree clean but for the change's own `tasks.md`. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit with the group's ticks as `docs(implementation): the skill names the commit of every tick`
+- [x] 3.1 `skills/agent-process/SKILL.md` (D3): Group 0 says the script ticks its task and commits the plan; Group 1 commits RED with the Group 1 ticks; implementation groups end with a commit that carries their ticks; Verify's ticks ride in the archive commit; Delivery starts from a worktree clean but for the change's own `tasks.md`. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit with the group's ticks as `docs(implementation): the skill names the commit of every tick`
 
 ## 4. Verify
 

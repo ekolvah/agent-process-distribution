@@ -53,8 +53,8 @@ delta scenario to a named test or `n/a: <reason>`.
    replaces; both scripts read the token there. The script validates the
    architect review, reads its verdict and the Status of the issue, removes the clean
    worktrees of merged changes, creates the linked branch from `origin/main` in its own
-   worktree `.claude/worktrees/<change>`, moves the change's files there, sets In Progress
-   and posts the provenance line. Enter that worktree with `EnterWorktree` (its `path`) and
+   worktree `.claude/worktrees/<change>`, moves the change's files there, ticks its task and
+   commits the plan there (not pushed), sets In Progress and posts the provenance line. Enter that worktree with `EnterWorktree` (its `path`) and
    run every later task there; a run interrupted before the archive resumes by entering the
    same worktree. On `rework`, apply
    the findings and run the review again. It prints `propose run not finished` and exits 2
@@ -63,14 +63,15 @@ delta scenario to a named test or `n/a: <reason>`.
 2. Group 1 — RED first: write the tests in the scenario-to-test map and run
    `agent-process check_red <node ids>`. It runs `python -m pytest` of its own interpreter under its own configuration, with a report path of its own and the node
    ids, and takes nothing else. It exits 2 until `.github/agent-process-quality.json` declares
-   a `test`, so the change that brings the first tests declares it. Commit RED before
-   implementation. When
+   a `test`, so the change that brings the first tests declares it. Commit RED with the
+   Group 1 ticks, on top of the plan commit, before implementation. When
    the map names no test for docs-only, `skip_specs`, or a rename, record
    `no RED: <reason>` as the task.
 3. Implementation groups: one task per scenario, design decision, or review finding, each
-   with its verification command. End each coherent group with a commit.
+   with its verification command. End each coherent group with a commit that carries its
+   ticks.
 4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the `test`
-   that `.github/agent-process-quality.json` declares.
+   that `.github/agent-process-quality.json` declares; their ticks ride in the archive commit.
 5. Deliver using the procedure below; the Deliver task titles the PR `<type>: <change>` with
    the Conventional Commit type the planner chose — `feat` or `fix` when behaviour changes,
    otherwise `docs`, `test`, `refactor` or `chore`. The person merges.
@@ -94,7 +95,7 @@ reads it.
 
 ## Delivery
 
-Start from a clean worktree. Run `agent-process archive_change
+Start from a worktree clean but for the change's own `tasks.md`. Run `agent-process archive_change
 <change>` before `gh pr create --title "<type>: <change>" --body-file <report>`. The report names the
 tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
 deferrals. The archive is the head the PR opens on.
