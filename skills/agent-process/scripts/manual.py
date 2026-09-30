@@ -30,7 +30,7 @@ QUERY = (
     "template:repositoryOwner(login:$template){... on ProjectV2Owner{projectV2(number:$source){"
     f"{AREA}}}}}}}}}"
 )
-SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
+REVIEW_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 
@@ -87,7 +87,7 @@ def rows(t: Target) -> list[str]:
         *_outstanding(
             lambda: _secret_set(t),
             f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- set "
-            f"{SECRET}, the token the review caller passes to the review",
+            f"{REVIEW_TOKEN}, the token the review caller passes to the review",
         ),
         *_outstanding(
             lambda: _plugin_channel(t),
@@ -178,7 +178,7 @@ def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str],
 def _secret_set(t: Target) -> bool:
     data = _gh_read(t, "secret", "list", "--repo", t.repo, "--json", "name")
     try:
-        return SECRET in {str(secret["name"]) for secret in data}
+        return REVIEW_TOKEN in {str(secret["name"]) for secret in data}
     except (KeyError, TypeError):
         raise Unreadable(f"`gh secret list` printed an unexpected shape: {data}") from None
 
