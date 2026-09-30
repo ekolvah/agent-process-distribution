@@ -46,7 +46,7 @@ class Target:
     """The consumer `owner/name` and the reads the rows need: `gh` and `git` (in the clone)
     return a completion whatever its exit code. `source` is the process repository whose
     `marketplace` and `plugin` the machine should follow; `template` is the template Project's
-    owner and number."""
+    owner and number; `pre_commit` is the `pre-commit` on PATH, if any."""
 
     repo: str
     root: Path
@@ -57,6 +57,7 @@ class Target:
     source: str
     marketplace: str
     plugin: str
+    pre_commit: str | None
 
 
 def rows(t: Target) -> list[str]:
@@ -95,12 +96,7 @@ def rows(t: Target) -> list[str]:
             f'"{t.source}#stable", then /plugin -> Marketplaces -> '
             f"Enable auto-update for {t.marketplace}, then claude plugin install {t.plugin}",
         ),
-        *_outstanding(
-            lambda: _pre_push(t),
-            "manual pre-push: in each clone -- git config --unset-all core.hooksPath where it "
-            "is set, then pre-commit install --hook-type pre-push, so a push runs the declared "
-            "test",
-        ),
+        *_pre_push_row(t),
     ]
 
 
@@ -211,24 +207,50 @@ def _plugin_channel(t: Target) -> bool:
     return bool(channel) and user
 
 
-def _pre_push(t: Target) -> bool:
-    """This clone runs pre-commit's pre-push hook: no `core.hooksPath`, and the hook file
-    carries the line pre-commit writes."""
+@dataclass
+class PrePush:
+    """This clone's pre-push hook: `installed` when pre-commit's hook runs on a push, `foreign`
+    when a hook pre-commit did not install is there, `blocked` why `init` cannot install it."""
+
+    hook: Path
+    installed: bool
+    foreign: bool
+    blocked: str | None
+
+
+def pre_push(t: Target) -> PrePush:
+    """The clone's pre-push state; `Unreadable` when git or the hook file cannot be read."""
     configured = t.git("config", "--get", "core.hooksPath")
-    if configured.returncode == 0:
-        return False
-    if configured.returncode != 1:
+    if configured.returncode not in (0, 1):
         raise Unreadable(f"`git config --get core.hooksPath` exited {configured.returncode}")
     done = t.git("rev-parse", "--git-path", "hooks/pre-push")
     if done.returncode != 0 or done.stdout is None:
         raise Unreadable(f"`git rev-parse --git-path hooks/pre-push` exited {done.returncode}")
     hook = t.root / done.stdout.strip()
     try:
-        return PRE_COMMIT_ID in hook.read_text(encoding="utf-8")
+        text = hook.read_bytes()
     except FileNotFoundError:
-        return False
-    except (OSError, UnicodeDecodeError) as exc:
+        text = None
+    except OSError as exc:
         raise Unreadable(f"{hook}: {exc}") from None
+    if configured.returncode == 0:
+        return PrePush(hook, False, False, "core.hooksPath is set")
+    installed = text is not None and PRE_COMMIT_ID.encode() in text
+    blocked = None if installed or t.pre_commit else "pre-commit is not on PATH"
+    return PrePush(hook, installed, text is not None and not installed, blocked)
+
+
+def _pre_push_row(t: Target) -> list[str]:
+    """The row while `init` cannot install this clone's hook; it installs any other clone's."""
+    row = (
+        "manual pre-push: in this clone -- git config --unset-all core.hooksPath where it is "
+        "set, then pre-commit install --hook-type pre-push, so a push runs the declared test"
+    )
+    try:
+        blocked = pre_push(t).blocked
+    except Unreadable as exc:
+        return [f"{row} (cannot read: {exc})"]
+    return [f"{row} ({blocked})"] if blocked else []
 
 
 if __name__ == "__main__":

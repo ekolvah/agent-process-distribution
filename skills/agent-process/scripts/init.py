@@ -37,6 +37,9 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 15. onboarding-push    `git push -u origin` of the installation branch
 16. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
                        written line names the PR's URL
+17. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
+              a hook pre-commit did not install moves to `pre-push.legacy` (#270). Its cache
+              goes to a temporary `PRE_COMMIT_HOME`, not the user profile
 
 Steps 11-12 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
@@ -51,7 +54,8 @@ state is not observed done: the linked Project's visibility, built-in workflows 
 options and views copied from the template, and the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
 secret — that only a UI can change — the `plugin-channel` row, the once-per-machine step that
 points the marketplace at `stable` with auto-update and installs the plugin at user scope, and
-this clone's `pre-push` hook. A state `init` cannot read keeps its row with
+the `pre-push` row naming why `init` cannot install this clone's hook (`core.hooksPath` is set,
+or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
 `(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
 installer asks for no quality command and never writes that file, which the change that adds
@@ -783,7 +787,11 @@ def _manual(ctx: Context, repo: str) -> list[str]:
             'until the change that adds the first tests declares {"test": "<command>"}'
         ]
     )
-    target = manual.Target(
+    return [*declared, *manual.rows(_target(ctx, repo))]
+
+
+def _target(ctx: Context, repo: str) -> manual.Target:
+    return manual.Target(
         repo=repo,
         root=ctx.root,
         home=ctx.home,
@@ -793,8 +801,44 @@ def _manual(ctx: Context, repo: str) -> list[str]:
         source=GITHUB_REPO,
         marketplace=MARKETPLACE,
         plugin=PLUGIN,
+        pre_commit=ctx.which("pre-commit"),
     )
-    return [*declared, *manual.rows(target)]
+
+
+def _pre_push_step(ctx: Context, repo: str) -> list[Step]:
+    """This clone's pre-push hook, installed by pre-commit whatever else the run plans. A clone
+    `init` cannot install, or cannot read, has no step: its `manual pre-push` row says why."""
+    target = _target(ctx, repo)
+    try:
+        state = manual.pre_push(target)
+    except manual.Unreadable:
+        return []
+    if state.blocked:
+        return []
+    if state.installed:
+        return [Step("pre-push", "unchanged", f"{state.hook} runs pre-commit")]
+    moved = f", moving the hook there to {state.hook.name}.legacy" if state.foreign else ""
+    detail = f"pre-commit install --hook-type pre-push into {state.hook}{moved}"
+
+    def apply() -> bool:
+        if _installed(target):
+            return False
+        # pre-commit caches under the user profile unless PRE_COMMIT_HOME says otherwise.
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as cache:
+            env = {**os.environ, "PRE_COMMIT_HOME": cache}
+            ctx.call("pre-commit", "install", "--hook-type", "pre-push", cwd=ctx.root, env=env)
+        if not _installed(target):
+            raise InstallError(f"`pre-commit install --hook-type pre-push` left no {state.hook}")
+        return True
+
+    return [Step("pre-push", "planned", detail, apply)]
+
+
+def _installed(target: manual.Target) -> bool:
+    try:
+        return manual.pre_push(target).installed
+    except manual.Unreadable as exc:
+        raise InstallError(f"pre-push hook: cannot read: {exc}") from None
 
 
 # --- the run ----------------------------------------------------------------------------
@@ -883,7 +927,7 @@ def _run(
         empty=empty,
     )
     before, after = onboarding.plan(to, planned)
-    steps = [*before, *consumer, *project, *after]
+    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo)]
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     conflict = any(step.status == "conflict" for step in steps)

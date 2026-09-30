@@ -44,6 +44,13 @@ pre-push` through `ctx.call` with `cwd=ctx.root` (non-zero → `InstallError`, e
 the state again: not installed is an `InstallError` naming the hook path, never a silent
 `written` (§IV).
 
+`pre-commit install` also creates its cache (`.lock`, `db.db`, `README`) under
+`~/.cache/pre-commit`, a user-profile write the closed footprint forbids (observed
+2026-09-30 with pre-commit 4.6.0 during implementation). The call therefore sets
+`PRE_COMMIT_HOME` to a temporary directory removed afterwards; the hook it writes is the same
+and does not name the cache (observed), and the hook finds pre-commit's default cache when it
+runs.
+
 ### D3. A foreign hook is left to pre-commit's migration mode
 
 An existing pre-push hook that pre-commit did not install is classified `planned`;

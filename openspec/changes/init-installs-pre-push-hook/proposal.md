@@ -22,6 +22,9 @@ there that the hook is missing.
   existing hooks at .git\hooks\pre-push.legacy`, exits 0.
 - With `core.hooksPath` set it prints `[ERROR] Cowardly refusing to install hooks with
   core.hooksPath set.` and exits 1.
+- It creates `~/.cache/pre-commit/{.lock,db.db,README}` in the user profile; with
+  `PRE_COMMIT_HOME` set to another directory the profile is untouched and the hook is the same,
+  naming no cache path (observed during implementation).
 
 ## What Changes
 
