@@ -1,6 +1,6 @@
 ## Why
 
-Issue #252. Observed on 2026-09-28 driving `add-greet-function` through release 3.0.0 in
+Observed on 2026-09-28 (#252) driving `add-greet-function` through release 3.0.0 in
 `ekolvah/agent-process-sandbox-2` (PR ekolvah/agent-process-sandbox-2#4): right after
 `start_change`, `git status -sb` in `.claude/worktrees/add-greet-function` showed
 `?? openspec/changes/add-greet-function/`. `start_change.py` moves the plan into the worktree
@@ -20,9 +20,9 @@ neither the commit of the plan nor the commit of the ticks made before it.
 - `archive_change` accepts a worktree whose only change is the change's own `tasks.md` —
   ticks made after the last group commit — and its archive commit carries them; any other
   change still exits 2.
-- `SKILL.md#tasks`: the commit that ends a group carries that group's ticks (the RED commit
+- `SKILL.md` Tasks: the commit that ends a group carries that group's ticks (the RED commit
   carries Group 1's); ticks after the last group commit ride in the archive commit.
-  `SKILL.md#delivery` states the same precondition.
+  `SKILL.md` Delivery states the same precondition.
 
 ## Capabilities
 

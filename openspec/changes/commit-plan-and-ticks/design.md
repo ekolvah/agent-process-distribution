@@ -47,9 +47,9 @@ Alternative: a rule "the Verify group ends with a commit of its ticks" — the e
 
 ### D3 — SKILL.md states the tick commits
 
-`SKILL.md#tasks`: Group 0's tick is `start_change`'s; Group 1 commits RED with its ticks; each
+`SKILL.md` Tasks: Group 0's tick is `start_change`'s; Group 1 commits RED with its ticks; each
 implementation group's commit carries its ticks; Verify's ticks ride in the archive commit.
-`SKILL.md#delivery`: start from a worktree clean but for the change's `tasks.md`. No new
+`SKILL.md` Delivery: start from a worktree clean but for the change's `tasks.md`. No new
 script; the scripts' docstrings follow.
 
 ## Risks / Trade-offs
