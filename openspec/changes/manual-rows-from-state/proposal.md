@@ -67,8 +67,11 @@ None.
 
 ## Impact
 
-Edited: `skills/agent-process/scripts/init.py` (`_manual` and its reads, the order of the
-output, the module docstring), `skills/agent-process/SKILL.md` (Install steps 3–4: the rows
+Edited: `skills/agent-process/scripts/init.py` (`_manual`, the order of the output, the
+module docstring); added `skills/agent-process/scripts/manual.py`, the rows' reads as a sibling
+module like `onboarding.py`, since in `init.py` they exceed the 1000-line module gate
+(`test_plugin.py` and `test_start_change.py` list it among the package scripts);
+`skills/agent-process/SKILL.md` (Install steps 3–4: the rows
 are the ones the run prints), `tests/publisher/init_harness.py` (`FakeGitHub` answers the
 secret and Project reads; a copy is private and lacks `Auto-add to project`),
 `tests/publisher/test_init_remote.py`.

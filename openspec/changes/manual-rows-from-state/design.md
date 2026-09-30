@@ -26,7 +26,8 @@ a fresh install, the reproduction's case, would then read no Project and print e
 guarded parsing; a failure becomes the row's `(cannot read: <reason>)` with the command's
 stderr or the parse error (§IV):
 - `review-secret`: `gh secret list --repo <owner/name> --json name` (gh 2.87.3 requests
-  `.../actions/secrets?per_page=100`, `GH_DEBUG=api`; the command has no limit flag). Omitted
+  the Actions secrets endpoint with `per_page=100`, `GH_DEBUG=api`; the command has no limit
+  flag). Omitted
   when the names include `CLAUDE_CODE_OAUTH_TOKEN`.
 - `project-*`: one GraphQL query with two aliased `repositoryOwner(...){... on
   ProjectV2Owner{projectV2(number:)}}` reads — the one linked Project (`public`,
@@ -67,7 +68,7 @@ has enabled are taken as done: their target statuses come with the copy and cann
 (#269's table lists them as done) — see Non-Goals.
 
 **D4 — Omit, not `unchanged`.** An observed-done row is not printed. `unchanged` belongs to
-steps `init` performs; printing done manual rows is the noise #269 removes.
+steps `init` performs; printing done manual rows is the noise the issue removes (#269).
 
 **D5 — Test fake mirrors the observed shapes.** `FakeGitHub` gains a secret-name set with a
 `403` fault, answers the Project query from `Project` fields (`public`, `workflows`, `areas`),
