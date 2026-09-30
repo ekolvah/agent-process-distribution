@@ -1,7 +1,8 @@
 """The installation PR's steps of `init.py` (design D4 of install-links-an-issue); not a
 command. `onboarding-branch` runs before the file steps, preceded by `onboarding-root` in a
-repository with no commits, and commit, issue, push and PR after the Project steps. They exist only when a file step is planned or the checkout is on the
-installation branch, are classified from git and `gh` reads, and re-read in `apply`."""
+repository with no commits, and commit, issue, push and PR after the Project steps. They
+exist only when a file step is planned or the checkout is on the installation branch, are
+classified from git and `gh` reads, and re-read in `apply`."""
 
 from __future__ import annotations
 
