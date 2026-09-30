@@ -46,11 +46,13 @@ installation PR makes them `unchanged`, and any other starting point — another
 worktree, the branch not checked out, a PR closed unmerged, a checkout with commits of a
 repository with none, a checkout with none of a repository with commits — is an
 `onboarding-branch` conflict naming the command that resolves it.
-The plan ends with `manual` rows — the Project's visibility, built-in workflows and the
-`Area` options and views copied from the template, and the review caller's
-`CLAUDE_CODE_OAUTH_TOKEN` secret — that only a UI can change, and the `plugin-channel` row, the
-once-per-machine step that points the marketplace at `stable` with auto-update and installs the
-plugin at user scope. While
+The output ends with `manual` rows, read after the run's writes and printed only while their
+state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
+options and views copied from the template, and the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
+secret — that only a UI can change — the `plugin-channel` row, the once-per-machine step that
+points the marketplace at `stable` with auto-update and installs the plugin at user scope, and
+this clone's `pre-push` hook. A state `init` cannot read keeps its row with
+`(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
 installer asks for no quality command and never writes that file, which the change that adds
 the first tests declares (#249). The default branch is written only by `onboarding-root`: the
@@ -75,6 +77,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+import manual
 import onboarding
 import quality
 from steps import InstallError, Step
@@ -136,12 +139,6 @@ PROJECTS_QUERY = (
     "projectsV2(first:100){totalCount nodes{number title closed url repositories{totalCount}}}"
     "}}}"
 )
-# The built-in workflows of the template (the `state` spec's template requirement).
-WORKFLOWS = (
-    "Auto-add to project (this repository), Item added -> Todo, Item reopened -> Todo, "
-    "Item closed -> Done, Pull request merged -> Done"
-)
-
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
@@ -695,9 +692,8 @@ def _reusable(ctx: Context, owner: str, title: str) -> tuple[list[dict[str, Any]
 
 def _project_steps(
     ctx: Context, owner: str, name: str, linked: list[dict[str, Any]]
-) -> tuple[list[Step], str | None, str]:
-    """Steps 9-10 from the remote state alone, the Project's URL when one is decided, and
-    the repository's `owner/name`."""
+) -> tuple[list[Step], str]:
+    """Steps 9-10 from the remote state alone, and the repository's `owner/name`."""
     repo = f"{owner}/{name}"
     title = f"{name} agent process"
     if len(linked) == 1:
@@ -707,7 +703,6 @@ def _project_steps(
                 Step("project-copy", "unchanged", detail),
                 Step("project-link", "unchanged", detail),
             ],
-            linked[0].get("url"),
             repo,
         )
     if len(linked) > 1:
@@ -717,7 +712,6 @@ def _project_steps(
                 Step("project-copy", "conflict", f"{numbers} are linked to {repo}; keep one"),
                 Step("project-link", "conflict", f"several Projects are linked to {repo}"),
             ],
-            None,
             repo,
         )
     reusable, named = _reusable(ctx, owner, title)
@@ -738,7 +732,6 @@ def _project_steps(
                 Step("project-copy", "unchanged", f"#{number} {title!r} of {owner}"),
                 Step("project-link", "planned", f"#{number} -> {repo}", link),
             ],
-            reusable[0].get("url"),
             repo,
         )
     if named:
@@ -749,7 +742,6 @@ def _project_steps(
                 Step("project-copy", "conflict", detail),
                 Step("project-link", "conflict", "no single Project to link"),
             ],
-            None,
             repo,
         )
 
@@ -775,40 +767,34 @@ def _project_steps(
             Step("project-copy", "planned", f"{source} -> {owner} as {title!r}", copy),
             Step("project-link", "planned", f"the copy -> {repo}", link),
         ],
-        None,
         repo,
     )
 
 
-def _manual(url: str | None, repo: str, root: Path) -> list[str]:
-    """What only the Project's UI or the repository's settings can do; `init` prints it and
-    never performs it (a secret is never read or written by `init`, nor the quality
-    declaration, which the change that adds the first tests writes)."""
-    where = url or "the new copy"
+def _manual(ctx: Context, repo: str) -> list[str]:
+    """What only the Project's UI, the repository's settings, the machine or the clone can do,
+    while its state is not observed done (`manual.py`); `init` prints it and never performs it,
+    nor writes the quality declaration, which the change that adds the first tests writes."""
     declared = (
         []
-        if _test_declared(root)
+        if _test_declared(ctx.root)
         else [
             f"manual quality-command: {quality.DECLARATION} declares no test -- CI runs no tests "
             'until the change that adds the first tests declares {"test": "<command>"}'
         ]
     )
-    return [
-        *declared,
-        f"manual project-visibility: {where}/settings -- a copy is private; "
-        "set its visibility as intended",
-        f"manual project-workflows: {where}/workflows -- check {WORKFLOWS}",
-        f"manual project-areas: {where}/settings -- replace the Area options and the area "
-        "views with this repository's own",
-        f"manual review-secret: https://github.com/{repo}/settings/secrets/actions -- set "
-        "CLAUDE_CODE_OAUTH_TOKEN, the token the review caller passes to the review",
-        "manual plugin-channel: once per machine -- claude plugin marketplace add "
-        f'"{GITHUB_REPO}#stable", then /plugin -> Marketplaces -> '
-        "Enable auto-update for agent-process-marketplace, then claude plugin install "
-        f"{PLUGIN}",
-        "manual pre-push: in each clone -- git config --unset-all core.hooksPath where it is "
-        "set, then pre-commit install --hook-type pre-push, so a push runs the declared test",
-    ]
+    target = manual.Target(
+        repo=repo,
+        root=ctx.root,
+        home=ctx.home,
+        gh=lambda *args: ctx.call("gh", *args, cwd=ctx.root, check=False),
+        git=lambda *args: ctx.git("-C", str(ctx.root), *args, check=False),
+        template=(TEMPLATE_OWNER, TEMPLATE_PROJECT),
+        source=GITHUB_REPO,
+        marketplace=MARKETPLACE,
+        plugin=PLUGIN,
+    )
+    return [*declared, *manual.rows(target)]
 
 
 # --- the run ----------------------------------------------------------------------------
@@ -885,7 +871,7 @@ def _run(
     empty = not default
     if empty:
         default = _settings_default(ctx, owner, name)
-    project, url, repo = _project_steps(ctx, owner, name, linked)
+    project, repo = _project_steps(ctx, owner, name, linked)
     planned = any(step.status == "planned" for step in consumer)
     to = onboarding.Target(
         version=ctx.version,
@@ -898,17 +884,17 @@ def _run(
     )
     before, after = onboarding.plan(to, planned)
     steps = [*before, *consumer, *project, *after]
-    manual = _manual(url, repo, ctx.root)
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
-    for line in manual:
+    conflict = any(step.status == "conflict" for step in steps)
+    code = 0 if conflict or args.dry_run else _perform(steps, on_write)
+    # Read after the writes, so a Project this run copied and linked is read too.
+    for line in _manual(ctx, repo):
         print(line)
-    if any(step.status == "conflict" for step in steps):
+    if conflict:
         print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
         return 2
-    if args.dry_run:
-        return 0
-    return _perform(steps, on_write)
+    return code
 
 
 def _perform(steps: list[Step], on_write: Callable[[str], None]) -> int:

@@ -27,6 +27,7 @@ MOVED_SCRIPTS = {
     "check_red.py",
     "create_tracking_issue.py",
     "init.py",
+    "manual.py",
     "onboarding.py",
     "quality.py",
     "resolve_review_thread.py",

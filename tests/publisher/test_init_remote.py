@@ -32,6 +32,7 @@ from tests.publisher.init_harness import (
     OWNER,
     PLUGIN,
     REPO_NAME,
+    TEMPLATE_WORKFLOWS,
     TITLE,
     FakeGitHub,
     Runner,
@@ -90,7 +91,7 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
 
 def _gh_kind(args: list[str]) -> str:
     """`read`, `copy`, `link`, `issue` or `pr`; any other `gh` command fails the test."""
-    if args[:2] in (["repo", "view"], ["issue", "list"], ["pr", "list"]):
+    if args[:2] in (["repo", "view"], ["issue", "list"], ["pr", "list"], ["secret", "list"]):
         return "read"
     if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
         return "read"
@@ -354,7 +355,10 @@ def test_project_states(
         return
     assert code == 0, out
     if case == "linked-one":
-        assert not runner.gh("api", "graphql")
+        # No listing of the owner's Projects; the manual rows read the linked one by number.
+        assert not [
+            a for a in runner.gh("api", "graphql") if a[3] == f"query={init.PROJECTS_QUERY}"
+        ]
     if mode == "--confirm":
         assert seen == dict.fromkeys(LABELS, "written") | {
             label: "written" if status == "planned" else status for label, status in plan.items()
@@ -390,35 +394,48 @@ def test_project_command_faults(
     assert len(titled) == 1 and titled[0].repositories == {CONSUMER}
 
 
-WORKFLOWS = [
-    "Auto-add to project",
-    "Item added",
-    "Item reopened",
-    "Item closed",
-    "Pull request merged",
-]
+# The required workflows a copy keeps enabled (the fake's copy lacks only `Auto-add to project`).
+KEPT = ["Item added", "Item reopened", "Item closed", "Pull request merged"]
+PROJECT_ROWS = ("project-visibility", "project-workflows", "project-areas")
+
+
+def _manual_rows(out: str) -> list[str]:
+    """The `manual` rows, asserted to end the output."""
+    lines = out.splitlines()
+    manual = [ln for ln in lines if ln.startswith("manual ")]
+    assert manual and lines[-len(manual) :] == manual, lines
+    return manual
+
+
+def _row(manual: list[str], label: str) -> str:
+    (row,) = [ln for ln in manual if ln.startswith(f"manual {label}: ")]
+    return row
 
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
 def test_manual_actions_are_printed(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
 ) -> None:
+    """Scenarios: Manual actions, Machine channel step, Per-clone row. A dry-run has no linked
+    Project to read; a confirmed run reads the copy it made and linked."""
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     assert install(init, sandbox, mode, runner=runner) == 0
-    lines = capfd.readouterr().out.splitlines()
-    visibility = [ln for ln in lines if ln.startswith("manual project-visibility: ")]
-    workflows = [ln for ln in lines if ln.startswith("manual project-workflows: ")]
-    assert len(visibility) == 1 and "visibility" in visibility[0]
-    assert len(workflows) == 1 and all(name in workflows[0] for name in WORKFLOWS)
-    areas = [ln for ln in lines if ln.startswith("manual project-areas: ")]
-    assert len(areas) == 1 and "Area" in areas[0]
-    channel = [ln for ln in lines if ln.startswith("manual plugin-channel: ")]
+    manual = _manual_rows(capfd.readouterr().out)
+    visibility, workflows, areas = (_row(manual, label) for label in PROJECT_ROWS)
+    assert "visibility" in visibility and "Area" in areas
+    if mode == "--confirm":
+        assert "Auto-add to project" in workflows, workflows
+        assert not [name for name in KEPT if name in workflows], workflows
+        assert "cannot read" not in visibility + workflows + areas
+    else:
+        assert all("(cannot read: " in row for row in (visibility, workflows, areas)), manual
+    channel = [ln for ln in manual if ln.startswith("manual plugin-channel: ")]
     assert len(channel) == 1, channel
     assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in channel[0]
     assert "Enable auto-update" in channel[0]
     assert f"claude plugin install {PLUGIN}" in channel[0]
-    pre_push = [ln for ln in lines if ln.startswith("manual pre-push: ")]
+    pre_push = [ln for ln in manual if ln.startswith("manual pre-push: ")]
     assert len(pre_push) == 1, pre_push
     assert "git config --unset-all core.hooksPath" in pre_push[0]
     assert "pre-commit install --hook-type pre-push" in pre_push[0]
@@ -442,3 +459,65 @@ def test_review_prerequisites_are_printed(
     # `_gh_kind` fails on any `gh` command but the reads, the copy and the link: no secret.
     for args in runner.gh():
         _gh_kind(args)
+
+
+def _plugin_files(sb: Sandbox) -> Path:
+    """The machine's plugin files in the observed shapes: the marketplace at `stable` with
+    auto-update, the plugin installed at user scope."""
+    plugins = sb.home / ".claude" / "plugins"
+    plugins.mkdir(parents=True)
+    source = {"source": "github", "repo": "ekolvah/agent-process-distribution", "ref": "stable"}
+    known = {MARKETPLACE: {"source": source, "autoUpdate": True}}
+    (plugins / "known_marketplaces.json").write_text(json.dumps(known), encoding="utf-8")
+    installed = {"version": 2, "plugins": {PLUGIN: [{"scope": "user", "version": CURRENT}]}}
+    (plugins / "installed_plugins.json").write_text(json.dumps(installed), encoding="utf-8")
+    return plugins
+
+
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+def test_observed_manual_rows_are_omitted(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
+) -> None:
+    """Scenario: Observed done."""
+    sandbox.github.secrets.add("CLAUDE_CODE_OAUTH_TOKEN")
+    project = sandbox.github.add(linked=CONSUMER)
+    project.public, project.areas = True, ["Alpha"]
+    project.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
+    _plugin_files(sandbox)
+    hook = sandbox.root / ".git" / "hooks" / "pre-push"
+    hook.parent.mkdir(exist_ok=True)
+    hook.write_text(
+        "#!/usr/bin/env bash\n# File generated by pre-commit: https://pre-commit.com\n"
+        "# ID: 138fd403232d2ddd5efb44317e38bf03\n",
+        encoding="utf-8",
+    )
+    init = load_init()
+    assert install(init, sandbox, mode) == 0
+    manual = _manual_rows(capfd.readouterr().out)
+    assert [row.split(":", 1)[0] for row in manual] == ["manual quality-command"], manual
+
+
+@pytest.mark.parametrize("case", ["secret-403", "plugin-malformed", "project-read"])
+def test_unreadable_manual_state_is_printed(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str
+) -> None:
+    """Scenario: Unreadable state — the row stays with its reason and the exit code is the
+    run's own."""
+    mode, fault, labels = {
+        "secret-403": ("--dry-run", "secret-list", ["review-secret"]),
+        "plugin-malformed": ("--dry-run", "", ["plugin-channel"]),
+        "project-read": ("--confirm", "project-read", list(PROJECT_ROWS)),
+    }[case]
+    if fault:
+        sandbox.github.faults[fault] = "fail"
+    else:
+        (_plugin_files(sandbox) / "known_marketplaces.json").write_text(
+            "not json", encoding="utf-8"
+        )
+    init = load_init()
+    assert install(init, sandbox, mode) == 0
+    manual = _manual_rows(capfd.readouterr().out)
+    for label in labels:
+        assert "(cannot read: " in _row(manual, label), manual
+    if case == "secret-403":
+        assert "HTTP 403" in _row(manual, "review-secret")

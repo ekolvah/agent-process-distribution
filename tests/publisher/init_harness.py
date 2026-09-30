@@ -71,11 +71,41 @@ PUBLISHER = "ekolvah/agent-process-distribution"
 
 
 def _done(
-    args: list[str], payload: Any = None, code: int = 0, out: str = ""
+    args: list[str], payload: Any = None, code: int = 0, out: str = "", err: str = "fault"
 ) -> subprocess.CompletedProcess[str]:
     """`gh`'s completion: JSON `payload` or plain `out` on stdout, a fault on stderr."""
     text = out if payload is None else json.dumps(payload)
-    return subprocess.CompletedProcess(args, code, text, "fault" if code else "")
+    return subprocess.CompletedProcess(args, code, text, err if code else "")
+
+
+# The template's built-in workflows and `Area` options, and what `gh project copy` leaves of
+# them: a private copy without `Auto-add to project` (observed 2026-09-30, change
+# manual-rows-from-state).
+TEMPLATE_WORKFLOWS = [
+    "Auto-add sub-issues to project",
+    "Auto-add to project",
+    "Auto-close issue",
+    "Item added to project",
+    "Item closed",
+    "Item reopened",
+    "Pull request linked to issue",
+    "Pull request merged",
+]
+TEMPLATE_AREAS = [
+    "Observability",
+    "Distribution",
+    "Token efficiency",
+    "Process quality",
+    "Refactoring",
+]
+SECRET_403 = (
+    "failed to get secrets: HTTP 403: Resource not accessible by integration "
+    f"(https://api.github.com/repos/{OWNER}/{REPO_NAME}/actions/secrets?per_page=100)\n"
+)
+
+
+def _copied_workflows() -> dict[str, bool]:
+    return {name: True for name in TEMPLATE_WORKFLOWS if name != "Auto-add to project"}
 
 
 @dataclass
@@ -85,6 +115,9 @@ class Project:
     title: str
     closed: bool = False
     repositories: set[str] = field(default_factory=set)
+    public: bool = False
+    workflows: dict[str, bool] = field(default_factory=_copied_workflows)
+    areas: list[str] = field(default_factory=lambda: list(TEMPLATE_AREAS))
 
     @property
     def url(self) -> str:
@@ -97,11 +130,16 @@ class FakeGitHub:
     exit 1 either before its effect or after it (the lost response). Issues and PRs share
     one numbering, as on GitHub; `pr create` needs its head and base pushed to `origin`.
     `default_branch` is the settings' name; `empty` makes `repo view` print the empty
-    `defaultBranchRef.name` of a repository with no commits (change init-empty-repository)."""
+    `defaultBranchRef.name` of a repository with no commits (change init-empty-repository).
+    `secrets` are the consumer's secret names; `faults["secret-list"]` and
+    `faults["project-read"]` make those reads exit 1 (change manual-rows-from-state)."""
 
     def __init__(self) -> None:
-        self.projects = [Project(OWNER, 4, "agent-process-distribution agent process")]
-        self.projects[0].repositories.add(PUBLISHER)
+        template = Project(OWNER, 4, "agent-process-distribution agent process", public=True)
+        template.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
+        template.repositories.add(PUBLISHER)
+        self.projects = [template]
+        self.secrets: set[str] = set()
         self.faults: dict[str, str] = {}
         self.hidden = 0  # Projects the owner has beyond the first page
         self.issues: list[dict[str, Any]] = []
@@ -145,6 +183,13 @@ class FakeGitHub:
     def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
             return _done(args, {"name": REPO_NAME, "default_branch": self.default_branch})
+        if args[:2] == ["secret", "list"]:
+            assert args[2:] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json", "name"], args
+            if "secret-list" in self.faults:
+                return _done(args, code=1, err=SECRET_403)
+            return _done(args, [{"name": name} for name in sorted(self.secrets)])
+        if args[:2] == ["api", "graphql"] and "projectV2(number:" in args[3]:
+            return self._project_read(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
 
     def _items(self, args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -247,6 +292,28 @@ class FakeGitHub:
             project.repositories.add(f"{flags['--owner']}/{flags['--repo']}")
             return done(code=1 if fault else 0)
         raise AssertionError(f"unexpected gh command: {args}")
+
+    def _project_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """The linked Project's visibility, workflows and `Area` options and the template's
+        `Area` options, from the `owner`/`number` and `template`/`source` variables, in the
+        observed shape."""
+        if "project-read" in self.faults:
+            return _done(args, code=1, err="gh: Could not resolve to a ProjectV2\n")
+        variables = dict(part.split("=", 1) for part in args[3::2])
+
+        def project(owner: str, number: str) -> Project:
+            (found,) = [p for p in self.projects if (p.owner, p.number) == (owner, int(number))]
+            return found
+
+        def area(p: Project) -> dict[str, Any]:
+            return {"options": [{"name": name} for name in p.areas]}
+
+        linked = project(variables["owner"], variables["number"])
+        template = project(variables["template"], variables["source"])
+        workflows = [{"name": name, "enabled": on} for name, on in linked.workflows.items()]
+        node = {"public": linked.public, "workflows": {"nodes": workflows}, "field": area(linked)}
+        data = {"linked": {"projectV2": node}, "template": {"projectV2": {"field": area(template)}}}
+        return _done(args, {"data": data})
 
 
 @dataclass
