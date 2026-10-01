@@ -11,7 +11,7 @@
 
 ## 2. Fix
 
-- [ ] 2.1 `skills/agent-process/scripts/start_change.py`: add `exclude_worktrees(main, gh)` beside `WORKTREES` (design D2, D3) — resolve the file with `git -C <main> rev-parse --path-format=absolute --git-path info/exclude`, create its parent when absent, append `/.claude/worktrees/` (preceded by a newline when the file does not end with one) only when no line equals it; re-raise an `OSError` as `RuntimeError` naming the path (D4). Call it in `start_change` right after `main` is resolved, before `prune_merged_worktrees`; add one sentence to the module docstring. Verify `python -m pytest tests/publisher/test_start_change.py -q` passes. Commit as `fix(implementation): start_change excludes .claude/worktrees/ from the main checkout's status`
+- [x] 2.1 `skills/agent-process/scripts/start_change.py`: add `exclude_worktrees(main, gh)` beside `WORKTREES` (design D2, D3) — resolve the file with `git -C <main> rev-parse --path-format=absolute --git-path info/exclude`, create its parent when absent, append `/.claude/worktrees/` (preceded by a newline when the file does not end with one) only when no line equals it; re-raise an `OSError` as `RuntimeError` naming the path (D4). Call it in `start_change` right after `main` is resolved, before `prune_merged_worktrees`; add one sentence to the module docstring. Verify `python -m pytest tests/publisher/test_start_change.py -q` passes. Commit as `fix(implementation): start_change excludes .claude/worktrees/ from the main checkout's status`
 
 ## 3. Verify
 
