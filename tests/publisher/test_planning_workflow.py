@@ -381,11 +381,11 @@ def test_verify_runs_the_repository_quality_command() -> None:
 
 
 def test_install_asks_no_quality_command() -> None:
-    """Install asks for no quality command; the `quality-command` row reminds the person that
-    none is declared until the first tests declare it (issue 249)."""
+    """Install asks for no quality command (issue 249), and step 4 does not list the `quality:`
+    status line among the rows the person must do (issue 290)."""
     install = _section("Install")
     assert "--test" not in install and "--setup" not in install
-    assert "quality-command" in install
+    assert "quality-command" not in install
 
 
 def test_group_commits_carry_their_ticks() -> None:
