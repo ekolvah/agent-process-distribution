@@ -9,7 +9,7 @@
 
 ## 2. Gate
 
-- [ ] 2.1 `skills/agent-process/scripts/check_red.py` (D1): in the incomplete-run branch, after the `did not complete the run` line, print to stderr the conditioned sentence — a test module that fails at collection runs no test; if its import target does not exist yet, add it as a stub whose body raises `NotImplementedError` and re-run on the same node ids. No report read; the exit stays 2. Extend the module docstring's boundary paragraph with one sentence naming issue 251. Verify `python -m pytest tests/publisher/test_check_red.py -q` passes. Commit as `fix(implementation): check_red names the way to RED on a collection failure`
+- [x] 2.1 `skills/agent-process/scripts/check_red.py` (D1): in the incomplete-run branch, after the `did not complete the run` line, print to stderr the conditioned sentence — a test module that fails at collection runs no test; if its import target does not exist yet, add it as a stub whose body raises `NotImplementedError` and re-run on the same node ids. No report read; the exit stays 2. Extend the module docstring's boundary paragraph with one sentence naming issue 251. Verify `python -m pytest tests/publisher/test_check_red.py -q` passes. Commit as `fix(implementation): check_red names the way to RED on a collection failure`
 
 ## 3. Verify
 
