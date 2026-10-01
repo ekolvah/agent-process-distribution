@@ -313,7 +313,7 @@ class Context:
         done = self.runner([self.exe(name), *args], cwd=cwd, env=env)
         if check and done.returncode != 0:
             streams = [s.strip() for s in (done.stderr, done.stdout) if s is not None]
-            output = next((s for s in streams if s), "") if streams else "output not captured"
+            output = "\n".join(s for s in streams if s) if streams else "output not captured"
             raise InstallError(f"`{name} {' '.join(args)}` exited {done.returncode}: {output}")
         return done
 
