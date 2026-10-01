@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.2...v3.2.3) (2026-10-01)
+
+
+### Bug Fixes
+
+* commit-plan-and-ticks ([#280](https://github.com/ekolvah/agent-process-distribution/issues/280)) ([8c86ae5](https://github.com/ekolvah/agent-process-distribution/commit/8c86ae5c60b80ca6aac6b2909a0a8c04d56772fb))
+* init-installs-pre-push-hook ([#276](https://github.com/ekolvah/agent-process-distribution/issues/276)) ([0f234e8](https://github.com/ekolvah/agent-process-distribution/commit/0f234e88b57f4a015c1793087546d0555692c40a))
+
 ## [3.2.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.1...v3.2.2) (2026-09-30)
 
 
