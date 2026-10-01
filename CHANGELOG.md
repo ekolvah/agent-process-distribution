@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.5](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.4...v3.2.5) (2026-10-01)
+
+
+### Bug Fixes
+
+* check-red-collection-hint ([#282](https://github.com/ekolvah/agent-process-distribution/issues/282)) ([a640b15](https://github.com/ekolvah/agent-process-distribution/commit/a640b1575ea3170f7493770b4548cc9d7e804d1a))
+
 ## [3.2.4](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.3...v3.2.4) (2026-10-01)
 
 
