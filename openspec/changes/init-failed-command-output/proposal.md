@@ -1,7 +1,7 @@
 ## Why
 
 When a command `init` runs fails, the operator sees that it failed but not always why (§IV).
-While diagnosing release PR #277, `git push` was rejected by the consumer's pre-push hook. stderr
+While a release PR was diagnosed (#277), `git push` was rejected by the consumer's pre-push hook. stderr
 held only `error: failed to push some refs to '…'`. The cause was pre-commit's own report
 (`CalledProcessError … git checkout v3.2.3 … pathspec did not match`), which went to stdout, and
 the `InstallError` did not show it (recorded in #279).
