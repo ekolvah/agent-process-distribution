@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.7](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.6...v3.2.7) (2026-10-01)
+
+
+### Bug Fixes
+
+* init-quality-status-line ([#294](https://github.com/ekolvah/agent-process-distribution/issues/294)) ([8dbcefe](https://github.com/ekolvah/agent-process-distribution/commit/8dbcefec8e5a6d12ae85beb99b736e2bdca7bd03))
+
 ## [3.2.6](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.5...v3.2.6) (2026-10-01)
 
 
