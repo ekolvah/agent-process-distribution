@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "A one-function §IV diagnostic fix whose root cause is the named expression in init.py:316, with a RED test that fails on the dropped stream, both spec scenarios mapped, and the None-vs-empty guard explicitly preserved.",
+  "classes": {
+    "simpler": {
+      "evidence": "proposal — What Changes (join, stderr first) and its Out of scope bullet; tasks 2.1 changes one expression in `Context.call`. The simpler variants are both weaker, not smaller: keeping `next(... if s)` and only reordering still drops the second stream (the #277 cause was on stdout), and widening the same fix to `templates/skill_check.py` is the change the proposal declines for want of an observed loss. No design.md is owed: no alternative survives the scenarios.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "specs/distribution/spec.md has two scenarios; tasks — Scenario → test map carries both: *Output on both streams* → `tests/publisher/test_init.py::test_failure_names_both_streams` (new, task 1.1), *Output not captured* → `test_failure_keeps_absent_streams_visible` (existing, its `None`/`None` parametrisation at tests/publisher/test_init.py:341-368). The requirement is genuinely ADDED: no requirement of openspec/specs/distribution/spec.md covers the failed-command diagnostic.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "task 1.1 is Group 1 and names the RED command (`agent-process check_red tests/publisher/test_init.py::test_failure_names_both_streams`) plus the expected failure mode — fails in its body on the missing `cause`, not at collection — and the assertion set (`exited 1`, `failed to push`, `cause`, order). Against init.py:315-317 that test does fail today: stderr non-empty wins the `next(...)` and `cause` never appears.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The only platform behaviour the plan rests on is that a failed `git push` gives `init` the hook's report on the captured stdout. Observed twice: proposal — Why reports it from the live diagnosis of release PR #277 (pre-commit's `CalledProcessError … pathspec did not match` on stdout while stderr held only `failed to push some refs`), and the capture path is checked in this tree — `run` at init.py:153-171 captures by default, `Context.git`/`Context.call` (init.py:305-323) pass no `capture=False`, and `onboarding._root_step`/`_push_step` push through `to.git`, so both streams of the push are strings, not `None`. `test_capture_contract` (tests/publisher/test_init.py:331-338) pins the `None`-on-uncaptured half.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "One replaced input: `next((s for s in streams if s), \"\")` at init.py:316 becomes a newline join of the non-empty stripped streams. No guard is dropped — the `None`-vs-captured-empty distinction of PR 160 stays, and task 2.1 re-verifies it by requiring every case of `test_failure_keeps_absent_streams_visible` to pass (`(None, None)` still `output not captured`; `(None, \"boom\")`, `(\"out\", None)` and `(\"\", \"\")` unchanged under the join). Proposal — Impact lists nothing added or removed, matching the diff the tasks describe.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Each named catcher exists and reaches a delivery step: `check_red` (task 1.1, skills/agent-process/scripts/check_red.py) gates the RED commit; `python -m pytest … -k failure` (2.1) gates GREEN; `openspec validate --strict --all` and the declared `test` of `.github/agent-process-quality.json` are Group 3; `archive_change`, `wait_for_pr` and `resolve_review_thread` (4.1-4.3, scripts of the same directory) carry the PR, with the three-round escalation named in 4.3. In the described case — the join regresses an absent-stream case — 2.1's `-k failure` run and Group 3's quality command both fail before any push.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds two spec sentences and no rule prose. Sentence 1 (19 words): non-zero exit → name every non-empty captured stream, stderr before stdout — every load-bearing word is asserted by `test_failure_names_both_streams` (exit code, both texts, `failed to push` before `cause`). Sentence 2 (11 words): neither stream captured → `output not captured` — asserted by the existing `(None, None)` case. Nothing unasserted remains. One prose inaccuracy, below finding weight and not in the spec: proposal — What Changes says captured empty output yields \"just `exited <code>`\", while the preserved format of init.py:317 yields `exited 1: ` with the trailing separator; the tests assert containment only, so no behaviour depends on the phrasing.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check — only a test case, a shared `Context` helper with two call sites in the same test module, and a changed expression. Nothing for a design.md bespoke decision to justify.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
