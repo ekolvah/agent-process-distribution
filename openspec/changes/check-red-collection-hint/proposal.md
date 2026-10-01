@@ -1,8 +1,8 @@
 ## Why
 
-Issue #251. For new code the natural RED step is a test whose import target does not exist
-yet; `check_red` refuses that run (exit 2) and neither its message nor SKILL.md Group 1 says
-how to reach a judgeable RED. The planner of `add-greet-function`
+For new code the natural RED step is a test whose import target does not exist yet;
+`check_red` refuses that run (exit 2) and neither its message nor SKILL.md Group 1 says how
+to reach a judgeable RED (#251). The planner of `add-greet-function`
 (`ekolvah/agent-process-sandbox-2`, release 3.0.0) found the stub pattern only by a separate
 probe.
 
