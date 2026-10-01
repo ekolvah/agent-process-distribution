@@ -16,7 +16,9 @@ re-review); when the token still carries the placeholder or the issue is not `Pl
 `propose run not finished` names the tail to run (`create_tracking_issue.py`).
 
 Then `git worktree list --porcelain` names the main worktree (its first entry; a failed
-listing is exit 1 before any branch exists), and every worktree under its `.claude/worktrees/`
+listing is exit 1 before any branch exists), the line `/.claude/worktrees/` is appended to
+the repository's `info/exclude` unless present (`git rev-parse --git-path info/exclude`; a
+failure is exit 1 before any branch exists), and every worktree under its `.claude/worktrees/`
 whose branch's PR is merged is removed if clean (`removed: <path>`) or kept and named on
 stderr (`kept: <path> — <reason>`); the one containing the cwd, and any whose PR is open,
 closed or absent, is left. Then `gh issue develop <N> --name <change>` creates the linked
@@ -138,6 +140,37 @@ def worktrees(listing: str) -> list[tuple[Path, str | None]]:
     return entries
 
 
+def exclude_worktrees(main: Path, gh: Gh) -> None:
+    """Keep `.claude/worktrees/` out of the main worktree's status: append its line to the
+    repository's `info/exclude` — one file per clone, never committed — unless a line equals
+    it. git resolves the file, so a linked worktree's cwd or a separate git dir writes the
+    shared one."""
+    line = f"/{WORKTREES.as_posix()}/"
+    exclude = Path(
+        gh(
+            [
+                "git",
+                "-C",
+                str(main),
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-path",
+                "info/exclude",
+            ]
+        ).strip()
+    )
+    try:
+        text = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
+        if line in text.splitlines():
+            return
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        sep = "" if not text or text.endswith("\n") else "\n"
+        with exclude.open("a", encoding="utf-8") as f:
+            f.write(f"{sep}{line}\n")
+    except OSError as exc:
+        raise RuntimeError(f"cannot add `{line}` to {exclude}: {exc}") from exc
+
+
 def prune_merged_worktrees(
     main: Path, root: Path, listing: list[tuple[Path, str | None]], gh: Gh
 ) -> None:
@@ -167,6 +200,17 @@ def prune_merged_worktrees(
             print(f"kept: {path} — unreadable PR state: {exc!r}", file=sys.stderr)
             continue
         print(f"removed: {path}")
+
+
+def main_worktree(root: Path, gh: Gh) -> Path:
+    """The main worktree — the worktree base, since a session that carried the previous
+    change may still run inside that change's worktree — once its `.claude/worktrees/` is
+    excluded from its status and pruned of merged changes."""
+    listing = worktrees(gh(["git", "worktree", "list", "--porcelain"]))
+    main = listing[0][0].resolve()
+    exclude_worktrees(main, gh)
+    prune_merged_worktrees(main, root, listing, gh)
+    return main
 
 
 def commit_plan(change: str, worktree: Path, gh: Gh) -> None:
@@ -205,12 +249,7 @@ def start_change(
     if status != "Planned":
         print(f"{not_finished}; issue #{number} Status: {status}", file=sys.stderr)
         return 2
-    # The worktree base is the main worktree: a session that carried the previous change may
-    # still run inside that change's worktree.
-    listing = worktrees(gh(["git", "worktree", "list", "--porcelain"]))
-    main = listing[0][0].resolve()
-    prune_merged_worktrees(main, root, listing, gh)
-    worktree = main / WORKTREES / change
+    worktree = main_worktree(root, gh) / WORKTREES / change
     source = root / "openspec" / "changes" / change
     target = worktree / "openspec" / "changes" / change
     # Once the remote branch exists a failure names the steps left, so the person completes

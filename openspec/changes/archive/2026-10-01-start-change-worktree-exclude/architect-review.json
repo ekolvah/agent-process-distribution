@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Root cause named with command output, the fix is one idempotent helper in the script that creates the path, every delta clause is asserted by a test, and the RED set fails in its body.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects `init` rendering a `.gitignore` line (a committed consumer file, the rendered payload ADR 0027 removed, no healing of earlier installs) and `init` writing `info/exclude` (same gap plus a second place knowing the worktree path); Non-Goals rejects moving the worktrees out of the checkout (the path is in the requirement, SKILL.md Group 0 and the EnterWorktree step); D3 rejects consulting every ignore source. What remains is one helper beside `WORKTREES` in start_change.py and no new script, and it closes both impacts of #292 — the status line and the `git add -A` gitlink, since `git add -A` skips an ignored path.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The delta carries eight scenarios and the map eight entries: the new `Main checkout stays clean` to test_main_checkout_stays_clean (task 1.1), the edited `Worktree listing fails` WHEN to the existing test plus test_exclude_fails (1.3), the other six to the existing tests they already name. `Started from inside the previous change's worktree` (tests/publisher/test_start_change.py:586) runs real git from a linked worktree's cwd, so it also exercises D2's resolution of the main worktree's file.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 hands three node ids to check_red (1.4): `[absent]` fails on the `?? .claude/` line the main checkout still shows, test_parallel_changes on the new `assert not new` — the §I inversion of the assertion that pinned the defect (current line 504) — and test_exclude_fails because no `rev-parse` call exists yet, so there is no exit 1; none fails at collection, since all three go through `start_change.main`. 1.4 states why `[present]` stays outside the RED set: it passes by construction and guards D3's no-duplicate append. `[absent]` drives real git, so a pattern written with a stray CR would fail it rather than pass silently.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Each behaviour the design rests on has an observation beside it: a nested worktree showing as `?? .claude/` in the enclosing checkout — command output in a scratch repository with git 2.45.1 (proposal Observation, design Context) plus the sandbox-4 `git status --short` in #292; `git -C <main> rev-parse --path-format=absolute --git-path info/exclude` printing the same `<main>/.git/info/exclude` from the main and from a linked worktree — D2, command output; `$GIT_DIR/info/exclude` as git's place for repository-local patterns — gitignore(5) DESCRIPTION quoted in D1 and checked against the local git docs; the appended `/.claude/worktrees/` emptying the status — observed on record. D3's side remark that the leading and trailing slash keep a nested `.claude/worktrees/` elsewhere visible carries no citation, but no requirement, scenario or step rests on that direction; the direction the fix needs is the observed one.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard dropped — the step only appends an ignore line. The one lost visibility, `.claude/worktrees/` in the main checkout's status, is in Risks with `git worktree list` named as the listing that remains, and the status-reading gates are unaffected: archive_change.py:88-99 runs in the change's own worktree, prune_merged_worktrees (start_change.py:158) reads a linked worktree whose own top level holds no `.claude/worktrees/`, and onboarding.py:138,153,199 only stops being blocked by the process's own worktree that its `git add -A` could otherwise stage as a gitlink. A gitlink a consumer already committed stays tracked and visible (Non-Goals, Risks).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The design names no catcher because it transfers no proof away; its own failure path is traced instead: D4 turns a non-zero `rev-parse` or an OSError on the file into a RuntimeError naming the path, which start_change.main maps to exit 1 before any branch exists (start_change.py:279-281 — a bare OSError such as a directory at that path would otherwise escape `except (FileNotFoundError, KeyError, ValueError)`), and test_exclude_fails asserts exit 1 with `_develops(gh) == []` for both inputs. The step is placed after the gate, so a run that exits 2 writes nothing.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The requirement grows by 24 words (the `Before creating the branch … adding its line only when absent` clause merged into the existing pruning sentence) and the `Worktree listing fails` WHEN by 8; the new scenario is two lines. Each clause is asserted: an empty `git status --porcelain --untracked-files=all` and the line exactly once by 1.1 `[absent]`, `only when absent` by `[present]`, and the read or write failure by test_exclude_fails. tasks.md adds no rule prose. SKILL.md stays unchanged, which holds because no agent step changes and no test ties its Group 0 sentence to the script's steps — though that sentence does enumerate the pruning housekeeping, so proposal — Impact overstates its reason.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check: D1 decides one helper in start_change.py, names the observed problem (#292, with the publisher's hand-added `.git/info/exclude:14` line as the reason it stayed hidden here) and names git's own `info/exclude` as the standard for the job — used, not replaced. The test side grows by one answer in the existing fake `Gh` (1.3) rather than a harness of its own.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

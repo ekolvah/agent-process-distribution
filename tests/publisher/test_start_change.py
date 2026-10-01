@@ -485,6 +485,27 @@ def _untracked(root: Path) -> set[str]:
     return set(_git("-C", str(root), "status", "--porcelain", "--untracked-files=all").splitlines())
 
 
+@pytest.mark.parametrize("present", [False, True], ids=["absent", "present"])
+def test_main_checkout_stays_clean(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, present: bool
+) -> None:
+    """Scenario: Main checkout stays clean — the start leaves the main checkout's status
+    empty and `info/exclude` with the worktrees line exactly once (issue 292)."""
+    start_change = load_script("start_change")
+    root = _clone(tmp_path)
+    exclude = root / ".git" / "info" / "exclude"
+    if present:
+        exclude.parent.mkdir(exist_ok=True)
+        with exclude.open("a", encoding="utf-8") as f:
+            f.write("/.claude/worktrees/\n")
+    monkeypatch.chdir(root)
+
+    start_change.main(_START, gh=Gh(root=root, git_runner=_run), root=root)
+
+    assert _untracked(root) == set()
+    assert exclude.read_text(encoding="utf-8").splitlines().count("/.claude/worktrees/") == 1
+
+
 def test_parallel_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Scenario: Parallel changes — the start of one change leaves the shared checkout on
     `main` with another change's files, and carries its own in a worktree tracking origin."""
@@ -501,7 +522,7 @@ def test_parallel_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     after = _untracked(root)
     gone, new = before - after, after - before
     assert gone and all(line.startswith(f"?? openspec/changes/{_CHANGE}/") for line in gone)
-    assert new and all(line.startswith("?? .claude/") for line in new)
+    assert not new
     assert _git("-C", str(root), "branch", "--show-current").strip() == "main"
     assert (other / "proposal.md").is_file()
     assert not (root / "openspec" / "changes" / _CHANGE).exists()
@@ -637,6 +658,28 @@ def test_worktree_listing_fails(tmp_path: Path, capsys: pytest.CaptureFixture[st
 
     assert exc.value.code == 1
     assert "git worktree list" in capsys.readouterr().err
+    assert _develops(gh) == []
+
+
+@pytest.mark.parametrize("failure", ["rev-parse", "directory"])
+def test_exclude_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str], failure: str) -> None:
+    """Scenario: Worktree listing fails — a failed resolve, read or write of `info/exclude`
+    is exit 1 naming the failure before any branch exists."""
+    start_change = load_script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    exclude = root / ".git" / "info" / "exclude"
+    if failure == "directory":
+        exclude.mkdir(parents=True)
+        gh = Gh(root=root)
+    else:
+        gh = Gh(root=root, fail_on=["git", "-C", str(root.resolve()), "rev-parse"])
+
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert ("rev-parse" if failure == "rev-parse" else str(exclude)) in err
     assert _develops(gh) == []
 
 
