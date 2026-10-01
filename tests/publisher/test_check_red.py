@@ -173,6 +173,40 @@ def test_run_leaves_the_tree_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert status.stdout == ""
 
 
+@pytest.mark.parametrize(
+    "selection",
+    [["tests/test_greet.py::test_greets_by_name"], ["tests/test_greet.py"]],
+    ids=["node-id-rc4", "file-path-rc2"],
+)
+def test_test_of_code_that_does_not_exist_yet(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    selection: list[str],
+) -> None:
+    """Scenario: Test of code that does not exist yet — a test module whose import target is
+    missing fails at collection, which pytest ends as an incomplete run (rc 4 on node ids,
+    rc 2 on the file path); `check_red` gives no verdict and names the module and the
+    `NotImplementedError` stub that reaches a judgeable RED (issue 251). A live run: the
+    rc is pytest's, not a fake's."""
+    check_red = load_script("check_red")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_greet.py").write_text(
+        "from newpkg.greet import greet\n\n\n"
+        'def test_greets_by_name():\n    assert greet("Ann") == "Hello, Ann"\n',
+        encoding="utf-8",
+    )
+    _root(monkeypatch, tmp_path, '{"test": "python -m pytest"}')
+
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(selection)
+
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert "test_greet" in err
+    assert "NotImplementedError" in err
+
+
 @pytest.mark.parametrize("returncode", [2, 3, 4])
 def test_interrupted_run_is_no_verdict(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, returncode: int

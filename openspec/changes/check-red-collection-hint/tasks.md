@@ -4,8 +4,8 @@
 
 ## 1. RED first
 
-- [ ] 1.1 Add `test_test_of_code_that_does_not_exist_yet` to `tests/publisher/test_check_red.py`, a live run as `test_run_leaves_the_tree_clean` is (design, Risks): in `tmp_path` write `tests/test_greet.py` starting with `from newpkg.greet import greet` and one test calling it, and `.github/agent-process-quality.json`; `chdir` there; parametrize the selection over the node id (pytest rc 4) and the file path (rc 2); run `check_red.main(...)` and assert `SystemExit` code 2 and that stderr names `test_greet` and `NotImplementedError`
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_check_red.py::test_test_of_code_that_does_not_exist_yet` and verify both parametrizations fail on the stderr assertion. Commit as `test(implementation): check_red names the way to RED on a collection failure`
+- [x] 1.1 Add `test_test_of_code_that_does_not_exist_yet` to `tests/publisher/test_check_red.py`, a live run as `test_run_leaves_the_tree_clean` is (design, Risks): in `tmp_path` write `tests/test_greet.py` starting with `from newpkg.greet import greet` and one test calling it, and `.github/agent-process-quality.json`; `chdir` there; parametrize the selection over the node id (pytest rc 4) and the file path (rc 2); run `check_red.main(...)` and assert `SystemExit` code 2 and that stderr names `test_greet` and `NotImplementedError`
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_check_red.py::test_test_of_code_that_does_not_exist_yet` and verify both parametrizations fail on the stderr assertion. Commit as `test(implementation): check_red names the way to RED on a collection failure`
 
 ## 2. Gate
 
