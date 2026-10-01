@@ -11,8 +11,8 @@
 
 ## 2. Status line
 
-- [ ] 2.1 `skills/agent-process/scripts/init.py` (D1): `_manual` returns only `manual.rows(...)` and its docstring drops the quality clause; `run` prints, inline and right before the `manual` rows, the line `quality: {quality.DECLARATION} declares no test -- CI runs no tests until the change that adds the first tests declares {"test": "<command>"}` while `_test_declared(ctx.root)` is false. In the module docstring, replace "a `quality-command` row says so" with the `quality:` line printed before the `manual` rows. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_remote.py tests/publisher/test_init_conflicts.py -q` passes
-- [ ] 2.2 `skills/agent-process/SKILL.md` Install step 4 (D2): delete the sentence "The `quality-command` row stays while no `test` is declared: CI runs no tests until then." Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit 2.1–2.2 as `fix(distribution): init reports the missing quality command as status, not a manual row`
+- [x] 2.1 `skills/agent-process/scripts/init.py` (D1): `_manual` returns only `manual.rows(...)` and its docstring drops the quality clause; `run` prints, inline and right before the `manual` rows, the line `quality: {quality.DECLARATION} declares no test -- CI runs no tests until the change that adds the first tests declares {"test": "<command>"}` while `_test_declared(ctx.root)` is false. In the module docstring, replace "a `quality-command` row says so" with the `quality:` line printed before the `manual` rows. Verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_remote.py tests/publisher/test_init_conflicts.py -q` passes
+- [x] 2.2 `skills/agent-process/SKILL.md` Install step 4 (D2): delete the sentence "The `quality-command` row stays while no `test` is declared: CI runs no tests until then." Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` passes. Commit 2.1–2.2 as `fix(distribution): init reports the missing quality command as status, not a manual row`
 
 ## 3. Verify
 

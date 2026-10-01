@@ -57,9 +57,9 @@ points the marketplace at `stable` with auto-update and installs the plugin at u
 the `pre-push` row naming why `init` cannot install this clone's hook (`core.hooksPath` is set,
 or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
 `(cannot read: <reason>)` and never changes the exit code. While
-`.github/agent-process-quality.json` declares no `test`, a `quality-command` row says so: the
-installer asks for no quality command and never writes that file, which the change that adds
-the first tests declares (#249). The default branch is written only by `onboarding-root`: the
+`.github/agent-process-quality.json` declares no `test`, a `quality:` status line before the
+`manual` rows says so, as a state, not an action (#290): the installer asks for no quality
+command and never writes that file, which the change that adds the first tests declares (#249). The default branch is written only by `onboarding-root`: the
 installation branch is otherwise the only push, and the Project copy and link, the issue and the
 PR the only other GitHub writes.
 `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
@@ -777,17 +777,8 @@ def _project_steps(
 
 def _manual(ctx: Context, repo: str) -> list[str]:
     """What only the Project's UI, the repository's settings, the machine or the clone can do,
-    while its state is not observed done (`manual.py`); `init` prints it and never performs it,
-    nor writes the quality declaration, which the change that adds the first tests writes."""
-    declared = (
-        []
-        if _test_declared(ctx.root)
-        else [
-            f"manual quality-command: {quality.DECLARATION} declares no test -- CI runs no tests "
-            'until the change that adds the first tests declares {"test": "<command>"}'
-        ]
-    )
-    return [*declared, *manual.rows(_target(ctx, repo))]
+    while its state is not observed done (`manual.py`); `init` prints it and never performs it."""
+    return manual.rows(_target(ctx, repo))
 
 
 def _target(ctx: Context, repo: str) -> manual.Target:
@@ -932,6 +923,11 @@ def _run(
         print(f"{step.status} {step.label}: {step.detail}")
     conflict = any(step.status == "conflict" for step in steps)
     code = 0 if conflict or args.dry_run else _perform(steps, on_write)
+    if not _test_declared(ctx.root):
+        print(
+            f"quality: {quality.DECLARATION} declares no test -- CI runs no tests until the "
+            'change that adds the first tests declares {"test": "<command>"}'
+        )
     # Read after the writes, so a Project this run copied and linked is read too.
     for line in _manual(ctx, repo):
         print(line)
