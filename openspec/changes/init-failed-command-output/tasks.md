@@ -8,7 +8,7 @@
 
 ## 2. Fix
 
-- [ ] 2.1 `skills/agent-process/scripts/init.py` `Context.call`: when both streams are `None`, keep `output not captured`; otherwise join the stripped non-empty streams (stderr, stdout) with a newline. Verify `python -m pytest tests/publisher/test_init.py -q -k failure` passes, including every case of `test_failure_keeps_absent_streams_visible`. Commit as `fix(distribution): init names a failed command's stdout beside stderr`
+- [x] 2.1 `skills/agent-process/scripts/init.py` `Context.call`: when both streams are `None`, keep `output not captured`; otherwise join the stripped non-empty streams (stderr, stdout) with a newline. Verify `python -m pytest tests/publisher/test_init.py -q -k failure` passes, including every case of `test_failure_keeps_absent_streams_visible`. Commit as `fix(distribution): init names a failed command's stdout beside stderr`
 
 ## 3. Verify
 
