@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.4](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.3...v3.2.4) (2026-10-01)
+
+
+### Bug Fixes
+
+* init-failed-command-output ([#283](https://github.com/ekolvah/agent-process-distribution/issues/283)) ([8557444](https://github.com/ekolvah/agent-process-distribution/commit/85574449290da235fff18a4548fc33fd33f4075b))
+
 ## [3.2.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.2...v3.2.3) (2026-10-01)
 
 
