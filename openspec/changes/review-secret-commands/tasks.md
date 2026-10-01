@@ -9,8 +9,8 @@
 
 ## 2. Row and Install step
 
-- [ ] 2.1 `skills/agent-process/scripts/manual.py` (D1): the `review-secret` row reads `manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the token at its prompt; the review caller passes it to the review`. Verify `python -m pytest tests/publisher/test_init_remote.py -q` passes (including the `secret-403` case)
-- [ ] 2.2 `skills/agent-process/SKILL.md` Install step 3 (D2): the person runs `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and pastes the token at its prompt, so the token never enters the chat; the rest of the step is unchanged. Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_plugin.py -q` passes. Commit 2.1–2.2 as `fix(distribution): review-secret row gives the token commands`
+- [x] 2.1 `skills/agent-process/scripts/manual.py` (D1): the `review-secret` row reads `manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the token at its prompt; the review caller passes it to the review`. Verify `python -m pytest tests/publisher/test_init_remote.py -q` passes (including the `secret-403` case)
+- [x] 2.2 `skills/agent-process/SKILL.md` Install step 3 (D2): the person runs `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and pastes the token at its prompt, so the token never enters the chat; the rest of the step is unchanged. Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_plugin.py -q` passes. Commit 2.1–2.2 as `fix(distribution): review-secret row gives the token commands`
 
 ## 3. Verify
 
