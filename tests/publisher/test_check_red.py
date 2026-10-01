@@ -187,7 +187,7 @@ def test_test_of_code_that_does_not_exist_yet(
     """Scenario: Test of code that does not exist yet — a test module whose import target is
     missing fails at collection, which pytest ends as an incomplete run (rc 4 on node ids,
     rc 2 on the file path); `check_red` gives no verdict and names the module and the
-    `NotImplementedError` stub that reaches a judgeable RED (issue 251). A live run: the
+    `NotImplementedError` stub that reaches a judgeable RED. A live run: the
     rc is pytest's, not a fake's."""
     check_red = load_script("check_red")
     (tmp_path / "tests").mkdir()
