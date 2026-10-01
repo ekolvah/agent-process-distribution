@@ -16,7 +16,9 @@ issue 112).
 or that it exits 2. The signal that the run reached the end is pytest's exit code: 0, 1
 and 5 are complete runs; 2 (interrupted — `pytest.exit()` from a hook, Ctrl-C), 3
 (internal error) and 4 (usage error) are not, and the report they leave, partial or
-absent, is never judged. What stops or shortens a run without changing the exit code is
+absent, is never judged; the message names the way out of the usual one, a test whose
+import target is not written yet failing at collection: a `NotImplementedError` stub.
+What stops or shortens a run without changing the exit code is
 cancelled by the configuration: `--maxfail=0` cancels a fail-fast `-x`/`--maxfail`
 wherever it came from (rc 1 either way); an empty `cache_dir` of the script's own leaves
 `--lf`, `--ff`, `--nf` nothing to replay, and the `cache` fixture stays available;
@@ -70,6 +72,16 @@ _NOT_GREEN = frozenset({"failure", "error", "skipped"})
 # tests collected. 2 (interrupted), 3 (internal error) and 4 (usage error) leave a
 # partial or absent report — no verdict.
 _COMPLETE_RUN = frozenset({0, 1, 5})
+
+# The next action for the common incomplete run of new code: a test that imports a target
+# not written yet fails at collection (rc 4 on node ids, rc 2 on a path).
+# Conditioned rather than triggered by the report, so a Ctrl-C or a usage error is not
+# misdirected and no junit attribute decides whether it prints.
+_COLLECTION_HINT = (
+    "check_red: if a test module failed at collection because its import target does not "
+    "exist yet, add the target as a stub whose body raises NotImplementedError, then re-run "
+    "on the same node ids: the test then fails in its body and the run gets a verdict"
+)
 
 # ~12 names at the measured ~80 characters per node id: enough that the usual case
 # (a handful of accidentally green new tests) is never sampled at all, while a whole-suite
@@ -252,6 +264,7 @@ def main(argv: list[str] | None = None) -> None:
                 "the report is not judged",
                 file=sys.stderr,
             )
+            print(_COLLECTION_HINT, file=sys.stderr)
             print("--- pytest output ---", file=sys.stderr)
             print(_tail(stdout, _TAIL_UNEVALUATED, full=args.full), file=sys.stderr)
             sys.exit(2)
