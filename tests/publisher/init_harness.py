@@ -68,6 +68,8 @@ OWNER = "ekolvah"
 REPO_NAME = "consumer"
 TITLE = f"{REPO_NAME} agent process"
 PUBLISHER = "ekolvah/agent-process-distribution"
+# The hook repository the rendered `.pre-commit-config.yaml` names.
+PROCESS_URL = f"https://github.com/{PUBLISHER}"
 
 
 def _done(
@@ -343,10 +345,26 @@ class Sandbox:
 BRANCH = f"agent-process/install-{CURRENT}"
 
 
+def gitconfig(sb: Sandbox) -> str:
+    """The sandbox's global git config: no `https://` URL reaches the network, and the
+    process repository is the fixture's, which the pre-push hook's pre-commit clones (change
+    hermetic-sandbox-push, design D1, D2)."""
+    return (
+        '[url "file:///no-network/"]\n\tinsteadOf = https://\n'
+        f'[url "{sb.repo.as_posix()}"]\n\tinsteadOf = {PROCESS_URL}\n'
+    )
+
+
+def home_baseline(sb: Sandbox) -> dict[str, Any]:
+    """What `consumer_repo` itself leaves in `home`, as `snapshot` reads it (design D4)."""
+    return {str(sb.home / ".gitconfig"): gitconfig(sb).encode("utf-8")}
+
+
 def consumer_repo(sb: Sandbox) -> None:
     """`root` becomes a clone of the bare `origin` whose `main` holds one empty commit. The
-    identity is the clone's own (HOME is the sandbox), and no end-of-line conversion makes a
-    checkout differ from the bytes `init` wrote."""
+    identity is the clone's own (HOME is the sandbox, its global config `gitconfig`), and no
+    end-of-line conversion makes a checkout differ from the bytes `init` wrote."""
+    (sb.home / ".gitconfig").write_bytes(gitconfig(sb).encode("utf-8"))
     git("init", "-q", "--bare", "-b", "main", str(sb.origin))
     git("clone", "-q", str(sb.origin), str(sb.root))
     for key, value in {
