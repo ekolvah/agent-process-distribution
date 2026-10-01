@@ -4,8 +4,8 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_init_remote.py::test_review_prerequisites_are_printed`, add assertions that the row contains `claude setup-token` and `f"gh secret set CLAUDE_CODE_OAUTH_TOKEN -R {CONSUMER}"`; keep the secrets-page URL, one-row and no-secret-write assertions
-- [ ] 1.2 Run `agent-process check_red "tests/publisher/test_init_remote.py::test_review_prerequisites_are_printed"` and verify both parametrizations fail on the new assertions. Commit as `test(distribution): review-secret row gives the token commands`
+- [x] 1.1 In `tests/publisher/test_init_remote.py::test_review_prerequisites_are_printed`, add assertions that the row contains `claude setup-token` and `f"gh secret set CLAUDE_CODE_OAUTH_TOKEN -R {CONSUMER}"`; keep the secrets-page URL, one-row and no-secret-write assertions
+- [x] 1.2 Run `agent-process check_red "tests/publisher/test_init_remote.py::test_review_prerequisites_are_printed"` and verify both parametrizations fail on the new assertions. Commit as `test(distribution): review-secret row gives the token commands`
 
 ## 2. Row and Install step
 
