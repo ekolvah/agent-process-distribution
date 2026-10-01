@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The reproduction and root cause are recorded, the status line keeps the missing declaration visible (§IV) with no new indirection (§VII), and every delta scenario has a test whose RED is reachable after the `_manual_rows` guard edit named in Group 1.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 now prints the line inline from `run` (\"inline: one call site, no helper\"), matching tasks.md 2.1, and rejects three alternatives: a step transition (`unchanged quality-command`, reads as \"nothing to see\"), dropping the line (scenario Install without tests requires one `quality: ` line, §IV), and keeping the row with \"no action\" text (the `manual ` prefix still files it under actions in Install step 4 and in `manual` row parsing). The only remaining code change in init.py is `_manual` reduced to `manual.rows(...)` plus a two-line conditional print, so no simpler shape satisfies the scenarios.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md `## Scenario → test map` covers all five delta scenarios: Install without tests → test_quality_command_marker[absent],[malformed]; Declared quality command → [declared]; Upgrade over a passed test command → unchanged test_init_conflicts.py::test_upgrade_over_passed_test_conflicts; Observed done → test_init_remote.py::test_observed_manual_rows_are_omitted; Unreadable state → unchanged test_init_remote.py::test_unreadable_manual_state_is_printed. Every named test exists today.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 has 1.1-1.3 and `check_red` in 1.4 with the two parametrizations that change ([absent], [malformed]) and not [declared], which passes today. Task 1.2 now edits `_manual_rows` (tests/publisher/test_init_remote.py:408-413) to drop `assert manual` and keep the end-of-output guard as `lines[len(lines) - len(manual):] == manual`, which I checked holds for zero rows and is unchanged for its four other callers (verified by the `-k \"not test_observed_manual_rows_are_omitted\"` run in the same task); with the row still printed before implementation, `assert manual == []` is red and goes green on task 2.1. Design D1 records that the \"manual rows end the output\" requirement then holds vacuously, so the spec sentence stays as it is.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "No decision rests on platform behaviour: D1 is `init`'s own stdout ordering, D2 a sentence of SKILL.md. The observation behind the change is the #290 relay recorded in proposal.md — Why, plus the current assertion at tests/publisher/test_init.py:314.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Dropped: the `manual quality-command` row (init.py:782-790), the Install step 4 sentence (SKILL.md:152-153), and `_manual_rows`'s non-empty assertion. The state stays visible on every run through the `quality: ` line (design.md Goals, §IV), the end-of-output guard survives in its stronger form for the rows that remain, Risks records that no consumer reads the row, and a repository-wide grep for `quality-command` shows only the files proposal.md — Impact lists (init.py:60 and :786, SKILL.md:152, the three test files, the spec).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The only named catcher is D2's: with Install step 4 silent about the declaration, the status line reaches the person through Install step 2 (skills/agent-process/SKILL.md:138-140, \"Run `agent-process init --dry-run` … and show its whole output\"), which runs before step 3's ask and step 4's confirmed run in every Install, so the #290 case (a confirmed run) is covered one step earlier; the modified requirement makes both runs print the line.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Edited spec sentences: requirement `Init asks for no quality command`, new clause ~51 words, of which task 1.1 asserts the `quality: ` prefix, the declaration path, the `CI runs no tests` wording, the placement before the first `manual ` line, both run modes and the absence of a `manual quality-command` line (~40 words' worth, the whole promise but `until the declaration exists`); scenario Install without tests THEN ~27 words, fully asserted; scenario Observed done THEN 6 words, asserted by `manual == []`. SKILL.md: a 16-word sentence deleted, asserted by task 1.3 (`\"quality-command\" not in install`). No rule sentence is added.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check: tasks 3.1-3.2 run the existing `openspec validate --strict --all` and the declared `test` (`python .agent-process/scripts/ci_check.py`), and the only new code is two lines inside init.py's existing output path.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
