@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.8](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.7...v3.2.8) (2026-10-01)
+
+
+### Bug Fixes
+
+* start-change-worktree-exclude ([#296](https://github.com/ekolvah/agent-process-distribution/issues/296)) ([d707637](https://github.com/ekolvah/agent-process-distribution/commit/d707637547fecc8860e2e924bcb7295ef9d422c4))
+
 ## [3.2.7](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.6...v3.2.7) (2026-10-01)
 
 
