@@ -87,8 +87,9 @@ def rows(t: Target) -> list[str]:
         *found,
         *_outstanding(
             lambda: _secret_set(t),
-            f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- set "
-            f"{REVIEW_TOKEN}, the token the review caller passes to the review",
+            f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- "
+            f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
+            "token at its prompt; the review caller passes it to the review",
         ),
         *_outstanding(
             lambda: _plugin_channel(t),

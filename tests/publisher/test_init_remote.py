@@ -458,6 +458,8 @@ def test_review_prerequisites_are_printed(
     assert len(rows) == 1 and rows[0].startswith("manual review-secret: "), rows
     assert "CLAUDE_CODE_OAUTH_TOKEN" in rows[0]
     assert f"https://github.com/{CONSUMER}/settings/secrets/actions" in rows[0]
+    assert "claude setup-token" in rows[0]
+    assert f"gh secret set CLAUDE_CODE_OAUTH_TOKEN -R {CONSUMER}" in rows[0]
     # `_gh_kind` fails on any `gh` command but the reads, the copy and the link: no secret.
     for args in runner.gh():
         _gh_kind(args)
