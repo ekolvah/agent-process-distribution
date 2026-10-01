@@ -4,7 +4,7 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_init.py`, add `test_failure_names_both_streams` (spec *Output on both streams*) beside `test_failure_keeps_absent_streams_visible`, reusing its `Context` construction through a shared helper: the runner returns exit 1, stdout `cause` and stderr `failed to push`. The `InstallError` message contains `exited 1`, `failed to push` and `cause`, with `failed to push` before `cause`. Run `agent-process check_red tests/publisher/test_init.py::test_failure_names_both_streams` and verify it fails in its body on the missing `cause`. Commit as `test(distribution): init names both streams of a failed command`
+- [x] 1.1 In `tests/publisher/test_init.py`, add `test_failure_names_both_streams` (spec *Output on both streams*) beside `test_failure_keeps_absent_streams_visible`, reusing its `Context` construction through a shared helper: the runner returns exit 1, stdout `cause` and stderr `failed to push`. The `InstallError` message contains `exited 1`, `failed to push` and `cause`, with `failed to push` before `cause`. Run `agent-process check_red tests/publisher/test_init.py::test_failure_names_both_streams` and verify it fails in its body on the missing `cause`. Commit as `test(distribution): init names both streams of a failed command`
 
 ## 2. Fix
 

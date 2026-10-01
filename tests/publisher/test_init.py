@@ -352,6 +352,23 @@ def test_failure_keeps_absent_streams_visible(
     tmp_path: Path, stdout: str | None, stderr: str | None, present: str, absent: str | None
 ) -> None:
     """An uncaptured stream is not captured empty output: the diagnostic says which it was."""
+    message = _failure(tmp_path, stdout, stderr)
+    assert present in message
+    if absent:
+        assert absent not in message
+
+
+def test_failure_names_both_streams(tmp_path: Path) -> None:
+    """A cause on stdout survives a non-empty stderr, which comes first."""
+    message = _failure(tmp_path, "cause", "failed to push")
+    assert "exited 1" in message
+    assert "failed to push" in message
+    assert "cause" in message
+    assert message.index("failed to push") < message.index("cause")
+
+
+def _failure(tmp_path: Path, stdout: str | None, stderr: str | None) -> str:
+    """The `InstallError` message of a command that exits 1 with these streams."""
     init = load_init()
     ctx = init.Context(
         root=tmp_path,
@@ -364,9 +381,7 @@ def test_failure_keeps_absent_streams_visible(
     )
     with pytest.raises(init.InstallError) as raised:
         ctx.call("tool", "arg")
-    assert present in str(raised.value)
-    if absent:
-        assert absent not in str(raised.value)
+    return str(raised.value)
 
 
 @pytest.mark.parametrize(("stdout", "present"), [(None, "not captured"), ("", "no JSON")])
