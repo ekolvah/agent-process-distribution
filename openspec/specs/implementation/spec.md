@@ -264,10 +264,16 @@ the plan commit, not pushed — leaving that worktree clean. Group 0
 SHALL enter that worktree, and every later task of the apply SHALL run there. A failure once
 the remote branch exists SHALL name the steps left, beginning with the worktree step that did
 not run; a run interrupted before the archive SHALL resume by entering the same worktree.
-Before creating the branch, `start_change` SHALL remove every worktree under the main
+Before creating the branch, `start_change` SHALL keep `.claude/worktrees/` out of the main
+worktree's status through the repository's `info/exclude`, adding its line only when absent,
+and SHALL remove every worktree under the main
 worktree's `.claude/worktrees/`, other than the one containing its cwd, whose branch's PR is merged and whose tree is clean, print each removal,
 keep and name on stderr a merged one it cannot remove or that is dirty, leave every other
 worktree untouched, and not fail the start on a cleanup failure.
+
+#### Scenario: Main checkout stays clean
+- **WHEN** `start_change` runs in a main checkout clean but for the untracked `openspec/changes/<change>/`, whose `info/exclude` lacks the `/.claude/worktrees/` line or already holds it
+- **THEN** after the run `git status --porcelain` of the main checkout is empty, and `info/exclude` holds that line exactly once
 
 #### Scenario: Merged change's worktree
 - **WHEN** `start_change` runs while `.claude/worktrees/` holds a clean worktree whose PR is merged, a dirty one whose PR is merged, and one whose branch has an open PR or none
@@ -294,7 +300,7 @@ worktree untouched, and not fail the start on a cleanup failure.
 - **THEN** `start_change` exits 1 naming the steps left, starting with the one that failed, in order, before `set_status "In Progress"` and the provenance comment, and names no `git switch`
 
 #### Scenario: Worktree listing fails
-- **WHEN** `git worktree list --porcelain` fails after the gate
+- **WHEN** `git worktree list --porcelain`, or the read or write of `info/exclude`, fails after the gate
 - **THEN** `start_change` exits 1 naming the error before any branch exists
 
 ### Requirement: A collection failure names the way to RED
