@@ -298,8 +298,8 @@ def test_quality_command_marker(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], declared: str
 ) -> None:
     """Scenarios: Install without tests, Declared quality command — while the repository
-    declares no `test`, every run prints one `manual quality-command:` row; the installer
-    never writes the declaration."""
+    declares no `test`, every run prints one `quality:` status line before the `manual` rows
+    and no `manual quality-command` row (#290); the installer never writes the declaration."""
     init = load_init()
     declaration = sandbox.root / QUALITY
     text = {"absent": None, "malformed": '{"test": ""}', "declared": '{"test": "pytest -q"}'}
@@ -311,12 +311,15 @@ def test_quality_command_marker(
         capfd.readouterr()
         assert install(init, sandbox, mode) == 0
         lines = capfd.readouterr().out.splitlines()
-        rows = [ln for ln in lines if ln.startswith("manual quality-command: ")]
+        status = [i for i, ln in enumerate(lines) if ln.startswith("quality: ")]
+        manual = [i for i, ln in enumerate(lines) if ln.startswith("manual ")]
+        assert not any(ln.startswith("manual quality-command") for ln in lines), lines
         if declared == "declared":
-            assert rows == [], rows
+            assert status == [], lines
         else:
-            assert len(rows) == 1, lines
-            assert QUALITY in rows[0]
+            assert len(status) == 1, lines
+            assert QUALITY in lines[status[0]] and "CI runs no tests" in lines[status[0]]
+            assert all(i > status[0] for i in manual), lines
         if text[declared] is None:
             assert not declaration.exists()
         else:

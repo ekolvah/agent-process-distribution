@@ -150,8 +150,7 @@ Run from the consumer's root:
    the `project-*` rows in the Project's UI, the `plugin-channel` row, once per machine and
    outside any project, and the `pre-push` row, printed only when `init` could not install the
    hook in this clone and naming why — then
-   to review and merge the PR, switch to the default branch and pull. The `quality-command`
-   row stays while no `test` is declared: CI runs no tests until then. In another clone, each
+   to review and merge the PR, switch to the default branch and pull. In another clone, each
    Claude session start reports the missing pre-push hook until its person runs the two
    commands it names.
 5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and

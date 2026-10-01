@@ -409,7 +409,7 @@ def _manual_rows(out: str) -> list[str]:
     """The `manual` rows, asserted to end the output."""
     lines = out.splitlines()
     manual = [ln for ln in lines if ln.startswith("manual ")]
-    assert manual and lines[-len(manual) :] == manual, lines
+    assert lines[len(lines) - len(manual) :] == manual, lines
     return manual
 
 
@@ -499,7 +499,7 @@ def test_observed_manual_rows_are_omitted(
     assert install(init, sandbox, mode) == 0
     out = capfd.readouterr().out
     manual = _manual_rows(out)
-    assert [row.split(":", 1)[0] for row in manual] == ["manual quality-command"], manual
+    assert manual == [], manual
     assert transitions(out)["pre-push"] == "unchanged", out
 
 
