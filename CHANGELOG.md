@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.6](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.5...v3.2.6) (2026-10-01)
+
+
+### Bug Fixes
+
+* review-secret-commands ([#291](https://github.com/ekolvah/agent-process-distribution/issues/291)) ([e0edf08](https://github.com/ekolvah/agent-process-distribution/commit/e0edf08c3604e790fcd9a650c3d15a855b9271d6))
+
 ## [3.2.5](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.4...v3.2.5) (2026-10-01)
 
 

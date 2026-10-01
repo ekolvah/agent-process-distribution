@@ -138,9 +138,10 @@ Run from the consumer's root:
    whole output. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
-3. When the dry-run prints the `review-secret` row, have the person do it before asking —
-   set the repository's `CLAUDE_CODE_OAUTH_TOKEN` secret, which the review caller passes to
-   the review — so the first pushed head's `agent-review` runs with it. Ask once; on yes run the same command with
+3. When the dry-run prints the `review-secret` row, have the person do it before asking, so
+   the first pushed head's `agent-review` runs with the secret: they run `claude setup-token`,
+   then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and paste the token at its
+   prompt, which keeps the token out of the chat. Ask once; on yes run the same command with
    `--confirm` instead of `--dry-run`.
 4. The confirmed run commits the files on the installation branch, pushes it, and opens the
    installation PR, linked to its issue; it prints the PR and leaves the checkout on that
