@@ -156,7 +156,7 @@ def test_publisher_dogfoods_process() -> None:
     )
 
 
-COMPONENT_ROOTS = [".claude-plugin", "agents", "bin", "commands", "skills/agent-process"]
+COMPONENT_ROOTS = [".claude-plugin", "agents", "bin", "commands", "hooks", "skills/agent-process"]
 # The default locations of the plugin reference's "Standard layout", plus the manifest directory.
 DEFAULT_LOCATIONS = [
     ".claude-plugin",
@@ -251,6 +251,86 @@ def test_launcher_refuses_an_unknown_script(tmp_path: Path) -> None:
         assert result.returncode == 2, (args, result.stdout, result.stderr)
         assert "probe" in result.stdout + result.stderr
         assert "plugin [" not in result.stdout
+
+
+PLUGIN_HOOKS = ROOT / "hooks" / "hooks.json"
+ADOPTION_MARKER = Path(".github") / "workflows" / "agent-process.yml"
+
+
+def _plugin_hooks() -> list[tuple[str, str, str]]:
+    """The `(event, matcher, command)` of every hook the plugin declares, read through the
+    `"hooks"` envelope the platform requires of `hooks/hooks.json`."""
+    return [
+        (event, group.get("matcher", ""), hook["command"])
+        for event, groups in _json(PLUGIN_HOOKS)["hooks"].items()
+        for group in groups
+        for hook in group["hooks"]
+    ]
+
+
+def _run_plugin_hook(project: Path, command: str, payload: dict) -> subprocess.CompletedProcess:
+    """Run a hook command as the platform does: `sh -c`, the plugin root and project exported."""
+    sh = shutil.which("sh")
+    assert sh, "sh is not on PATH"
+    env = {
+        **os.environ,
+        "CLAUDE_PROJECT_DIR": project.as_posix(),
+        "CLAUDE_PLUGIN_ROOT": ROOT.as_posix(),
+    }
+    return subprocess.run(
+        [sh, "-c", command],
+        cwd=project,
+        env=env,
+        input=json.dumps(payload),
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+def _denied_payloads(project: Path) -> dict[str, dict]:
+    """Per matcher, a payload the navigation policy denies inside `project`."""
+    large = project / "large.txt"
+    large.write_text(("x" * 79 + "\n") * 1000, encoding="utf-8")  # 80000 bytes, over budget
+    return {
+        "Bash": {"tool_input": {"command": "cat README.md"}},
+        "Read": {"tool_input": {"file_path": large.as_posix()}},
+    }
+
+
+def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -> None:
+    """Scenario: Adopted consumer — the marker and no copy of the policy; the plugin denies."""
+    (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
+    (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
+    payloads = _denied_payloads(tmp_path)
+    hooks = [(matcher, command) for _, matcher, command in _plugin_hooks()]
+    assert sorted(matcher for matcher, _ in hooks if matcher in payloads) == ["Bash", "Read"]
+    replacement = {"Bash": "Read", "Read": "offset"}
+    for matcher, command in hooks:
+        if matcher not in payloads:
+            continue
+        result = _run_plugin_hook(tmp_path, command, payloads[matcher])
+        assert result.returncode == 0, (matcher, result.stderr)
+        output = json.loads(result.stdout)["hookSpecificOutput"]
+        assert output["permissionDecision"] == "deny", matcher
+        assert replacement[matcher] in output["permissionDecisionReason"], matcher
+
+
+def test_plugin_hooks_are_silent_outside_an_adopted_repository(tmp_path: Path) -> None:
+    """Scenario: Unadopted repository — every plugin hook command exits 0 with no output."""
+    payloads = _denied_payloads(tmp_path)
+    hooks = _plugin_hooks()
+    pre_tool_use = sorted(m for event, m, _ in hooks if event == "PreToolUse")
+    assert {"Bash", "Read"} <= set(pre_tool_use), pre_tool_use
+    for event, matcher, command in hooks:
+        result = _run_plugin_hook(tmp_path, command, payloads.get(matcher, payloads["Bash"]))
+        assert (result.returncode, result.stdout) == (0, ""), (event, matcher, result.stderr)
+
+
+def test_publisher_settings_declare_no_navigation_hook() -> None:
+    """Scenario: Repository settings carry no navigation hook — the plugin delivers it."""
+    groups = _json(SETTINGS).get("hooks", {}).get("PreToolUse", [])
+    assert not [group for group in groups if group.get("matcher") in {"Bash", "Read"}]
 
 
 def test_launcher_is_executable_in_git() -> None:
