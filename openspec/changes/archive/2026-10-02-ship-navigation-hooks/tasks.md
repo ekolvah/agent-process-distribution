@@ -34,7 +34,7 @@
 
 ## 6. Deliver
 
-- [ ] 6.1 With a clean worktree, run `agent-process archive_change ship-navigation-hooks`. Verify that it archives the delta into `openspec/specs/distribution/spec.md`, commits, and pushes the branch
+- [x] 6.1 With a clean worktree, run `agent-process archive_change ship-navigation-hooks`. Verify that it archives the delta into `openspec/specs/distribution/spec.md`, commits, and pushes the branch
 - [ ] 6.2 Run `gh pr create --title "feat: ship-navigation-hooks" --body-file <report>`. The report references the tracking issue plainly, never with `Closes`, and carries the scenario → test map, the consumer follow-up ekolvah/kinozal_scraper#612, and the revisit condition (anthropics/claude-code#75855)
 - [ ] 6.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 6.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change in the final message. The person merges it
