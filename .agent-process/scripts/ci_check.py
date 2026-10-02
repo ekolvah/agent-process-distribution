@@ -339,6 +339,7 @@ CHECKS: dict[str, Callable[[], None]] = {
     "lint": check_lint,
     "module-size": check_module_size,
     "test-imports": check_test_imports,
+    "mypy": check_mypy,
     "secrets": check_secrets,
     "pytest": check_pytest,
     "pip-audit": check_pip_audit,
