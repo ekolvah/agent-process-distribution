@@ -31,9 +31,9 @@
 
 ## 5. Verify
 
-- [ ] 5.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 5.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
-- [ ] 5.3 Live run of the rendered template with the network, in a scratch git repository (planning observed the hooks of design D2; this checks the rendered file): the created `.pre-commit-config.yaml` with the agent-process repository removed (its release tag does not exist yet, and pre-commit clones every repository of the config), and the probe files of proposal Why. Run the seeded `setup` and `test`; verify that `setup` installs `requirements.txt`, then `B006`, `C901`, `PLR0913`, `C0302`, mypy's `Library stubs not installed for "requests"` (no `additional_dependencies`), the `requirements.txt` audit, `pip-audit requirements-dev.txt...Skipped` and `pytest...Passed`, and record the hook lines and the cold edit-time duration for the PR body and ADR 0035
+- [x] 5.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 5.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 5.3 Live run of the rendered template with the network, in a scratch git repository (planning observed the hooks of design D2; this checks the rendered file): the created `.pre-commit-config.yaml` with the agent-process repository removed (its release tag does not exist yet, and pre-commit clones every repository of the config), and the probe files of proposal Why. Run the seeded `setup` and `test`; verify that `setup` installs `requirements.txt`, then `B006`, `C901`, `PLR0913`, `C0302`, mypy's `Library stubs not installed for "requests"` (no `additional_dependencies`), the `requirements.txt` audit, `pip-audit requirements-dev.txt...Skipped` and `pytest...Passed`, and record the hook lines and the cold edit-time duration for the PR body and ADR 0035
 
 ## 6. Deliver
 
