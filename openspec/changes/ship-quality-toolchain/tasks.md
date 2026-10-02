@@ -27,7 +27,7 @@
 
 ## 4. Documentation
 
-- [ ] 4.1 In `skills/agent-process/SKILL.md`, Install step 1 (including the established-repository remedy of design D5) and the edit-time lint paragraph per design D6; no test — it documents behaviour the repository owns. Update the docstring of `skills/agent-process/scripts/quality.py`. Add `.agent-process/docs/adr/0035-init-seeds-a-baseline-quality-toolchain.md` (MADR, `status: "accepted"`) recording D1–D5, with *Native alternatives considered* and *Deletion condition*. Verify that `python -m pytest tests/publisher/test_planning_workflow.py tests/agent_process/test_adr_records.py tests/agent_process/test_doc_links.py -q` passes. Commit as `docs(distribution): the baseline toolchain in Install and ADR 0035`
+- [x] 4.1 In `skills/agent-process/SKILL.md`, Install step 1 (including the established-repository remedy of design D5) and the edit-time lint paragraph per design D6; no test — it documents behaviour the repository owns. Update the docstring of `skills/agent-process/scripts/quality.py`. Add `.agent-process/docs/adr/0035-init-seeds-a-baseline-quality-toolchain.md` (MADR, `status: "accepted"`) recording D1–D5, with *Native alternatives considered* and *Deletion condition*. Verify that `python -m pytest tests/publisher/test_planning_workflow.py tests/agent_process/test_adr_records.py tests/agent_process/test_doc_links.py -q` passes. Commit as `docs(distribution): the baseline toolchain in Install and ADR 0035`
 
 ## 5. Verify
 
