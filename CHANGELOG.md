@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.8...v3.3.0) (2026-10-02)
+
+
+### Features
+
+* ship-navigation-hooks ([#319](https://github.com/ekolvah/agent-process-distribution/issues/319)) ([75791ba](https://github.com/ekolvah/agent-process-distribution/commit/75791babde81b028e2268ccf1bdcd7c15f454b8a))
+
 ## [3.2.8](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.7...v3.2.8) (2026-10-01)
 
 
