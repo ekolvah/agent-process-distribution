@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.7.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.6.0...v3.7.0) (2026-10-02)
+
+
+### Features
+
+* ship-quality-toolchain ([#332](https://github.com/ekolvah/agent-process-distribution/issues/332)) ([495b272](https://github.com/ekolvah/agent-process-distribution/commit/495b272aca33e1f403f4b5db7862abc483dbaee6))
+
 ## [3.6.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.5.0...v3.6.0) (2026-10-02)
 
 
