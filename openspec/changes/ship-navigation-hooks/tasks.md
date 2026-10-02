@@ -25,7 +25,7 @@
 
 ## 4. Documentation
 
-- [ ] 4.1 In `skills/agent-process/SKILL.md` Install, add the sentence of design D7 to the plugin paragraph. Verify `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `docs(distribution): Install names the plugin's navigation hooks`
+- [x] 4.1 In `skills/agent-process/SKILL.md` Install, add the sentence of design D7 to the plugin paragraph. Verify `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `docs(distribution): Install names the plugin's navigation hooks`
 
 ## 5. Verify
 
