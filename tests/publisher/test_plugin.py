@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
 
 from tests.publisher.init_harness import load_init
@@ -33,6 +35,7 @@ MOVED_SCRIPTS = {
     "memory_checkpoint.py",
     "navigation_policy.py",
     "onboarding.py",
+    "plugin_env.py",
     "quality.py",
     "resolve_review_thread.py",
     "set_status.py",
@@ -208,7 +211,9 @@ LAUNCHER = ROOT / "bin" / "agent-process"
 PROBE = "import sys\nprint({where!r}, sys.argv[1:])\nsys.exit(3)\n"
 
 
-def _run_launcher(tmp_path: Path, cwd: Path, args: str) -> subprocess.CompletedProcess[str]:
+def _run_launcher(
+    tmp_path: Path, cwd: Path, args: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     """Run the bare command as the Bash tool does: `sh -c`, the plugin's `bin/` on `PATH`."""
     plugin = tmp_path / "plugin"
     (plugin / "bin").mkdir(parents=True, exist_ok=True)
@@ -219,12 +224,12 @@ def _run_launcher(tmp_path: Path, cwd: Path, args: str) -> subprocess.CompletedP
     (scripts / "probe.py").write_text(PROBE.format(where="plugin"), encoding="utf-8")
     sh = shutil.which("sh")
     assert sh, "sh is not on PATH"
-    env = {**os.environ, "PATH": os.pathsep.join([str(plugin / "bin"), os.environ["PATH"]])}
+    path = os.pathsep.join([str(plugin / "bin"), os.environ["PATH"]])
     cwd.mkdir(parents=True, exist_ok=True)
     return subprocess.run(
         [sh, "-c", f"agent-process {args}"],
         cwd=cwd,
-        env=env,
+        env={**os.environ, "PATH": path, **(env or {})},
         capture_output=True,
         encoding="utf-8",
         check=False,
@@ -258,6 +263,19 @@ def test_launcher_refuses_an_unknown_script(tmp_path: Path) -> None:
         assert "plugin [" not in result.stdout
 
 
+def test_launcher_runs_the_session_interpreter(tmp_path: Path) -> None:
+    """Scenario: Launcher uses the session interpreter."""
+    interpreter = tmp_path / "session-python"
+    interpreter.write_text('#!/bin/sh\necho session "$@"\n', encoding="utf-8")
+    interpreter.chmod(0o755)
+    env = {"AGENT_PROCESS_PYTHON": interpreter.as_posix()}
+    result = _run_launcher(tmp_path, tmp_path / "consumer", "probe a", env)
+    assert result.returncode == 0, result.stderr
+    word, script, arg = result.stdout.split()
+    assert (word, arg) == ("session", "a"), result.stdout
+    assert script.endswith("skills/agent-process/scripts/probe.py"), result.stdout
+
+
 PLUGIN_HOOKS = ROOT / "hooks" / "hooks.json"
 ADOPTION_MARKER = Path(".github") / "workflows" / "agent-process.yml"
 
@@ -273,15 +291,20 @@ def _plugin_hooks() -> list[tuple[str, str, str]]:
     ]
 
 
-def _run_plugin_hook(project: Path, command: str, payload: dict) -> subprocess.CompletedProcess:
-    """Run a hook command as the platform does: `sh -c`, the plugin root and project exported."""
+def _run_plugin_hook(
+    project: Path, command: str, payload: dict, extra: dict[str, str | None] | None = None
+) -> subprocess.CompletedProcess:
+    """Run a hook command as the platform does: `sh -c`, the plugin root and project exported;
+    `extra` sets variables, or removes the ones it maps to None."""
     sh = shutil.which("sh")
     assert sh, "sh is not on PATH"
-    env = {
+    merged: dict[str, str | None] = {
         **os.environ,
         "CLAUDE_PROJECT_DIR": project.as_posix(),
         "CLAUDE_PLUGIN_ROOT": ROOT.as_posix(),
+        **(extra or {}),
     }
+    env = {name: value for name, value in merged.items() if value is not None}
     return subprocess.run(
         [sh, "-c", command],
         cwd=project,
@@ -374,14 +397,123 @@ def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -
 
 
 def test_plugin_hooks_are_silent_outside_an_adopted_repository(tmp_path: Path) -> None:
-    """Scenario: Unadopted repository — every plugin hook command exits 0 with no output."""
+    """Scenario: Unadopted repository — every tool hook command exits 0 with no output."""
     payloads = _flagged_payloads(tmp_path)
-    hooks = _plugin_hooks()
+    hooks = [hook for hook in _plugin_hooks() if hook[0] in {"PreToolUse", "PostToolUse"}]
     pre_tool_use = sorted(m for event, m, _ in hooks if event == "PreToolUse")
     assert {"Bash", "Read"} <= set(pre_tool_use), pre_tool_use
     for event, matcher, command in hooks:
         result = _run_plugin_hook(tmp_path, command, payloads.get(matcher, payloads["Bash"]))
         assert (result.returncode, result.stdout) == (0, ""), (event, matcher, result.stderr)
+
+
+ENV_MARKER = "agent-process plugin environment not installed"
+
+
+def _session_start(
+    tmp_path: Path, manifest: str, **extra: str | None
+) -> tuple[subprocess.CompletedProcess, Path | None]:
+    """Run the plugin's one `SessionStart` command with a plugin root whose runtime manifest is
+    `manifest`, the data directory `tmp_path/data` and a fresh env file; return the result and
+    the interpreter the env file exports, if any."""
+    hooks = [
+        hook
+        for group in _json(PLUGIN_HOOKS)["hooks"].get("SessionStart", [])
+        for hook in group["hooks"]
+    ]
+    assert len(hooks) == 1, hooks
+    assert hooks[0]["timeout"] == 300
+    plugin = tmp_path / "plugin"
+    scripts = plugin / "skills" / "agent-process" / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    shutil.copy(SCRIPTS / "plugin_env.py", scripts / "plugin_env.py")
+    (plugin / ".agent-process").mkdir(exist_ok=True)
+    (plugin / ".agent-process" / "requirements.txt").write_text(manifest, encoding="utf-8")
+    env_file = tmp_path / "session-env.sh"
+    env_file.unlink(missing_ok=True)
+    variables: dict[str, str | None] = {
+        "CLAUDE_PLUGIN_ROOT": plugin.as_posix(),
+        "CLAUDE_PLUGIN_DATA": (tmp_path / "data").as_posix(),
+        "CLAUDE_ENV_FILE": env_file.as_posix(),
+        **extra,
+    }
+    project = tmp_path / "project"
+    project.mkdir(exist_ok=True)
+    payload = {"hook_event_name": "SessionStart", "source": "startup"}
+    result = _run_plugin_hook(project, hooks[0]["command"], payload, variables)
+    lines = env_file.read_text(encoding="utf-8").splitlines() if env_file.exists() else []
+    exports = [
+        shlex.split(line.removeprefix("export AGENT_PROCESS_PYTHON="))[0]
+        for line in lines
+        if line.startswith("export AGENT_PROCESS_PYTHON=")
+    ]
+    assert len(exports) <= 1, lines
+    return result, Path(exports[0]) if exports else None
+
+
+def _environment(tmp_path: Path, interpreter: Path | None) -> Path:
+    """The completed `venv-*` directory of the data directory that `interpreter` belongs to."""
+    assert interpreter is not None and interpreter.is_file(), interpreter
+    venv = tmp_path / "data" / interpreter.relative_to(tmp_path / "data").parts[0]
+    assert venv.name.startswith("venv-"), venv
+    assert (venv / ".complete").is_file(), venv
+    return venv
+
+
+def test_session_start_installs_the_plugin_environment(tmp_path: Path) -> None:
+    """Scenarios: First session, Manifest unchanged, Broken environment."""
+    result, interpreter = _session_start(tmp_path, "# nothing to download\n")
+    assert (result.returncode, result.stdout) == (0, ""), result.stderr
+    venv = _environment(tmp_path, interpreter)
+    built = (venv / "pyvenv.cfg").stat().st_mtime_ns
+
+    result, again = _session_start(tmp_path, "# nothing to download\n")
+    assert (result.returncode, result.stdout) == (0, ""), result.stderr
+    assert again == interpreter
+    assert (venv / "pyvenv.cfg").stat().st_mtime_ns == built
+
+    assert interpreter is not None
+    interpreter.unlink()
+    result, rebuilt = _session_start(tmp_path, "# nothing to download\n")
+    assert (result.returncode, result.stdout) == (0, ""), result.stderr
+    assert rebuilt == interpreter
+    assert _environment(tmp_path, rebuilt) == venv
+
+
+def test_session_start_keeps_the_previous_environment(tmp_path: Path) -> None:
+    """Scenario: Manifest changed."""
+    _, first = _session_start(tmp_path, "# first\n")
+    old = _environment(tmp_path, first)
+    built = (old / "pyvenv.cfg").stat().st_mtime_ns
+    completed = (old / ".complete").stat().st_mtime_ns
+    result, second = _session_start(tmp_path, "# second\n")
+    assert (result.returncode, result.stdout) == (0, ""), result.stderr
+    assert _environment(tmp_path, second) != old
+    assert (old / "pyvenv.cfg").stat().st_mtime_ns == built
+    assert (old / ".complete").stat().st_mtime_ns == completed
+
+
+@pytest.mark.parametrize("cause", ["pip", "data", "env-file"])
+def test_session_start_reports_a_missing_environment(tmp_path: Path, cause: str) -> None:
+    """Scenarios: Install fails, Hook variables absent."""
+    manifest, extra, named = {
+        "pip": (
+            "agent-process-no-such-package==0\n",
+            {"PIP_NO_INDEX": "1"},
+            "agent-process-no-such-package",
+        ),
+        "data": ("# nothing to download\n", {"CLAUDE_PLUGIN_DATA": None}, "CLAUDE_PLUGIN_DATA"),
+        "env-file": ("# nothing to download\n", {"CLAUDE_ENV_FILE": None}, "CLAUDE_ENV_FILE"),
+    }[cause]
+    for _ in range(2 if cause == "pip" else 1):
+        result, interpreter = _session_start(tmp_path, manifest, **extra)
+        assert result.returncode == 0, result.stderr
+        output = json.loads(result.stdout)
+        context = output["hookSpecificOutput"]["additionalContext"]
+        for text in (output["systemMessage"], context):
+            assert ENV_MARKER in text and named in text, text
+        assert interpreter is None
+        assert not list((tmp_path / "data").glob("venv-*/.complete"))
 
 
 def test_publisher_settings_declare_no_navigation_hook() -> None:

@@ -31,6 +31,7 @@ MOVED_SCRIPTS = {
     "memory_checkpoint.py",
     "navigation_policy.py",
     "onboarding.py",
+    "plugin_env.py",
     "quality.py",
     "resolve_review_thread.py",
     "set_status.py",
