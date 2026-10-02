@@ -38,6 +38,8 @@ def _write(path: str) -> str:
         "/home/u/.claude/projects/slug/memory/fact.md",
         r"C:\Users\u\.claude\projects\slug\memory\fact.md",
         "/home/u/.claude/projects/slug/memory/MEMORY.md",
+        # Non-ASCII home directory: the Windows code page must not mangle or crash it.
+        r"C:\Users\Иван\.claude\projects\slug\memory\fact.md",
     ],
 )
 def test_memory_write_is_flagged(path: str) -> None:

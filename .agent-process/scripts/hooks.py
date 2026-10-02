@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Session-level Claude post-edit hook adapter, plus the shared post-edit checks.
 
-`on-edit` (PostToolUse, matcher `Edit|Write`). The PreToolUse navigation policy is the
-plugin's (`skills/agent-process/scripts/navigation_policy.py`, wired by `hooks/hooks.json`).
+`on-edit` (PostToolUse, matcher `Edit|Write`). The PreToolUse navigation policy and the
+auto-memory checkpoint are the plugin's (`skills/agent-process/scripts/navigation_policy.py`
+and `memory_checkpoint.py`, wired by `hooks/hooks.json`).
 
 `on-edit` reads an adapter payload from stdin and dispatches two cheap checks
 in ONE process (one python spawn per edit):
@@ -15,18 +16,6 @@ in ONE process (one python spawn per edit):
                        without blocking the already-applied edit).
   - `requirements*.in` → a `pip-compile` reminder (the agent process is otherwise only
                        prose — easy to forget; the reminder makes it visible).
-  - a write under the agent's out-of-repo auto-memory dir
-                       (`.claude/projects/<slug>/memory/`) → a Memory↔repo
-                       checkpoint reminder. The policy "project knowledge
-                       → repo, only machine/operator-specific → memory" was prose
-                       and got violated twice in one session; the deterministic
-                       half (a write *into* the memory dir) is a pure path
-                       predicate, so it becomes a forcing-function here instead of
-                       a "don't forget" rule. It is a reminder (a *checkpoint
-                       question*), not a block: the predicate cannot tell a
-                       legitimate machine-specific note from a misplaced process
-                       fact (semantic — deliberately not scripted), so it fires on
-                       every memory write and asks the agent to confirm.
 
 §IV: a malformed/empty payload is a silent no-op (do not red every edit on a
 payload bug), but a ruff *exec* failure (not installed / bad config) is a
@@ -41,7 +30,6 @@ pre-commit/tox *framework*, which is intentionally outside this adapter.
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
 from collections.abc import Callable
@@ -56,14 +44,8 @@ class Signal:
     """A message to surface to the agent. `kind` distinguishes the cause so a
     broken-setup marker is never mistaken for a lint finding (§IV)."""
 
-    kind: str  # "lint" | "setup_broken" | "pipcompile" | "memory_write"
+    kind: str  # "lint" | "setup_broken" | "pipcompile"
     message: str
-
-
-# A write under the agent's out-of-repo auto-memory dir: `.claude/projects/<slug>/memory/`.
-# Anchored at `(^|/)` so repo-`.claude/rules/*` (no `projects/<x>/memory/` segment) and a
-# stray `foo.claude/...` never match; `[^/]+` is the single repo-slug dir component.
-_MEMORY_DIR_RE = re.compile(r"(^|/)\.claude/projects/[^/]+/memory/")
 
 
 def read_payload(stdin_text: str) -> dict:
@@ -97,24 +79,11 @@ def _is_requirements_in(path: str) -> bool:
     return name.startswith("requirements") and name.endswith(".in")
 
 
-def _is_memory_write(path: str) -> bool:
-    """A write into the agent's out-of-repo auto-memory dir.
-
-    Pure path predicate (like `_is_python`/`_is_requirements_in`): normalize
-    backslashes, then match the `.claude/projects/<slug>/memory/` segment. Matches
-    any file under it, including `memory/MEMORY.md` at the root."""
-    return _MEMORY_DIR_RE.search(path.replace("\\", "/")) is not None
-
-
 def plan_checks(payload: dict) -> list[str]:
     """Which checks apply to this edit (pure dispatch by file path)."""
     path = edited_path(payload)
     if path is None:
         return []
-    # memory-write before _is_python: a hypothetical `.py` under the memory dir must
-    # get the Memory↔repo checkpoint, not a ruff lint run.
-    if _is_memory_write(path):
-        return ["memory_write"]
     if _is_python(path):
         return ["ruff"]
     if _is_requirements_in(path):
@@ -145,24 +114,6 @@ def pipcompile_signal(path: str) -> Signal:
         message=(
             f"{path} changed — run `pip-compile {path}` in the SAME commit "
             "or CI will red on lockfile drift."
-        ),
-    )
-
-
-def memory_write_signal(path: str) -> Signal:
-    """Memory↔repo checkpoint after a write into the agent's auto-memory dir.
-
-    A *checkpoint question*, not an accusation: the predicate is "wrote into memory",
-    whereas the violation is "wrote *process knowledge* into memory" — indistinguishable
-    without semantics (deliberately not scripted, §VII). So it fires on every memory
-    write, including legitimate machine/operator-specific notes, and asks to confirm."""
-    return Signal(
-        kind="memory_write",
-        message=(
-            f"{path} — запись в agent-память. Политика Memory↔repo "
-            "(`.agent-process/docs/architecture/project-map.md`): в память идёт ТОЛЬКО "
-            "машинно/операторо-специфичное; проектное знание → репо "
-            "(`.claude/`, `docs/`, скрипты). Подтверди, что это первое, иначе перенеси."
         ),
     )
 
@@ -233,8 +184,6 @@ def run_on_paths(
                     signals.append(sig)
             elif check == "pipcompile":
                 signals.append(pipcompile_signal(path))
-            elif check == "memory_write":
-                signals.append(memory_write_signal(path))
     stderr = "\n".join(s.message for s in signals)
     return exit_code(signals), stderr
 

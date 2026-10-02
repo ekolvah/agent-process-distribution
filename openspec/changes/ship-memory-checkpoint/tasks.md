@@ -14,8 +14,8 @@
 
 ## 2. Checkpoint into the package
 
-- [ ] 2.1 Add `skills/agent-process/scripts/memory_checkpoint.py` (design D1, D3, D4): the module docstring states the problem (#313) and why it reminds rather than blocks; the predicate moves from `hooks.py`; `main` takes `post-edit`. Add `memory_checkpoint.py` to `MOVED_SCRIPTS` in `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`. Verify that `python -m pytest tests/publisher/test_memory_checkpoint.py -q` passes
-- [ ] 2.2 Remove the memory branch from `.agent-process/scripts/hooks.py` (design D5); its docstring names the plugin's checkpoint. Verify that `python -m pytest tests/publisher/test_hooks.py -q` passes. Commit as `refactor(distribution): the memory checkpoint moves into the skill package`
+- [x] 2.1 Add `skills/agent-process/scripts/memory_checkpoint.py` (design D1, D3, D4): the module docstring states the problem (#313) and why it reminds rather than blocks; the predicate moves from `hooks.py`; `main` takes `post-edit`. Add `memory_checkpoint.py` to `MOVED_SCRIPTS` in `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`. Verify that `python -m pytest tests/publisher/test_memory_checkpoint.py -q` passes
+- [x] 2.2 Remove the memory branch from `.agent-process/scripts/hooks.py` (design D5); its docstring names the plugin's checkpoint. Verify that `python -m pytest tests/publisher/test_hooks.py -q` passes. Commit as `refactor(distribution): the memory checkpoint moves into the skill package`
 
 ## 3. Plugin hook
 

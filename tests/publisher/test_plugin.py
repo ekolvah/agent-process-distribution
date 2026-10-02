@@ -28,6 +28,7 @@ MOVED_SCRIPTS = {
     "create_tracking_issue.py",
     "init.py",
     "manual.py",
+    "memory_checkpoint.py",
     "navigation_policy.py",
     "onboarding.py",
     "quality.py",
