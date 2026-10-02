@@ -18,10 +18,10 @@
 
 ## 3. Plugin hooks
 
-- [ ] 3.1 Add `hooks/hooks.json` with PreToolUse matchers `Bash` and `Read`, timeout 10, commands as design D2 with the gate of D3
-- [ ] 3.2 Add `ROOT / "hooks"` to the roots of `_package_text_files` in `tests/publisher/test_plugin.py`, so `test_package_paths_resolve_in_a_consumer` covers `hooks/hooks.json`
-- [ ] 3.3 Remove the PreToolUse `Bash` and `Read` entries from `.claude/settings.json` (design D4); keep the PostToolUse `on-edit` entry
-- [ ] 3.4 Verify the four group-1 tests and `python -m pytest tests/publisher -q` pass. Commit as `feat(distribution): the plugin ships the navigation hooks, gated on adoption`
+- [x] 3.1 Add `hooks/hooks.json` with PreToolUse matchers `Bash` and `Read`, timeout 10, commands as design D2 with the gate of D3
+- [x] 3.2 Add `ROOT / "hooks"` to the roots of `_package_text_files` in `tests/publisher/test_plugin.py`, so `test_package_paths_resolve_in_a_consumer` covers `hooks/hooks.json`
+- [x] 3.3 Remove the PreToolUse `Bash` and `Read` entries from `.claude/settings.json` (design D4); keep the PostToolUse `on-edit` entry
+- [x] 3.4 Verify the four group-1 tests and `python -m pytest tests/publisher -q` pass. Commit as `feat(distribution): the plugin ships the navigation hooks, gated on adoption`
 
 ## 4. Documentation
 

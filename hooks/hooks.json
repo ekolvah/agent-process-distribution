@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { [ ! -f .github/workflows/agent-process.yml ] || sh \"${CLAUDE_PLUGIN_ROOT}/bin/agent-process\" navigation_policy pre-bash; }",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { [ ! -f .github/workflows/agent-process.yml ] || sh \"${CLAUDE_PLUGIN_ROOT}/bin/agent-process\" navigation_policy pre-read; }",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

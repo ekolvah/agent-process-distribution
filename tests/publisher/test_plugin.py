@@ -87,7 +87,7 @@ def test_package_contents_are_closed() -> None:
 
 
 def _package_text_files() -> list[Path]:
-    roots = (PACKAGE, ROOT / "agents", ROOT / "commands")
+    roots = (PACKAGE, ROOT / "agents", ROOT / "commands", ROOT / "hooks")
     return sorted(
         path
         for root in roots
