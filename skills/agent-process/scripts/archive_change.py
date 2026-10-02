@@ -36,7 +36,7 @@ def _runner(root: Path) -> Run:
         exe = shutil.which(cmd[0]) or cmd[0]
         # `errors="replace"`: the pre-push hook's pytest output can carry a code-page
         # byte on Windows; a mangled character keeps the hook's finding visible, a dead
-        # reader thread hides it behind "broken capture" (§IV, as hooks.py).
+        # reader thread hides it behind "broken capture" (§IV, as edit_lint.py).
         result = subprocess.run(
             [exe, *cmd[1:]],
             cwd=root,
