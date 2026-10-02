@@ -299,6 +299,35 @@ def _denied_payloads(project: Path) -> dict[str, dict]:
     }
 
 
+def _memory_write(project: Path, separator: str = "/") -> dict:
+    """A `Write` payload under the auto-memory directory, its path joined with `separator`."""
+    parts = [project.as_posix(), ".claude", "projects", "slug", "memory", "fact.md"]
+    return {"tool_name": "Write", "tool_input": {"file_path": separator.join(parts)}}
+
+
+def _flagged_payloads(project: Path) -> dict[str, dict]:
+    """Per matcher, a payload some plugin hook acts on inside an adopted `project`."""
+    return {**_denied_payloads(project), "Edit|Write": _memory_write(project)}
+
+
+def test_plugin_hooks_remind_on_memory_write_in_an_adopted_repository(tmp_path: Path) -> None:
+    """Scenario: Memory write in an adopted consumer — the plugin's PostToolUse hook reminds."""
+    (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
+    (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
+    hooks = [
+        command
+        for event, matcher, command in _plugin_hooks()
+        if (event, matcher) == ("PostToolUse", "Edit|Write")
+    ]
+    assert len(hooks) == 1, _plugin_hooks()
+    for separator in ("/", "\\"):
+        payload = _memory_write(tmp_path, separator)
+        result = _run_plugin_hook(tmp_path, hooks[0], payload)
+        assert result.returncode == 2, (separator, result.stderr)
+        assert payload["tool_input"]["file_path"] in result.stderr
+        assert "repository" in result.stderr
+
+
 def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -> None:
     """Scenario: Adopted consumer — the marker and no copy of the policy; the plugin denies."""
     (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
@@ -319,7 +348,7 @@ def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -
 
 def test_plugin_hooks_are_silent_outside_an_adopted_repository(tmp_path: Path) -> None:
     """Scenario: Unadopted repository — every plugin hook command exits 0 with no output."""
-    payloads = _denied_payloads(tmp_path)
+    payloads = _flagged_payloads(tmp_path)
     hooks = _plugin_hooks()
     pre_tool_use = sorted(m for event, m, _ in hooks if event == "PreToolUse")
     assert {"Bash", "Read"} <= set(pre_tool_use), pre_tool_use

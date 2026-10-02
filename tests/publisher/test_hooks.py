@@ -26,7 +26,6 @@ from scripts.hooks import (
     _run_ruff,
     classify_ruff_result,
     exit_code,
-    memory_write_signal,
     pipcompile_signal,
     plan_checks,
     run_on_edit,
@@ -122,52 +121,13 @@ class TestPipCompileGuard:
         assert plan_checks(_payload("requirements-dev.txt")) == []
 
 
-class TestMemoryWriteGuard:
-    """Writes to out-of-repo agent memory are a governance trigger.
-
-    The Memory↔repo policy is enforced by a pure path predicate, like
-    `_is_python`/`_is_requirements_in`. It emits a checkpoint reminder (exit 2),
-    not a PreToolUse block; machine-specific-memory false positives are accepted
-    by design because semantics are not scripted.
-    """
-
-    _MEM = (
-        "C:/Users/jadow/.claude/projects/"
-        "C--Users-jadow-PycharmProjects-kinozal-scraper/memory/some_fact.md"
-    )
-
-    def test_memory_path_flags_memory_write(self) -> None:
-        assert plan_checks(_payload(self._MEM)) == ["memory_write"]
-
-    def test_memory_write_surfaces_exit_2(self) -> None:
-        # The signal is a visible anomaly (§IV): exit 2 exposes stderr to the
-        # agent. The memory branch precedes `_is_python`, so ruff never runs.
-        code, stderr = run_on_edit(_payload(self._MEM), ruff_runner=_never_called)
-        assert code == 2
-        assert stderr != ""
-        sig = memory_write_signal(self._MEM)
-        assert sig.kind == "memory_write"
-
-    def test_windows_backslash_path(self) -> None:
-        # Windows payloads can contain backslashes; normalize them.
-        p = r"C:\Users\jadow\.claude\projects\slug\memory\bar.md"
-        assert plan_checks(_payload(p)) == ["memory_write"]
-
-    def test_memory_index_root_file_flagged(self) -> None:
-        # A trailing slash must not exclude MEMORY.md at the memory root.
-        p = "C:/Users/jadow/.claude/projects/slug/memory/MEMORY.md"
-        assert plan_checks(_payload(p)) == ["memory_write"]
-
-    def test_non_memory_subdir_of_projects_not_flagged(self) -> None:
-        # Match `/memory/`, not all `projects/`, which also stores session logs.
-        p = "C:/Users/jadow/.claude/projects/slug/other/f.md"
-        assert plan_checks(_payload(p)) == []
-
-    def test_repo_paths_not_memory(self) -> None:
-        # Repository files, including `.claude/`, do not trigger the memory signal.
-        assert plan_checks(_payload("src/x.py")) == ["ruff"]
-        assert plan_checks(_payload(".agent-process/docs/architecture/project-map.md")) == []
-        assert plan_checks(_payload(".claude/rules/mindset.md")) == []
+def test_memory_write_is_not_checked_here() -> None:
+    """Scenario: Repository hook carries no memory check — the plugin's checkpoint owns it."""
+    memory = "C:/Users/x/.claude/projects/slug/memory/f.md"
+    assert run_on_edit(_payload(memory), ruff_runner=_never_called) == (0, "")
+    assert plan_checks(_payload("src/x.py")) == ["ruff"]
+    assert plan_checks(_payload(".agent-process/docs/architecture/project-map.md")) == []
+    assert plan_checks(_payload(".claude/rules/mindset.md")) == []
 
 
 def _never_called(_file: str) -> tuple[int, str]:
