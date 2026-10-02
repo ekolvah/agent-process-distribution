@@ -640,8 +640,8 @@ questions of #114 in its order:
   with its evidence, and the file states its `reviewer`. A plugin agent's frontmatter
   `hooks` are ignored (sub-agents docs, 2026-09-23), so no Stop hook: the propose tail
   (`create_tracking_issue.py`) and the apply gate (`start_change.py`) validate, importing
-  `jsonschema` on the call — absent, it is exit 2, not a pass. A consumer's `jsonschema` is
-  a prerequisite #155 names. `codex exec --output-schema` rejected: `'if' is not permitted`.
+  `jsonschema` on the call — absent, it is exit 2, not a pass. A consumer's `jsonschema` comes
+  from the plugin environment its `SessionStart` hook installs and the launcher runs (#309). `codex exec --output-schema` rejected: `'if' is not permitted`.
 * The `bespoke` evidence is a structured `additions` list (issue 170): the free-text class
   accepted `none` and an ADR decision as the observed problem, and asked for no standard —
   the plan of issue 113 passed with its own coverage map, parser and pytest run, pytest-bdd

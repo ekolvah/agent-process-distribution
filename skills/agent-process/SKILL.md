@@ -173,7 +173,9 @@ project setting: a project that enables it gets a project-scope install per spel
 `.claude/settings.json` does not re-point a marketplace the machine already knows (#184). The
 marketplace follows the branch `stable`, which each release fast-forwards, with auto-update on,
 so a machine that did the `plugin-channel` row gets a release within a session. The plugin's
-hooks act only in a repository carrying `.github/workflows/agent-process.yml`. Its navigation
+tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session
+start it installs its own Python dependencies, once per machine and pin set; a failure prints
+`agent-process plugin environment not installed` with the cause. Its navigation
 hooks deny shell file reads and over-budget whole-file `Read`, naming the cheaper call; a
 `permissions.deny` rule matching the same command blocks first, so their message never reaches
 the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks

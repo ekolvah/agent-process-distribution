@@ -17,7 +17,7 @@
 
 ## 3. Documentation
 
-- [ ] 3.1 In `skills/agent-process/SKILL.md` Install, one sentence: the plugin installs its Python dependencies itself at session start, and a failure shows the `agent-process plugin environment not installed` marker. In `.agent-process/docs/adr/0027-v2-standards-replace-the-bespoke-control-plane.md`, replace "a prerequisite #155 names" with the plugin environment that installs it (#309). Verify that `python -m pytest tests/publisher/test_planning_workflow.py tests/agent_process/test_adr_records.py tests/agent_process/test_doc_links.py -q` passes. Commit as `docs(distribution): the plugin installs jsonschema`
+- [x] 3.1 In `skills/agent-process/SKILL.md` Install, one sentence: the plugin installs its Python dependencies itself at session start, and a failure shows the `agent-process plugin environment not installed` marker. In `.agent-process/docs/adr/0027-v2-standards-replace-the-bespoke-control-plane.md`, replace "a prerequisite #155 names" with the plugin environment that installs it (#309). Verify that `python -m pytest tests/publisher/test_planning_workflow.py tests/agent_process/test_adr_records.py tests/agent_process/test_doc_links.py -q` passes. Commit as `docs(distribution): the plugin installs jsonschema`
 
 ## 4. Verify
 
