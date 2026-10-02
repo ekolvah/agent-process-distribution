@@ -2,6 +2,8 @@
 # agent-process <script> [args] - run a script of the agent-process skill.
 # The current directory's skills/agent-process/scripts/ wins (the publisher checkout,
 # exempt from release drift); otherwise the plugin's own copy beside this bin/.
+# The interpreter is AGENT_PROCESS_PYTHON, the plugin environment the SessionStart hook
+# exports (plugin_env.py), else `python`.
 plugin_scripts="$(dirname "$0")/../skills/agent-process/scripts"
 
 usage() {
@@ -27,4 +29,4 @@ else
     usage
 fi
 shift
-exec python "$file" "$@"
+exec "${AGENT_PROCESS_PYTHON:-python}" "$file" "$@"
