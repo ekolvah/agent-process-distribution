@@ -15,7 +15,6 @@ it is not (a silent setup degradation).
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -194,19 +193,18 @@ class TestCaptureFailureIsSetupBroken:
         assert "capture failed" in output
 
 
-def test_pre_read_is_an_accepted_subcommand() -> None:
-    """`main()` is fail-CLOSED on an unknown argv (exit 2). Behind a `Read` matcher that
-    reads as "deny every Read in the session" — the opposite of the fail-open policy — so
-    the dispatcher's allowlist is a guarded requirement, not an implementation detail.
-    """
+@pytest.mark.parametrize("argv", ([], ["pre-bash"], ["pre-read"]))
+def test_unknown_subcommand_is_a_visible_non_blocking_error(argv: list[str]) -> None:
+    """The settings that call the hook can come from another revision than the script: the
+    review job restores `.claude/` from `main` and runs the PR head's scripts. Exit 2 would
+    block every tool call behind a PreToolUse matcher; exit 1 is a visible `hook error`."""
     result = subprocess.run(
-        [sys.executable, ".agent-process/scripts/hooks.py", "pre-read"],
+        [sys.executable, ".agent-process/scripts/hooks.py", *argv],
         input="{}",
         capture_output=True,
         encoding="utf-8",
         cwd=Path(__file__).resolve().parents[2],
-        env={**os.environ, "PYTHONUTF8": "1"},
         check=False,
     )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout == ""
+    assert result.returncode == 1, result.stderr
+    assert "Usage" in result.stderr

@@ -18,11 +18,16 @@ here the refusal names the replacement call.
 Fail-open by construction: an unparseable command yields no decision. This is a token-economy
 ratchet, not a sandbox, and blocking real work on a lexer limit would cost more than the
 route it guards.
+
+The plugin's `hooks/hooks.json` runs it as `agent-process navigation_policy pre-bash|pre-read`
+(PreToolUse, matchers `Bash` and `Read`), with the hook JSON on stdin.
 """
 
 from __future__ import annotations
 
+import json
 import shlex
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -304,3 +309,70 @@ def read_budget_hint(file_path: object, offset: object = None, limit: object = N
         "Rewriting the file whole? Read it in slices first — never Write over bytes you have "
         "not seen. Reading is budgeted like shell navigation."
     )
+
+
+def _deny(reason: str) -> dict:
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+
+
+def pre_bash_response(payload: dict) -> dict | None:
+    """Return Claude's PreToolUse denial shape when a Bash command reads the filesystem.
+
+    Fail-open: this policy only claims a cheaper route exists, so a payload bug must degrade to
+    "no opinion" rather than block every `Bash` call in the session.
+    """
+    tool_input = payload.get("tool_input")
+    command = tool_input.get("command") if isinstance(tool_input, dict) else None
+    if not isinstance(command, str):
+        return None
+    hint = navigation_hint(command)
+    return None if hint is None else _deny(hint)
+
+
+def pre_read_response(payload: dict) -> dict | None:
+    """Return Claude's PreToolUse denial shape when a `Read` slice busts the budget.
+
+    Fail-open for the same reason as `pre_bash_response`: the policy claims only that a
+    cheaper route exists, and behind a `Read` matcher a payload bug that denied would take
+    the agent's primary way of seeing the repository with it.
+    """
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    hint = read_budget_hint(
+        tool_input.get("file_path"), tool_input.get("offset"), tool_input.get("limit")
+    )
+    return None if hint is None else _deny(hint)
+
+
+_PRE_TOOL_USE = {"pre-bash": pre_bash_response, "pre-read": pre_read_response}
+
+
+def main() -> None:
+    if len(sys.argv) != 2 or sys.argv[1] not in _PRE_TOOL_USE:
+        print(
+            "usage: agent-process navigation_policy {pre-bash|pre-read}"
+            " (reads the hook JSON on stdin)",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    try:
+        payload = json.loads(sys.stdin.read() or "{}")
+    except json.JSONDecodeError:
+        payload = {}
+    # PreToolUse denies via exit 0 + JSON on stdout; exit 2 would discard the JSON and feed
+    # stderr instead, losing the replacement message this hook exists to deliver.
+    response = _PRE_TOOL_USE[sys.argv[1]](payload if isinstance(payload, dict) else {})
+    if response is not None:
+        print(json.dumps(response))
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

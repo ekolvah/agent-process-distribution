@@ -12,17 +12,24 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from scripts.hooks import pre_bash_response, pre_read_response
-from scripts.navigation_policy import _READ_BUDGET_BYTES, navigation_hint, read_budget_hint
+from tests.publisher.delivery_fakes import ROOT, SKILL_SCRIPTS, load_script
 
-_REPO = Path(__file__).resolve().parents[2]
-_CLAUDE_SETTINGS = _REPO / ".claude" / "settings.json"
+_policy = load_script("navigation_policy")
+_READ_BUDGET_BYTES = _policy._READ_BUDGET_BYTES
+navigation_hint = _policy.navigation_hint
+read_budget_hint = _policy.read_budget_hint
+pre_bash_response = _policy.pre_bash_response
+pre_read_response = _policy.pre_read_response
+
+_CLAUDE_SETTINGS = ROOT / ".claude" / "settings.json"
 
 # Commands whose filesystem-reading form the hook owns. A static deny on any of them
 # would match first and swallow the message (a deny rule blocks before a hook runs).
@@ -246,14 +253,24 @@ class TestClaudeAdapter:
         assert pre_read_response({"tool_input": {"file_path": None}}) is None
 
 
-class TestClaudeHookWiring:
-    def test_pretooluse_hook_is_wired_for_bash(self) -> None:
-        entries = _settings()["hooks"]["PreToolUse"]
-        matching = [entry for entry in entries if entry.get("matcher") == "Bash"]
-        assert len(matching) == 1
-        commands = [hook["command"] for hook in matching[0]["hooks"]]
-        assert any(re.search(r"hooks\.py pre-bash", command) for command in commands)
+@pytest.mark.parametrize("subcommand", ("pre-bash", "pre-read"))
+def test_pre_tool_use_subcommands_are_accepted(subcommand: str) -> None:
+    """`main()` is fail-CLOSED on an unknown argv (exit 2). Behind a `Bash`/`Read` matcher that
+    reads as "deny every call in the session" — the opposite of the fail-open policy — so
+    the dispatcher's allowlist is a guarded requirement, not an implementation detail.
+    """
+    result = subprocess.run(
+        [sys.executable, str(SKILL_SCRIPTS / "navigation_policy.py"), subcommand],
+        input="{}",
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ""
 
+
+class TestClaudeHookWiring:
     def test_no_static_deny_shadows_the_hook(self) -> None:
         """A matching `permissions.deny` rule blocks before the hook runs, so a static
         navigation entry would silently drop the replacement message."""
@@ -262,13 +279,6 @@ class TestClaudeHookWiring:
             pattern for pattern in patterns if re.match(rf"Bash\((?:{'|'.join(_OWNED)})\b", pattern)
         ]
         assert not shadowing, f"navigation deny entries shadow the hook: {shadowing}"
-
-    def test_pretooluse_hook_is_wired_for_read(self) -> None:
-        entries = _settings()["hooks"]["PreToolUse"]
-        matching = [entry for entry in entries if entry.get("matcher") == "Read"]
-        assert len(matching) == 1
-        commands = [hook["command"] for hook in matching[0]["hooks"]]
-        assert any(re.search(r"hooks\.py pre-read", command) for command in commands)
 
     def test_no_static_deny_shadows_the_read_hook(self) -> None:
         """A `Read(...)` deny rule would block before the hook runs and drop the budget

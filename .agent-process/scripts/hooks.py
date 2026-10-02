@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-"""Session-level Claude hook adapter, plus the shared post-edit checks.
+"""Session-level Claude post-edit hook adapter, plus the shared post-edit checks.
 
-Three hook commands, one entry point:
-
-  - `pre-bash` (PreToolUse, matcher `Bash`) → `scripts.navigation_policy`, which denies a
-    shell route into the filesystem *with the replacement call named*. It replaced a
-    static `permissions.deny` block, which could carry no message and could not tell
-    `grep FILE` from `cmd | grep`.
-  - `pre-read` (PreToolUse, matcher `Read`) → the same policy applied to the other route:
-    a slice over the byte budget is denied with the slice that fits handed back.
-  - `on-edit` (PostToolUse, matcher `Edit|Write`) → the checks below.
+`on-edit` (PostToolUse, matcher `Edit|Write`). The PreToolUse navigation policy is the
+plugin's (`skills/agent-process/scripts/navigation_policy.py`, wired by `hooks/hooks.json`).
 
 `on-edit` reads an adapter payload from stdin and dispatches two cheap checks
 in ONE process (one python spawn per edit):
@@ -53,11 +46,6 @@ import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-
-try:
-    from scripts.navigation_policy import navigation_hint, read_budget_hint
-except ModuleNotFoundError:  # documented direct script entry point
-    from navigation_policy import navigation_hint, read_budget_hint
 
 # ruff exit codes: 0 = clean, 1 = lint findings, >=2 = ruff itself errored.
 _RUFF_EXEC_ERROR = 2
@@ -260,71 +248,17 @@ def run_on_edit(
     return run_on_paths([] if path is None else [path], ruff_runner=ruff_runner)
 
 
-def pre_bash_response(payload: dict) -> dict | None:
-    """Return Claude's PreToolUse denial shape when a Bash command reads the filesystem.
-
-    Fail-open: this policy only claims a cheaper route exists, so a payload bug must degrade to
-    "no opinion" rather than block every `Bash` call in the session.
-    """
-    tool_input = payload.get("tool_input")
-    command = tool_input.get("command") if isinstance(tool_input, dict) else None
-    if not isinstance(command, str):
-        return None
-    hint = navigation_hint(command)
-    if hint is None:
-        return None
-    return {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": hint,
-        }
-    }
-
-
-def pre_read_response(payload: dict) -> dict | None:
-    """Return Claude's PreToolUse denial shape when a `Read` slice busts the budget.
-
-    Fail-open for the same reason as `pre_bash_response`: the policy claims only that a
-    cheaper route exists, and behind a `Read` matcher a payload bug that denied would take
-    the agent's primary way of seeing the repository with it.
-    """
-    tool_input = payload.get("tool_input")
-    if not isinstance(tool_input, dict):
-        return None
-    hint = read_budget_hint(
-        tool_input.get("file_path"), tool_input.get("offset"), tool_input.get("limit")
-    )
-    if hint is None:
-        return None
-    return {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": hint,
-        }
-    }
-
-
-_PRE_TOOL_USE = {"pre-bash": pre_bash_response, "pre-read": pre_read_response}
-
-
 def main() -> None:
-    if len(sys.argv) < 2 or sys.argv[1] not in {"on-edit", *_PRE_TOOL_USE}:
+    if len(sys.argv) < 2 or sys.argv[1] != "on-edit":
         print(
-            "Usage: python .agent-process/scripts/hooks.py {on-edit|pre-bash|pre-read}"
-            " (reads the hook JSON on stdin)",
+            "Usage: python .agent-process/scripts/hooks.py on-edit (reads the hook JSON on stdin)",
             file=sys.stderr,
         )
-        sys.exit(2)
+        # Not 2: the settings calling this can be another revision (the review job restores
+        # `.claude/` from `main`), and behind a PreToolUse matcher exit 2 blocks every call.
+        # Exit 1 is the platform's visible, non-blocking `hook error`.
+        sys.exit(1)
     payload = read_payload(sys.stdin.read())
-    if sys.argv[1] in _PRE_TOOL_USE:
-        # PreToolUse denies via exit 0 + JSON on stdout; exit 2 would discard the JSON and
-        # feed stderr instead, losing the replacement message this hook exists to deliver.
-        response = _PRE_TOOL_USE[sys.argv[1]](payload)
-        if response is not None:
-            print(json.dumps(response))
-        sys.exit(0)
     code, stderr = run_on_edit(payload)
     if stderr:
         print(stderr, file=sys.stderr)
