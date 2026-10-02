@@ -42,6 +42,7 @@ MOVED_SCRIPTS = {
 }
 
 TEMPLATES = {
+    "agent-process-quality.json",
     "agent-process.yml",
     "agent-review.yml",
     "config.yaml",
