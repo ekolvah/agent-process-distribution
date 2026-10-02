@@ -493,19 +493,25 @@ def test_session_start_keeps_the_previous_environment(tmp_path: Path) -> None:
     assert (old / ".complete").stat().st_mtime_ns == completed
 
 
-@pytest.mark.parametrize("cause", ["pip", "data", "env-file"])
-def test_session_start_reports_a_missing_environment(tmp_path: Path, cause: str) -> None:
-    """Scenarios: Install fails, Hook variables absent."""
-    manifest, extra, named = {
-        "pip": (
+@pytest.mark.parametrize(
+    ("manifest", "extra", "named", "runs"),
+    [
+        pytest.param(
             "agent-process-no-such-package==0\n",
             {"PIP_NO_INDEX": "1"},
             "agent-process-no-such-package",
+            2,
+            id="pip",
         ),
-        "data": ("# nothing to download\n", {"CLAUDE_PLUGIN_DATA": None}, "CLAUDE_PLUGIN_DATA"),
-        "env-file": ("# nothing to download\n", {"CLAUDE_ENV_FILE": None}, "CLAUDE_ENV_FILE"),
-    }[cause]
-    for _ in range(2 if cause == "pip" else 1):
+        pytest.param("# none\n", {"CLAUDE_PLUGIN_DATA": None}, "CLAUDE_PLUGIN_DATA", 1, id="data"),
+        pytest.param("# none\n", {"CLAUDE_ENV_FILE": None}, "CLAUDE_ENV_FILE", 1, id="env-file"),
+    ],
+)
+def test_session_start_reports_a_missing_environment(
+    tmp_path: Path, manifest: str, extra: dict[str, str | None], named: str, runs: int
+) -> None:
+    """Scenarios: Install fails, Hook variables absent; a failed install is retried."""
+    for _ in range(runs):
         result, interpreter = _session_start(tmp_path, manifest, **extra)
         assert result.returncode == 0, result.stderr
         output = json.loads(result.stdout)
