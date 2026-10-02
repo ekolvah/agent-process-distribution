@@ -2,6 +2,15 @@
 # `language: unsupported` applies no env patch, so the declared test runs in the pusher's venv.
 default_install_hook_types: [pre-push]
 repos:
+  # Per-file checks, declared once: the plugin's edit-time hook runs them on the edited file,
+  # ci_check `lint` over all files. `pre-commit` stage only, so a plain pre-push run skips them.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.12
+    hooks:
+      - id: ruff-check
+        stages: [pre-commit]
+      - id: ruff-format
+        stages: [pre-commit]
   - repo: local
     hooks:
       - id: quality

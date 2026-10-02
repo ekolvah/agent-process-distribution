@@ -17,9 +17,9 @@ import pytest
 from scripts import ci_check
 from scripts.ci_check import _find_modules, _has_product_scope, _run, _tracked_files, run_selected
 
-_PROCESS_PYPROJECT = (
-    Path(__file__).resolve().parent.parent.parent / ".agent-process" / "pyproject.toml"
-)
+_ROOT = Path(__file__).resolve().parent.parent.parent
+_PROCESS_PYPROJECT = _ROOT / ".agent-process" / "pyproject.toml"
+_PRE_COMMIT_CONFIG = _ROOT / ".pre-commit-config.yaml"
 
 
 def _init_repo(tmp_path: Path) -> None:
@@ -69,7 +69,7 @@ class TestStepParity:
 
 
 class TestHasProductScope:
-    """`_has_product_scope()` decides whether the bare product ruff/pytest pass
+    """`_has_product_scope()` decides whether the bare product pytest/size pass
     runs at all. A bare consumer render (nothing but the rendered process
     payload) must read as no scope; anything with product configuration or
     product source outside `_PROCESS_PATHS` must read as having scope — even
@@ -129,9 +129,9 @@ class TestHasProductScope:
 class TestProductScopeExcludesProcessPaths:
     """The bare (unscoped) product-side pass must not re-touch `_PROCESS_PATHS`.
 
-    A consumer with no config of its own re-collects/re-lints
+    A consumer with no config of its own re-collects
     `tests/agent_process` and `.agent-process` under its own root config —
-    which has neither the process's `pythonpath` nor its formatting rules —
+    which lacks the process's `pythonpath` —
     producing failures that have nothing to do with product code (#57
     findings: the second `pytest` pass re-collected the process suite and
     failed to import `scripts`)."""
@@ -156,28 +156,6 @@ class TestProductScopeExcludesProcessPaths:
         bare = calls[1]
         assert "--ignore=.agent-process" in bare
         assert "--ignore=tests/agent_process" in bare
-
-    def test_bare_format_pass_excludes_the_process_paths(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        calls = self._capture(monkeypatch)
-
-        ci_check.check_format()
-
-        bare = calls[1]
-        assert "--exclude=.agent-process" in bare
-        assert "--exclude=tests/agent_process" in bare
-
-    def test_bare_lint_pass_excludes_the_process_paths(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        calls = self._capture(monkeypatch)
-
-        ci_check.check_lint()
-
-        bare = calls[1]
-        assert "--exclude=.agent-process" in bare
-        assert "--exclude=tests/agent_process" in bare
 
 
 class TestFindModules:
@@ -566,6 +544,9 @@ class TestComplexityLimits:
         (tmp_path / ".agent-process" / "pyproject.toml").write_text(
             _PROCESS_PYPROJECT.read_text(encoding="utf-8"), encoding="utf-8"
         )
+        (tmp_path / ".pre-commit-config.yaml").write_text(
+            _PRE_COMMIT_CONFIG.read_text(encoding="utf-8"), encoding="utf-8"
+        )
         (scripts / "subject.py").write_text(module, encoding="utf-8")
         (tmp_path / "tests" / "agent_process").mkdir(parents=True)
         subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
@@ -644,6 +625,47 @@ class TestComplexityLimits:
             ci_check.check_lint()
 
         assert "RUF100" in capfd.readouterr().out
+
+
+def test_lint_runs_the_commit_stage_hooks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Edit-time check in the gate — `lint` runs the config's `pre-commit`-stage
+    hooks over all files, and no `pre-push`-stage hook."""
+    python = Path(sys.executable).as_posix()
+
+    def hook(hook_id: str, code: str, stage: str) -> dict[str, object]:
+        return {
+            "id": hook_id,
+            "name": hook_id,
+            "entry": f'"{python}" -c "{code}"',
+            "language": "unsupported",
+            "stages": [stage],
+            "always_run": True,
+            "pass_filenames": False,
+        }
+
+    config = {
+        "repos": [
+            {
+                "repo": "local",
+                "hooks": [
+                    hook("finding", "print('finding:'); raise SystemExit(1)", "pre-commit"),
+                    hook("pushed", "open('ran', 'w').close()", "pre-push"),
+                ],
+            }
+        ]
+    }
+    _init_repo(tmp_path)
+    (tmp_path / ".pre-commit-config.yaml").write_text(json.dumps(config), encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit):
+        ci_check.check_lint()
+
+    assert "finding:" in capfd.readouterr().out
+    assert not (tmp_path / "ran").exists()
 
 
 class TestTestImports:

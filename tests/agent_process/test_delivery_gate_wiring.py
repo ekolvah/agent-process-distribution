@@ -1,7 +1,7 @@
 """The hook wiring and the deny-list of `.claude/settings.json`.
 
 The turn-boundary `Stop` gate was removed (change v2-4a-review-protection, design D2), so
-no `Stop` event is wired. The hooks' logic is covered in `tests/publisher/test_hooks.py`.
+no `Stop` event is wired.
 """
 
 from __future__ import annotations

@@ -5,6 +5,5 @@ pip-audit
 pre-commit
 pylint
 pytest
-ruff
 tach
 types-PyYAML
