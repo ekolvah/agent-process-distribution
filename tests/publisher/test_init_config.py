@@ -8,7 +8,10 @@ body. The fixture repository and the runner are described in `test_init.py`.
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -27,8 +30,10 @@ from tests.publisher.init_harness import (
     Sandbox,
     _installed,
     commit_seed,
+    git,
     install,
     load_init,
+    pins,
     relative,
     snapshot,
     transitions,
@@ -176,16 +181,170 @@ def test_pre_commit_block_references_the_hook(sandbox: Sandbox) -> None:
     _installed(init, sandbox)
     config = yaml.safe_load((sandbox.root / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
     assert config["default_install_hook_types"] == ["pre-push"]
-    assert config["repos"] == [
-        {
-            "repo": "https://github.com/ekolvah/agent-process-distribution",
-            "rev": f"v{CURRENT}",
-            "hooks": [{"id": "quality"}],
-        }
-    ]
+    assert {
+        "repo": "https://github.com/ekolvah/agent-process-distribution",
+        "rev": f"v{CURRENT}",
+        "hooks": [{"id": "quality"}],
+    } in config["repos"]
     hooks = yaml.safe_load((ROOT / ".pre-commit-hooks.yaml").read_text(encoding="utf-8"))
     [quality] = [hook for hook in hooks if hook["id"] == "quality"]
     assert quality["stages"] == ["pre-push"]
+
+
+EDIT_AND_GATE = ["pre-commit", "manual"]
+
+
+def _baseline() -> list[dict[str, Any]]:
+    """The baseline repositories of design D2 at the pins of design D3."""
+    own = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    [ruff] = [r["rev"] for r in own["repos"] if r["repo"].endswith("/ruff-pre-commit")]
+    pin = pins()
+
+    def audit(lockfile: str) -> dict[str, Any]:
+        return {
+            "id": "pip-audit",
+            "name": f"pip-audit {lockfile}",
+            "args": ["-r", lockfile],
+            "files": "^" + re.escape(lockfile) + "$",
+            "stages": ["manual"],
+        }
+
+    return [
+        {
+            "repo": "https://github.com/astral-sh/ruff-pre-commit",
+            "rev": ruff,
+            "hooks": [
+                {
+                    "id": "ruff-check",
+                    "args": ["--extend-select=C901,PLR0911,PLR0912,PLR0913,PLR0915"],
+                    "stages": EDIT_AND_GATE,
+                },
+                {"id": "ruff-format", "stages": EDIT_AND_GATE},
+            ],
+        },
+        {
+            "repo": "https://github.com/pre-commit/mirrors-mypy",
+            "rev": f"v{pin['mypy']}",
+            "hooks": [{"id": "mypy", "args": [], "stages": EDIT_AND_GATE}],
+        },
+        {
+            "repo": "https://github.com/pylint-dev/pylint",
+            "rev": f"v{pin['pylint']}",
+            "hooks": [
+                {
+                    "id": "pylint",
+                    "args": ["--disable=all", "--enable=too-many-lines", "--max-module-lines=1000"],
+                    "stages": EDIT_AND_GATE,
+                }
+            ],
+        },
+        {
+            "repo": "https://github.com/Yelp/detect-secrets",
+            "rev": f"v{pin['detect-secrets']}",
+            "hooks": [{"id": "detect-secrets", "stages": EDIT_AND_GATE}],
+        },
+        {
+            "repo": "https://github.com/pypa/pip-audit",
+            "rev": f"v{pin['pip-audit']}",
+            "hooks": [audit("requirements.txt"), audit("requirements-dev.txt")],
+        },
+        {
+            "repo": "local",
+            "hooks": [
+                {
+                    "id": "pytest",
+                    "name": "pytest",
+                    "entry": "python -m pytest",
+                    "language": "unsupported",
+                    "pass_filenames": False,
+                    "files": r"(^|/)(test_[^/]*|[^/]*_test)\.py$",
+                    "stages": ["manual"],
+                }
+            ],
+        },
+    ]
+
+
+def test_created_config_carries_the_baseline(sandbox: Sandbox) -> None:
+    """Scenario: Created config — the baseline hooks at their stages, each `rev` this
+    repository's pin of its tool (design D2, D3)."""
+    init = load_init()
+    _installed(init, sandbox)
+    config = yaml.safe_load((sandbox.root / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    assert config["minimum_pre_commit_version"] == "4.4.0"
+    block = {
+        "repo": "https://github.com/ekolvah/agent-process-distribution",
+        "rev": f"v{CURRENT}",
+        "hooks": [{"id": "quality"}],
+    }
+    assert config["repos"] == [block, *_baseline()]
+
+
+def test_existing_config_keeps_its_hooks(sandbox: Sandbox) -> None:
+    """Scenario: Existing config keeps its hooks — only the block changes (design D1)."""
+    init = load_init()
+    pre_commit = sandbox.root / ".pre-commit-config.yaml"
+    pre_commit.write_text(
+        "default_install_hook_types: [pre-push]\nrepos:\n  - repo: local\n    hooks:\n"
+        "      - id: mine\n        name: mine\n        entry: mine\n        language: system\n"
+        "  # agent-process:begin\n"
+        "  - repo: https://github.com/ekolvah/agent-process-distribution\n"
+        "    rev: v1.9.0\n    hooks:\n      - id: quality\n  # agent-process:end\n",
+        encoding="utf-8",
+    )
+    commit_seed(sandbox)
+    before = pre_commit.read_text(encoding="utf-8")
+    _installed(init, sandbox)
+    after = pre_commit.read_text(encoding="utf-8")
+    assert _block(after) == _block(before)
+    assert f"rev: v{CURRENT}" in _only_block(after)
+    ids = {hook["id"] for repo in yaml.safe_load(after)["repos"] for hook in repo["hooks"]}
+    assert ids == {"mine", "quality"}
+
+
+def test_baseline_runs_tests_once_they_exist(sandbox: Sandbox, tmp_path: Path) -> None:
+    """Scenario: Tests run once they exist — the created config's `pytest` hook is skipped
+    with no tracked test file and runs a tracked failing test (design D2)."""
+    init = load_init()
+    _installed(init, sandbox)
+    config = yaml.safe_load((sandbox.root / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    [local] = [repo for repo in config["repos"] if repo["repo"] == "local"]
+    work = tmp_path / "work"
+    work.mkdir()
+    git("init", "-q", str(work))
+    (work / ".pre-commit-config.yaml").write_text(
+        yaml.safe_dump({"repos": [local]}), encoding="utf-8"
+    )
+    (work / "a.py").write_text("A = 1\n", encoding="utf-8")
+    env = {
+        **os.environ,
+        "PATH": os.pathsep.join([str(Path(sys.executable).parent), os.environ["PATH"]]),
+    }
+    env.pop("PYTEST_ADDOPTS", None)
+
+    def run() -> subprocess.CompletedProcess[str]:
+        git("add", "-A", cwd=work)
+        git("commit", "-q", "-m", "x", cwd=work)
+        return subprocess.run(
+            [sys.executable, "-m", "pre_commit", "run", "--hook-stage", "manual", "--all-files"],
+            cwd=work,
+            env=env,
+            capture_output=True,
+            encoding="utf-8",
+            check=False,
+        )
+
+    skipped = run()
+    assert skipped.returncode == 0, (skipped.stdout, skipped.stderr)
+    [line] = [ln for ln in skipped.stdout.splitlines() if ln.startswith("pytest")]
+    assert line.endswith("Skipped"), skipped.stdout
+    (work / "tests").mkdir()
+    (work / "tests" / "test_a.py").write_text(
+        "def test_fails_on_purpose():\n    assert False\n", encoding="utf-8"
+    )
+    failed = run()
+    assert failed.returncode != 0, failed.stdout
+    assert "test_fails_on_purpose" in failed.stdout, failed.stdout
 
 
 def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:

@@ -40,6 +40,7 @@ from tests.publisher.init_harness import (
     home_baseline,
     install,
     load_init,
+    pins,
     relative,
     snapshot,
     transitions,
@@ -280,8 +281,8 @@ def test_review_caller_render() -> None:
 
 
 def test_init_takes_no_quality_command(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
-    """Install asks for no quality command: a repository without tests has none, and the
-    change that adds the first tests declares it (issue 249)."""
+    """Install asks for no quality command: it seeds one only with a config it creates
+    (change ship-quality-toolchain, design D4)."""
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     for flag in ["--test", "--setup"]:
@@ -291,40 +292,73 @@ def test_init_takes_no_quality_command(sandbox: Sandbox, capfd: pytest.CaptureFi
 
 
 QUALITY = ".github/agent-process-quality.json"
+# A config holding only the agent-process block of the current release.
+BLOCK_ONLY = (
+    "default_install_hook_types: [pre-push]\nrepos:\n  # agent-process:begin\n"
+    "  - repo: https://github.com/ekolvah/agent-process-distribution\n"
+    f"    rev: v{CURRENT}\n    hooks:\n      - id: quality\n  # agent-process:end\n"
+)
 
 
-@pytest.mark.parametrize("declared", ["absent", "malformed", "declared"])
+def _seeded() -> dict[str, str]:
+    pin = pins()
+    return {
+        "setup": (
+            f"python -m pip install pre-commit=={pin['pre-commit']} pytest=={pin['pytest']}"
+            ' && for f in requirements.txt requirements-dev.txt; do if [ -f "$f" ];'
+            ' then python -m pip install -r "$f" || exit 1; fi; done'
+        ),
+        "test": "pre-commit run --hook-stage manual --all-files --show-diff-on-failure",
+    }
+
+
+@pytest.mark.parametrize("case", ["fresh", "existing-config", "malformed", "declared"])
 def test_quality_command_marker(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], declared: str
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str
 ) -> None:
-    """Scenarios: Install without tests, Declared quality command — while the repository
-    declares no `test`, every run prints one `quality:` status line before the `manual` rows
-    and no `manual quality-command` row (#290); the installer never writes the declaration."""
+    """Scenarios: Fresh install seeds the declaration, Install without tests, Declared quality
+    command — a run that creates the config seeds the declaration; while the repository
+    declares no `test` and none is seeded, every run prints one `quality:` status line before
+    the `manual` rows and no `manual quality-command` row (#290)."""
     init = load_init()
     declaration = sandbox.root / QUALITY
-    text = {"absent": None, "malformed": '{"test": ""}', "declared": '{"test": "pytest -q"}'}
-    content = text[declared]
-    if content is not None:
-        declaration.parent.mkdir(parents=True, exist_ok=True)
-        declaration.write_text(content, encoding="utf-8")
+    text = {"malformed": '{"test": ""}', "declared": '{"test": "pytest -q"}'}.get(case)
+    if case != "fresh":
+        (sandbox.root / ".pre-commit-config.yaml").write_text(BLOCK_ONLY, encoding="utf-8")
+        if text is not None:
+            declaration.parent.mkdir(parents=True, exist_ok=True)
+            declaration.write_text(text, encoding="utf-8")
         commit_seed(sandbox)
     for mode in ["--dry-run", "--confirm"]:
         capfd.readouterr()
         assert install(init, sandbox, mode) == 0
-        lines = capfd.readouterr().out.splitlines()
+        out = capfd.readouterr().out
+        lines = out.splitlines()
         status = [i for i, ln in enumerate(lines) if ln.startswith("quality: ")]
         manual = [i for i, ln in enumerate(lines) if ln.startswith("manual ")]
         assert not any(ln.startswith("manual quality-command") for ln in lines), lines
-        if declared == "declared":
+        if case == "fresh":
+            heads = [ln.split(":", 1)[0] for ln in lines]
+            assert "planned quality" in heads, lines
+            assert heads.index("planned quality") < heads.index("planned pre-commit"), lines
+            assert status == [], lines
+            if mode == "--dry-run":
+                assert not declaration.exists()
+            else:
+                assert json.loads(declaration.read_text(encoding="utf-8")) == _seeded()
+            continue
+        if case == "existing-config":
+            assert "quality" not in transitions(out), lines
+            assert not declaration.exists()
+        else:
+            assert transitions(out)["quality"] == "unchanged", lines
+            assert declaration.read_text(encoding="utf-8") == text
+        if case == "declared":
             assert status == [], lines
         else:
             assert len(status) == 1, lines
             assert QUALITY in lines[status[0]] and "CI runs no tests" in lines[status[0]]
             assert all(i > status[0] for i in manual), lines
-        if text[declared] is None:
-            assert not declaration.exists()
-        else:
-            assert declaration.read_text(encoding="utf-8") == text[declared]
 
 
 def test_version_matches_plugin() -> None:

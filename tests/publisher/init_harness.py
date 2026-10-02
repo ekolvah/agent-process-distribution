@@ -556,6 +556,7 @@ LABELS = [
     "workflow",
     "review",
     "dependabot",
+    "quality",
     "pre-commit",
     "settings",
     "check",
@@ -572,6 +573,7 @@ CONSUMER_FILES = {
     ".github/workflows/agent-review.yml",
     ".github/dependabot.yml",
     ".pre-commit-config.yaml",
+    ".github/agent-process-quality.json",
     ".claude/settings.json",
     ".claude/agent-process-check.py",
 }
@@ -582,6 +584,12 @@ CHECK_COMMAND = (
     f"https://github.com/ekolvah/agent-process-distribution/blob/v{CURRENT}/skills/agent-process/SKILL.md#install"
 )
 CHECK_GROUP = {"hooks": [{"type": "command", "command": CHECK_COMMAND}]}
+
+
+def pins() -> dict[str, str]:
+    """This repository's tool pins: the `name==version` lines of its dev lockfile."""
+    text = (ROOT / ".agent-process" / "requirements-dev.txt").read_text(encoding="utf-8")
+    return dict(ln.split("==", 1) for ln in text.splitlines() if "==" in ln and ln[0].isalpha())
 
 
 def _installed(init: ModuleType, sb: Sandbox) -> None:
