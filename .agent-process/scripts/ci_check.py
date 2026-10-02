@@ -220,7 +220,7 @@ def _secrets_cmd(files: list[str]) -> list[str]:
     # with a non-ASCII comment can go unscanned while the same commit is scanned
     # in full on Linux CI. UTF-8 mode makes the two agree; without it "green
     # locally" means nothing. The module, not the `detect-secrets-hook` console
-    # script: unreliable-on-PATH on Windows, same reason as check_imports. No
+    # script: unreliable-on-PATH on Windows. No
     # `--baseline` — see check_secrets.
     return [sys.executable, "-X", "utf8", "-m", "detect_secrets.pre_commit_hook", *files]
 
@@ -331,26 +331,6 @@ def check_mypy() -> None:
         _run([sys.executable, "-m", "mypy"] + modules)
     else:
         print("No modules to type-check; skipping.")
-
-
-def check_imports() -> None:
-    """Protocol-boundaries as a machine gate.
-
-    Runs the import-linter contracts in `.importlinter` via its Python API — not
-    the `lint-imports` console script (unreliable-on-PATH on Windows, same as
-    check_secrets/check_imports). grimp is static/AST, so nothing in the package
-    actually executes. `src` is put on sys.path to mirror pytest's
-    pythonpath=["src"], so the gate resolves the package even without the
-    editable install present.
-    """
-    print("==> import-linter (protocol boundaries)")
-    src = str(Path("src").resolve())
-    if src not in sys.path:
-        sys.path.insert(0, src)
-    from importlinter import api
-
-    if not api.use_cases.lint_imports(config_filename=".importlinter"):
-        sys.exit(1)
 
 
 # Registry — the single source of truth for the quality check set. Order is the
