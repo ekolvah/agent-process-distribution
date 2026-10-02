@@ -13,6 +13,7 @@ from pathlib import Path
 import yaml
 
 from tests.publisher.init_harness import load_init
+from tests.publisher.lint_harness import FINDING, edit_payload, lint_repo
 
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
@@ -318,7 +319,7 @@ def test_plugin_hooks_remind_on_memory_write_in_an_adopted_repository(tmp_path: 
     hooks = [
         command
         for event, matcher, command in _plugin_hooks()
-        if (event, matcher) == ("PostToolUse", "Edit|Write")
+        if (event, matcher) == ("PostToolUse", "Edit|Write") and "memory_checkpoint" in command
     ]
     assert len(hooks) == 1, _plugin_hooks()
     for separator in ("/", "\\"):
@@ -327,6 +328,29 @@ def test_plugin_hooks_remind_on_memory_write_in_an_adopted_repository(tmp_path: 
         assert result.returncode == 2, (separator, result.stderr)
         assert payload["tool_input"]["file_path"] in result.stderr
         assert "repository" in result.stderr
+
+
+def test_plugin_hooks_lint_the_edited_file_in_an_adopted_repository(tmp_path: Path) -> None:
+    """Scenarios: Commit-stage finding, Lint error — the plugin's PostToolUse hook runs the
+    project's `pre-commit`-stage hooks on the edited file and shows the finding."""
+    repo = lint_repo(tmp_path / "repo", FINDING)
+    (repo / ADOPTION_MARKER).parent.mkdir(parents=True)
+    (repo / ADOPTION_MARKER).write_text("", encoding="utf-8")
+    groups = _json(PLUGIN_HOOKS)["hooks"]["PostToolUse"]
+    lint = [
+        (group, hook)
+        for group in groups
+        for hook in group["hooks"]
+        if "edit_lint" in hook["command"]
+    ]
+    assert len(lint) == 1, groups
+    group, hook = lint[0]
+    assert group["matcher"] == "Edit|Write"
+    assert any("memory_checkpoint" in other["command"] for other in group["hooks"])
+    assert hook["timeout"] == 120
+    result = _run_plugin_hook(repo, hook["command"], edit_payload(repo / "a.py"))
+    assert result.returncode == 2, result.stderr
+    assert "finding:" in result.stderr
 
 
 def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -> None:
@@ -415,7 +439,7 @@ def test_publisher_pre_push_runs_the_entry() -> None:
     `pre-push` in the pusher's environment (design D7)."""
     config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
     assert config["default_install_hook_types"] == ["pre-push"]
-    assert config["repos"] == [
+    assert [repo for repo in config["repos"] if repo["repo"] == "local"] == [
         {
             "repo": "local",
             "hooks": [
@@ -431,3 +455,21 @@ def test_publisher_pre_push_runs_the_entry() -> None:
             ],
         }
     ]
+
+
+def test_publisher_lints_at_edit_time() -> None:
+    """Scenarios: This repository's edit-time lint, Repository hook carries no memory check —
+    ruff is declared once, by its published hooks at the `pre-commit` stage, and the
+    repository's settings declare no post-edit hook of their own."""
+    config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    ruff = [
+        r for r in config["repos"] if r["repo"] == "https://github.com/astral-sh/ruff-pre-commit"
+    ]
+    assert len(ruff) == 1, config["repos"]
+    assert [(hook["id"], hook["stages"]) for hook in ruff[0]["hooks"]] == [
+        ("ruff-check", ["pre-commit"]),
+        ("ruff-format", ["pre-commit"]),
+    ]
+    requirements = (ROOT / ".agent-process" / "requirements-dev.in").read_text(encoding="utf-8")
+    assert not [line for line in requirements.splitlines() if re.match(r"ruff\b", line)]
+    assert "PostToolUse" not in _json(SETTINGS).get("hooks", {})

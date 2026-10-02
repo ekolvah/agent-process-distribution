@@ -646,6 +646,47 @@ class TestComplexityLimits:
         assert "RUF100" in capfd.readouterr().out
 
 
+def test_lint_runs_the_commit_stage_hooks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Edit-time check in the gate — `lint` runs the config's `pre-commit`-stage
+    hooks over all files, and no `pre-push`-stage hook."""
+    python = Path(sys.executable).as_posix()
+
+    def hook(hook_id: str, code: str, stage: str) -> dict[str, object]:
+        return {
+            "id": hook_id,
+            "name": hook_id,
+            "entry": f'"{python}" -c "{code}"',
+            "language": "unsupported",
+            "stages": [stage],
+            "always_run": True,
+            "pass_filenames": False,
+        }
+
+    config = {
+        "repos": [
+            {
+                "repo": "local",
+                "hooks": [
+                    hook("finding", "print('finding:'); raise SystemExit(1)", "pre-commit"),
+                    hook("pushed", "open('ran', 'w').close()", "pre-push"),
+                ],
+            }
+        ]
+    }
+    _init_repo(tmp_path)
+    (tmp_path / ".pre-commit-config.yaml").write_text(json.dumps(config), encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(SystemExit):
+        ci_check.check_lint()
+
+    assert "finding:" in capfd.readouterr().out
+    assert not (tmp_path / "ran").exists()
+
+
 class TestTestImports:
     """A test module never imports another test module; helper modules stay importable."""
 
