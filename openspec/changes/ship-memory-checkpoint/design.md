@@ -38,8 +38,8 @@ Alternatives:
 
 The name avoids `hook`, which `test_package_contents_are_closed` forbids in package paths.
 
-**Problem and standard (SKILL.md Design).** The problem is #313: the rule was broken twice in
-one session while it was prose only. The standard for the job is a Claude Code hook. The
+**Problem and standard (SKILL.md Design).** The problem: the rule was broken twice in one
+session while it was prose only (#313). The standard for the job is a Claude Code hook. The
 memory documentation names a hook for an instruction that "must run at a specific point, such
 as before every commit or after each file edit", and no standard checker can tell what a note
 is about. The check stays a reminder, not a block.
@@ -92,7 +92,7 @@ ask to confirm that the fact is machine- or operator-specific. The memory page i
 auto-memory "Your preferences, corrections you give Claude, project context Claude can't
 derive from the code", including the `project` type: "ongoing work, deadlines, and decisions
 that Claude can't derive from the code or git history". The old question would challenge every
-such note. The new one targets the failure of #313: a fact that others need, kept where only
+such note. The new one targets the failure that prompted this change (#313): a fact that others need, kept where only
 one machine sees it.
 
 The message points to no file. The current one cites
@@ -106,7 +106,7 @@ consumer. It is written in English, the language of the package.
 memory write.
 
 The PostToolUse `on-edit` entry in `.claude/settings.json` stays for ruff and the
-`requirements*.in` reminder until #321 decides on them.
+`requirements*.in` reminder until the edit-time lint decision (#321).
 
 The predicate tests of `TestMemoryWriteGuard` move to `tests/publisher/test_memory_checkpoint.py`,
 together with the fixture paths that use either separator.
@@ -125,7 +125,7 @@ failure modes, each with the catcher that is reached:
   (D2). The person or agent notices a missing reminder only at the first memory write after
   the release.
 
-The two uncaught cases cost the same as the state before #313's check existed. Their rollback
+The two uncaught cases cost the same as the state before the local check existed. Their rollback
 is a revert of this change, which restores the local branch.
 
 ### D6. Install names the checkpoint
@@ -144,8 +144,8 @@ comes from.
   the hook asks, it does not block. The cost is one stderr paragraph per memory write.
 - [After merge, until auto-update, this repository has no memory check, and nothing reports
   that (D5).] → Accepted: the window is bounded by auto-update. Rollback: revert this change.
-- [kinozal_scraper prints the reminder twice until it removes its copy.] → Tracked in
-  ekolvah/kinozal_scraper#614 and #612, as with the navigation hooks.
+- [kinozal_scraper prints the reminder twice until it removes its copy.] → Tracked in the
+  consumer's follow-up (ekolvah/kinozal_scraper#614, #612), as with the navigation hooks.
 
 ## Migration Plan
 

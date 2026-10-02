@@ -30,7 +30,7 @@ in this repository or in any consumer.
 - `hooks/hooks.json` gains a `PostToolUse` `Edit|Write` hook running it, behind the same
   adoption gate as the navigation hooks.
 - This repository's `.agent-process/scripts/hooks.py` drops its memory branch. The plugin
-  delivers it now. The ruff check and the `requirements*.in` reminder stay local until #321.
+  delivers it now. The ruff check and the `requirements*.in` reminder stay local until the edit-time lint decision (#321).
 - SKILL.md Install names the memory checkpoint beside the navigation hooks.
 
 ## Capabilities
