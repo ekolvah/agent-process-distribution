@@ -3,9 +3,9 @@
 
 Usage: python skills/agent-process/scripts/quality.py (--github-output | --hook)
 
-`.github/agent-process-quality.json` belongs to the repository, not to the installer: a
-repository without tests has no command to declare, and the change that adds the first
-tests declares it. The file is one JSON object:
+`.github/agent-process-quality.json` belongs to the repository. The installer seeds it only
+beside the `.pre-commit-config.yaml` it creates, whose baseline its `test` runs (ADR 0035);
+otherwise the change that adds the first tests declares it. The file is one JSON object:
 
     {"setup": "<command>", "test": "<command>", "checks": "<command>"}
 

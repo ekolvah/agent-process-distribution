@@ -131,9 +131,15 @@ resume from `gh pr view <change>` — open the PR when there is none — not Ope
 
 Run from the consumer's root:
 
-1. Ask for no quality command: the change that adds the repository's first tests declares
-   it. `gh` must be authenticated with the `project` scope: even the dry-run reads the
-   repository's Projects.
+1. Ask for no quality command. A run that creates `.pre-commit-config.yaml` seeds a baseline
+   Python toolchain there — ruff with complexity limits, mypy, a module-size limit,
+   detect-secrets, pip-audit, pytest — and `.github/agent-process-quality.json`, whose `test`
+   runs it; otherwise the change that adds the first tests declares it. In a repository with
+   code of its own the installation PR's `agent-process / quality` then runs the baseline over
+   that code: tell the person before `--confirm` that a failure there is fixed by a commit on
+   that PR — narrowing the baseline, listing a library's types in mypy's
+   `additional_dependencies`, or fixing the findings. `gh` must be authenticated with the
+   `project` scope: even the dry-run reads the repository's Projects.
 2. Run `agent-process init --dry-run` (add `--version <x.y.z>` when given) and show its
    whole output. A
    `conflict` line names a path or Project the installer does not own: the person resolves
@@ -173,9 +179,9 @@ hooks deny shell file reads and over-budget whole-file `Read`, naming the cheape
 the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks
 whether every session and every person needs the fact, and if so to move it into the
 repository. Its edit-time lint runs the project's `pre-commit`-stage hooks of
-`.pre-commit-config.yaml` on each edited file and shows a failure to the agent; declare per-file
-linters there (the template declares none), and have the declared `test` run `pre-commit run
---hook-stage pre-commit --all-files`, so the gate runs the same checks. At each Claude
+`.pre-commit-config.yaml` on each edited file and shows a failure to the agent; the seeded
+baseline stages its per-file hooks there and at `manual`, which the seeded `test` runs, so the
+gate runs the same checks. At each Claude
 session start the installed check prints `agent-process skill not loaded (<reason>)` when the
 user-scope install does not supply the skill; the fix is the reason's `claude plugin install`,
 or `claude plugin update agent-process@agent-process-marketplace --scope user` for a stale
