@@ -25,6 +25,7 @@ MOVED_SCRIPTS = {
     "archive_change.py",
     "check_red.py",
     "create_tracking_issue.py",
+    "edit_lint.py",
     "init.py",
     "manual.py",
     "memory_checkpoint.py",
