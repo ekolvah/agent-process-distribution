@@ -15,9 +15,11 @@ The plugin's `hooks/hooks.json` runs it as `agent-process memory_checkpoint post
 
 from __future__ import annotations
 
+import io
 import json
 import re
 import sys
+from typing import cast
 
 # Anchored at `(^|/)` so a repository `.claude/rules/*` (no `projects/<x>/memory/` segment)
 # and a stray `foo.claude/...` never match; `[^/]+` is the single project directory.
@@ -50,7 +52,7 @@ def main() -> None:
         sys.exit(2)
     # The hook JSON is UTF-8, and a Windows home directory can be non-ASCII; the default
     # Windows code page would fail on it with exit 1, which the agent never sees.
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    cast(io.TextIOWrapper, sys.stderr).reconfigure(encoding="utf-8", errors="replace")
     try:
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8", errors="replace") or "{}")
     except json.JSONDecodeError:

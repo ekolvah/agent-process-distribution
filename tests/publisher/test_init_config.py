@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -80,7 +81,7 @@ def test_rerender_replaces_only_owned_content(
         encoding="utf-8",
     )
     settings = root / ".claude" / "settings.json"
-    consumer_settings = {
+    consumer_settings: dict[str, Any] = {
         "permissions": {"allow": ["Bash(ls)"]},
         "extraKnownMarketplaces": {
             "mine": {"source": {"source": "github", "repo": "me/mine"}},

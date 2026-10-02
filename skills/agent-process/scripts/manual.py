@@ -198,9 +198,12 @@ def _plugin_channel(t: Target) -> bool:
     installed = _plugin_file(plugins / "installed_plugins.json")
     try:
         entry = None if known is None else known.get(t.marketplace)
-        channel = entry is not None and entry["source"].get("repo") == t.source
-        channel = channel and entry["source"].get("ref") == "stable"
-        channel = channel and entry.get("autoUpdate") is True
+        channel = (
+            entry is not None
+            and entry["source"].get("repo") == t.source
+            and entry["source"].get("ref") == "stable"
+            and entry.get("autoUpdate") is True
+        )
         installs = [] if installed is None else installed["plugins"].get(t.plugin) or []
         user = any(install["scope"] == "user" for install in installs)
     except (AttributeError, KeyError, TypeError):

@@ -49,6 +49,10 @@ pythonpath = [".agent-process", "."]
 # tach's pytest plugin runs impact analysis on every run and adds warnings; only `tach check` is used.
 addopts = ["-p", "no:tach"]
 
+[tool.mypy]
+# Map a file by its path from the root, the name `tests.agent_process.git_bash` imports use.
+explicit_package_bases = true
+
 [tool.tach]
 source_roots = ["."]
 

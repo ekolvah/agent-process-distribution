@@ -699,3 +699,39 @@ class TestTestImports:
         assert "tests.publisher.test_b" in out
         assert "tests.publisher.test_a" in out
         assert "test_c" not in out
+
+
+class TestMypy:
+    """`ci_check` type-checks its modules; a helper imported by package path maps once."""
+
+    def test_type_error_fails_mypy(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capfd: pytest.CaptureFixture[str],
+    ) -> None:
+        subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
+        (tmp_path / "pyproject.toml").write_text(
+            (_PROCESS_PYPROJECT.parent.parent / "pyproject.toml").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        tests = tmp_path / "tests" / "agent_process"
+        tests.mkdir(parents=True)
+        (tests / "helper.py").write_text("H = 1\n", encoding="utf-8")
+        (tests / "test_x.py").write_text(
+            "from tests.agent_process.helper import H\n", encoding="utf-8"
+        )
+        scripts = tmp_path / ".agent-process" / "scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "subject.py").write_text('x: int = "s"\n', encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(SystemExit):
+            run_selected("mypy")
+
+        captured = capfd.readouterr()
+        out = captured.out + captured.err
+        assert "subject.py" in out
+        assert "[assignment]" in out
+        assert "found twice" not in out

@@ -6,6 +6,7 @@ import inspect
 import json
 import subprocess
 import sys
+from collections.abc import Sequence
 
 import pytest
 
@@ -17,7 +18,7 @@ _JOB = "github-actions[bot]"
 
 
 def _payload(
-    *, reviews: list[dict[str, object]] = (), comments: list[dict[str, object]] = ()
+    *, reviews: Sequence[dict[str, object]] = (), comments: Sequence[dict[str, object]] = ()
 ) -> dict[str, object]:
     return {
         "data": {
@@ -100,7 +101,7 @@ def test_presence_is_only_the_review_jobs_closing_comment(
 ) -> None:
     """Scenario: New head — only the closing comment of the review job naming the head is
     its review; a Codex review, a Codex clean comment and a stranger's quote are none."""
-    codex_clean = {
+    codex_clean: dict[str, object] = {
         "author": {"login": _CODEX},
         "body": f"Codex Review: Didn't find any major issues.\n\n**Reviewed commit:** `{_HEAD[:10]}`",
     }

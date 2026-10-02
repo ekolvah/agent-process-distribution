@@ -6,7 +6,7 @@ import importlib
 import importlib.util
 import json
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -85,12 +85,12 @@ class Gh:
         *,
         projects: list[dict] | None = None,
         status: str | None = "Planned",
-        other_items: list[tuple[str, str]] = (),
+        other_items: Sequence[tuple[str, str]] = (),
         fail_on: list[str] | None = None,
         remote_branch: bool = False,
         fields: dict | None = None,
         root: Path | None = None,
-        extra_worktrees: list[str] = (),
+        extra_worktrees: Sequence[str] = (),
         pr_states: dict[str, str] | None = None,
         git_runner: Callable[[list[str]], str] | None = None,
     ) -> None:
@@ -154,7 +154,7 @@ class Gh:
         if head == ["gh", "issue", "view"] and "projectItems" in cmd:
             # The shape `gh issue view 144 --json projectItems` printed: `title` is the
             # Project's title, one entry per Project the issue is an item of (v2-2f).
-            items = [(t, s) for t, s in self.other_items]
+            items: list[tuple[object, str]] = [(t, s) for t, s in self.other_items]
             if self.status is not None:
                 items.append((PROJECT["title"], self.status))
             return json.dumps(

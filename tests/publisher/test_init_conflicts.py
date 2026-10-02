@@ -39,6 +39,18 @@ def _write_bytes(sb: Sandbox, rel: str, data: bytes) -> None:
     path.write_bytes(data)
 
 
+def _writing(rel: str, text: str) -> Callable[[ModuleType, Sandbox], None]:
+    return lambda init, sb: _write(sb, rel, text)
+
+
+def _writing_bytes(rel: str, data: bytes) -> Callable[[ModuleType, Sandbox], None]:
+    return lambda init, sb: _write_bytes(sb, rel, data)
+
+
+def _making_dir(rel: str) -> Callable[[ModuleType, Sandbox], None]:
+    return lambda init, sb: (sb.root / rel).mkdir(parents=True)
+
+
 def _settings(repo: str = "ekolvah/agent-process-distribution", enabled: Any = True) -> str:
     return json.dumps(
         {
@@ -101,10 +113,7 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
     ),
     # YAML spellings of the same top-level key (review of PR 159).
     **{
-        f"config-rules-{name}": (
-            "config",
-            lambda init, sb, text=text: _write(sb, "openspec/config.yaml", text),
-        )
+        f"config-rules-{name}": ("config", _writing("openspec/config.yaml", text))
         for name, text in {
             "double-quoted": '"rules":\n  proposal: []\n',
             "single-quoted": "'rules':\n  proposal: []\n",
@@ -125,10 +134,7 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         lambda init, sb: _write(sb, "openspec/config.yaml", "schema: a\n---\nschema: b\n"),
     ),
     **{
-        f"{label}-not-utf8": (
-            label,
-            lambda init, sb, rel=rel: _write_bytes(sb, rel, b"\xff\xfe\x00"),
-        )
+        f"{label}-not-utf8": (label, _writing_bytes(rel, b"\xff\xfe\x00"))
         for label, rel in {
             "config": "openspec/config.yaml",
             "workflow": ".github/workflows/agent-process.yml",
@@ -139,7 +145,7 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
     # A managed path that is not a regular file, or a parent that is not a directory, is
     # the person's: a write would replace a link or fail after earlier writes.
     **{
-        f"{label}-directory": (label, lambda init, sb, rel=rel: (sb.root / rel).mkdir(parents=True))
+        f"{label}-directory": (label, _making_dir(rel))
         for label, rel in {
             "config": "openspec/config.yaml",
             "workflow": ".github/workflows/agent-process.yml",

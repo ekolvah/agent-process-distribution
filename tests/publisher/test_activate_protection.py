@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
@@ -113,7 +114,7 @@ class FakeGh:
         base: str = "main",
         runs: list[dict[str, Any]] | None = None,
         rulesets: list[dict[str, Any]] | None = None,
-        classic: list[str] | None = ("quality / quality", "agent-review / agent-review"),
+        classic: Sequence[str] | None = ("quality / quality", "agent-review / agent-review"),
     ) -> None:
         self.calls: list[list[str]] = []
         self.callers = callers  # the `.github/workflows/<name>.yml` on the default branch
