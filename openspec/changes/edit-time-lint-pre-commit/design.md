@@ -6,8 +6,8 @@ mechanism this change reuses: plugin hooks in `hooks/hooks.json`, each calling a
 through `bin/agent-process` behind the adoption gate `.github/workflows/agent-process.yml`, and
 the requirement "Plugin hooks act only in adopted repositories" over every hook command.
 
-After #322, `.agent-process/scripts/hooks.py` holds only the ruff check and the
-`requirements*.in` reminder.
+`.agent-process/scripts/hooks.py` holds only the ruff check and the `requirements*.in`
+reminder (#322).
 
 ## Goals / Non-Goals
 
@@ -192,7 +192,8 @@ enable without a script.
 - [Every edit of a project without `pre-commit`-stage hooks spends one ~0.5 s pre-commit
   start.] → Accepted: observed cost; output is empty.
 - [kinozal_scraper declares no `pre-commit`-stage hook, so the plugin's hook is silent there and
-  its own `hooks.py` keeps linting until #614 moves ruff into its config and deletes the copy.]
+  its own `hooks.py` keeps linting until kinozal_scraper moves ruff into its config and deletes
+  the copy.]
   → Tracked in ekolvah/kinozal_scraper#614.
 - [A machine on a release older than this change has no edit-time lint in this repository until
   auto-update.] → Accepted, the window of the memory checkpoint's D5; the gate covers it.
