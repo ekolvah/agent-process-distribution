@@ -205,7 +205,7 @@ def _baseline() -> list[dict[str, Any]]:
             "id": "pip-audit",
             "name": f"pip-audit {lockfile}",
             "args": ["-r", lockfile],
-            "files": "^" + re.escape(lockfile) + "$",
+            "files": "^" + lockfile.replace(".", r"\.") + "$",
             "stages": ["manual"],
         }
 

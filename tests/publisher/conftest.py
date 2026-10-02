@@ -17,6 +17,8 @@ from tests.publisher.init_harness import (
     Sandbox,
     consumer_repo,
     git,
+    hook_mirror,
+    hook_repositories,
 )
 
 # The interpreter is quoted: pre-commit splits the entry, and its path may hold a space.
@@ -53,7 +55,23 @@ def process_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
     git("tag", f"v{OTHER}", cwd=work)
     bare = base / "process.git"
     git("clone", "-q", "--bare", str(work), str(bare))
+    for url, (rev, ids) in hook_repositories().items():
+        mirror = hook_mirror(bare, url)
+        _hook_mirror(base / "mirrors" / mirror.stem, mirror, rev, ids)
     return bare
+
+
+def _hook_mirror(work: Path, bare: Path, rev: str, ids: list[str]) -> None:
+    """A bare repository tagged `rev` whose manifest declares `ids`: what pre-commit needs to
+    load a repository whose hooks the run does not select."""
+    manifest = [{"id": i, "name": i, "entry": i, "language": "unsupported"} for i in ids]
+    work.mkdir(parents=True)
+    (work / ".pre-commit-hooks.yaml").write_text(json.dumps(manifest), encoding="utf-8")
+    git("init", "-q", str(work))
+    git("add", "-A", cwd=work)
+    git("commit", "-q", "-m", rev, cwd=work)
+    git("tag", rev, cwd=work)
+    git("clone", "-q", "--bare", str(work), str(bare))
 
 
 @pytest.fixture

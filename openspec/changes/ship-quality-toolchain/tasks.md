@@ -19,7 +19,7 @@
 
 ## 2. Baseline in the template
 
-- [ ] 2.1 Add to `skills/agent-process/templates/pre-commit-config.yaml`, outside the marker block, `minimum_pre_commit_version: "4.4.0"` and the repositories of design D2 at the revisions of design D3, writing every literal `$` of a regex as `$$` (`string.Template`). Verify that `python -m pytest tests/publisher/test_init_config.py -q` passes. Commit as `feat(distribution): the created pre-commit config carries a baseline toolchain`
+- [x] 2.1 Add to `skills/agent-process/templates/pre-commit-config.yaml`, outside the marker block, `minimum_pre_commit_version: "4.4.0"` and the repositories of design D2 at the revisions of design D3, writing every literal `$` of a regex as `$$` (`string.Template`). The sandbox's pre-push hook clones every repository of the config (observed: `no-network/github.com/astral-sh/ruff-pre-commit does not appear to be a git repository`), so the fixture serves each baseline repository from a local bare mirror tagged at its `rev`, as it serves the process repository (`init_harness.gitconfig`, change hermetic-sandbox-push). Verify that `python -m pytest tests/publisher/test_init_config.py -q` passes. Commit as `feat(distribution): the created pre-commit config carries a baseline toolchain`
 
 ## 3. Seeded declaration
 

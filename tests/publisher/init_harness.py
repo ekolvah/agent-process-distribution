@@ -9,12 +9,15 @@ import json
 import os
 import re
 import shutil
+import string
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "skills" / "agent-process"
@@ -345,13 +348,34 @@ class Sandbox:
 BRANCH = f"agent-process/install-{CURRENT}"
 
 
+def hook_repositories() -> dict[str, tuple[str, list[str]]]:
+    """The created config's hook repositories besides the process one: URL -> (rev, hook ids)."""
+    text = (PACKAGE / "templates" / "pre-commit-config.yaml").read_text(encoding="utf-8")
+    config = yaml.safe_load(string.Template(text).substitute(version=CURRENT))
+    return {
+        repo["repo"]: (repo["rev"], sorted({hook["id"] for hook in repo["hooks"]}))
+        for repo in config["repos"]
+        if repo["repo"] not in ("local", PROCESS_URL)
+    }
+
+
+def hook_mirror(process_repo: Path, url: str) -> Path:
+    """The fixture's stand-in for the hook repository at `url`, beside the process repository."""
+    return process_repo.parent / "hooks" / f"{url.rsplit('/', 1)[1]}.git"
+
+
 def gitconfig(sb: Sandbox) -> str:
     """The sandbox's global git config: no `https://` URL reaches the network, and the
-    process repository is the fixture's, which the pre-push hook's pre-commit clones (change
-    hermetic-sandbox-push, design D1, D2)."""
+    process repository and the created config's hook repositories are the fixture's, which the
+    pre-push hook's pre-commit clones (change hermetic-sandbox-push, design D1, D2; pre-commit
+    clones every repository of the config, whatever the stage)."""
+    mirrors = "".join(
+        f'[url "{hook_mirror(sb.repo, url).as_posix()}"]\n\tinsteadOf = {url}\n'
+        for url in hook_repositories()
+    )
     return (
         '[url "file:///no-network/"]\n\tinsteadOf = https://\n'
-        f'[url "{sb.repo.as_posix()}"]\n\tinsteadOf = {PROCESS_URL}\n'
+        f'[url "{sb.repo.as_posix()}"]\n\tinsteadOf = {PROCESS_URL}\n' + mirrors
     )
 
 
