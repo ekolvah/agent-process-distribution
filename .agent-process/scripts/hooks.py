@@ -254,7 +254,10 @@ def main() -> None:
             "Usage: python .agent-process/scripts/hooks.py on-edit (reads the hook JSON on stdin)",
             file=sys.stderr,
         )
-        sys.exit(2)
+        # Not 2: the settings calling this can be another revision (the review job restores
+        # `.claude/` from `main`), and behind a PreToolUse matcher exit 2 blocks every call.
+        # Exit 1 is the platform's visible, non-blocking `hook error`.
+        sys.exit(1)
     payload = read_payload(sys.stdin.read())
     code, stderr = run_on_edit(payload)
     if stderr:

@@ -42,7 +42,7 @@
 ## 7. Review fix (design D8)
 
 - [x] 7.1 Add `tests/publisher/test_hooks.py::test_unknown_subcommand_is_a_visible_non_blocking_error` (no argument, `pre-bash`, `pre-read` → exit 1 with usage on stderr); run `check_red` on it. Commit as `test(implementation): an unknown hook subcommand does not block`
-- [ ] 7.2 In `.agent-process/scripts/hooks.py` `main`, exit 1 instead of 2 on an unknown argument. Verify `python -m pytest tests/publisher/test_hooks.py -q` passes. Commit as `fix(implementation): an unknown hook subcommand is a non-blocking error` and push
+- [x] 7.2 In `.agent-process/scripts/hooks.py` `main`, exit 1 instead of 2 on an unknown argument. Verify `python -m pytest tests/publisher/test_hooks.py -q` passes. Commit as `fix(implementation): an unknown hook subcommand is a non-blocking error` and push
 
 ## Scenario → test map
 
