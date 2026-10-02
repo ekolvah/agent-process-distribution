@@ -172,7 +172,10 @@ hooks deny shell file reads and over-budget whole-file `Read`, naming the cheape
 `permissions.deny` rule matching the same command blocks first, so their message never reaches
 the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks
 whether every session and every person needs the fact, and if so to move it into the
-repository. At each Claude
+repository. Its edit-time lint runs the project's `pre-commit`-stage hooks of
+`.pre-commit-config.yaml` on each edited file and shows a failure to the agent; declare per-file
+linters there (the template declares none), and have the declared `test` run `pre-commit run
+--hook-stage pre-commit --all-files`, so the gate runs the same checks. At each Claude
 session start the installed check prints `agent-process skill not loaded (<reason>)` when the
 user-scope install does not supply the skill; the fix is the reason's `claude plugin install`,
 or `claude plugin update agent-process@agent-process-marketplace --scope user` for a stale
