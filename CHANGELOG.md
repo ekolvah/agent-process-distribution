@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.5.0...v3.6.0) (2026-10-02)
+
+
+### Features
+
+* ci-check-mypy ([#330](https://github.com/ekolvah/agent-process-distribution/issues/330)) ([1711180](https://github.com/ekolvah/agent-process-distribution/commit/1711180def773616a162fc6108b7dce2ad1cb400))
+
 ## [3.5.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.4.0...v3.5.0) (2026-10-02)
 
 
