@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.3.0...v3.4.0) (2026-10-02)
+
+
+### Features
+
+* ship-memory-checkpoint ([#322](https://github.com/ekolvah/agent-process-distribution/issues/322)) ([27c4e93](https://github.com/ekolvah/agent-process-distribution/commit/27c4e938c875fbdf55a64825215f0c832b6af4ca))
+
 ## [3.3.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.2.8...v3.3.0) (2026-10-02)
 
 
