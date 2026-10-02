@@ -21,6 +21,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { [ ! -f .github/workflows/agent-process.yml ] || sh \"${CLAUDE_PLUGIN_ROOT}/bin/agent-process\" memory_checkpoint post-edit; }",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

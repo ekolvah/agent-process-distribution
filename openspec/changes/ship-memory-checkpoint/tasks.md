@@ -19,7 +19,7 @@
 
 ## 3. Plugin hook
 
-- [ ] 3.1 Add the `PostToolUse` `Edit|Write` entry of design D2 to `hooks/hooks.json`. Verify that the three group-1 test targets and `python -m pytest tests/publisher -q` pass. Commit as `feat(distribution): the plugin ships the memory checkpoint, gated on adoption`
+- [x] 3.1 Add the `PostToolUse` `Edit|Write` entry of design D2 to `hooks/hooks.json`. Verify that the three group-1 test targets and `python -m pytest tests/publisher -q` pass. Commit as `feat(distribution): the plugin ships the memory checkpoint, gated on adoption`
 
 ## 4. Documentation
 
