@@ -16,6 +16,8 @@ it is not (a silent setup degradation).
 from __future__ import annotations
 
 import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -189,3 +191,20 @@ class TestCaptureFailureIsSetupBroken:
         returncode, output = _run_ruff("some_file.py")
         assert returncode == _RUFF_EXEC_ERROR
         assert "capture failed" in output
+
+
+@pytest.mark.parametrize("argv", ([], ["pre-bash"], ["pre-read"]))
+def test_unknown_subcommand_is_a_visible_non_blocking_error(argv: list[str]) -> None:
+    """The settings that call the hook can come from another revision than the script: the
+    review job restores `.claude/` from `main` and runs the PR head's scripts. Exit 2 would
+    block every tool call behind a PreToolUse matcher; exit 1 is a visible `hook error`."""
+    result = subprocess.run(
+        [sys.executable, ".agent-process/scripts/hooks.py", *argv],
+        input="{}",
+        capture_output=True,
+        encoding="utf-8",
+        cwd=Path(__file__).resolve().parents[2],
+        check=False,
+    )
+    assert result.returncode == 1, result.stderr
+    assert "Usage" in result.stderr
