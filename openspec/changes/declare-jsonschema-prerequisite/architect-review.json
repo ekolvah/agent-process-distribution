@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every finding of rounds 1-2 is closed in the artifacts: the closed script sets and the wider RED check, the hooks-doc citation with the measured wait, content-keyed environments that never touch another manifest's, the marker over absent hook variables, and now a completion that is conditional on `pip check`, so the one silent path — a `.complete` environment whose interpreter no longer runs — reinstalls itself with a spec sentence, a scenario and a third run in 1.2.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 keeps the documented plugin-data pattern and rejects the doc's own shell one-liner (platform-dependent interpreter path, and the hook JSON the marker scenarios demand), PEP 723 with `uv`/`pipx` (an undeclared tool for an undeclared package), vendoring (`rpds-py` is compiled) and the previously approved `manual` row; D2 rejects a second pin set, D3 a `PATH` prefix, D5 the adoption gate, Risks rejects locking the first-install race (§VII). Two deviations from the doc, each the minimum its scenario needs: the content-keyed directory name replaces the manifest copy so *Manifest changed* holds, and `-m pip check` replaces a bare `.complete` test so *Broken environment* holds — one pip startup per session start, which needs no package name and is what the spec sentence says.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md 37-41 maps all seven scenarios of specs/distribution/spec.md: *First session*, *Manifest unchanged* and *Broken environment* to `test_session_start_installs_the_plugin_environment` (1.2 — first run, a second with `pyvenv.cfg`'s mtime unchanged, a third after the interpreter file is deleted that recreates and exports it with empty stdout), *Manifest changed* to `test_session_start_keeps_the_previous_environment` (1.3), *Install fails* and *Hook variables absent* to the parametrized `test_session_start_reports_a_missing_environment` (1.4, `pip`/`data`/`env-file`, the `pip` case run twice for the retry), *Launcher uses the session interpreter* to `test_launcher_runs_the_session_interpreter` (1.5), and the modified *Unadopted repository* to the restricted `test_plugin_hooks_are_silent_outside_an_adopted_repository`. 1.2's temp project carries no adoption marker, so it also proves the ungated install.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 writes 1.2-1.5 against a `plugin_env.py` stub whose `main` returns 0 and adds the script to both closed sets (`tests/publisher/test_plugin.py:25`, `tests/publisher/test_start_change.py:23`, 1.1), so `test_shared_skill_owns_the_procedure_and_scripts`, `test_package_contents_are_closed` and `test_moved_start_scripts_resolve_consumer_root` stay green; 1.6 runs `check_red` on the four node ids and verifies that neither file fails anywhere else, and 2.1 runs both files. Each named test fails in its body: no `SessionStart` entry in hooks.json, no export, no marker, `python` instead of the session interpreter. proposal.md Impact now lists both edited test files.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Observed live 2026-10-02, Claude Code 2.1.283, Windows, `claude -p --plugin-dir` probe: the plugin `SessionStart` hook received `CLAUDE_ENV_FILE` and `CLAUDE_PLUGIN_DATA`, its appended `export` reached the Bash tool, and `CLAUDE_PLUGIN_DATA` did not (design.md Context). Cited: the plugins/components install-into-the-data-directory pattern; the manifest reference for a data directory that is per plugin and kept across updates, which makes the install once per machine and manifest (Risks); the hooks doc for `SessionStart` running in the background with Claude's first reply waiting for it, the behaviour behind the 300 s timeout, with 4.3 timing a cold install against a warm one and the PR recording the wait. D4's marker shape is this repository's shipped, specified pattern (openspec/specs/distribution/spec.md:301-311, 641; `skills/agent-process/templates/skill_check.py:174-177`). The venv's dependence on the base interpreter it was built from — possibly a project `.venv` — is named in D1 as the cause the `pip check` test covers.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Replaced input: `exec python \"$file\"` (bin/agent-process:30) becomes `exec \"${AGENT_PROCESS_PYTHON:-python}\" \"$file\"`; D3 lists the no-export fallback and keeps the tool hooks on `python` (stdlib only). Replaced mechanism: the doc's manifest copy becomes the `venv-<sha256[:12]>` name plus `.complete`, so an install never clears an environment a parallel session exports — a SHALL sentence, the *Manifest changed* scenario and 1.3; Risks records what the keying leaves open (two sessions starting together on one new manifest: one may fail, print the marker and retry, unlocked by §VII; a session running when the pins change keeps a still-intact environment) and what it costs (older environments stay until the plugin is uninstalled). Dropped guard: the adoption gate for the new hook, listed in D5, narrowed in the MODIFIED requirement and in 1.5's test restriction.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Named catchers: `check_red` plus the no-other-failures check (1.6), the quality `test` (4.2), `openspec validate --strict --all` (4.1), the live `--plugin-dir` probe with its timing (4.3), `wait_for_pr` and the `agent-review` threads (5.3). The mechanism's operator-visible catcher is D4's marker, reached on a failed `venv` or `pip` and on an absent `CLAUDE_PLUGIN_DATA` or `CLAUDE_ENV_FILE`, each traced by 1.4 to `systemMessage`, `additionalContext`, the named cause, the withheld export and the retry. The silent path of round 2 is now a self-healing one: a completed environment whose interpreter fails `-m pip check` is reinstalled before the export (D1, spec sentence, *Broken environment*, 1.2's third run), and a failure of that reinstall lands on the marker. D4's accepted list is down to two cases, each with its outcome: no `python` on the hook's PATH (the hook command fails and Claude Code reports the hook error), and a package hand-deleted from an environment `pip check` still passes (exit 2 at the call site names the import; deleting the `venv-*` directory reinstalls).",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Added requirement: 112 words in five SHALL sentences, every clause asserted — the content-named environment and no reinstall by 1.2, the `pip check` condition by 1.2's third run, no modification of another manifest's environment by 1.3, the marker with its cause and the retry by 1.4 (three parameters), the launcher's two branches by 1.5; only the hash construction is unasserted, the tests pinning `venv-*` and `.complete` instead. Modified requirement: 41 words, its added 21-word ungating clause asserted by 1.5's restriction and 1.2's unadopted temp project. Added prose elsewhere: one Install sentence in SKILL.md and one ADR 0027 replacement (3.1), asserted by no test, as documentation prose here is; with the reinstall in place that sentence's promise of a marker now holds for every unattended failure.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "One addition, `skills/agent-process/scripts/plugin_env.py`. design.md D1 names the problem (#309: `No module named 'jsonschema'` at the end of a propose run, observed 2026-10-02 in `ekolvah/kinozal_scraper` with plugin 3.2.8), the standard for the job (Claude Code's documented `SessionStart` install into `${CLAUDE_PLUGIN_DATA}`, which this follows) and why its shell form does not fit (platform-dependent interpreter path; the hook JSON marker; the shared-directory reinstall the content key avoids; the liveness test). D2 adds no manifest and no pin — the plugin installs `.agent-process/requirements.txt`, already pinned and pip-audited — at the price of two unused packages. No new check, gate, script or ledger beyond that one file.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
