@@ -23,7 +23,7 @@
 
 - [x] 4.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
 - [x] 4.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
-- [ ] 4.3 Live check (Principle V): remove `~/.claude/plugins/data/agent-process-inline` (the data directory of a `--plugin-dir` load, observed as `<name>-inline`), then run `claude -p --plugin-dir <worktree>`, asking the Bash tool to run `agent-process start_change --help` and print `$AGENT_PROCESS_PYTHON`; verify the export names the data directory's interpreter and the script runs. Time the run against a second one with the environment in place, so the first reply's wait for the install is measured. Record both outputs and the wait in the PR report
+- [x] 4.3 Live check (Principle V): remove `~/.claude/plugins/data/agent-process-inline` (the data directory of a `--plugin-dir` load, observed as `<name>-inline`), then run `claude -p --plugin-dir <worktree>`, asking the Bash tool to run `agent-process start_change --help` and print `$AGENT_PROCESS_PYTHON`; verify the export names the data directory's interpreter and the script runs. Time the run against a second one with the environment in place, so the first reply's wait for the install is measured. Record both outputs and the wait in the PR report
 
 ## 5. Deliver
 
