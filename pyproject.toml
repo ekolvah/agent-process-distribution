@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-process-hooks"
-version = "3.7.0"
+version = "3.7.1"
 requires-python = ">=3.12"
 dependencies = []
 

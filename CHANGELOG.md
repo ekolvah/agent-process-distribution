@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.7.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.7.0...v3.7.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* declare-jsonschema-prerequisite ([#334](https://github.com/ekolvah/agent-process-distribution/issues/334)) ([d46e656](https://github.com/ekolvah/agent-process-distribution/commit/d46e656fdc7d9394a45eb569a0fc8c0ed39c9b22))
+
 ## [3.7.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.6.0...v3.7.0) (2026-10-02)
 
 
