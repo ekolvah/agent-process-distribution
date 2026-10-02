@@ -4,11 +4,11 @@
 
 ## 1. RED first
 
-- [ ] 1.1 no RED: deletion of a function no check registers and nothing calls; the check set it could change is the `--list` output, unchanged (proposal Why)
+- [x] 1.1 no RED: deletion of a function no check registers and nothing calls; the check set it could change is the `--list` output, unchanged (proposal Why)
 
 ## 2. Delete
 
-- [ ] 2.1 In `.agent-process/scripts/ci_check.py`, record `python .agent-process/scripts/ci_check.py --list`, then delete `check_imports` with its two following blank lines, and in the comment of `_secrets_cmd` drop only the clause ", same reason as check_imports" (the `--baseline` sentence stays). Verify that `git grep -n "check_imports\|importlinter\|lint-imports" -- . ':!openspec/changes'` prints nothing, that `--list` prints the same checks as recorded before the edit, and that `python -m pytest tests/agent_process/test_ci_check.py -q` passes. Commit as `refactor(implementation): delete the unregistered check_imports`
+- [x] 2.1 In `.agent-process/scripts/ci_check.py`, record `python .agent-process/scripts/ci_check.py --list`, then delete `check_imports` with its two following blank lines, and in the comment of `_secrets_cmd` drop only the clause ", same reason as check_imports" (the `--baseline` sentence stays). Verify that `git grep -n "check_imports\|importlinter\|lint-imports" -- . ':!openspec/changes'` prints nothing, that `--list` prints the same checks as recorded before the edit, and that `python -m pytest tests/agent_process/test_ci_check.py -q` passes. Commit as `refactor(implementation): delete the unregistered check_imports`
 
 ## 3. Verify
 
