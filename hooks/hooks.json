@@ -30,6 +30,11 @@
             "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR\" && { [ ! -f .github/workflows/agent-process.yml ] || sh \"${CLAUDE_PLUGIN_ROOT}/bin/agent-process\" memory_checkpoint post-edit; }",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { [ ! -f .github/workflows/agent-process.yml ] || sh \"${CLAUDE_PLUGIN_ROOT}/bin/agent-process\" edit_lint post-edit; }",
+            "timeout": 120
           }
         ]
       }
