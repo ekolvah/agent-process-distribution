@@ -303,9 +303,10 @@ def test_quality_command_marker(
     init = load_init()
     declaration = sandbox.root / QUALITY
     text = {"absent": None, "malformed": '{"test": ""}', "declared": '{"test": "pytest -q"}'}
-    if text[declared] is not None:
+    content = text[declared]
+    if content is not None:
         declaration.parent.mkdir(parents=True, exist_ok=True)
-        declaration.write_text(text[declared], encoding="utf-8")
+        declaration.write_text(content, encoding="utf-8")
         commit_seed(sandbox)
     for mode in ["--dry-run", "--confirm"]:
         capfd.readouterr()

@@ -11,10 +11,12 @@ matcher `Edit|Write`), with the hook JSON on stdin and the project as the workin
 
 from __future__ import annotations
 
+import io
 import json
 import shutil
 import subprocess
 import sys
+from typing import cast
 
 
 def edited_path(payload: object) -> str | None:
@@ -33,7 +35,7 @@ def main() -> None:
         sys.exit(2)
     # The hook JSON and the linters' output are UTF-8; the default Windows code page would
     # fail on a non-ASCII path with exit 1, which the agent never sees.
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    cast(io.TextIOWrapper, sys.stderr).reconfigure(encoding="utf-8", errors="replace")
     try:
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8", errors="replace") or "{}")
     except json.JSONDecodeError:

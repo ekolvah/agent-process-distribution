@@ -99,6 +99,7 @@ def plan(to: Target, planned: bool) -> tuple[list[Step], list[Step]]:
 
 def _branch_step(to: Target) -> Step:
     """The branch from the checkout, or from the initial commit `onboarding-root` fetched."""
+    args: tuple[str, ...]
     if to.empty:
         args = ("switch", "--no-track", "-c", to.branch, f"origin/{to.default}")
         detail = f"{to.branch} from the initial commit"

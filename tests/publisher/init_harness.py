@@ -287,9 +287,9 @@ class FakeGitHub:
             fault = self.faults.pop("link", "")
             if fault == "fail-before":
                 return done(code=1)
-            number, flags = int(args[2]), dict(zip(args[3::2], args[4::2]))
+            to_link, flags = int(args[2]), dict(zip(args[3::2], args[4::2]))
             (project,) = [
-                p for p in self.projects if (p.owner, p.number) == (flags["--owner"], number)
+                p for p in self.projects if (p.owner, p.number) == (flags["--owner"], to_link)
             ]
             project.repositories.add(f"{flags['--owner']}/{flags['--repo']}")
             return done(code=1 if fault else 0)

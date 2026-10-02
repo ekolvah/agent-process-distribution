@@ -56,7 +56,7 @@ change once a defect they catch is observed. The unregistered `check_imports` is
   for the `agent-process-quality` hook, gains a `[tool.mypy]` table that `pip install` ignores.
   Alternative: declaring mypy in the installer's template — rejected, the declaration belongs to
   the repository (issue 249, `quality.py`), and the template declares no linter. Shipping a
-  quality toolchain to consumers, which revisits that decision, is #328.
+  quality toolchain to consumers revisits that decision (#328).
 
 This adds no script: mypy is the standard type checker, already pinned.
 

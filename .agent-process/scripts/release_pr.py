@@ -17,7 +17,7 @@ from collections.abc import Sequence
 try:
     from scripts.gh_io import publish_step_output, run_gh
 except ModuleNotFoundError:  # run as a script from `.agent-process/`
-    from gh_io import publish_step_output, run_gh
+    from gh_io import publish_step_output, run_gh  # type: ignore[import-not-found, no-redef]
 
 CONFIG = "release-please-config.json"
 MANIFEST = ".release-please-manifest.json"

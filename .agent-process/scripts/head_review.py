@@ -21,7 +21,7 @@ from collections.abc import Mapping, Sequence
 try:
     from scripts.gh_io import run_gh
 except ModuleNotFoundError:  # documented direct script entry point
-    from gh_io import run_gh
+    from gh_io import run_gh  # type: ignore[import-not-found, no-redef]
 
 REVIEWER = "github-actions"
 DEFAULT_TIMEOUT_SECONDS = 600

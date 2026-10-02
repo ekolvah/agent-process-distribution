@@ -19,9 +19,9 @@ def git_bash() -> str:
         exec_path = subprocess.run(
             ["git", "--exec-path"], capture_output=True, encoding="utf-8", check=True
         ).stdout.strip()
-        bash = Path(exec_path).parents[2] / "usr" / "bin" / "bash.exe"
-        assert bash.is_file(), f"Git's bash not found at {bash} (from `git --exec-path`)"
-        return str(bash)
+        git_owned = Path(exec_path).parents[2] / "usr" / "bin" / "bash.exe"
+        assert git_owned.is_file(), f"Git's bash not found at {git_owned} (from `git --exec-path`)"
+        return str(git_owned)
     bash = shutil.which("bash")
     assert bash, "bash недоступен: хук нечем исполнить, гард выродился бы в grep"
     return bash
