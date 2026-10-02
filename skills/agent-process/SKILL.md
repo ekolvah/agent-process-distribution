@@ -167,10 +167,12 @@ project setting: a project that enables it gets a project-scope install per spel
 `.claude/settings.json` does not re-point a marketplace the machine already knows (#184). The
 marketplace follows the branch `stable`, which each release fast-forwards, with auto-update on,
 so a machine that did the `plugin-channel` row gets a release within a session. The plugin's
-navigation hooks, which deny shell file reads and over-budget whole-file `Read` naming the cheaper
-call, act only in a repository carrying `.github/workflows/agent-process.yml`; a
+hooks act only in a repository carrying `.github/workflows/agent-process.yml`. Its navigation
+hooks deny shell file reads and over-budget whole-file `Read`, naming the cheaper call; a
 `permissions.deny` rule matching the same command blocks first, so their message never reaches
-the agent. At each Claude
+the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks
+whether every session and every person needs the fact, and if so to move it into the
+repository. At each Claude
 session start the installed check prints `agent-process skill not loaded (<reason>)` when the
 user-scope install does not supply the skill; the fix is the reason's `claude plugin install`,
 or `claude plugin update agent-process@agent-process-marketplace --scope user` for a stale

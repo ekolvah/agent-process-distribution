@@ -23,7 +23,7 @@
 
 ## 4. Documentation
 
-- [ ] 4.1 In `skills/agent-process/SKILL.md` Install, add the memory checkpoint to the sentence on the plugin's navigation hooks: after an edit under the agent's auto-memory directory, it asks whether every session and every person needs the fact, and if so to move it into the repository (design D6). Verify that `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `docs(distribution): Install names the memory checkpoint`
+- [x] 4.1 In `skills/agent-process/SKILL.md` Install, add the memory checkpoint to the sentence on the plugin's navigation hooks: after an edit under the agent's auto-memory directory, it asks whether every session and every person needs the fact, and if so to move it into the repository (design D6). Verify that `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `docs(distribution): Install names the memory checkpoint`
 
 ## 5. Verify
 
