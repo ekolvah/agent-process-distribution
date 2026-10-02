@@ -52,7 +52,7 @@ stale revisions are observed).
     every edit and push until the repository installs mypy, the per-repository step this change
     removes; and the same at the `manual` stage only — the first push of a fresh repository fails
     on `No module named mypy`.
-  - Secrets: `detect-secrets` without a baseline, as `ci_check` (a baseline is a "make it green"
+  - Secret scan: `detect-secrets` with no baseline file, as `ci_check` (a baseline is a make-it-green
     button).
   - Audit: `pip-audit` twice, `args: [-r, requirements.txt]` with `files: ^requirements\.txt$`
     and the same for `requirements-dev.txt` (pip-tools lockfiles, the layout of

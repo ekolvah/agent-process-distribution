@@ -27,7 +27,7 @@ Observed before planning:
   `pip-audit` has `pass_filenames: false`; `Yelp/detect-secrets` hook `detect-secrets`,
   `pylint-dev/pylint` hook `pylint`, `astral-sh/ruff-pre-commit` hooks `ruff-check` and
   `ruff-format`. Tags matching this repository's pins exist: mirrors-mypy `v1.20.2`, pylint
-  `v4.0.9`, pip-audit `v2.10.0`, detect-secrets `v1.5.0`; ruff is pinned by this repository's
+  `v4.0.9`, pip-audit `v2.10.0`, `v1.5.0` of the detect-secrets hook; ruff is pinned by this repository's
   hook `rev: v0.15.12`.
 - pre-commit 4.6.0 in a scratch repository with local hooks: `pre-commit run --hook-stage manual
   --all-files` ran a hook staged `[pre-commit, manual]` on every file, printed
