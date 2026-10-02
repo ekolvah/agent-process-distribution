@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every scenario of the delta has a test that fails in its body today, the platform behaviour the delivery rests on is observed and not inferred, each named catcher is traceable and the one gap is stated as a gap, and the plan carries nothing the scenarios do not need.",
+  "classes": {
+    "simpler": {
+      "evidence": "The plan is exactly what the five scenarios need: D1 moves navigation_policy.py (no copy) and leaves the `hook` token guard of tests/publisher/test_plugin.py:84 untouched, D2 reuses bin/agent-process instead of a second resolution rule, D3's gate is one `[ ! -f ]` shell test and no new script, D4 is a settings deletion. The stat fast path is dropped and recorded as D5 with the reason it buys nothing (an over-budget file is read whole either way to compute the slice that fits, so it would skip only reads already within budget); its task and proposal bullet are gone and tasks.md Group 2 renumbers cleanly. Rejected alternatives each carry a named cost (ship hooks.py whole; render the hook into consumer .claude/settings.json). The moved docstring keeps this repository's corpus measurement as the budget's justification - the existing policy shipped as is, still the minimum diff.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Five scenarios in specs/distribution/spec.md, five entries in the tasks.md map: Component roots -> test_plugin_component_roots_are_closed (constant changed in 1.1), Settings render -> test_marketplace_source_is_whole (existing, unchanged scenario of the MODIFIED requirement), Adopted consumer -> test_plugin_hooks_deny_navigation_in_an_adopted_repository (1.3), Repository settings carry no navigation hook -> test_publisher_settings_declare_no_navigation_hook (1.5), Unadopted repository -> test_plugin_hooks_are_silent_outside_an_adopted_repository (1.4, over every command of every event). No scenario without a test, no map entry naming a test no task writes.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 writes the four tests and 1.6 runs check_red on their node ids; each fails in its body against today's tree: 1.1 makes test_plugin_component_roots_are_closed report `missing ['hooks']`, 1.3 and 1.4 fail in the 1.2 helper because hooks/hooks.json does not exist, 1.5 fails on the two PreToolUse entries at .claude/settings.json:42-62. The RED commit carries the Group 1 ticks on top of the plan commit, before Group 2's move; `test` is declared in .github/agent-process-quality.json. Group 2's file and subcommand moves are the rename exception of principles.md §I.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every platform claim of design.md Context carries a page and sentence, and I re-read both pages on 2026-10-02: the merge rule, the `hooks/hooks.json` tab with the `{\"hooks\": {\"PreToolUse\": [{\"matcher\", \"hooks\": [...]}]}}` envelope, `${CLAUDE_PROJECT_DIR}`/`${CLAUDE_PLUGIN_ROOT}` and their export into the spawned process, the `shell` default, shell form being `sh -c` / Git Bash on Windows, a timed-out PreToolUse command hook not blocking, and the `<hook name> hook error` notice are on https://code.claude.com/docs/en/hooks; 'Claude Code evaluates deny and ask rules regardless of what a PreToolUse hook returns: a matching deny rule blocks the call' and 'That precedence covers hooks in settings files and in a plugin's `hooks/hooks.json`' are verbatim on https://code.claude.com/docs/en/permissions, so D7's Install sentence is accurate. The `claude -p --plugin-dir <probe>` run and the `claude plugin validate --strict` output raise the firing of a plugin PreToolUse hook of this command shape from a doc citation to an observation with its command, its recorded `pwd`/`root`, and the reason the model quoted. D3's standard matches the same pages; the gate marker is real (init.py:131 `WORKFLOW = \".github/workflows/agent-process.yml\"`).",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "One guard is dropped - the two PreToolUse entries of .claude/settings.json, the wiring observed to fire here (design.md Context). D4 lists the failure modes of the replacement with the catcher of each: the platform not loading or running a plugin PreToolUse hook of this shape is answered by the probe observation; a broken envelope, matcher or command by the group-1 tests, which read the file through its `\"hooks\"` envelope and run each command, so it reds `ci_check` on the PR head; a leftover settings entry by 1.5; the release-update window is the first Risk, with the Migration Plan's rollback returning the entries.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Catchers traced: D3's 'the test runs every command of `hooks/hooks.json`' reaches tasks 1.2/1.4, which take every hook of every event, so a later plugin hook on another event cannot ship ungated; D4's envelope/command catcher reaches the group-1 tests and the Verify group's declared `test`; D6's 'visible, non-blocking `hook error`' without `python` reaches the platform notice quoted from the hooks page, with the gate short-circuiting before Python in an unadopted repository; D7's claim about a consumer `permissions.deny` rule is the permissions page's own rule. The one case with no catcher is now stated as one: a machine still on a release without hooks/hooks.json gets no report, because the SessionStart check compares no version (confirmed in skills/agent-process/templates/skill_check.py:40-63, which markers only a project-scope install, no user-scope install, several of them, or an install with no SKILL.md), and what acts instead is auto-update on `stable` within a session, with the hooks absent until then.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Added or edited sentences and the words their tests assert. MODIFIED roots requirement: +1 word (`hooks`), asserted by 1.1/test_plugin_component_roots_are_closed. 'The plugin SHALL deliver the PreToolUse navigation policy ... so a consumer needs no copy of it' - 40 words, all asserted by 1.3 (both matchers deny, from a project carrying the marker and no copy of the policy). 'This repository's `.claude/settings.json` SHALL declare no PreToolUse hook for `Bash` or `Read`' - 14 words, all asserted by 1.5. 'Every hook command of the plugin SHALL exit 0 with no output when the session's project directory has no `.github/workflows/agent-process.yml`' - 20 words, all asserted by 1.4 over every command of every event; the rationale sentence that preceded it is gone, so the requirement carries no untested prose. The D7 sentence of SKILL.md Install is about 35 words of documentation no test asserts; its platform claim is the verbatim permissions-page rule. The added lines of design.md Context and D4 are the observation and the catcher ledger, which is where evidence belongs.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script: D1 is a `git mv` into the package with the two adapters and a `main`, and the only new artifact is hooks/hooks.json, whose decision is D2 (problem: #310 - consumers keep a hand copy or none; the plugin is the platform's carrier, merge rule quoted and observed) plus D3 for the gate (standard considered and rejected with a reason: the platform scopes a plugin by install scope, which at user scope - forced by anthropics/claude-code#75855 - offers only the consumer's opt-out `enabledPlugins: false`, and `matcher`/`if` filter tools and arguments, not the project). The gate is one shell file test, not new Python; no new checker is introduced for the envelope (the group-1 tests cover it, with `claude plugin validate --strict` recorded as corroboration only) and none for the stale release (D4 states the gap instead). D2 records why the superseded rejection in archived 2026-09-23-architect-review-length-and-bespoke-findings no longer holds (its cited test_package_has_no_installer_state exists only in that archive).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
