@@ -82,48 +82,32 @@ def _has_product_scope() -> bool:
 def _product_scope_excludes(flag: str) -> list[str]:
     """Keep the bare product-scoped pass from re-touching `_PROCESS_PATHS`.
 
-    A consumer with no config of its own (no `testpaths`, no `exclude`)
-    would otherwise re-collect/re-lint `tests/agent_process` and
-    `.agent-process` under its own root config — which has neither the
-    process's `pythonpath` nor its formatting rules — producing failures
+    A consumer with no config of its own (no `testpaths`) would otherwise
+    re-collect `tests/agent_process` and `.agent-process` under its own root
+    config — which lacks the process's `pythonpath` — producing failures
     that have nothing to do with product code (#57 findings).
     """
     return [f"{flag}={path}" for path in _PROCESS_PATHS]
 
 
-def check_format() -> None:
-    print("==> ruff format")
+def check_lint() -> None:
+    """The `pre-commit`-stage hooks of `.pre-commit-config.yaml` over all tracked files: the
+    per-file checks the plugin also runs after each edit, declared once. The stage keeps the
+    `pre-push` `quality` hook, which runs this program, out of the nested run. A formatter
+    rewrites a file it would change, and the run fails with the diff."""
+    print("==> pre-commit (pre-commit stage)")
     _run(
         [
             sys.executable,
             "-m",
-            "ruff",
-            "format",
-            "--config",
-            _PROCESS_CONFIG,
-            "--check",
-            *_PROCESS_PATHS,
+            "pre_commit",
+            "run",
+            "--hook-stage",
+            "pre-commit",
+            "--all-files",
+            "--show-diff-on-failure",
         ]
     )
-    if _has_product_scope():
-        _run(
-            [
-                sys.executable,
-                "-m",
-                "ruff",
-                "format",
-                "--check",
-                ".",
-                *_product_scope_excludes("--exclude"),
-            ]
-        )
-
-
-def check_lint() -> None:
-    print("==> ruff lint")
-    _run([sys.executable, "-m", "ruff", "check", "--config", _PROCESS_CONFIG, *_PROCESS_PATHS])
-    if _has_product_scope():
-        _run([sys.executable, "-m", "ruff", "check", ".", *_product_scope_excludes("--exclude")])
 
 
 def check_module_size() -> None:
@@ -372,7 +356,6 @@ def check_imports() -> None:
 # Registry — the single source of truth for the quality check set. Order is the
 # run order for a full pre-commit pass and for CI.
 CHECKS: dict[str, Callable[[], None]] = {
-    "format": check_format,
     "lint": check_lint,
     "module-size": check_module_size,
     "test-imports": check_test_imports,
