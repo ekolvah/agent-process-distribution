@@ -107,8 +107,8 @@ in a repository carrying `.github/workflows/agent-process.yml`, and a consumer
 `permissions.deny` rule matching the same command blocks first, so the hook's replacement
 message never reaches the agent.
 
-**D8 — An unknown `hooks.py` subcommand exits 1, not 2.** Observed on PR #319's first head: the
-review job restores `.claude/` from `main` ("Restoring .claude … from origin/main (PR head is
+**D8 — An unknown `hooks.py` subcommand exits 1, not 2.** Observed on the first reviewed head of this
+change's PR (#319): the review job restores `.claude/` from `main` ("Restoring .claude … from origin/main (PR head is
 untrusted)") and runs the PR head's scripts, so `main`'s `hooks.py pre-bash` reached a
 `hooks.py` that knows only `on-edit`; its usage exit 2 is a PreToolUse block, the reviewer's
 `gh pr diff` was denied twice (`permission_denials_count: 2`) and no review was posted. Settings
