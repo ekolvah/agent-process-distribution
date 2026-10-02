@@ -629,7 +629,8 @@ def _quality_text(ctx: Context) -> tuple[str | None, str]:
 
 
 def _seeds_quality(root: Path) -> bool:
-    """The declaration is seeded only with the config it runs: neither file exists yet (D4)."""
+    """Whether the `quality` step is listed: `unchanged` when the declaration exists, `planned`
+    when neither it nor the config it runs exists yet (D4)."""
     if os.path.lexists(root / quality.DECLARATION):
         return True
     try:
