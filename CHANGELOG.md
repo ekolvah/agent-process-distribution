@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.4.0...v3.5.0) (2026-10-02)
+
+
+### Features
+
+* edit-time-lint-pre-commit ([#324](https://github.com/ekolvah/agent-process-distribution/issues/324)) ([8c4f84d](https://github.com/ekolvah/agent-process-distribution/commit/8c4f84d82fdba260f53c224682e5f52e4bc92ffb))
+
 ## [3.4.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.3.0...v3.4.0) (2026-10-02)
 
 
