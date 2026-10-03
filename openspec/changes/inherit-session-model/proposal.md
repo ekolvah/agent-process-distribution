@@ -7,7 +7,7 @@ cause: a frontmatter `model` outranks the main conversation's model, and a front
 model order: "2. The subagent definition's `model` frontmatter, where `inherit` selects the
 main conversation's model … 4. The main conversation's model", read 2026-10-03). A fixed id
 goes stale with every model release and needs a manual bump; the process is interactive, so
-the model and effort the person picked in the chat are the ones to use. Tracking issue #317.
+the model and effort the person picked in the chat are the ones to use (#317).
 
 ## What Changes
 
