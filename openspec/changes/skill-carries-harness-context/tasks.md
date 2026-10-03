@@ -7,7 +7,7 @@
 - [x] 1.1 In `tests/publisher/test_plugin.py`, add `test_skill_carries_principles_core_and_harness_tactics`. It checks the text of `SKILL.md` before `## Proposal` (spec *A consumer reads principles and tactics from the skill*):
   - it holds `## Principles` and `## Claude harness`;
   - `## Principles` holds the goal names `bug-fixing`, `token spend` and `user control`;
-  - `## Principles` holds one relative link `principles.md#<anchor>` for each `### I.` … `### VII.` heading of `principles.md`, with the anchors derived from that file;
+  - `## Principles` holds one relative link into `principles.md`, with that heading's anchor, for each `### I.` … `### VII.` heading of `principles.md`, with the anchors derived from that file;
   - `## Claude harness` holds `gh issue view` and `git branch --show-current`, and no `/compact`.
 - [x] 1.2 In `tests/publisher/test_reusable_workflows.py` (spec *Instructions live in Claude Code channels*):
   - make `test_review_contract_is_a_file_not_an_agents_section_parser` read `ROOT / "CLAUDE.md"`;
@@ -16,10 +16,10 @@
 
 ## 2. Skill and repository instructions
 
-- [ ] 2.1 In `skills/agent-process/SKILL.md`, after the opening paragraph, add `## Principles` and `## Claude harness` per design D1 and D2.
+- [x] 2.1 In `skills/agent-process/SKILL.md`, after the opening paragraph, add `## Principles` and `## Claude harness` per design D1 and D2.
   - Each section has one line per item.
   - `## Principles` ends with one line saying that `principles.md` decides.
-  - Links stay relative (`principles.md#…`), as `test_plugin.py:106` requires.
+  - Links into `principles.md` stay relative, as `test_plugin.py:106` requires.
   - Keep the whole addition at about 2 KB.
   - Name none of the tokens that `test_planning_workflow.py:285-299` keeps out of the procedure.
 
