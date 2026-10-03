@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.7.1...v3.8.0) (2026-10-03)
+
+
+### Features
+
+* skill-carries-harness-context ([#336](https://github.com/ekolvah/agent-process-distribution/issues/336)) ([2e514e7](https://github.com/ekolvah/agent-process-distribution/commit/2e514e7523d31142055f689bbf1252d0bb179aaf))
+
 ## [3.7.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.7.0...v3.7.1) (2026-10-02)
 
 
