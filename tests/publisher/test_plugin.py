@@ -14,7 +14,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-from tests.agent_process.test_doc_links import slugify
 from tests.publisher.init_harness import load_init
 from tests.publisher.lint_harness import FINDING, edit_payload, lint_repo
 
@@ -99,7 +98,9 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
     )
     assert [numeral for numeral, _ in headings] == ["I", "II", "III", "IV", "V", "VI", "VII"]
     for numeral, title in headings:
-        assert f"](principles.md#{slugify(f'{numeral}. {title}')})" in core
+        # GitHub's heading anchor: lower case, punctuation dropped, spaces to hyphens.
+        anchor = re.sub(r"[^\w\s-]", "", f"{numeral}. {title}".lower()).replace(" ", "-")
+        assert f"](principles.md#{anchor})" in core
     harness = _section(text, "\n## Claude harness\n")
     assert "gh issue view" in harness
     assert "git branch --show-current" in harness

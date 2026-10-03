@@ -27,7 +27,7 @@ it has `CLAUDE.md` and `.claude/rules/` (observed with
 - `skills/agent-process/SKILL.md` gains two sections:
   - a `## Principles` core: the goal function and one line per §I–VII, with a link to
     `principles.md` for the full text;
-  - a `## Claude harness` section with the portable token tactics that #315 lists.
+  - a `## Claude harness` section with the portable token tactics the issue lists (#315).
 - The RED→GREEN compaction tactic keeps this repository's form: after a compaction, recover
   state from the branch, the RED commit and one `gh issue view`. The consumer's "ask the
   person for `/compact` after RED" is not adopted.

@@ -46,7 +46,7 @@ Alternatives:
 - Goal function plus one line saying that `principles.md` binds. This is the cheapest form
   (about 0.4 KB) and the only one that cannot drift. Rejected: it gives the working agent no
   principle content unless the agent opens 13 KB. `config.yaml`'s context already gives this
-  repository the same kind of pointer, and the gap in #315 exists anyway. The seven lines
+  repository the same kind of pointer, and the gap exists anyway (#315). The seven lines
   are what lets an agent recognise "this is a §V moment" without reading the full text.
 - Load all of `principles.md` on every invocation: 13 KB each time, most of it not used
   at a given step.
