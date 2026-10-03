@@ -11,6 +11,37 @@ repository operations, and every command printed below, through the Bash tool fr
 repository root. `agent-process`, the first word of each script command, is the plugin's
 launcher of this skill's scripts, on the Bash tool's `PATH` while the plugin is enabled.
 
+## Principles
+
+[`principles.md`](principles.md#goal-function) binds every role. Its goals, in strict order:
+
+1. Minimize future bug-fixing and support.
+2. Optimize token spend, in development and at runtime.
+3. Preserve predictability and user control.
+
+- [§I](principles.md#i-test-first-non-negotiable): a failing test precedes every behavioural change.
+- [§II](principles.md#ii-protocol-boundaries-with-dependency-injection): each external service sits behind an injected `typing.Protocol`; tests use in-memory doubles, not mocks of internal logic.
+- [§III](principles.md#iii-delivery-truthfulness): user-visible data is never lost silently; a failed delivery turns the run red.
+- [§IV](principles.md#iv-visibility-over-silence): a degraded item reaches the user with a gap marker; no swallowed error or fail-open branch.
+- [§V](principles.md#v-root-cause-before-fix): reproduce and locate the failure, observing the live system when it is the subject, before any change; no shim.
+- [§VI](principles.md#vi-fail-fast-configuration): configuration is validated at load time.
+- [§VII](principles.md#vii-simplicity-first): the minimum diff for the stated task; no speculative feature or single-caller abstraction.
+
+On any conflict, the full text of `principles.md` decides.
+
+## Claude harness
+
+- Read narrowly: a search or an `offset`/`limit` read before a whole file. When a navigation
+  hook denies a command, take the call it names; never route around it.
+- Spawn a subagent only for independent work, or for research that needs more than three
+  round trips.
+- Be concise by default, in replies and in files.
+- Wait for a long command with one foreground call and a raised `timeout`, never a `sleep` or
+  re-read loop.
+- After a compaction between the RED commit and GREEN, recover from the branch
+  (`git branch --show-current`), the RED commit and one `gh issue view <N>`; do not re-read
+  what the RED commit records.
+
 ## Proposal
 
 - Read the code and prior art before writing. Ask the person when a scope decision is theirs.

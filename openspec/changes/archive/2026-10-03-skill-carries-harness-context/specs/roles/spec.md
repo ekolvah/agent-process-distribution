@@ -1,29 +1,4 @@
-# roles Specification
-
-## Purpose
-Which roles the process has and which Claude Code entry point carries each one.
-
-## Requirements
-
-### Requirement: OpenSpec skills are the carriers of the procedure
-The planner, implementer, and archive entry points SHALL remain the OpenSpec skills
-(`openspec-propose`, `openspec-apply-change`, `openspec-archive-change`) in Claude Code, on
-the unmodified `spec-driven` schema. The portable proposal, specification, design, task,
-architect-review, and delivery procedure SHALL live once in the shared `agent-process` skill.
-`openspec/config.yaml` SHALL retain project context and point its artifact rules to that
-skill rather than copy the procedure body. No forked schema, second procedure copy, or
-second role-specific entry point SHALL exist.
-
-#### Scenario: Procedure changes once
-- **WHEN** a portable planning or delivery rule changes
-- **THEN** one shared `agent-process` skill source changes and Claude Code follows it through its OpenSpec entry points without merging copied rule bodies
-
-### Requirement: Provenance is one line in the tracking issue
-"Who planned, who implemented" SHALL be one line in the tracking issue, not a catalogue file.
-
-#### Scenario: Reading provenance
-- **WHEN** a person opens the issue
-- **THEN** the planner and implementer carriers are visible without opening any other file
+## MODIFIED Requirements
 
 ### Requirement: Claude Code carries every role
 Claude Code SHALL be the only carrier of every agent role, in this repository and in every
@@ -44,6 +19,8 @@ keep no `AGENTS.md`, and the review contract's policy source SHALL name `CLAUDE.
 #### Scenario: Instructions live in Claude Code channels
 - **WHEN** the repository root, the review contract and the review job's prompt are read
 - **THEN** no `AGENTS.md` exists, `CLAUDE.md` links the review contract, and the contract and the prompt each name `CLAUDE.md` and `.claude/rules/` and neither names `AGENTS.md`
+
+## ADDED Requirements
 
 ### Requirement: The skill carries the principles core and harness tactics
 The `agent-process` skill SHALL state the goal function and one line per principle §I–VII,

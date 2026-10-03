@@ -7,6 +7,11 @@ context, and [`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md) th
 procedure. A PR that changes behaviour carries its change's spec delta
 (`openspec validate --strict`).
 
+The principles core and the Claude harness tactics are in the skill's
+[Principles](skills/agent-process/SKILL.md#principles) and
+[Claude harness](skills/agent-process/SKILL.md#claude-harness). Before choosing a test level,
+consult [`.claude/rules/testing.md`](.claude/rules/testing.md); it loads only under `tests/**`.
+
 ## Repository conventions
 
 - Capture Python subprocess output with `encoding="utf-8"`; do not turn a
