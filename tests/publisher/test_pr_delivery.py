@@ -212,7 +212,7 @@ def test_empty_rollup_after_push(capsys: pytest.CaptureFixture[str]) -> None:
     [("set_status", "run_gh"), ("wait_for_pr", "run_gh"), ("archive_change", "_runner")],
 )
 def test_none_capture_is_an_error(monkeypatch: pytest.MonkeyPatch, script: str, attr: str) -> None:
-    """AGENTS.md: a `None` stdout or stderr is a broken capture, never an empty string."""
+    """CLAUDE.md: a `None` stdout or stderr is a broken capture, never an empty string."""
     module = load_script(script)
 
     class _Completed:

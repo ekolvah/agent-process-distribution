@@ -278,7 +278,7 @@ def test_tasks_of_a_new_change() -> None:
         assert part in text, part
     # Group 0 and the propose tail are scripts (v2-2f): the shell steps left the procedure.
     # `check_red` owns its runner and report path (v2-2d): the procedure names neither a
-    # runner argument nor a declaration in AGENTS.md. The resolve order lives in the
+    # runner argument nor a declaration in an instruction file. The resolve order lives in the
     # script, so the procedure spells no rerun and no reply step of its own. `## Install`
     # follows the delivery procedure and is checked by `test_install_asks_no_quality_command`.
     procedure = text[: text.index("## Install")]

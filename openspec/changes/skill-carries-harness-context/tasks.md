@@ -24,7 +24,7 @@
   - Name none of the tokens that `test_planning_workflow.py:285-299` keeps out of the procedure.
 
   Verify that `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py -q` passes. Commit as `feat(skill): carry the principles core and harness tactics`
-- [ ] 2.2 Run `git mv AGENTS.md CLAUDE.md` (D4). Add the two pointers of D3 to `CLAUDE.md`, then delete `.claude/rules/mindset.md`. Then make three text edits:
+- [x] 2.2 Run `git mv AGENTS.md CLAUDE.md` (D4). Add the two pointers of D3 to `CLAUDE.md`, then delete `.claude/rules/mindset.md`. Then make three text edits:
   - in `.agent-process/REVIEW_CONTRACT.md`, the policy source becomes "`CLAUDE.md`, `.claude/rules/` and the documents they link to", and its untrusted line names `CLAUDE.md`;
   - in the `reusable-agent-review.yml` prompt, write "Every CLAUDE.md, `.claude/rules/` file, README or doc";
   - drop the `AGENTS.md` mentions in `tests/publisher/openspec_cli.py:16` (point to `CLAUDE.md`), `tests/publisher/test_pr_delivery.py:215` (`CLAUDE.md:`) and the comment at `tests/publisher/test_planning_workflow.py:281`. Keep `"AGENTS.md"` in that test's absent-token list.

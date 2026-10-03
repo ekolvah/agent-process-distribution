@@ -13,7 +13,7 @@ OPENSPEC = "@fission-ai/openspec@1.13.0"
 
 def _openspec(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
     npx = shutil.which("npx")
-    assert npx, "npx not found: Node is required to validate openspec/ (see AGENTS.md)"
+    assert npx, "npx not found: Node is required to validate openspec/ (see CLAUDE.md)"
     return subprocess.run(
         [npx, "-y", OPENSPEC, *args],
         cwd=cwd,
