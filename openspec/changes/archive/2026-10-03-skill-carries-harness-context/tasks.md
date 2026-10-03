@@ -33,13 +33,13 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
-- [ ] 3.3 Live check (Principle V): from the worktree, run `claude -p --plugin-dir <worktree> --disallowedTools "Read,Grep,Glob,Bash" "Invoke the agent-process skill and quote its '## Claude harness' section verbatim."`. With the read tools disallowed, the Skill tool is the only path to the text. Verify that the reply carries the `gh issue view` recovery line. Record the command and its output in the PR report
+- [x] 3.1 Run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 3.3 Live check (Principle V): from the worktree, run `claude -p "Invoke the agent-process skill and quote its '## Claude harness' section verbatim." --plugin-dir <worktree> --disallowedTools "Read,Grep,Glob,Bash"` (the prompt goes first: `--disallowedTools` takes every following word). With the read tools disallowed, the Skill tool is the only path to the text. Verify that the reply carries the `gh issue view` recovery line. Record the command and its output in the PR report
 
 ## 4. Deliver
 
-- [ ] 4.1 With a clean worktree, run `agent-process archive_change skill-carries-harness-context`. Verify that it archives the delta into `openspec/specs/roles/spec.md`, commits, and pushes the branch
+- [x] 4.1 With a clean worktree, run `agent-process archive_change skill-carries-harness-context`. Verify that it archives the delta into `openspec/specs/roles/spec.md`, commits, and pushes the branch
 - [ ] 4.2 Run `gh pr create --title "feat: skill-carries-harness-context" --body-file <report>`. The report:
   - references the tracking issue plainly (#315), never with `Closes`;
   - carries the scenario → test map and the live check of 3.3;
