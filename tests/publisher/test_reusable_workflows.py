@@ -514,9 +514,21 @@ def test_review_contract_is_a_file_not_an_agents_section_parser() -> None:
 
     assert contract.is_file()
     assert "[REVIEW_CONTRACT.md](.agent-process/REVIEW_CONTRACT.md)" in (
-        ROOT / "AGENTS.md"
+        ROOT / "CLAUDE.md"
     ).read_text(encoding="utf-8")
     assert not (ROOT / ".agent-process" / "scripts" / "extract_review_prompt.py").exists()
+
+
+def test_agent_instructions_live_in_claude_code_channels() -> None:
+    """Scenario: Instructions live in Claude Code channels."""
+    contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
+    prompt = _steps("reusable-agent-review.yml")["Claude review"]["with"]["prompt"]
+
+    assert not (ROOT / "AGENTS.md").exists()
+    for text in (contract, prompt):
+        assert "CLAUDE.md" in text
+        assert ".claude/rules/" in text
+        assert "AGENTS.md" not in text
 
 
 def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:

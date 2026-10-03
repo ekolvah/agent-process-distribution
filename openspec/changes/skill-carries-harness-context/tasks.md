@@ -4,15 +4,15 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_plugin.py`, add `test_skill_carries_principles_core_and_harness_tactics`. It checks the text of `SKILL.md` before `## Proposal` (spec *A consumer reads principles and tactics from the skill*):
+- [x] 1.1 In `tests/publisher/test_plugin.py`, add `test_skill_carries_principles_core_and_harness_tactics`. It checks the text of `SKILL.md` before `## Proposal` (spec *A consumer reads principles and tactics from the skill*):
   - it holds `## Principles` and `## Claude harness`;
   - `## Principles` holds the goal names `bug-fixing`, `token spend` and `user control`;
   - `## Principles` holds one relative link `principles.md#<anchor>` for each `### I.` … `### VII.` heading of `principles.md`, with the anchors derived from that file;
   - `## Claude harness` holds `gh issue view` and `git branch --show-current`, and no `/compact`.
-- [ ] 1.2 In `tests/publisher/test_reusable_workflows.py` (spec *Instructions live in Claude Code channels*):
+- [x] 1.2 In `tests/publisher/test_reusable_workflows.py` (spec *Instructions live in Claude Code channels*):
   - make `test_review_contract_is_a_file_not_an_agents_section_parser` read `ROOT / "CLAUDE.md"`;
   - add `test_agent_instructions_live_in_claude_code_channels`: `ROOT / "AGENTS.md"` does not exist; `.agent-process/REVIEW_CONTRACT.md` and the `prompt` of `reusable-agent-review.yml` each contain `CLAUDE.md` and `.claude/rules/`; neither contains `AGENTS.md`.
-- [ ] 1.3 Run `agent-process check_red` with the node ids of 1.1 and 1.2, quoted. Verify that each fails in its body (missing heading, `CLAUDE.md` absent, `AGENTS.md` present), and that the two files fail nowhere else. Commit as `test(roles): the skill carries principles and harness tactics`
+- [x] 1.3 Run `agent-process check_red` with the node ids of 1.1 and 1.2, quoted. Verify that each fails in its body (missing heading, `CLAUDE.md` absent, `AGENTS.md` present), and that the two files fail nowhere else. Commit as `test(roles): the skill carries principles and harness tactics`
 
 ## 2. Skill and repository instructions
 

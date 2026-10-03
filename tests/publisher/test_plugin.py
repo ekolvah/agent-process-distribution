@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.agent_process.test_doc_links import slugify
 from tests.publisher.init_harness import load_init
 from tests.publisher.lint_harness import FINDING, edit_payload, lint_repo
 
@@ -23,6 +24,7 @@ MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 SETTINGS = ROOT / ".claude" / "settings.json"
 SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 PACKAGE = SKILL.parent
+PRINCIPLES = PACKAGE / "principles.md"
 SCRIPTS = PACKAGE / "scripts"
 MOVED_SCRIPTS = {
     "activate_protection.py",
@@ -76,6 +78,32 @@ def test_shared_skill_owns_the_procedure_and_scripts() -> None:
     assert {path.name for path in SCRIPTS.glob("*.py")} == MOVED_SCRIPTS
     for name in MOVED_SCRIPTS:
         assert not (ROOT / ".agent-process" / "scripts" / name).exists()
+
+
+def _section(text: str, heading: str) -> str:
+    start = text.index(heading) + len(heading)
+    end = text.find("\n## ", start)
+    return text[start : end if end != -1 else len(text)]
+
+
+def test_skill_carries_principles_core_and_harness_tactics() -> None:
+    """Scenario: A consumer reads principles and tactics from the skill."""
+    text = SKILL.read_text(encoding="utf-8").split("\n## Proposal")[0]
+    assert "\n## Principles\n" in text
+    assert "\n## Claude harness\n" in text
+    core = _section(text, "\n## Principles\n")
+    for goal in ("bug-fixing", "token spend", "user control"):
+        assert goal in core
+    headings = re.findall(
+        r"^### (VII|VI|V|IV|III|II|I)\. (.+)$", PRINCIPLES.read_text("utf-8"), re.M
+    )
+    assert [numeral for numeral, _ in headings] == ["I", "II", "III", "IV", "V", "VI", "VII"]
+    for numeral, title in headings:
+        assert f"](principles.md#{slugify(f'{numeral}. {title}')})" in core
+    harness = _section(text, "\n## Claude harness\n")
+    assert "gh issue view" in harness
+    assert "git branch --show-current" in harness
+    assert "/compact" not in harness
 
 
 def test_package_contents_are_closed() -> None:
