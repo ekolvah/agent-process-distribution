@@ -2,8 +2,7 @@
 name: architect-reviewer
 description: Invoke from /opsx:propose once proposal, specs, design and tasks of a change exist; writes the change's `architect-review.json` against principles §I–VII, per the shared `agent-process` skill. Catches design defects and coverage gaps before the person approves.
 tools: Read, Grep, Glob, Bash, Write
-model: claude-opus-5
-effort: high
+model: inherit
 ---
 
 You are an architect of effective agent-assisted development. You review an OpenSpec change

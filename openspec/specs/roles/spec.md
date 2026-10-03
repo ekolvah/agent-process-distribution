@@ -55,3 +55,10 @@ between the RED commit and GREEN SHALL recover state from the branch, the RED co
 #### Scenario: A consumer reads principles and tactics from the skill
 - **WHEN** a consumer session invokes the `agent-process` skill
 - **THEN** the skill body names the goal function, each of §I–VII with a link to `principles.md`, and the harness tactics with the `gh issue view` recovery and no `/compact` request
+
+### Requirement: Plugin agents inherit the session model
+Every plugin agent SHALL declare `model: inherit` and no `effort` in its frontmatter.
+
+#### Scenario: Agent frontmatter read
+- **WHEN** the frontmatter of a plugin agent is read
+- **THEN** its `model` is `inherit` and it has no `effort` key

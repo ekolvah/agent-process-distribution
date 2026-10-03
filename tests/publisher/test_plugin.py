@@ -172,6 +172,16 @@ def test_agent_package_paths_are_checked_per_occurrence() -> None:
     ]
 
 
+def test_plugin_agents_inherit_the_session_model() -> None:
+    """A pinned model goes stale; an agent runs on the chat's model and effort."""
+    agents = sorted((ROOT / "agents").glob("*.md"))
+    assert agents
+    for path in agents:
+        frontmatter = yaml.safe_load(path.read_text(encoding="utf-8").split("---")[1])
+        assert frontmatter["model"] == "inherit", path.name
+        assert "effort" not in frontmatter, path.name
+
+
 def test_publisher_dogfoods_process() -> None:
     settings = _json(SETTINGS)
     assert settings["extraKnownMarketplaces"] == {
