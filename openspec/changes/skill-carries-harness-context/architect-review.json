@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The three findings of the first round are answered in the artifacts — D1 weighs and rejects the pointer-only form, D3 deletes `.claude/rules/mindset.md` into the new `CLAUDE.md`, the docs claims carry page URLs with verbatim sentences, and the spec's rationale clause is gone while `.claude/rules/` and the goal tokens are now asserted — and every remaining class holds.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 now weighs the cheapest form first — goal function plus one line that `principles.md` binds, about 0.4 KB and drift-proof — and rejects it with a reason that the scenarios need: it leaves the working agent no principle content unless it opens 13 KB, which is the pointer `openspec/config.yaml` already gives this repository while the gap of #315 persists; the seven lines are what lets an agent recognise a §V moment. The fuller alternatives (all of `principles.md`, a `SessionStart` hook, a plugin rule) stay rejected on cost or support. D3 now deletes `.claude/rules/mindset.md` instead of leaving a file of pointers at launch, moving its two pointers into the always-load `CLAUDE.md` of D4; nothing else in the repository reads it (`git grep mindset` outside `openspec/changes` finds only the fixture path at `tests/publisher/test_memory_checkpoint.py:59`), and `.claude/rules` keeps `workflow.md` and `testing.md`, so the non-empty-scope guards (`tests/agent_process/test_doc_links.py:84`, the sibling header and narrative scopes) stay green. D5 keeps the change script-free.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Three delta scenarios, three map lines. `Another carrier named` → `tests/publisher/test_start_change.py::test_codex_carrier_is_rejected`, unchanged and still true: the requirement gains sentences beside that scenario, not inside it. `Instructions live in Claude Code channels` → the new `test_agent_instructions_live_in_claude_code_channels` (no root `AGENTS.md`; contract and prompt each name `CLAUDE.md` and `.claude/rules/` and neither names `AGENTS.md`) plus the retargeted `test_review_contract_is_a_file_not_an_agents_section_parser` (`tests/publisher/test_reusable_workflows.py:512`) for the `CLAUDE.md` links the contract half — together they cover every clause of the scenario. `A consumer reads principles and tactics from the skill` → `tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics`, with task 3.3's live `claude -p --plugin-dir` run as the behavioural half of the channel.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 writes exactly the two tests of the map (1.1, 1.2) and 1.3 runs `agent-process check_red` on their node ids, committing before group 2 touches `SKILL.md`, runs `git mv` or deletes `mindset.md`. Each fails in its body today: `skills/agent-process/SKILL.md:14` goes from the opening paragraph straight to `## Proposal`, no `CLAUDE.md` exists in the repository, and `AGENTS.md` does, named by `.agent-process/REVIEW_CONTRACT.md:6-8` and `.github/workflows/reusable-agent-review.yml:105`. No `no RED` task is claimed.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Each platform behaviour the design rests on now carries its observation. The skill-is-the-only-instruction-channel claim: https://code.claude.com/docs/en/plugins-reference, \"Standard layout\", quoted verbatim in proposal.md Why (\"A `CLAUDE.md` at the plugin root isn't loaded as context … put them in a skill\"), with task 3.3 observing the channel live. The `AGENTS.md` precedence and its session gap: https://code.claude.com/docs/en/memory, \"AGENTS.md\", two verbatim sentences in the Why. The startup load set of design.md Context: the same memory page, quoted for rules without `paths` being loaded at launch and for the 200-line target; the claude.ai map stays only as the person's summary beside those quotes. The consumer-side fact is a command observation: `gh api repos/ekolvah/kinozal_scraper/contents/AGENTS.md` → 404.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "One replaced input: the review contract's policy source, `AGENTS.md` → `CLAUDE.md` and `.claude/rules/` (`.agent-process/REVIEW_CONTRACT.md:6-10`, prompt at `.github/workflows/reusable-agent-review.yml:105`, both edited in task 2.2). D4 lists what does not change (the mechanism), why no new exposure appears — the reviewed head's worktree already carries the consumer's `CLAUDE.md`, which the harness loads whether or not the prompt names it — and keeps the untrusted-data line over the new name. The new input's failure mode, a consumer whose conventions sit in `AGENTS.md` with no `CLAUDE.md`, has no live instance: the single consumer is observed at 404 for `AGENTS.md` and keeps a `CLAUDE.md`. No guard is dropped — `AGENTS.md` stays in the absent-token list of `tests/publisher/test_planning_workflow.py:292`, and historical ADRs and archived changes stay untouched. Deleting `mindset.md` drops no proof: its content is two pointers, which `CLAUDE.md` carries.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Catchers and the step each is reached at. The two new publisher tests run under `python .agent-process/scripts/ci_check.py`, the `test` of `.github/agent-process-quality.json`, whose `check_pytest` (`.agent-process/scripts/ci_check.py:249`) collects `tests/publisher`: task 3.2 locally and the `agent-process / quality` check on every pushed head. A wrong form of the new sections is caught in the same runs that tasks 2.1 and 2.2 name: `tests/publisher/test_plugin.py:106` rejects a markdown link that leaves the skill directory (hence the relative `principles.md#…` rule of 2.1), `tests/publisher/test_planning_workflow.py:284-299` rejects `AGENTS.md` and the other absent tokens anywhere before `## Install`, and `tests/agent_process/test_doc_links.py::test_every_internal_link_resolves` catches a pointer moved into `CLAUDE.md` whose path or `SKILL.md` anchor does not resolve — which is why 2.1 lands the anchors before 2.2 moves the pointers. The one gap left uncaught, wording drift between the core and `principles.md`, is stated plainly in Risks: the test derives the § anchors from `principles.md`, so a renamed or added principle fails, and nothing but the Governance line (which the core repeats) resolves a wording conflict.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Added or edited rule and spec sentences: the MODIFIED requirement's two new sentences (~40 words) and the ADDED requirement (~55 words, the rationale clause now removed) in `specs/roles/spec.md`, plus about 2 KB of new `SKILL.md` prose bounded by D1 and task 2.1. Words the tests assert (tasks 1.1-1.2): `## Principles`, `## Claude harness`, the goal tokens `bug-fixing`, `token spend`, `user control`, one derived `principles.md#<anchor>` per `### I.`-`### VII.` heading, `gh issue view`, `git branch --show-current`, absence of `/compact`, absence of a root `AGENTS.md` and of `AGENTS.md` in the contract and the prompt, and `CLAUDE.md` plus `.claude/rules/` in both — every clause of both requirements has an assertion, and the prose the tests do not pin is the §I-VII one-liners whose wording Governance resolves.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check of its own: D5 keeps the new checks as text assertions in the existing publisher tests, in the pattern of `test_shared_skill_owns_the_procedure_and_scripts` (`tests/publisher/test_plugin.py:64`), and names why no standard fits — no standard checker reads a skill's prose. Every command of groups 0, 1, 3 and 4 is an existing one (`start_change`, `check_red`, `openspec validate --strict --all`, the declared `test`, `archive_change`, `wait_for_pr`, `resolve_review_thread`).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
