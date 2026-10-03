@@ -4,8 +4,8 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_plugin.py`, add `test_plugin_agents_inherit_the_session_model`: for every `agents/*.md`, parse the YAML between the leading `---` lines and assert `model == "inherit"` and no `effort` key; assert at least one agent was read
-- [ ] 1.2 Run `agent-process check_red "tests/publisher/test_plugin.py::test_plugin_agents_inherit_the_session_model"`. Verify that it fails in its body on `claude-opus-5`. Commit as `test(roles): plugin agents inherit the session model`
+- [x] 1.1 In `tests/publisher/test_plugin.py`, add `test_plugin_agents_inherit_the_session_model`: for every `agents/*.md`, parse the YAML between the leading `---` lines and assert `model == "inherit"` and no `effort` key; assert at least one agent was read
+- [x] 1.2 Run `agent-process check_red "tests/publisher/test_plugin.py::test_plugin_agents_inherit_the_session_model"`. Verify that it fails in its body on `claude-opus-5`. Commit as `test(roles): plugin agents inherit the session model`
 
 ## 2. Agent frontmatter
 
