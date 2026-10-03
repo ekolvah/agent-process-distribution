@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "A two-line frontmatter fix with its root cause observed in the docs, one delta scenario, one RED test in an existing file that the declared `test` runs, and the dropped pin recorded with an honest `none automated` catcher; nothing speculative is added.",
+  "classes": {
+    "simpler": {
+      "evidence": "The simplest alternative is the frontmatter edit alone, with no delta and no test under principle I exception (c) (non-behavioural one-liner). design.md D3 and the delta's single scenario reject it: without the `agents/*.md` assertion nothing stops a fixed id from coming back, which is the exact defect proposal.md Why observes. Cost of keeping it is one function in `tests/publisher/test_plugin.py` over the `agents/` root that `_package_text_files` already walks: no new file, module, script, or abstraction. The alternatives for the value itself (omitted `model`, floating alias `opus`) are weighed in D1.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The delta has exactly one scenario, `roles` / Agent frontmatter read, and tasks.md `## Scenario → test map` maps it to `tests/publisher/test_plugin.py::test_plugin_agents_inherit_the_session_model`, the same name task 1.1 writes and task 1.2 passes to `check_red`. No unmapped scenario and no test without a scenario.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 is tasks 1.1 and 1.2: the test is written and committed before the edit of task 2.1, the `check_red` node id equals the map entry, and the expected failure is located in the test body on the current `model: claude-opus-5` (`agents/architect-reviewer.md:5-6`) rather than at collection, which satisfies the RED rule of `.claude/rules/testing.md`. The task also requires an anti-vacuity assertion that at least one agent was read, so an empty glob cannot report GREEN.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every platform behaviour the design rests on is quoted, not inferred: the subagent model resolution order with its numbered items (frontmatter `model` outranks the main conversation's model, `inherit` selects it, `CLAUDE_CODE_SUBAGENT_MODEL` is step 3, a per-invocation `model` is step 1) and `effort` (\"Overrides the session effort level. Default: inherits from session.\") are cited to the Claude Code sub-agents docs page with the row or item and the read date 2026-10-03 in proposal.md Why and design.md Context; the stale pin itself is an in-repo observation at `agents/architect-reviewer.md:5-6` against the planning session's model. Those quotes are what D1 (`inherit` is a documented value, step 2 stops before the env var) and D2 (an absent `effort` falls back to the session) rest on. The design's claim that the PR's `agent-review` job is unaffected is checkable in this repository: `skills/agent-process/templates/agent-review.yml` names no `model` and no `agents/` path, and `commands/` holds only `init.md`, so nothing here passes a step-1 per-invocation model.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The one dropped guard, the `claude-opus-5` / `effort: high` pin, is listed in design.md Risks with the failure mode (a session on a weaker model or lower effort reviews weaker) and an explicit `Catcher: none automated`. That is accurate rather than evasive: the pin was never proved by a run — repository-wide the pinned strings occur only at `agents/architect-reviewer.md:5-6`, no spec requirement, test, workflow or ADR names them, so no check stops passing. Principle IV holds without a new marker because the input replacing the pin is the main conversation's own model and effort, chosen by the person in that same session, so the degraded case is not silent to the operator who caused it. The second trade-off, a step-1 per-invocation `model` still overriding `inherit`, is listed and accepted for the same reason.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The one catcher the plan names, the new test, is traceable to a run on a head: `.github/agent-process-quality.json` `test` → `.agent-process/scripts/ci_check.py` `check_pytest`, whose product-scope pass (this checkout has `pyproject.toml`, so `_has_product_scope()` is true) collects `tests/publisher/`; tasks 3.2 runs it before delivery and `agent-process / quality` runs it on every pushed head. The dropped-guard row claims no catcher at all instead of naming a role as one, so there is no catcher the review cannot trace.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds one requirement sentence (\"Every plugin agent SHALL declare `model: inherit` and no `effort` in its frontmatter\", 14 words) and one two-line scenario, and edits no rule prose in SKILL.md, principles.md, or `.claude/rules/`. Every word is asserted by the mapped test: the `agents/*.md` set (\"every plugin agent\"), `model == \"inherit\"`, and the absence of an `effort` key. The universal wording over a single present agent costs nothing, since the same glob assertion covers one agent or many.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script and no shipped check are added: design.md D3 records the decision to keep this as one assertion in the existing `tests/publisher/test_plugin.py` with nothing shipped to consumers, and proposal.md What Changes records the declined #317 ask (a consumer model-pin policy or frontmatter check) as the person's decision. The plan therefore adds no new deterministic check ahead of an observed problem.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
