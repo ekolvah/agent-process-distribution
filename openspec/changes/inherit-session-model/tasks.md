@@ -9,7 +9,7 @@
 
 ## 2. Agent frontmatter
 
-- [ ] 2.1 In `agents/architect-reviewer.md`, replace `model: claude-opus-5` with `model: inherit` and remove `effort: high` (design D1, D2). Verify that `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py -q` passes. Commit as `fix(roles): architect-reviewer inherits the session model`
+- [x] 2.1 In `agents/architect-reviewer.md`, replace `model: claude-opus-5` with `model: inherit` and remove `effort: high` (design D1, D2). Verify that `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py -q` passes. Commit as `fix(roles): architect-reviewer inherits the session model`
 
 ## 3. Verify
 
