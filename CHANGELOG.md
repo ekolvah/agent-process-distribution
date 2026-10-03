@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.0...v3.8.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* inherit-session-model ([#338](https://github.com/ekolvah/agent-process-distribution/issues/338)) ([7dc0359](https://github.com/ekolvah/agent-process-distribution/commit/7dc03592516d29448356302466035ef80b81ce7d))
+
 ## [3.8.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.7.1...v3.8.0) (2026-10-03)
 
 
