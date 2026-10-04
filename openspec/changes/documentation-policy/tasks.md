@@ -4,8 +4,8 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_plugin.py`, add `test_skill_carries_the_documentation_policy`. It checks the `## Documentation` section of `SKILL.md`, which must sit before `## Proposal`, for `CLAUDE.md`, `.claude/rules/`, `paths:`, `ADR`, `Auto-memory` and `one home` (spec *A consumer reads the documentation policy from the skill*)
-- [ ] 1.2 Run `agent-process check_red "tests/publisher/test_plugin.py::test_skill_carries_the_documentation_policy"`. Verify that it fails in its body on the missing section. Commit as `test(roles): the skill carries the documentation policy`
+- [x] 1.1 In `tests/publisher/test_plugin.py`, add `test_skill_carries_the_documentation_policy`. It checks the `## Documentation` section of `SKILL.md`, which must sit before `## Proposal`, for `CLAUDE.md`, `.claude/rules/`, `paths:`, `ADR`, `Auto-memory` and `one home` (spec *A consumer reads the documentation policy from the skill*)
+- [x] 1.2 Run `agent-process check_red "tests/publisher/test_plugin.py::test_skill_carries_the_documentation_policy"`. Verify that it fails in its body on the missing section. Commit as `test(roles): the skill carries the documentation policy`
 
 ## 2. Skill text
 

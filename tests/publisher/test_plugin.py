@@ -107,6 +107,15 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
     assert "/compact" not in harness
 
 
+def test_skill_carries_the_documentation_policy() -> None:
+    """Scenario: A consumer reads the documentation policy from the skill."""
+    text = SKILL.read_text(encoding="utf-8").split("\n## Proposal")[0]
+    assert "\n## Documentation\n" in text
+    policy = _section(text, "\n## Documentation\n")
+    for token in ("CLAUDE.md", ".claude/rules/", "paths:", "ADR", "Auto-memory", "one home"):
+        assert token in policy
+
+
 def test_package_contents_are_closed() -> None:
     relative_files = {
         path.relative_to(PACKAGE).as_posix()
