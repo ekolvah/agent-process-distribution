@@ -19,7 +19,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 With a clean worktree, run `agent-process archive_change documentation-policy`. Verify that it archives the delta into `openspec/specs/roles/spec.md`, commits, and pushes the branch
+- [x] 4.1 With a clean worktree, run `agent-process archive_change documentation-policy`. Verify that it archives the delta into `openspec/specs/roles/spec.md`, commits, and pushes the branch
 - [ ] 4.2 Run `gh pr create --title "feat: documentation-policy" --body-file <report>`. The report:
   - references the tracking issue plainly (#314), never with `Closes`;
   - carries the scenario → test map and the live check of 3.3;
