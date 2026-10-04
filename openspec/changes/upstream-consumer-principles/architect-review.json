@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "This is a docs-only change: one principles file with spec-backed Quality Gates. The consumer conventions are folded into existing §V text or recorded as covered, and the §V bounds are now scoped to observing a live external system.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 weighs the extension point (declined by the person) and inline config.yaml context (ADR 0027 byte cost). D2 row 4 folds convention 1 into §V's existing documented-mitigation example instead of adding a Governance rule. Row 5 marks convention 6 as covered by planning 'Substantive work SHALL start as an OpenSpec change' and §I (c). Neither puts a procedural rule in principles.md, which delegates those rules to the skill and specs.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "skip_specs: true, and `openspec validate upstream-consumer-principles --strict` reports 'valid … zero deltas accepted'. With no delta scenarios, the tasks.md map has one line that says so.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.1 is 'no RED: docs-only (skip_specs)', which falls under principles.md §I exception (b) and SKILL.md Tasks group 2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Merge-gate claims cite implemented specs. 'Activation reads back what it wrote' (distribution) fixes the required contexts, the strict policy and the empty bypass list. 'Unresolved P0/P1 threads fail the review check' (review-and-merge) passes on P2/P3 threads and on threads of any other author, which is what Quality Gates bullet 2 now says. The consumer copy was observed with the exact `gh api … -H \"Accept: application/vnd.github.raw\"` command recorded under Why.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Two Quality Gates bullets are replaced: 'All CI checks are green (…)' and the 'not enforced' review bullet. D2 row 3 gives the reason: a restated copy drifted. The parenthetical list stays covered, because the required `agent-process / quality` context runs ci_check, the full quality command. The sticky-comment requirement is now carried by the required `agent-review / agent-review` context. Bullet 2 keeps the old scope (every unaddressed thread). No project-declared input is replaced.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Named catchers each reach a step. Bullet 2 names the person merging, which matches SKILL.md Delivery ('A P2/P3 thread is answered, never resolved'). tasks 2.1 greps for 'not enforced' and runs tests/publisher + tests/agent_process. That covers test_doc_headers (the principles.md question line) and the §VII markers in test_reusable_workflows, which the edit does not touch. tasks 3.2 runs ci_check. The D1 risk catcher is an upstream issue, the same route #316 took.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Words added, with 0 asserted by any test (principle prose, §I (b)): §V first-paragraph sentences 61, mitigation example +12, Quality Gates bullet 1 7, bullet 2 26. About 45 words are removed from Quality Gates. The §V sentences now follow 'repository reasoning alone is not evidence.', so the live-system clause scopes them and they introduce the valid record before the next paragraph names it. principles.md (16 108 bytes) stays under the 28 000-byte Read budget in navigation_policy.py.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script or check. tasks 2.1's grep is a one-off verification command, not a gate.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
