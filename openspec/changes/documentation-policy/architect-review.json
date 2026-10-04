@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Both round-one findings are fixed. D1's loading claims now point to the archived memory-page quotes and to a new quote for path-scoped rules, observed 2026-10-04. Risks states the language gap as accepted with no catcher, and task 4.2 matches the proposal. The other classes held in round one.",
+  "classes": {
+    "simpler": {
+      "evidence": "I checked three simpler forms. (1) Ship nothing and leave the consumer its copy: #314's reason is that every consumer re-derives the policy, and the skill is the only channel that reaches a consumer agent (D1 points to #336). (2) A separate `documentation.md`: D1 rejects it because an extra hop under 1 KB is one the agent may skip. (3) A shorter section: the five bullets map one to one onto the tiers the proposal lists, and the deterministic-check bullet is link-only. Dropping the language check (D2) leaves no mechanism, only text, one requirement and one test.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The delta has one scenario, roles / `A consumer reads the documentation policy from the skill`. Its map entry is `tests/publisher/test_plugin.py::test_skill_carries_the_documentation_policy`. The test's tokens (`CLAUDE.md`, `.claude/rules/`, `paths:`, `ADR`, `Auto-memory`, `one home`), checked in the section before `## Proposal`, match the THEN clauses one to one. The D1 text has each token.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 adds the test and task 1.2 runs `check_red` on its node id, which fails in the body because `## Documentation` is missing. The `_section` pattern at `test_plugin.py:82-85` raises inside the test call. RED is committed before Group 2. Placing the section after `## Claude harness` keeps the existing harness assertions true. Task 2.1 re-runs `test_planning_workflow.py`, whose helpers read SKILL.md sections.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Platform behaviour the plan rests on: (a) the skill body reaches a consumer agent, observed in #336. Live check 3.3 repeats the command form proven in archived `2026-10-03-skill-carries-harness-context/tasks.md` 3.3. (b) D1's loading claims: design.md:39-42 points to the memory-page quotes in `archive/2026-10-03-skill-carries-harness-context/design.md:11-15` (rules without `paths:` load at launch like `CLAUDE.md`; the 200-line target). It adds the memory-page sentence observed 2026-10-04, \"Path-scoped rules trigger when Claude uses the Read, Write, or Edit tool on a file matching the pattern\", which backs \"`paths:` loads it only for matching files\".",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input of this repository is replaced, and no guard here is dropped. The guard dropped in the consumer is `kinozal_scraper`'s `scripts/check_language.py`. The proposal's follow-up and task 4.2 delete it, along with its `ci_check.py` entry and its language section. D2 and Risks say what stops being proven (a second language in docs), and the person accepted the gap on 2026-10-04.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The plan now names no catcher. design.md Risks (lines 58-59) says nothing catches language drift, records the person's acceptance of 2026-10-04, and gives D2's recurrence condition as the way to reopen it. That matches what I traced in round one: `.agent-process/REVIEW_CONTRACT.md` has no rule on language. The other named checks are reached at the delivery step: the text test under the declared `test` (Verify 3.2 and the quality job on every head), and live check 3.3, once, recorded in the PR report.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Text the plan adds: the D1 section, 113 words with its heading, and the roles requirement, 26 words, with a 16-word THEN. The test asserts 6 tokens, one for each noun of the requirement and the THEN. The D1 guidance the test does not pin (the 200-line target, docs read on demand, ADRs say why, the deterministic-check link) has no other home in the skill and is short. The `## Install` sentence on the memory checkpoint describes the hook's mechanism, not the policy, so the two do not duplicate each other.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check. Its only new code is a pytest text test that follows the existing `test_skill_carries_*` pattern. D2 records that the language check is dropped, why (a one-time migration, no recurrence observed), and the standard to start from if the problem recurs (Vale).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
