@@ -4,11 +4,11 @@
 
 ## 1. RED first
 
-- [ ] 1.1 no RED: docs-only (`skip_specs`), principle prose under the `principles.md` §I documentation exception
+- [x] 1.1 no RED: docs-only (`skip_specs`), principle prose under the `principles.md` §I documentation exception
 
 ## 2. Upstreamed principles
 
-- [ ] 2.1 In `skills/agent-process/principles.md`, apply the D2 wording: the §V evidence sentences and mitigation example, the two Quality Gates bullets. Verify that `grep -n "not enforced" skills/agent-process/principles.md` prints nothing and `python -m pytest tests/publisher tests/agent_process -q` passes. Commit as `docs(principles): upstream consumer evidence bounds, gates and conventions`
+- [x] 2.1 In `skills/agent-process/principles.md`, apply the D2 wording: the §V evidence sentences and mitigation example, the two Quality Gates bullets. Verify that `grep -n "not enforced" skills/agent-process/principles.md` prints nothing and `python -m pytest tests/publisher tests/agent_process -q` passes. Commit as `docs(principles): upstream consumer evidence bounds, gates and conventions`
 
 ## 3. Verify
 

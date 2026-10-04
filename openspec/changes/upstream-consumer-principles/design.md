@@ -16,7 +16,7 @@ discovery role").
 
 **D1 — One principles file, no extension point.** Agent-process principles live in the plugin;
 product facts stay in the consumer's product documents. A second normative file of the same
-name invites the drift #316 reports and splits the canon. `principles.md` already defers each
+name invites drift and splits the canon (#316). `principles.md` already defers each
 product fact to a project document, so nothing in the consumer copy needs a principles-shaped
 home. Alternatives: `openspec/principles.md` read beside the core (planned first, reviewed to
 `approve`) — declined by the person: two principles files confuse, and it needed `roles` and
@@ -54,7 +54,7 @@ root cause)".
 
 ## Risks / Trade-offs
 
-- [A consumer needs a rule the core lacks] → it goes upstream through an issue, as #316 did;
+- [A consumer needs a rule the core lacks] → it goes upstream through an issue (#316);
   no local canon to drift.
 
 ## Migration Plan

@@ -22,8 +22,8 @@ check").
 - One principles file: the plugin's. A consumer keeps no principles of its own; its product
   facts belong in its product documents, which `principles.md` already defers to (§II's
   project-local runtime document, §V's capture "the target project does", the gate
-  configuration and coverage-gaps ledger of "Not here"). The extension point #316 asks for is
-  declined (the person's decision, design D1).
+  configuration and coverage-gaps ledger of "Not here"). The requested extension point is
+  declined (#316; the person's decision, design D1).
 - Not taken: the consumer's type-label taxonomy (the person's decision: obsolete, the consumer
   deletes it); its one-line-skip convention, already covered (design D2).
 
@@ -40,4 +40,4 @@ check").
 - Added, removed: none. No ADR: the decision and its alternatives are in `design.md`.
 - Consumer side, outside this change (kinozal_scraper roadmap epic): move product facts into
   its product documents, delete its `principles.md` and the governance section, retarget or
-  close #601.
+  close its principles issue (#601).

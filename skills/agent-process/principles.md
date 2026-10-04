@@ -129,7 +129,11 @@ mode MUST be reproduced and located. Instrument before patching: inspect logs,
 inputs, and the failure point before proposing a change. When the behaviour to
 be designed is how an external system is read or classified, observation of
 that live system is part of locating the failure; repository reasoning alone
-is not evidence.
+is not evidence. The observation names the failing record and an exact valid
+record from the same captured response; a sibling feed, query or source does
+not stand in for it. Compare candidate fix boundaries from broad to narrow: one
+that loses the valid record needs an explicit product decision. Trace the
+current call path before claiming that a narrow fix needs another fetch.
 
 Reproduction is a step of planning: the `proposal` rule in `openspec/config.yaml`
 says what the proposal records (the failing test, or the exact observation when
@@ -142,7 +146,8 @@ preservation (the valid record still passes) rather than inferring it.
 No workarounds, shims, retries, broader try/except, or CI-bypass flags are
 accepted as fixes when the underlying mechanism is not understood. If the
 immediate fix proves too large for the current PR, the PR may ship a
-**documented mitigation** (e.g. raise-and-skip with a linked issue), but the
+**documented mitigation** (e.g. raise-and-skip, or a temporary unblock of an
+unrelated CI failure, with a linked issue for the root cause), but the
 mitigation itself must be a deliberate choice, not a guess.
 
 **Rationale:** a shim that hides a root cause becomes load-bearing later;
@@ -203,16 +208,16 @@ restate them — edit them there.
 
 A PR MAY merge only when:
 
-- All CI checks are green (format, lint, tests, type-check, dependency audit).
+- The ruleset that `activate_protection` installs passes.
 - The change has tests matching its behaviour (Principle I). New extraction
   logic gets an integration test against a saved fixture; new config rules
   get a unit test; new pipeline orchestration gets a Protocol-doubles test.
 - A newly *rejected* coverage decision (a consciously-accepted gap, a scope-/cost-skip)
   is recorded in a coverage-gaps ledger (this project's own) so it isn't
   silently re-litigated — there is no auto-generated coverage inventory to update.
-- The automated PR review workflow has commented on the PR (status sticky
-  comment present); a hard block on its verdict is not enforced, but
-  unaddressed concerns must be answered in PR comments before merge.
+- Unresolved review threads the check passes (`P2`/`P3`, or another author's)
+  are answered in PR comments before merge; the person merging holds this, no
+  check does.
 - For PRs that touch external extraction or API contracts, an E2E smoke test
   (real HTTP) has been run at least once on the branch.
 
