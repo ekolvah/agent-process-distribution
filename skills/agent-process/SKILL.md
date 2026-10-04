@@ -42,6 +42,20 @@ On any conflict, the full text of `principles.md` decides.
   (`git branch --show-current`), the RED commit and one `gh issue view <N>`; do not re-read
   what the RED commit records.
 
+## Documentation
+
+Where an agent writes repository knowledge. Each fact has one home; every other mention links
+to it and does not restate it.
+
+- `CLAUDE.md`: a thin router loaded every session — what the project is, environment
+  pitfalls, pointers; under 200 lines.
+- `.claude/rules/<topic>.md`: one operational topic per file. Frontmatter `paths:` loads it
+  only for matching files; without `paths:` it costs as much as `CLAUDE.md`.
+- Project docs say how the code works and are read on demand; ADRs say why a decision was made.
+- Deterministic checks: [Scripts over instructions](principles.md#scripts-over-instructions).
+- Auto-memory holds only facts specific to one machine or one person; a fact every session
+  needs goes into the repository.
+
 ## Proposal
 
 - Read the code and prior art before writing. Ask the person when a scope decision is theirs.

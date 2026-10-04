@@ -9,7 +9,7 @@
 
 ## 2. Skill text
 
-- [ ] 2.1 In `skills/agent-process/SKILL.md`, add `## Documentation` after `## Claude harness` with the D1 text. Verify that `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py -q` passes. Commit as `feat(skill): carry the documentation policy`
+- [x] 2.1 In `skills/agent-process/SKILL.md`, add `## Documentation` after `## Claude harness` with the D1 text. Verify that `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_planning_workflow.py -q` passes. Commit as `feat(skill): carry the documentation policy`
 
 ## 3. Verify
 
