@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The launcher plus the one-pin test is the minimal fix for #343. Every scenario has a test that is RED in its body. D4 now lists the PATH-resolved command's failure modes, its lost proof and the catcher that is reached, and the SKILL.md wording folds into the existing launcher sentence.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 rejects npm install -g (unpinned, one machine, observed in #343), a consumer package.json, and a SessionStart alias. The other simpler-looking candidate, having init rewrite the generated .claude/skills/openspec-* and commands/opsx/* to the npx form, would write the pin into every generated file (this repository tracks them) and fail the One pin scenario. A four-line shell launcher beside bin/agent-process is the smallest design that satisfies Bare command. Narrowing One pin to 'bin/openspec equals init.OPENSPEC' would still satisfy the issue's 'copies agree', but it would not catch the observed @latest drift returning to a printed command. The repo-wide regex costs about the same and follows the issue's 'one source'.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md Scenario → test map: distribution / Bare command → tests/publisher/test_plugin.py::test_bare_openspec_runs_the_pin (task 1.1). distribution / One pin → tests/publisher/test_plugin.py::test_openspec_pin_has_one_copy (task 1.2). The requirement's 'executable of its bin/' clause is held by test_launcher_is_executable_in_git, extended in task 2.1. Both delta scenarios are mapped and nothing is n/a.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 writes both tests and runs check_red on their node ids (1.3). On today's tree, test 1.1 fails in its call phase because shutil.copy of the missing bin/openspec raises inside the test body, which counts as a junit failure, not an error. Task 1.1 now requires the copy inside the test body, not in a fixture. Test 1.2 fails on the three files the grep finds today (SKILL.md:104,148, archive_change.py:103, openspec_cli.py:11) and on the missing bin/openspec. The test's own regex literal and its f-string expectation start with '(' or '{', so they do not match [0-9A-Za-z].",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The plugin bin/ is on the Bash tool PATH: observed this session (`command -v agent-process` → …/agent-process/3.8.1/bin/agent-process), and the existing 'Skill commands run from a consumer root' requirement covers it. Bare `openspec` is not found: observed (`command -v openspec` empty, and #343's 'openspec: command not found'). npx in git-bash is a shell script: observed (`command -v npx` → /c/Program Files/nodejs/npx). Generated skills call bare openspec: observed in #343. The CRLF working copy (core.autocrlf=true, `file bin/agent-process` → CRLF) already runs under git-bash for bin/agent-process, and the new launcher inherits that. D3's PATHEXT claim is asserted, not observed, but D3 keeps the status quo and stands on its other reason alone: CI and the publisher tests have no plugin bin/ on PATH.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D4 replaces the declared `npx -y @fission-ai/openspec@1.13.0` in SKILL.md with bare `openspec`, which PATH resolves. Beside the decision it now lists two failure modes: a global openspec earlier on PATH runs silently at its own version, and a plugin that predates bin/openspec gives a visible command-not-found. It names the lost proof (Verify's command no longer guarantees the pin) and the catcher that is reached: tests/publisher/test_openspec_valid.py::test_openspec_changes_and_specs_validate_strictly, which runs the pin through openspec_cli.py (npx) inside ci_check.py, locally in Verify 3.2 and in quality.yml on every PR head. No other declared input is replaced and no guard is dropped: archive_change.py keeps npx (D3).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Case bin/openspec without the executable bit: test_launcher_is_executable_in_git, extended to both launchers (2.1), runs inside ci_check.py in Verify 3.2 and in quality.yml on the PR head. Case init.OPENSPEC bumped without bin/openspec, or a pinned/@latest form returning to a printed command: test_openspec_pin_has_one_copy runs in the same two places. Case pin drift in a hard-coded test expectation (test_init_config.py:134 '# openspec: 1.13.0'): task 2.2 reads it from load_init().OPENSPEC. The D4 lost-proof catcher (test_openspec_valid.py in ci_check.py, Verify 3.2 and quality.yml) is traced under replaced. Every named catcher is reachable.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec requirement: about 54 words, all asserted (args and rc by 1.1, pin equality by 1.1 and 1.2, one copy by 1.2, the executable bit by 2.1). Scenario Bare command: about 33 words, all asserted. Scenario One pin: about 30 words, all asserted. SKILL.md: the two command substitutions are asserted by 1.2 (no pinned form left). Task 2.3 now folds about 5 words (`and openspec, at the pinned version`) into the existing launcher sentence at lines 10-12 and adds no new sentence. Those words are unasserted, but they are the smallest pointer that stops the agent hunting for the npx/@latest form #343 observed.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Added script bin/openspec: D1 names #343 as the problem. Upstream's standard is the README's `npm install -g @fission-ai/openspec@latest`; D1 rejects it as unpinned and one-machine (tried and removed in #343), and also rejects a Node dependency (package.json, the npm pinning standard) because consumers have no manifest. Added check test_openspec_pin_has_one_copy: D2 and D5, with the problem in the proposal (five hand-typed copies, and #343's observed @latest run). A dependency bot such as Dependabot or Renovate needs a manifest D1 rejects, and release-please's extra-files bump the release version, not the OpenSpec pin. D2 says why the shell copy cannot read the Python constant. The decision is convincing.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
