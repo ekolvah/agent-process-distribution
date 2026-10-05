@@ -4,9 +4,9 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_plugin.py`, add `test_bare_openspec_runs_the_pin` (design D5): inside the test body (not a fixture, so a missing file is a failure, not an error), copy `bin/openspec` into a temporary plugin `bin/`, put a fake `npx` printing `[%s]` per argument and exiting 3 first on `PATH`, run `sh -c "openspec a 'b c'"`; assert rc 3 and output `[-y][@fission-ai/openspec@<init.OPENSPEC>][a][b c]`
-- [ ] 1.2 In the same file, add `test_openspec_pin_has_one_copy` (design D5): over `git ls-files` outside `openspec/changes/`, every match of the version regex is in `bin/openspec` and equals `init.OPENSPEC`, and `bin/openspec` has one; the failure names each offending file
-- [ ] 1.3 Run `agent-process check_red "tests/publisher/test_plugin.py::test_bare_openspec_runs_the_pin" "tests/publisher/test_plugin.py::test_openspec_pin_has_one_copy"`. Verify that both fail in their bodies (no `bin/openspec`; `SKILL.md`, `archive_change.py`, `openspec_cli.py` named). Commit as `test(distribution): bare openspec runs the pin`
+- [x] 1.1 In `tests/publisher/test_plugin.py`, add `test_bare_openspec_runs_the_pin` (design D5): inside the test body (not a fixture, so a missing file is a failure, not an error), copy `bin/openspec` into a temporary plugin `bin/`, put a fake `npx` printing `[%s]` per argument and exiting 3 first on `PATH`, run `sh -c "openspec a 'b c'"`; assert rc 3 and output `[-y][@fission-ai/openspec@<init.OPENSPEC>][a][b c]`
+- [x] 1.2 In the same file, add `test_openspec_pin_has_one_copy` (design D5): over `git ls-files` outside `openspec/changes/`, every match of the version regex is in `bin/openspec` and equals `init.OPENSPEC`, and `bin/openspec` has one; the failure names each offending file
+- [x] 1.3 Run `agent-process check_red "tests/publisher/test_plugin.py::test_bare_openspec_runs_the_pin" "tests/publisher/test_plugin.py::test_openspec_pin_has_one_copy"`. Verify that both fail in their bodies (no `bin/openspec`; `SKILL.md`, `archive_change.py`, `openspec_cli.py` named). Commit as `test(distribution): bare openspec runs the pin`
 
 ## 2. Launcher and one pin
 

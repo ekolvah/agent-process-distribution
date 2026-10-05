@@ -282,6 +282,54 @@ def test_launcher_runs_the_plugin_script_from_a_consumer(tmp_path: Path) -> None
     assert result.stdout.strip() == "plugin ['a', 'b c']"
 
 
+OPENSPEC_LAUNCHER = ROOT / "bin" / "openspec"
+FAKE_NPX = "#!/bin/sh\nprintf '[%s]' \"$@\"\nexit 3\n"
+OPENSPEC_PIN = re.compile(r"@fission-ai/openspec@([0-9A-Za-z][^\s\"'`)]*)")
+
+
+def test_bare_openspec_runs_the_pin(tmp_path: Path) -> None:
+    """Scenario: Bare command."""
+    plugin_bin = tmp_path / "plugin" / "bin"
+    fake = tmp_path / "fake"
+    plugin_bin.mkdir(parents=True)
+    fake.mkdir()
+    shutil.copy(OPENSPEC_LAUNCHER, plugin_bin / "openspec")
+    (plugin_bin / "openspec").chmod(0o755)
+    (fake / "npx").write_text(FAKE_NPX, encoding="utf-8", newline="\n")
+    (fake / "npx").chmod(0o755)
+    sh = shutil.which("sh")
+    assert sh, "sh is not on PATH"
+    path = os.pathsep.join([str(fake), str(plugin_bin), os.environ["PATH"]])
+    result = subprocess.run(
+        [sh, "-c", "openspec a 'b c'"],
+        cwd=tmp_path,
+        env={**os.environ, "PATH": path},
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 3, result.stderr
+    assert result.stdout == f"[-y][@fission-ai/openspec@{load_init().OPENSPEC}][a][b c]"
+
+
+def test_openspec_pin_has_one_copy() -> None:
+    """Scenario: One pin — outside `openspec/changes/`, only `bin/openspec` writes the version."""
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=ROOT, capture_output=True, encoding="utf-8", check=True
+    ).stdout.splitlines()
+    found = {}
+    for name in tracked:
+        if name.startswith("openspec/changes/"):
+            continue
+        try:
+            text = (ROOT / name).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if versions := OPENSPEC_PIN.findall(text):
+            found[name] = versions
+    assert found == {"bin/openspec": [load_init().OPENSPEC]}, found
+
+
 def test_launcher_prefers_the_checkout_scripts(tmp_path: Path) -> None:
     """Scenario: Publisher checkout runs its own scripts."""
     checkout = tmp_path / "checkout"
