@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Reading the base branch's ruleset is the right, observed boundary for 'settled'. Both findings of the previous round are closed: ADR 0027's disproved claims are corrected, and every required_status_checks rule is now proven to be collected.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects four alternatives:\n- contexts(): misses this repository's `pr-title` and any check a consumer requires.\n- `gh pr checks --required`: filters reported checks only.\n- A longer settle delay: no delay bounds a gap.\n- Auto-merge or a merge queue: goal 3.\nThe redesign costs two reads per invocation and one note branch (D2), which the `pr-title` observation justifies.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The four delta scenarios each map to a test in tasks.md 'Scenario → test map': test_pending_review, test_empty_rollup_after_push, test_required_check_not_yet_attached (1.2) and test_no_required_checks_on_the_base_branch (1.3). Task 1.1 extends the fake before renaming the existing tests' check names. Under the new rule the existing poll counts (test_pr_delivery.py lines 158–170) are unchanged.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.4 runs check_red on both new tests, and on the unfixed script both fail in the body. test_required_check_not_yet_attached gets exit 0 where it expects 3. test_no_required_checks_on_the_base_branch has no `note:` line. Committed before Group 2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Re-observed in review:\n- `gh api repos/ekolvah/agent-process-distribution/rules/branches/main` returns two `required_status_checks` rules: the plugin's two contexts, and `pr-title`.\n- An anonymous curl of the kinozal_scraper rules/branches/main returns 200 with both contexts.\n- A branch without rules returns `[]` with exit 0.\n- `gh pr checks 346` lists the contexts verbatim.\nTask 2.3 now also corrects ADR 0027 lines 212–215 (runs of one push can attach minutes apart; ruleset checks are readable without admin, classic protection's are not), and proposal.md Impact names that bullet.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No guard is dropped: the empty-rollup guard and the two-read agreement stay. The new input is the platform's ruleset, read once. D2 and D3 list its failure modes:\n- Empty rules (before activate_protection, or classic-only protection): a `note:` line, then today's behaviour.\n- A `gh` failure: exit 2.\n- A renamed or removed job, or a reopened PR: exit 3.\nOn empty rules, what stops being proved is that the plugin's own checks are present. Its catcher is traced to activate_protection._observed (lines 65–80), which refuses with exit 2 on the install PR's head without a successful run of each context.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "wait_for_pr exits 3 on the head of task 4.3 for a required context that never attaches (D3, test 1.2). For empty rules, activate_protection refuses on the install PR's head (D2). The gap left — a non-required check attaching more than 30 s after the required ones — is accepted in D3 and recorded through task 2.3 at ADR 0027 line 594. Task 2.4's live run on PR 346 can reach `clean:` because the PR has 0 unresolved threads.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Words the spec delta adds:\n- 'every status check the rules of the PR's base branch require' (11), replacing 'at least one check' (4).\n- 'and a required check the head does not report yet SHALL count as one too' (15).\n- 'a base branch whose rules require no check SHALL be reported as such before the wait' (16).\n- Two scenarios of about 38 and 33 words.\nSKILL.md gains 'every check the base branch requires among them' (8). Every clause is asserted:\n- an absent check waits and is named, and the timeout is exit 3;\n- one name is printed when one check is absent;\n- `extra_rule` (a second rule interleaved with `pull_request`, as observed here) → `pr-title` is named alone, so every rule is read, not the first;\n- the `note:` line is the first line;\n- a failed rules read → RuntimeError.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script is added: the plan puts one guard and two reads into the existing wait_for_pr. design.md D1 names:\n- the problem: issue 348, PR 630;\n- the platform source: rules/branches, GitHub's own merge requirement;\n- the standards weighed and why each does not fit: `gh pr checks --required`, the poseidon/wait-for-status-checks delay, auto-merge or a merge queue.\nNo existing reader of rules/branches is duplicated.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
