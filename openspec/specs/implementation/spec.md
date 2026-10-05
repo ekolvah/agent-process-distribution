@@ -46,11 +46,13 @@ The implementer SHALL write the failing test named in `tasks.md` and prove it re
 Documentation-only, rename and one-line non-behavioural changes are exempt (`principles.md`
 §I). The RED commit SHALL be the first commit after the plan commit of `start_change` and
 SHALL carry the Group 1 ticks; the commit that ends every later group SHALL carry that
-group's ticks. `check_red` SHALL run `python -m pytest` of its own interpreter under its own
+group's ticks. `check_red` SHALL run `python -m pytest` of the `python` on `PATH`, not of the
+interpreter that runs the script, under its own
 configuration — fail-fast cancelled, the cache-driven selection and stepping disabled, a
 JUnit XML report path of its own choosing — with the node ids appended, and SHALL take the
 verdict per test from that report, whole; it SHALL require no runner declaration and no
-report path of the project. `check_red` SHALL write nothing of its own into the working tree — no bytecode,
+report path of the project. While no `python` is on `PATH`, `check_red` SHALL exit 2 naming
+`python` and run nothing. `check_red` SHALL write nothing of its own into the working tree — no bytecode,
 no cache, no report. Before running
 anything, `check_red` SHALL exit 2 while `.github/agent-process-quality.json` of the current
 directory declares no valid `test`, naming that file and the fault, so the change that
@@ -62,7 +64,11 @@ brings a repository's first tests declares its quality command.
 
 #### Scenario: Runner given
 - **WHEN** `check_red` is called with node ids
-- **THEN** the runner is a given — `python -m pytest` of the interpreter that runs the script, no runner argument — and it runs with the report path and the node ids appended and judges RED from the report the run wrote, without any declared report path
+- **THEN** the runner is a given — `python -m pytest` of the `python` on `PATH`, whatever interpreter runs the script, no runner argument — and it runs with the report path and the node ids appended and judges RED from the report the run wrote, without any declared report path
+
+#### Scenario: No python on PATH
+- **WHEN** `check_red` is called with node ids and no `python` is on `PATH`
+- **THEN** it exits 2 naming `python`, and runs no test
 
 #### Scenario: Configuration that cuts the run
 - **WHEN** the project's pytest configuration carries a flag that stops the run early or replays a previous run (`-x`, `--maxfail`, `--stepwise`, `--lf`, `--ff`)
