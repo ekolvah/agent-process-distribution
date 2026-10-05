@@ -93,7 +93,7 @@ delta scenario to a named test or `n/a: <reason>`.
    while the token still carries `<N>` or the issue is not a Project item in the Status the
    propose run leaves it in: nothing is asked and nothing is created there.
 2. Group 1 — RED first: write the tests in the scenario-to-test map and run
-   `agent-process check_red <node ids>`. It runs `python -m pytest` of its own interpreter under its own configuration, with a report path of its own and the node
+   `agent-process check_red <node ids>`. It runs `python -m pytest` of the `python` on `PATH` under its own configuration, with a report path of its own and the node
    ids, and takes nothing else. It exits 2 until `.github/agent-process-quality.json` declares
    a `test`, so the change that brings the first tests declares it. Commit RED with the
    Group 1 ticks, on top of the plan commit, before implementation. When

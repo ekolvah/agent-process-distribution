@@ -10,9 +10,9 @@
 
 ## 2. Runner
 
-- [ ] 2.1 In `skills/agent-process/scripts/check_red.py`, resolve `shutil.which("python")` after the declaration check and exit 2 with `check_red: \`python\` is not on PATH; …` when it is `None` (design D2); use it as `cmd[0]` (D1). Update the module docstring's runner sentence and the comment above `cmd`. Verify that `python -m pytest tests/publisher/test_check_red.py -q` passes
-- [ ] 2.2 In `skills/agent-process/SKILL.md` Group 1, replace "of its own interpreter" with "of the `python` on `PATH`". Verify that `python -m pytest tests/publisher -q` passes
-- [ ] 2.3 Run `agent-process check_red tests/publisher/test_check_red.py::test_runner_owns_the_selection` from the worktree, with `AGENT_PROCESS_PYTHON` set by the session. Verify that it now prints `not RED: 1 green test(s)` and exits 1 instead of `No module named pytest`. Commit as `fix(implementation): check_red runs the consumer's python`
+- [x] 2.1 In `skills/agent-process/scripts/check_red.py`, resolve `shutil.which("python")` after the declaration check and exit 2 with `check_red: \`python\` is not on PATH; …` when it is `None` (design D2); use it as `cmd[0]` (D1). Update the module docstring's runner sentence and the comment above `cmd`. Verify that `python -m pytest tests/publisher/test_check_red.py -q` passes
+- [x] 2.2 In `skills/agent-process/SKILL.md` Group 1, replace "of its own interpreter" with "of the `python` on `PATH`". Verify that `python -m pytest tests/publisher -q` passes
+- [x] 2.3 Run `agent-process check_red tests/publisher/test_check_red.py::test_runner_owns_the_selection` from the worktree, with `AGENT_PROCESS_PYTHON` set by the session. Verify that it now prints `not RED: 1 green test(s)` and exits 1 instead of `No module named pytest`. Commit as `fix(implementation): check_red runs the consumer's python`
 
 ## 3. Verify
 
