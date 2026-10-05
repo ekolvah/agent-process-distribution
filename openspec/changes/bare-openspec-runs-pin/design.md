@@ -52,7 +52,8 @@ archived history quote the command of their time) and matches
 `@fission-ai/openspec@([0-9A-Za-z][^\s"'`)]*)` — a version or a tag such as `latest`, not the
 f-string `{OPENSPEC}`. The only allowed match is `bin/openspec`, equal to `init.OPENSPEC`. Today
 it fails naming `SKILL.md`, `archive_change.py` and `openspec_cli.py`, and the missing
-`bin/openspec`. The `Bare command` test copies `bin/openspec` into a temporary plugin, puts a
+`bin/openspec`. It supersedes `test_planning_workflow.py::test_pinned_openspec`, which
+required the literal pin in `SKILL.md` and `archive_change.py`; that test is removed. The `Bare command` test copies `bin/openspec` into a temporary plugin, puts a
 fake `npx` that prints `[%s]` per argument and exits 3 ahead of it on `PATH`, and runs
 `sh -c "openspec a 'b c'"` as `_run_launcher` does.
 

@@ -4,8 +4,8 @@ The OpenSpec skills and commands that `init` installs (`.claude/skills/openspec-
 `.claude/commands/opsx/*`) call bare `openspec`, and nothing puts that command on `PATH`
 (#343). Observation, this session, plugin 3.8.1 on Windows + git-bash:
 `command -v agent-process` → `…/agent-process/3.8.1/bin/agent-process`,
-`command -v openspec` → not found; #343 records `openspec: command not found` from
-`/opsx:propose`. Root cause: upstream generates the bare command and offers no way to change
+`command -v openspec` → not found; `/opsx:propose` fails with `openspec: command not
+found`. Root cause: upstream generates the bare command and offers no way to change
 it, while the process runs OpenSpec only as `npx -y @fission-ai/openspec@1.13.0`. The pin is
 also typed by hand in five places (`init.py`, `archive_change.py`, `SKILL.md` twice,
 `tests/publisher/openspec_cli.py`), so a bump can miss one.
