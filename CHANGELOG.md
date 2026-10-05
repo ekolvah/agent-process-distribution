@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.2...v3.8.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* check-red-consumer-python ([#346](https://github.com/ekolvah/agent-process-distribution/issues/346)) ([d1e2020](https://github.com/ekolvah/agent-process-distribution/commit/d1e2020f573fe1972039e057a098e2f0ae718e0d))
+
 ## [3.8.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.1...v3.8.2) (2026-10-05)
 
 
