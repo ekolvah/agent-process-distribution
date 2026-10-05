@@ -7,9 +7,14 @@ The implementing run ends only after checks and reviews: a check that has not co
 `agent-review` check running the Claude review included) is a pending review. The script reads the head (`gh pr view --json headRefOid`)
 and its checks (`gh pr checks <PR> --json name,bucket,link`) every 30 s until two reads in a
 row report, on one head, the same non-empty set of checks with none in the `pending` bucket
-(the runs of one push attach one at a time, and a clean verdict ends the delivery loop),
-then reads the unresolved review threads of the review job (GraphQL) — on that head, or
-reads again. The sorting is gh's (`pkg/cmd/pr/checks/aggregate.go`, tag v2.87.3): `pass`,
+and every check the base branch requires among them (the runs of one push attach one at a
+time, minutes apart behind a fast foreign check — issue 348 — and a clean verdict ends the
+delivery loop), then reads the unresolved review threads of the review job (GraphQL) — on
+that head, or reads again. The required checks are read once, before the wait: the
+`context` of every `required_status_checks` rule on the PR's base
+(`gh api repos/{owner}/{repo}/rules/branches/<base>`, readable without admin rights unlike
+classic protection, whose checks it does not return); a base that requires none is printed
+as a `note:` and the wait settles on the reported checks only. The sorting is gh's (`pkg/cmd/pr/checks/aggregate.go`, tag v2.87.3): `pass`,
 `skipping`, `fail`, `cancel`, `pending` (STALE included), the latest run per name — a rerun
 replaces its entry.
 
@@ -122,6 +127,37 @@ def _unresolved_threads(gh: Gh, pr: int) -> tuple[str, str, list[dict[str, Any]]
         after = str(page["pageInfo"].get("endCursor"))
 
 
+def _required(gh: Gh, pr: int) -> list[str]:
+    """The status checks the rules of the PR's base branch require, in rule order; a base
+    that requires none is printed as a `note:`, not passed over in silence."""
+    base = str(_json(gh, ["gh", "pr", "view", str(pr), "--json", "baseRefName"])["baseRefName"])
+    rules = _json(gh, ["gh", "api", f"repos/{{owner}}/{{repo}}/rules/branches/{base}"])
+    contexts: list[str] = []
+    for rule in rules:
+        if rule.get("type") == "required_status_checks":
+            for check in rule["parameters"]["required_status_checks"]:
+                if str(check["context"]) not in contexts:
+                    contexts.append(str(check["context"]))
+    if not contexts:
+        print(f"note: {base} requires no status check; settling on the reported checks only")
+    return contexts
+
+
+def _awaited(checks: list[dict[str, Any]] | None, required: list[str]) -> str:
+    """What a read still awaits — its pending checks, then the required checks it does not
+    report — or `""` once every check concluded."""
+    if not checks:
+        return _NO_CHECKS
+    pending = [str(c["name"]) for c in checks if c["bucket"] == "pending"]
+    # A required check that has not attached yet is pending too: a fast foreign check can
+    # conclude minutes before the base's own workflows attach (issue 348).
+    reported = {str(c["name"]) for c in checks}
+    absent = [context for context in required if context not in reported]
+    if absent:
+        pending.append(f"{', '.join(absent)} (not reported)")
+    return ", ".join(pending)
+
+
 def wait_for_pr(
     pr: int,
     *,
@@ -131,6 +167,7 @@ def wait_for_pr(
     timeout: float = DEFAULT_TIMEOUT,
 ) -> int:
     deadline = clock() + timeout
+    required = _required(gh, pr)
     last: str | None = None
     settled: tuple[str, list[str]] | None = None
     while True:
@@ -138,8 +175,8 @@ def wait_for_pr(
         # head the checks do not belong to, and the next read starts the agreement over.
         head = _head(gh, pr)
         checks = _checks(gh, pr)
-        pending = [str(c["name"]) for c in checks or [] if c["bucket"] == "pending"]
-        if checks and not pending:
+        waiting = _awaited(checks, required)
+        if checks and not waiting:
             # A concluded set is trusted once two reads 30 s apart agree on it, on one head:
             # the runs of one push attach one at a time, and a clean verdict ends the delivery
             # loop, so no later read would see a workflow that attached after a fast one
@@ -158,7 +195,6 @@ def wait_for_pr(
                 waiting = f"a second read of {', '.join(names)} on {head[:7]}"
         else:
             settled = None
-            waiting = ", ".join(pending) or _NO_CHECKS
         # The timeout is elapsed time, not a count of whole poll intervals: the last sleep
         # is the remainder and the last read is at the deadline, so a rollup that never
         # fills ends here, and never before `timeout` seconds passed (PR 147, round 1).

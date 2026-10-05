@@ -67,21 +67,51 @@ def _threads(*unresolved: str, head: str = "A") -> str:
     )
 
 
+_QUALITY, _REVIEW = "agent-process / quality", "agent-review / agent-review"
+
+
+def _status_rule(*contexts: str) -> dict[str, Any]:
+    checks = [{"context": c, "integration_id": 15368} for c in contexts]
+    return {
+        "type": "required_status_checks",
+        "parameters": {
+            "do_not_enforce_on_create": False,
+            "required_status_checks": checks,
+            "strict_required_status_checks_policy": False,
+        },
+    }
+
+
+def _rules(*required: str, extra_rule: bool = False) -> tuple[int, str, str]:
+    """A `gh api …/rules/branches/main` read as observed in this repository: a `pull_request`
+    rule, a `required_status_checks` rule of `required` and, with `extra_rule`, a second one
+    of `pr-title`; `[]` with neither."""
+    rules: list[dict[str, Any]] = []
+    if required:
+        rules += [{"type": "pull_request", "parameters": {}}, _status_rule(*required)]
+    if extra_rule:
+        rules.append(_status_rule("pr-title"))
+    return 0, json.dumps(rules), ""
+
+
 class _Sequence:
     """Fake `gh` for `wait_for_pr`, a `CompletedProcess` per call: for `gh pr checks … --json`
     the next of the `(rc, stdout, stderr)` reads (the last one repeats), counted in `polls`;
-    for `gh pr view … --json headRefOid` the next of `heads`; for the GraphQL query the
-    next of the threads payloads (the last ones repeat)."""
+    for `gh pr view … --json headRefOid` the next of `heads`, for `baseRefName` `main`; for
+    the rules of `main` the `rules` read; for the GraphQL query the next of the threads
+    payloads (the last ones repeat)."""
 
     def __init__(
         self,
         reads: list[tuple[int, str, str]],
         threads: str | list[str],
         heads: list[str] | None = None,
+        rules: tuple[int, str, str] = _rules(_QUALITY, _REVIEW),
     ) -> None:
         self.reads = list(reads)
         self.threads = [threads] if isinstance(threads, str) else list(threads)
         self.heads = list(heads or ["A"])
+        self.rules = rules
         self.polls = 0
 
     @staticmethod
@@ -95,14 +125,19 @@ class _Sequence:
             rc, out, err = self._next(self.reads)
             return subprocess.CompletedProcess(cmd, rc, out, err)
         if cmd[:3] == ["gh", "pr", "view"]:
-            assert "headRefOid" in cmd, cmd
-            head = json.dumps({"headRefOid": self._next(self.heads)})
-            return subprocess.CompletedProcess(cmd, 0, head, "")
+            if "baseRefName" in cmd:
+                view = {"baseRefName": "main"}
+            else:
+                assert "headRefOid" in cmd, cmd
+                view = {"headRefOid": self._next(self.heads)}
+            return subprocess.CompletedProcess(cmd, 0, json.dumps(view), "")
         if cmd[:3] == ["gh", "repo", "view"]:
             repo = json.dumps({"owner": {"login": "owner"}, "name": "repo"})
             return subprocess.CompletedProcess(cmd, 0, repo, "")
         if cmd[:3] == ["gh", "api", "graphql"]:
             return subprocess.CompletedProcess(cmd, 0, self._next(self.threads), "")
+        if cmd[:3] == ["gh", "api", "repos/{owner}/{repo}/rules/branches/main"]:
+            return subprocess.CompletedProcess(cmd, *self.rules)
         raise AssertionError(f"unexpected gh call: {cmd}")
 
 
@@ -111,12 +146,13 @@ def _wait(
     reads: list[tuple[int, str, str]],
     threads: str | list[str] = _threads(),
     *,
-    heads: list[str] | None = None,
     timeout: int = 1800,
+    **fake: Any,
 ) -> tuple[int, str, _Sequence, list[float]]:
-    """Run `wait_for_pr` on the fake `gh`; the fake `sleep` advances the fake `clock`."""
+    """Run `wait_for_pr` on the fake `gh` (`fake`: its `heads`, `rules`); the fake `sleep`
+    advances the fake `clock`."""
     wait_for_pr = load_script("wait_for_pr")
-    gh = _Sequence(reads, threads, heads)
+    gh = _Sequence(reads, threads, **fake)
     now = [0.0]
     sleeps: list[float] = []
 
@@ -133,12 +169,10 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     an unresolved thread → 1; clean → 0; timeout → 3 naming the check; a `gh` failure is an
     error, never a verdict."""
     wait_for_pr = load_script("wait_for_pr")
-    green, running = ("quality", "pass"), ("agent-review", "pending")
-    red, cancelled, done = (
-        ("agent-review", "fail"),
-        ("agent-review", "cancel"),
-        ("agent-review", "pass"),
-    )
+    green, running = (_QUALITY, "pass"), (_REVIEW, "pending")
+    red, cancelled, done = ((_REVIEW, "fail"), (_REVIEW, "cancel"), (_REVIEW, "pass"))
+    # The two-read cases below hold where the fast check alone is all the base requires.
+    only_quality = _rules(_QUALITY)
 
     code, out, gh, _ = _wait(capsys, [_checks(green, running), _checks(green, red)])
     assert code == 1 and "failed: agent-review" in out and gh.polls == 3
@@ -156,7 +190,9 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     # verdict ends the delivery loop and no later read would see it (PR 147, round 2).
     assert gh.polls == 2 and sleeps == [30]
     code, out, gh, _ = _wait(
-        capsys, [_checks(green), _checks(green, running), _checks(green, done)]
+        capsys,
+        [_checks(green), _checks(green, running), _checks(green, done)],
+        rules=only_quality,
     )
     assert code == 0 and gh.polls == 4
     # The two reads must be of one head (PR 147, round 3): a push between them, each head
@@ -166,6 +202,7 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
         [_checks(green), _checks(green), _checks(green, running), _checks(green, done)],
         _threads(head="B"),
         heads=["A", "B"],
+        rules=only_quality,
     )
     assert code == 0 and gh.polls == 5
     # A push after the last read: the threads answer names another head → read again on it.
@@ -198,13 +235,62 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
 def test_empty_rollup_after_push(capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Empty rollup after a push — `no checks reported` is read again after one
     poll interval, never reported clean or failed; a rollup that never fills → 3."""
-    green, done = ("quality", "pass"), ("agent-review", "pass")
+    green, done = (_QUALITY, "pass"), (_REVIEW, "pass")
 
     code, out, gh, sleeps = _wait(capsys, [_EMPTY, _checks(green, done)])
     assert code == 0 and sleeps == [30, 30] and gh.polls == 3
 
     code, out, _, _ = _wait(capsys, [_EMPTY], timeout=120)
     assert code == 3 and "no checks" in out.lower()
+
+
+def test_required_check_not_yet_attached(capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Required check not yet attached — a head reporting only concluded foreign
+    checks is waited on, never clean; the timeout names each required check it lacks, of
+    every rule; a failed read of the rules is an error, never a verdict (issue 348)."""
+    wait_for_pr = load_script("wait_for_pr")
+    foreign = (("CodeQL", "pass"), ("Analyze (python)", "pass"))
+    quality, review = (_QUALITY, "pass"), (_REVIEW, "pass")
+
+    code, out, _, _ = _wait(capsys, [_checks(*foreign)], timeout=120)
+    assert code == 3 and "clean:" not in out
+    assert _QUALITY in out and _REVIEW in out and "(not reported)" in out
+
+    code, out, _, _ = _wait(capsys, [_checks(*foreign, quality)], timeout=120)
+    timeout_line = out.splitlines()[-1]
+    assert code == 3 and timeout_line.startswith("timeout")
+    assert _REVIEW in timeout_line and _QUALITY not in timeout_line
+
+    code, out, gh, _ = _wait(capsys, [_checks(*foreign), _checks(*foreign, quality, review)])
+    assert code == 0 and "clean:" in out and gh.polls == 3
+
+    code, out, _, _ = _wait(
+        capsys,
+        [_checks(*foreign, quality, review)],
+        timeout=120,
+        rules=_rules(_QUALITY, _REVIEW, extra_rule=True),
+    )
+    timeout_line = out.splitlines()[-1]
+    assert code == 3 and "pr-title" in timeout_line
+    assert _QUALITY not in timeout_line and _REVIEW not in timeout_line
+
+    with pytest.raises(RuntimeError, match="HTTP 404"):
+        wait_for_pr.wait_for_pr(
+            9,
+            gh=_Sequence(
+                [_checks(quality, review)], _threads(), rules=(1, "", "HTTP 404: Not Found")
+            ),
+            clock=lambda: 0.0,
+            sleep=lambda s: None,
+        )
+
+
+def test_no_required_checks_on_the_base_branch(capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: No required checks on the base branch — a note says the wait settles on the
+    reported checks only, then the head is waited on as any other."""
+    code, out, _, _ = _wait(capsys, [_checks(("lint", "pass"))], rules=_rules())
+    assert code == 0 and "clean:" in out
+    assert out.splitlines()[0].startswith("note: main requires no status check")
 
 
 @pytest.mark.parametrize(

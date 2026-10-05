@@ -210,9 +210,11 @@ of its brief in the brief's order:
   `reviewRequests`: it is requested by comment and the v1 `agent-review` required check waits
   for it before it concludes, so "a check is still running" is "a review is pending" and
   threads are read only after every check concluded. Observed on the PR of this change:
-  the rollup of a new head is empty for a few seconds, then every workflow run attaches
-  queued at once; required contexts are not readable without admin rights, so the script
-  trusts a concluded rollup only when two consecutive polls list the same checks. Stays
+  the rollup of a new head is empty for a few seconds, then the runs of one push can attach
+  minutes apart (issue 348: a foreign CodeQL first, the process's runs two minutes later);
+  the required checks of a ruleset are readable without admin rights, classic protection's
+  are not, so the script waits for every check the base branch's rules require and trusts a
+  concluded rollup only when two consecutive polls list the same checks. Stays
   until `v2-4` reworks review.
 * Plan approval has no durable GitHub artifact. The person approved by invoking `/opsx:apply`
   in chat after reading the change on its branch; the commit of the artifacts on the branch
@@ -591,8 +593,9 @@ questions of #114 in its order:
   read with only its fast check attached would agree on the names, and a push after the
   last read would pair one head's checks with another's threads. Round 1 (P2): the
   timeout is elapsed time, the last sleep the remainder — the first draft returned when
-  another whole interval did not fit. Not proved: a gap longer than 30 s between the runs
-  of one push. A `gh` failure is exit 2 with its stderr, never a verdict on the PR.
+  another whole interval did not fit. Not proved: a check the base branch does not require
+  attaching more than 30 s after the required ones concluded (issue 348 closed the gap for
+  required checks; such a check does not gate the merge). A `gh` failure is exit 2 with its stderr, never a verdict on the PR.
   Deletion condition: the row above.
 * Group 0 and the propose tail as scripts (issue 144, `v2-2f-start-change`). The delivery
   order lived in five copies — the `tasks` rule, every `tasks.md`, the architecture page,
