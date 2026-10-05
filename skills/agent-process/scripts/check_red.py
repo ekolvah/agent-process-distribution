@@ -3,8 +3,10 @@
 
 Usage: python skills/agent-process/scripts/check_red.py <node-id> ...
 
-The script runs the test runner itself: `python -m pytest` of its own interpreter, under
-its own configuration — `--tb=no --maxfail=0 -p no:stepwise -o cache_dir=<its own
+The script runs the test runner itself: `python -m pytest` of the `python` on `PATH`, not of
+its own interpreter — the launcher runs scripts in the plugin environment, which has neither
+pytest nor the consumer's dependencies, and the tests run as the consumer runs them (issue
+342; no `python` on `PATH` is exit 2) — under its own configuration — `--tb=no --maxfail=0 -p no:stepwise -o cache_dir=<its own
 temporary directory> --junitxml=<its own temporary file>` — with the node ids appended,
 then judges every testcase of the report that run wrote: the report is the runner's
 answer to the node ids, and the script re-derives no selection of its own. The project
@@ -55,6 +57,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -206,6 +209,15 @@ def main(argv: list[str] | None = None) -> None:
             file=sys.stderr,
         )
         sys.exit(2)
+    # The consumer's interpreter, never a fallback to this script's own: the plugin
+    # environment would answer "No module named pytest" (issue 342).
+    python = shutil.which("python")
+    if python is None:
+        print(
+            "check_red: `python` is not on PATH; the tests run under the python on PATH",
+            file=sys.stderr,
+        )
+        sys.exit(2)
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "red.xml"
         # No `-q` here: the verbosity of this run has one home, `addopts` in
@@ -222,7 +234,7 @@ def main(argv: list[str] | None = None) -> None:
         # arguments" (rc 4, no report → exit 2 below). RED needs every node id run: a
         # report cut at the first failure hides a green test.
         cmd = [
-            sys.executable,
+            python,
             "-m",
             "pytest",
             "--tb=no",

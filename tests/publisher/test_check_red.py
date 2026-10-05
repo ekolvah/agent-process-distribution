@@ -13,6 +13,7 @@ collection (``check_red`` counts a collection error as "not RED").
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -45,6 +46,20 @@ def _fake_pytest(
 QUALITY = ".github/agent-process-quality.json"
 
 
+def _python_on_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> str:
+    """Put a directory holding an empty `python` alone on `PATH`; return what
+    `shutil.which("python")` finds there. Nothing runs it: the runner is faked."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    python = bin_dir / ("python.exe" if sys.platform == "win32" else "python")
+    python.write_text("", encoding="utf-8")
+    python.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))
+    found = shutil.which("python")
+    assert found is not None and Path(found).parent == bin_dir
+    return found
+
+
 def _root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, declaration: str | None) -> None:
     """Run from `tmp_path`, whose quality declaration is `declaration` (`None`: absent)."""
     monkeypatch.chdir(tmp_path)
@@ -75,11 +90,13 @@ def test_refuses_without_quality_declaration(
 
 def test_behavioural_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Scenarios: Behavioural change, Runner given, Configuration that cuts the run —
-    `check_red` runs `python -m pytest` of its own interpreter under its own configuration
-    with its own report path and the node ids, and judges RED from that report; no runner
-    argument exists."""
+    `check_red` runs `python -m pytest` of the `python` on `PATH`, not of its own interpreter
+    (the plugin environment, which has neither pytest nor the consumer's dependencies — issue
+    342), under its own configuration with its own report path and the node ids, and judges
+    RED from that report; no runner argument exists."""
     check_red = load_script("check_red")
     _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
+    python = _python_on_path(monkeypatch, tmp_path)
     node = "tests/publisher/test_x.py::test_a"
     red = (
         '<testsuites><testsuite><testcase classname="tests.publisher.test_x" name="test_a">'
@@ -94,7 +111,7 @@ def test_behavioural_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     check_red.main([node])
 
     (cmd,) = commands
-    assert cmd[:3] == [sys.executable, "-m", "pytest"]
+    assert cmd[:3] == [python, "-m", "pytest"]
     assert "--tb=no" in cmd
     # The run is the script's configuration, not the project's: `--maxfail=0` cancels a
     # fail-fast `-x`/`--maxfail` from `addopts` (pytest's last `maxfail` wins);
@@ -121,6 +138,24 @@ def test_behavioural_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     with pytest.raises(SystemExit) as exc:
         check_red.main(["--test", "python -m pytest", node])
     assert exc.value.code == 2
+
+
+def test_no_python_on_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: No python on PATH — no verdict, the missing `python` named, nothing run: a
+    silent fallback to the script's own interpreter would bring issue 342 back unseen."""
+    check_red = load_script("check_red")
+    _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setenv("PATH", str(empty))
+    commands = _fake_pytest(monkeypatch, "<testsuites/>")
+    with pytest.raises(SystemExit) as exc:
+        check_red.main(["tests/test_x.py::test_a"])
+    assert exc.value.code == 2
+    assert "`python`" in capsys.readouterr().err
+    assert commands == []
 
 
 def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
