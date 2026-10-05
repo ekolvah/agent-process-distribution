@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.4](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.3...v3.8.4) (2026-10-05)
+
+
+### Bug Fixes
+
+* wait-for-required-checks ([#350](https://github.com/ekolvah/agent-process-distribution/issues/350)) ([333ebcf](https://github.com/ekolvah/agent-process-distribution/commit/333ebcf48bd672b82e7305db8a6f9541a65ae404))
+
 ## [3.8.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.2...v3.8.3) (2026-10-05)
 
 
