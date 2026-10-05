@@ -615,9 +615,10 @@ def test_publisher_settings_declare_no_navigation_hook() -> None:
     assert not [group for group in groups if group.get("matcher") in {"Bash", "Read"}]
 
 
-def test_launcher_is_executable_in_git() -> None:
+@pytest.mark.parametrize("launcher", ["bin/agent-process", "bin/openspec"])
+def test_launcher_is_executable_in_git(launcher: str) -> None:
     staged = subprocess.run(
-        ["git", "ls-files", "-s", "bin/agent-process"],
+        ["git", "ls-files", "-s", launcher],
         cwd=ROOT,
         capture_output=True,
         encoding="utf-8",

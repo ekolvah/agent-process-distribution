@@ -8,8 +8,9 @@ description: Plan, implement, review, and deliver the shared GitHub agent develo
 Use this procedure with Claude Code. Repository-specific facts remain in
 `openspec/config.yaml`; this skill owns the portable planning and delivery procedure. Run
 repository operations, and every command printed below, through the Bash tool from the
-repository root. `agent-process`, the first word of each script command, is the plugin's
-launcher of this skill's scripts, on the Bash tool's `PATH` while the plugin is enabled.
+repository root. `agent-process`, the first word of each script command, and `openspec`, at
+the pinned version, are the plugin's launchers, on the Bash tool's `PATH` while the plugin is
+enabled.
 
 ## Principles
 
@@ -101,7 +102,7 @@ delta scenario to a named test or `n/a: <reason>`.
 3. Implementation groups: one task per scenario, design decision, or review finding, each
    with its verification command. End each coherent group with a commit that carries its
    ticks.
-4. Verify: run `npx -y @fission-ai/openspec@1.13.0 validate --strict --all` and the `test`
+4. Verify: run `openspec validate --strict --all` and the `test`
    that `.github/agent-process-quality.json` declares; their ticks ride in the archive commit.
 5. Deliver using the procedure below; the Deliver task titles the PR `<type>: <change>` with
    the Conventional Commit type the planner chose — `feat` or `fix` when behaviour changes,
@@ -145,7 +146,7 @@ settled review: `agent-process resolve_review_thread --repo
 refuses a thread reported against the current head and refuses while the head's check is
 still running, then resolves, re-runs that check and replies last. A P2/P3 thread is
 answered, never resolved by the process. A spec correction goes through a change of its own on
-the PR branch — `npx -y @fission-ai/openspec@1.13.0 new change <name>`, the delta under its
+the PR branch — `openspec new change <name>`, the delta under its
 `specs/`, `validate --strict`, then `agent-process archive_change
 <name>` — never a direct edit of `openspec/specs/`. A changed design decision amends the archived
 `design.md` and scenario map in the same push. A finding on script behavior must be closed by its class:

@@ -7,8 +7,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from tests.publisher.init_harness import load_init
+
 ROOT = Path(__file__).resolve().parents[2]
-OPENSPEC = "@fission-ai/openspec@1.13.0"
+OPENSPEC = f"@fission-ai/openspec@{load_init().OPENSPEC}"
 
 
 def _openspec(*args: str, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:

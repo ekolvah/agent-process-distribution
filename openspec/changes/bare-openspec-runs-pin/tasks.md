@@ -10,9 +10,9 @@
 
 ## 2. Launcher and one pin
 
-- [ ] 2.1 Add `bin/openspec` (D1) with a header comment like `bin/agent-process`'s, and run `git update-index --add --chmod=+x bin/openspec`; extend `test_launcher_is_executable_in_git` to both launchers. Verify that `python -m pytest tests/publisher/test_plugin.py -q -k "bare_openspec or executable"` passes
-- [ ] 2.2 In `archive_change.py`, import `OPENSPEC` from `init` and run `npx -y @fission-ai/openspec@{OPENSPEC} archive` (D2, D3); in `tests/publisher/openspec_cli.py` and `test_init_config.py`, take the pin from `load_init().OPENSPEC`. Verify that `python -m pytest tests/publisher/test_pr_delivery.py tests/publisher/test_init_config.py tests/publisher/test_openspec_valid.py -q` passes
-- [ ] 2.3 In `skills/agent-process/SKILL.md`, print `openspec validate --strict --all` (Tasks, Verify) and `openspec new change <name>` (Delivery), and fold `openspec` into the existing launcher sentence (lines 10–12), e.g. "`agent-process` … and `openspec`, at the pinned version, are the plugin's launchers on the Bash tool's `PATH`" — no new sentence (D4). Verify that `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `fix(distribution): bare openspec runs the pin`
+- [x] 2.1 Add `bin/openspec` (D1) with a header comment like `bin/agent-process`'s, and run `git update-index --add --chmod=+x bin/openspec`; extend `test_launcher_is_executable_in_git` to both launchers. Verify that `python -m pytest tests/publisher/test_plugin.py -q -k "bare_openspec or executable"` passes
+- [x] 2.2 In `archive_change.py`, import `OPENSPEC` from `init` and run `npx -y @fission-ai/openspec@{OPENSPEC} archive` (D2, D3); in `tests/publisher/openspec_cli.py` and `test_init_config.py`, take the pin from `load_init().OPENSPEC`. Verify that `python -m pytest tests/publisher/test_pr_delivery.py tests/publisher/test_init_config.py tests/publisher/test_openspec_valid.py -q` passes
+- [x] 2.3 In `skills/agent-process/SKILL.md`, print `openspec validate --strict --all` (Tasks, Verify) and `openspec new change <name>` (Delivery), and fold `openspec` into the existing launcher sentence (lines 10–12), e.g. "`agent-process` … and `openspec`, at the pinned version, are the plugin's launchers on the Bash tool's `PATH`" — no new sentence (D4). Verify that `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `fix(distribution): bare openspec runs the pin`
 
 ## 3. Verify
 
