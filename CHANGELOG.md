@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.1...v3.8.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* bare-openspec-runs-pin ([#344](https://github.com/ekolvah/agent-process-distribution/issues/344)) ([836d5ce](https://github.com/ekolvah/agent-process-distribution/commit/836d5ce2cebb5f4a5fd01cce8010625730b73acd))
+
 ## [3.8.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.0...v3.8.1) (2026-10-03)
 
 
