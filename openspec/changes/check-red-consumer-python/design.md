@@ -19,8 +19,8 @@ which has pytest 9.0.3; the issue's workaround (`AGENT_PROCESS_PYTHON=python`) i
 interpreter. The script itself stays on the plugin environment.
 
 Alternatives rejected:
-- The launcher runs `check_red` with `python`, as before #334 (the script needs only the
-  standard library): an exception to the `distribution` requirement that the launcher runs
+- The launcher runs `check_red` with `python`, as it ran every script before the plugin
+  environment (#334); the script needs only the standard library. Rejected: an exception to the `distribution` requirement that the launcher runs
   every script with `AGENT_PROCESS_PYTHON`; a missing `python` would end as the shell's exit
   127 instead of a named exit 2; and the runner belongs to the script however it is invoked.
 - Install pytest into the plugin environment: the consumer's tests import the consumer's
