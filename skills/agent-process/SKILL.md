@@ -134,8 +134,8 @@ deferrals. The archive is the head the PR opens on.
 
 The `agent-review` check reviews every head with the Claude review job. After creating the
 PR and after every corrective push, run `agent-process wait_for_pr <PR>`;
-it waits until two reads 30 seconds apart agree that all checks on one head concluded, then
-reads unresolved threads on that head.
+it waits until two reads 30 seconds apart agree that all checks on one head concluded, every
+check the base branch requires among them, then reads unresolved threads on that head.
 
 Apply findings and repeat at most three rounds; the fourth leaves the rest to the person with
 a reply. After a push, run `wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
