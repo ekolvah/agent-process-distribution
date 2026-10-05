@@ -27,6 +27,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from init import OPENSPEC
+
 Run = Callable[[list[str]], str]
 LOCK = Path("openspec", "changes", "archive", ".openspec-archive.lock")
 
@@ -100,7 +102,7 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
     tasks = root / "openspec" / "changes" / change / "tasks.md"
     if tasks.exists():
         mark_own_task(tasks, "archive_change", change)
-    run(["npx", "-y", "@fission-ai/openspec@1.13.0", "archive", change, "-y"])
+    run(["npx", "-y", f"@fission-ai/openspec@{OPENSPEC}", "archive", change, "-y"])
     if lock.exists():
         lock.unlink()
         print(f"removed {LOCK} left by a successful archive")

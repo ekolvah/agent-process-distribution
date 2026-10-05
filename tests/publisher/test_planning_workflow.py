@@ -13,7 +13,7 @@ from types import ModuleType
 import pytest
 import yaml
 
-from tests.publisher.openspec_cli import OPENSPEC, _openspec
+from tests.publisher.openspec_cli import _openspec
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / "openspec" / "config.yaml"
@@ -21,7 +21,6 @@ QUALITY = ".github/agent-process-quality.json"
 SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 REVIEWER = ROOT / "agents" / "architect-reviewer.md"
 SCRIPTS = ROOT / "skills" / "agent-process" / "scripts"
-ARCHIVE = SCRIPTS / "archive_change.py"
 REVIEW_SCHEMA = ROOT / "skills" / "agent-process" / "architect-review.schema.json"
 _CLASSES = ["simpler", "map", "red", "platform", "replaced", "catcher", "length", "bespoke"]
 
@@ -533,13 +532,6 @@ def test_bug_reproduction_is_named() -> None:
     proposal = _section("Proposal")
     assert "reproduction" in proposal
     assert "the failing test, or the exact observation" in proposal
-
-
-def test_pinned_openspec() -> None:
-    for path in (SKILL, ARCHIVE):
-        text = path.read_text(encoding="utf-8")
-        assert "openspec@latest" not in text
-        assert OPENSPEC in text
 
 
 def test_one_planning_home() -> None:

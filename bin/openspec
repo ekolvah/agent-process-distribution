@@ -1,0 +1,5 @@
+#!/bin/sh
+# openspec [args] - run the OpenSpec CLI at the version init installs (init.py OPENSPEC;
+# tests/publisher/test_plugin.py holds this copy equal to it), so the generated OpenSpec
+# skills and commands that call bare `openspec` need no global install.
+exec npx -y @fission-ai/openspec@1.13.0 "$@"

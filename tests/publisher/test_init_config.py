@@ -131,7 +131,7 @@ def test_rerender_replaces_only_owned_content(
         text = path.read_text(encoding="utf-8")
         assert _block(text) == _block(before[path])
         assert "# agent-process:begin" in text and "old" not in _only_block(text)
-    assert "# openspec: 1.13.0" in config.read_text(encoding="utf-8")
+    assert f"# openspec: {init.OPENSPEC}" in config.read_text(encoding="utf-8")
     assert workflow.read_text(encoding="utf-8") == init.render_workflow(CURRENT)
     data = json.loads(settings.read_text(encoding="utf-8"))
     assert data["permissions"] == consumer_settings["permissions"]
