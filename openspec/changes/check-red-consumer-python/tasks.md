@@ -4,9 +4,9 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_check_red.py`, add a helper that puts a directory holding an empty `python` (`python.exe` on Windows, mode 0o755 elsewhere) alone on `PATH` and returns its `shutil.which("python")`. In `test_behavioural_change`, use it and assert `cmd[:3] == [<that path>, "-m", "pytest"]` instead of `sys.executable`; update its docstring to "the `python` on `PATH`"
-- [ ] 1.2 Add `test_no_python_on_path`: `PATH` set to an empty directory, a valid declaration, the fake runner; assert exit 2, `python` in stderr, and no command recorded
-- [ ] 1.3 Run `AGENT_PROCESS_PYTHON=python agent-process check_red "tests/publisher/test_check_red.py::test_behavioural_change" "tests/publisher/test_check_red.py::test_no_python_on_path"` — the prefix because the unfixed `check_red` under the plugin environment is the bug itself; 2.3 checks the plain session run. Verify that it prints `RED: 2 failed` and exits 0, both failing in their body (the command starts with `sys.executable`; no exit 2). Commit as `test(implementation): check_red runs the python on PATH`
+- [x] 1.1 In `tests/publisher/test_check_red.py`, add a helper that puts a directory holding an empty `python` (`python.exe` on Windows, mode 0o755 elsewhere) alone on `PATH` and returns its `shutil.which("python")`. In `test_behavioural_change`, use it and assert `cmd[:3] == [<that path>, "-m", "pytest"]` instead of `sys.executable`; update its docstring to "the `python` on `PATH`"
+- [x] 1.2 Add `test_no_python_on_path`: `PATH` set to an empty directory, a valid declaration, the fake runner; assert exit 2, `python` in stderr, and no command recorded
+- [x] 1.3 Run `AGENT_PROCESS_PYTHON=python agent-process check_red "tests/publisher/test_check_red.py::test_behavioural_change" "tests/publisher/test_check_red.py::test_no_python_on_path"` — the prefix because the unfixed `check_red` under the plugin environment is the bug itself; 2.3 checks the plain session run. Verify that it prints `RED: 2 failed` and exits 0, both failing in their body (the command starts with `sys.executable`; no exit 2). Commit as `test(implementation): check_red runs the python on PATH`
 
 ## 2. Runner
 
