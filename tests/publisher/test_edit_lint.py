@@ -17,7 +17,8 @@ from pathlib import Path
 import pytest
 
 from tests.publisher.delivery_fakes import SKILL_SCRIPTS
-from tests.publisher.lint_harness import FINDING, PRE_PUSH, edit_payload, lint_repo
+from tests.publisher.init_harness import git
+from tests.publisher.lint_harness import FINDING, PRE_PUSH, edit_payload, lint_repo, write_config
 
 _SCRIPT = SKILL_SCRIPTS / "edit_lint.py"
 
@@ -55,6 +56,58 @@ def test_only_pre_push_hooks_run_nothing(tmp_path: Path) -> None:
     result = _run(["post-edit"], repo, _edit(repo))
     assert (result.returncode, result.stdout, result.stderr) == (0, "", "")
     assert not (repo / "ran").exists()
+
+
+def _edit_in(path: Path, text: str = "a = 1\n") -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return json.dumps(edit_payload(path))
+
+
+@pytest.mark.parametrize("case", ["allowed", "other"])
+def test_worktree_file_uses_the_worktree_root(tmp_path: Path, case: str) -> None:
+    """Scenario: Worktree file — run from the main checkout, the root-anchored `exclude`
+    applies to the worktree's file, and a file it does not exclude still reports."""
+    repo = lint_repo(tmp_path / "repo", {**FINDING, "exclude": "^allowed/"})
+    worktree = tmp_path / "wt"
+    git("worktree", "add", "-q", str(worktree), cwd=repo)
+    result = _run(["post-edit"], repo, _edit_in(worktree / case / "x.md"))
+    if case == "allowed":
+        assert (result.returncode, result.stdout, result.stderr) == (0, "", "")
+    else:
+        assert result.returncode == 2, result.stderr
+        assert "finding:" in result.stderr
+
+
+def test_worktree_branch_config_runs(tmp_path: Path) -> None:
+    """Scenario: Worktree branch config — the branch's `pre-commit`-stage hooks run."""
+    repo = lint_repo(tmp_path / "repo", PRE_PUSH)
+    worktree = tmp_path / "wt"
+    git("worktree", "add", "-q", "-b", "lint-rules", str(worktree), cwd=repo)
+    branch = {
+        **FINDING,
+        "id": "branch",
+        "name": "branch",
+        "entry": FINDING["entry"].replace("finding:", "branch:"),
+    }
+    write_config(worktree, branch)
+    git("commit", "-q", "-am", "branch lint rules", cwd=worktree)
+    result = _run(["post-edit"], repo, json.dumps(edit_payload(worktree / "a.py")))
+    assert result.returncode == 2, result.stderr
+    assert "branch:" in result.stderr
+
+
+@pytest.mark.parametrize("case", ["no-repo", "not-adopted"])
+def test_file_outside_adopted_repository_is_silent(tmp_path: Path, case: str) -> None:
+    """Scenario: File outside an adopted repository — exit 0, no output."""
+    repo = lint_repo(tmp_path / "repo", FINDING)
+    if case == "no-repo":
+        payload = _edit_in(tmp_path / "scratchpad" / "pr-body.md")
+    else:
+        other = lint_repo(tmp_path / "other", FINDING, adopted=False)
+        payload = json.dumps(edit_payload(other / "a.py"))
+    result = _run(["post-edit"], repo, payload)
+    assert (result.returncode, result.stdout, result.stderr) == (0, "", "")
 
 
 @pytest.mark.parametrize("case", ["no-pre-commit", "no-config"])

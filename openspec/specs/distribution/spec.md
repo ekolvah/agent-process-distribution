@@ -715,8 +715,10 @@ post-edit hook of its own.
 
 ### Requirement: The plugin ships edit-time lint
 After an `Edit` or `Write`, the plugin's hook SHALL run `pre-commit run --hook-stage pre-commit
---files <edited path>` in the session's project directory and SHALL show the agent that run's
-output with exit 2 when the run fails. A run that passes SHALL produce no output. When
+--files <edited path>` in the root of the git repository that holds the edited file, a worktree
+being its own root, and SHALL show the agent that run's output with exit 2 when the run fails.
+A run that passes SHALL produce no output. A file in no git repository, or in one without
+`.github/workflows/agent-process.yml`, SHALL produce no output. When
 `pre-commit` is not on `PATH`, the hook SHALL exit 2 with a marker saying that edit-time lint is
 not active. This repository's `.pre-commit-config.yaml` SHALL
 declare the `ruff-check` and `ruff-format` hooks of `astral-sh/ruff-pre-commit` at the
@@ -730,6 +732,18 @@ declare the `ruff-check` and `ruff-format` hooks of `astral-sh/ruff-pre-commit` 
 #### Scenario: Only pre-push hooks declared
 - **WHEN** the same hook runs in an adopted consumer whose `.pre-commit-config.yaml` declares hooks only at the `pre-push` stage
 - **THEN** it exits 0 with no output, and no `pre-push` hook runs
+
+#### Scenario: Worktree file
+- **WHEN** the hook runs with the main checkout of an adopted consumer as its working directory, for a file of a `git worktree` of it, and the consumer's `pre-commit`-stage hook excludes that file's root-relative directory
+- **THEN** it exits 0 with no output, and for a file the hook does not exclude it exits 2 with the finding
+
+#### Scenario: Worktree branch config
+- **WHEN** the hook runs from the main checkout for a file of a worktree whose branch changed `.pre-commit-config.yaml`
+- **THEN** the branch's `pre-commit`-stage hooks run, not the main checkout's
+
+#### Scenario: File outside an adopted repository
+- **WHEN** the hook runs from an adopted consumer for a file in no git repository, or in a git repository without `.github/workflows/agent-process.yml`
+- **THEN** it exits 0 with no output
 
 #### Scenario: pre-commit missing
 - **WHEN** the hook runs with no `pre-commit` on `PATH`

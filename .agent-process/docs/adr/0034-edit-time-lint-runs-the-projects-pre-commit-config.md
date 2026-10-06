@@ -30,7 +30,9 @@ stage, and the plugin's edit-time hook and the gate are its triggers**, in line 
 [ADR 0027](0027-v2-standards-replace-the-bespoke-control-plane.md).
 
 * The plugin's `PostToolUse` `Edit|Write` hook runs `agent-process edit_lint post-edit`:
-  `pre-commit run --hook-stage pre-commit --files <edited path>`. A failure reaches the agent
+  `pre-commit run --hook-stage pre-commit --files <edited path>`, in the root of the repository
+  holding the edited file, so a worktree uses its own root and config; a file outside an
+  adopted repository is skipped. A failure reaches the agent
   with exit 2; a missing `pre-commit` is a marker. Its timeout is 120 s, since a first
   hook-environment install took 13.5 s and a timeout discards the output.
 * Formatters may rewrite the edited file; the next `Edit` succeeds against the new content.

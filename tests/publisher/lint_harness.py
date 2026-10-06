@@ -8,6 +8,8 @@ from pathlib import Path
 
 from tests.publisher.init_harness import git
 
+ADOPTION_MARKER = Path(".github") / "workflows" / "agent-process.yml"
+
 
 def _hook(hook_id: str, code: str, stage: str, *, pass_filenames: bool = True) -> dict:
     """A local hook running `code` in this interpreter, quoted as `conftest.py` does."""
@@ -29,18 +31,28 @@ FINDING = _hook(
 PRE_PUSH = _hook("pushed", "open('ran', 'w').close()", "pre-push", pass_filenames=False)
 
 
-def lint_repo(root: Path, *hooks: dict) -> Path:
-    """A git repository with `a.py` and a config of `hooks`; no config when none are given."""
+def write_config(root: Path, *hooks: dict) -> None:
+    """A `.pre-commit-config.yaml` of local `hooks` in `root`."""
+    config = {
+        "default_install_hook_types": ["pre-push"],
+        "repos": [{"repo": "local", "hooks": list(hooks)}],
+    }
+    (root / ".pre-commit-config.yaml").write_text(json.dumps(config), encoding="utf-8")
+
+
+def lint_repo(root: Path, *hooks: dict, adopted: bool = True) -> Path:
+    """A committed git repository with `a.py`, a config of `hooks` (none when none are given)
+    and, when `adopted`, the adoption marker."""
     root.mkdir(parents=True, exist_ok=True)
     git("init", "-q", str(root))
     (root / "a.py").write_text("a = 1\n", encoding="utf-8")
+    if adopted:
+        (root / ADOPTION_MARKER).parent.mkdir(parents=True)
+        (root / ADOPTION_MARKER).write_text("", encoding="utf-8")
     if hooks:
-        config = {
-            "default_install_hook_types": ["pre-push"],
-            "repos": [{"repo": "local", "hooks": list(hooks)}],
-        }
-        (root / ".pre-commit-config.yaml").write_text(json.dumps(config), encoding="utf-8")
+        write_config(root, *hooks)
     git("add", "-A", cwd=root)
+    git("commit", "-q", "-m", "init", cwd=root)
     return root
 
 

@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The root cause is reproduced and confirmed in pre-commit's source, the scope matches #360, and the RED plan is sound. The earlier gap is closed: task 2.2 and design D1 now pass the same absolute path to both `git -C` and `--files`.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects `--config <root>/...` from the project directory (confirmed: pre-commit main.py:180,193 makes --files absolute and then relative to the cwd's git root, so a worktree file still becomes `../...`). It also rejects a `cd` in hooks.json (the shell gate does not parse the payload). The simplest unlisted option is `cwd=<file's directory>` with no git call, letting pre-commit find the root itself. The 'File outside an adopted repository' scenario rejects it: outside a repository pre-commit fails with its own git error (exit 2, the #360 noise), and the not-adopted case needs the root anyway. D4 adds only a second name to the existing PATH check. No smaller design satisfies the delta.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md 'Scenario → test map' covers all 7 delta scenarios. The 4 unchanged ones map to existing tests (test_edit_lint.py:43,52,61; test_plugin.py:480,726). Worktree file maps to test_worktree_file_uses_the_worktree_root[allowed|other], Worktree branch config to test_worktree_branch_config_runs, and File outside an adopted repository to test_file_outside_adopted_repository_is_silent[no-repo|not-adopted], all new in tasks 1.2-1.4.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.5 runs check_red over [allowed], branch_config and both outside params, and expects 4 failed. Traced against today's edit_lint.py, which runs pre-commit from the main checkout's cwd. [allowed] becomes `../wt/allowed/x.md`, misses `^allowed/` and exits 2 against an expected 0. In branch_config the main config is PRE_PUSH only, so it exits 0 against an expected 2. no-repo and not-adopted both run the main FINDING hook on `../...` and exit 2 against an expected 0. Each fails in its body. [other] passes today and is rightly left out. Task 1.1's harness change (marker by default plus a commit via init_harness.GIT with a configured identity) keeps the existing tests green, including no-config, which now needs the marker to reach pre-commit.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "pre-commit's chdir to the cwd's git root and its relpath of --files are observed in proposal.md Why (pre-commit 4.6.0: `Failed ../wt/allowed/x.md` from the main checkout vs `Skipped` from the worktree, and `../out.md` outside). I also confirmed them in installed pre_commit/main.py:175-199, where the default config is made absolute against the original cwd (l.177-178), so cwd=root loads the root's config. `git rev-parse --show-toplevel` printing the worktree, and exiting 128 outside a repository, is observed in proposal.md. PostToolUse exit 2 reaching the agent and exit 1 not reaching it is already on record (edit_lint.py:35-36,61-62; ADR 0034).",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D1 replaces the working directory that hooks.json declares ($CLAUDE_PROJECT_DIR) with one derived from the payload's file_path. Its failure modes are listed beside D1-D4: no repository (D2), a non-adopted repository (D3), git missing (D4), an unstaged branch config (Risks), and a relative file_path (D1 lines 23-27). The last is now carried into task 2.2: the absolute path goes to both `git -C` and `--files`. This matches pre_commit/main.py:180, which makes --files absolute against the working directory before it changes into the root. No guard is dropped.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "No guard is dropped: the session gate in hooks.json:52 stays, and D3 adds a per-file adoption check. Two catchers are named. (1) D4: a missing git gets the existing 'not active' marker, which test_pre_commit_that_cannot_run_is_visible[no-pre-commit] reaches through the empty-PATH branch. (2) Risks: pre-commit's 'configuration is unstaged' error in a worktree root reaches the agent through edit_lint.py:59-64 (exit 2, stdout+stderr). Both can be traced.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec delta, requirement text: 'in the session's project directory' (5 words) becomes an 18-word root clause, plus one new 15-word sentence. Both are asserted by the worktree and outside tests (exit code, empty output, `finding:`/`branch:`). New scenarios, WHEN/THEN word counts: Worktree file about 35/20, where the THEN is fully asserted by the [allowed]/[other] params. Worktree branch config about 22/9, where exit 2 plus `branch:` against a PRE_PUSH-only main config asserts both halves. File outside about 24/6, fully asserted. The ADR 0034 bullet amendment (task 2.3) is rationale, not a rule, and carries no test. No sentence outruns its test.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No new script is added; design.md says so beside ADR 0034. The one new check, D3's per-file adoption check, reuses the marker hooks.json already reads, and the person asked for it in #360 'Expected' ('inside a repository that is not adopted, gets no lint and no output'). D4 widens an existing check by one name. No bespoke standard-replacing check.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
