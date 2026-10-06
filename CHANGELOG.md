@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.5](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.4...v3.8.5) (2026-10-06)
+
+
+### Bug Fixes
+
+* job-closes-claude-review ([#352](https://github.com/ekolvah/agent-process-distribution/issues/352)) ([6e3a9df](https://github.com/ekolvah/agent-process-distribution/commit/6e3a9df5af84d14a21e16e94d84f4f6f28a28a8b))
+
 ## [3.8.4](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.3...v3.8.4) (2026-10-05)
 
 
