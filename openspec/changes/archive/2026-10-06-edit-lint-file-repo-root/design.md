@@ -43,7 +43,7 @@ rule.
    covers it.
 
 No new script or check is added; this corrects the directory of an existing one
-([ADR 0034](../../../.agent-process/docs/adr/0034-edit-time-lint-runs-the-projects-pre-commit-config.md)).
+([ADR 0034](../../../../.agent-process/docs/adr/0034-edit-time-lint-runs-the-projects-pre-commit-config.md)).
 The guard dropped is none: the session-level gate stays, and the per-file adoption check is added.
 
 ## Risks / Trade-offs
