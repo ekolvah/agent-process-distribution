@@ -1,4 +1,4 @@
-"""Plugin environment: install the plugin's runtime manifest at session start (#309).
+"""Plugin environment: install the plugin's runtime manifest at session start.
 
 The scripts run under whatever `python` the session finds, and a consumer's lacks `jsonschema`.
 Claude Code documents the remedy: a `SessionStart` hook installs dependencies into

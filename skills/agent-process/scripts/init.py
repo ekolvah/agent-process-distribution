@@ -16,21 +16,21 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 `written` or `unchanged`:
 
 1. onboarding-root    in a repository with no commits only: one commit with no files pushed to
-                       the default branch the repository's settings name, and fetched (#271)
+                       the default branch the repository's settings name, and fetched
 2. onboarding-branch  `git switch -c agent-process/install-<version>` from the default branch
 3. openspec  the pinned `openspec init`, recorded by the `# openspec:` line of the block
 4. config    the marker block of `openspec/config.yaml`, recording `VERSION` by its
-             `# agent-process release:` line, which `release_drift` compares (#190)
+             `# agent-process release:` line, which `release_drift` compares
 5. workflow  the managed `.github/workflows/agent-process.yml`
-6. review    the managed `.github/workflows/agent-review.yml`, the review gate (#215)
+6. review    the managed `.github/workflows/agent-review.yml`, the review gate
 7. dependabot  the marker block of `.github/dependabot.yml`
 8. quality   `.github/agent-process-quality.json`, seeded only beside a created
-             `.pre-commit-config.yaml`; an existing declaration is `unchanged` (#328)
+             `.pre-commit-config.yaml`; an existing declaration is `unchanged`
 9. pre-commit  the marker block of `.pre-commit-config.yaml`: the `pre-push` hook that runs
-               the declared test (#188); a created file also carries the baseline toolchain
+               the declared test; a created file also carries the baseline toolchain
 10. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
               removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
-11. check     the managed `.claude/agent-process-check.py` that hook runs (#187)
+11. check     the managed `.claude/agent-process-check.py` that hook runs
 12. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
 13. project-link `gh project link` of that one unlinked copy to the repository
@@ -40,7 +40,7 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 17. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
                        written line names the PR's URL
 18. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
-              a hook pre-commit did not install moves to `pre-push.legacy` (#270). Its cache
+              a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
 
 Steps 12-13 are classified from `gh` reads of the repository's linked Projects and its
@@ -60,7 +60,7 @@ the `pre-push` row naming why `init` cannot install this clone's hook (`core.hoo
 or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
 `(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
-status line before the `manual` rows says so, as a state, not an action (#290): the installer
+status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
 installation branch is otherwise the only push, and the Project copy and link, the issue and the
 PR the only other GitHub writes.
@@ -182,7 +182,7 @@ def _template(name: str, **values: str) -> str:
 
 
 def render_workflow(version: str) -> str:
-    """The managed caller; it passes no command — the repository declares them (#249)."""
+    """The managed caller; it passes no command — the repository declares them."""
     return _template("agent-process.yml", version=version)
 
 
@@ -680,7 +680,7 @@ def _repository(ctx: Context) -> tuple[str, str, str, list[dict[str, Any]]]:
 
 def _settings_default(ctx: Context, owner: str, name: str) -> str:
     """The default branch the settings name: `repo view` names none in a repository with no
-    commits (#271)."""
+    commits."""
     data = _gh_json(ctx, "api", f"repos/{owner}/{name}")
     default = data.get("default_branch") if isinstance(data, dict) else None
     if not isinstance(default, str) or not default:

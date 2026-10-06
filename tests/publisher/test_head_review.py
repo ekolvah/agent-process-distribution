@@ -126,8 +126,8 @@ def test_rerun_reads_the_closing_comment_not_inline_nodes(
 ) -> None:
     """Scenarios: Re-run on a reviewed head, Re-run on an interrupted review — the job
     publishes finding by finding, each a review node under its login, and closes with one
-    comment naming the head. Nodes without that comment are an interrupted review
-    (issue 139); with it the re-run returns without a second review."""
+    comment naming the head. Nodes without that comment are an interrupted review;
+    with it the re-run returns without a second review."""
     interrupted = _native_review(_HEAD, login=_JOB)
 
     fake = _serve(monkeypatch, _payload(reviews=[interrupted]))

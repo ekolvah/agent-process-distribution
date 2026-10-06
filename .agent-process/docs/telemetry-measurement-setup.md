@@ -4,11 +4,8 @@
 lands, and which label identifies the project it was spent on.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
-Until this file existed, the whole configuration lived on one machine and in one
-session transcript; a single line in an ADR was the only mention of telemetry in
-the tree. Every claim below was observed, not read out of vendor documentation —
-the observations were captured before the repository change that this document
-accompanies (#97), and the two that contradict the documentation are marked.
+Every claim below was observed, not read out of vendor documentation, and the two
+that contradict the documentation are marked.
 
 ## What exports what
 
@@ -58,7 +55,7 @@ stream labels — `service_name` is the only indexed label — so a Loki query m
 select on `service_name` first and filter on the project afterwards.
 
 The carrier is a **list from the first commit** on purpose. `OTEL_RESOURCE_ATTRIBUTES`
-is one string with no merge semantics, and a later per-task attribute (#101) has
+is one string with no merge semantics, and a per-task attribute has
 to be appended to the same variable; a single-pair carrier would have to be
 rewritten to accept it.
 

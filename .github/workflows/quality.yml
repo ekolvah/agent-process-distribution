@@ -3,7 +3,7 @@ name: Quality
 # Called by a consumer job named `agent-process`, so the gate's context is
 # `agent-process / quality`. No pull_request trigger: the caller is the context
 # that branch protection observes. The commands are the repository's
-# .github/agent-process-quality.json (issue 249), read by the trusted process
+# .github/agent-process-quality.json, read by the trusted process
 # source: PR content run with the PR's read-only token, the same trust as the
 # PR's tests and its own caller file. `run:` interpolates no command, check name
 # or event data; they reach the shell only through `env`.

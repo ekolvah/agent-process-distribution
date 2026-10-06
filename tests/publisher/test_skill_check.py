@@ -1,4 +1,4 @@
-"""The Claude session-start skill check (change skill-presence-check, #187).
+"""The Claude session-start skill check (change skill-presence-check).
 
 The check runs as the hook runs it: a subprocess of `templates/skill_check.py` with the Install
 URL as its argument. The `claude` CLI is the process boundary: a fake first on PATH prints the

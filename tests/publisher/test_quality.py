@@ -1,4 +1,4 @@
-"""The repository's quality declaration (change declare-quality-with-first-tests, issue 249).
+"""The repository's quality declaration (change declare-quality-with-first-tests).
 
 `.github/agent-process-quality.json` is the consumer's: the change that adds the first
 tests declares its `test` command, and CI and `check_red` read it. The script is imported
@@ -118,7 +118,7 @@ def test_github_output_malformed_fails(
     assert out.startswith("::error::") and DECLARATION in out, out
 
 
-# --- the pre-push hook (change consumer-pre-push-hook, issue 188) ------------------------
+# --- the pre-push hook (change consumer-pre-push-hook) -----------------------------------
 
 ROOT = Path(__file__).resolve().parents[2]
 

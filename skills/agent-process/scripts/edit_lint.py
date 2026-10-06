@@ -1,8 +1,7 @@
 """Edit-time lint: the project's `pre-commit`-stage hooks run on the file the agent just edited.
 
-Without it a finding surfaces only at the pre-push gate or in CI, and the plugin shipped no
-edit-time check at all (#321). The project, not the plugin, chooses the linters: they are the
-`pre-commit`-stage hooks of its own `.pre-commit-config.yaml`, the same declaration its gate
+Without it a finding surfaces only at the pre-push gate or in CI. The project, not the
+plugin, chooses the linters: they are the `pre-commit`-stage hooks of its own `.pre-commit-config.yaml`, the same declaration its gate
 runs over all files. A project that declares none sees nothing.
 
 The plugin's `hooks/hooks.json` runs it as `agent-process edit_lint post-edit` (PostToolUse,

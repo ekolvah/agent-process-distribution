@@ -1,4 +1,4 @@
-# The pre-commit hook repository (issue 188): pre-commit's `language: python` installs this
+# The pre-commit hook repository: pre-commit's `language: python` installs this
 # checkout with `pip install .` and runs the console script `.pre-commit-hooks.yaml` names.
 [build-system]
 requires = ["setuptools>=61"]

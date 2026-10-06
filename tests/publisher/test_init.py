@@ -319,7 +319,7 @@ def test_quality_command_marker(
     """Scenarios: Fresh install seeds the declaration, Install without tests, Declared quality
     command — a run that creates the config seeds the declaration; while the repository
     declares no `test` and none is seeded, every run prints one `quality:` status line before
-    the `manual` rows and no `manual quality-command` row (#290)."""
+    the `manual` rows and no `manual quality-command` row."""
     init = load_init()
     declaration = sandbox.root / QUALITY
     text = {"malformed": '{"test": ""}', "declared": '{"test": "pytest -q"}'}.get(case)
@@ -426,7 +426,7 @@ def _failure(tmp_path: Path, stdout: str | None, stderr: str | None) -> str:
 def test_gh_read_keeps_absent_stdout_visible(
     tmp_path: Path, stdout: str | None, present: str
 ) -> None:
-    """A read whose stdout was not captured says so, not that `gh` printed nothing (PR 160)."""
+    """A read whose stdout was not captured says so, not that `gh` printed nothing."""
     init = load_init()
     ctx = init.Context(
         root=tmp_path,

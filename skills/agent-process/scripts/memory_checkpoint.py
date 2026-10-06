@@ -2,7 +2,7 @@
 
 Auto-memory (`~/.claude/projects/<project>/memory/`) is machine-local. A fact that every
 session and every person working on the repository needs belongs in the repository, where
-they see it. While that rule was prose only, an agent broke it twice in one session (#313).
+they see it. Prose alone does not keep an agent to that rule.
 
 It reminds rather than blocks. The path tells that a write went into memory, not what the
 note is about, and the platform keeps preferences, corrections and project context there by

@@ -369,7 +369,7 @@ def test_install_asks_no_path_translation() -> None:
 
 def test_verify_runs_the_repository_quality_command() -> None:
     """The portable Verify step and the RED gate defer to the repository's declaration, which
-    names a command that exists (issue 249)."""
+    names a command that exists."""
     tasks = _section("Tasks")
     group1 = tasks[tasks.index("Group 1") : tasks.index(" 3. ")]
     verify = tasks[tasks.index(" 4. Verify") : tasks.index(" 5. ")]
@@ -381,8 +381,8 @@ def test_verify_runs_the_repository_quality_command() -> None:
 
 
 def test_install_asks_no_quality_command() -> None:
-    """Install asks for no quality command (issue 249), and step 4 does not list the `quality:`
-    status line among the rows the person must do (issue 290)."""
+    """Install asks for no quality command, and step 4 does not list the `quality:` status
+    line among the rows the person must do."""
     install = _section("Install")
     assert "--test" not in install and "--setup" not in install
     assert "quality-command" not in install
@@ -391,7 +391,7 @@ def test_install_asks_no_quality_command() -> None:
 def test_group_commits_carry_their_ticks() -> None:
     """Scenario: Behavioural change — the skill names the commit of every tick made before
     the archive: the plan commit, RED with Group 1's, each group's own, Verify's in the
-    archive commit, and the one change the archive tolerates (issue 252)."""
+    archive commit, and the one change the archive tolerates."""
     tasks = " ".join(_section("Tasks").split())
     group0 = tasks[tasks.index("Group 0") : tasks.index("Group 1")]
     group1 = tasks[tasks.index("Group 1") : tasks.index(" 3. ")]
@@ -442,8 +442,8 @@ def test_plan_approved() -> None:
 
 
 def test_plan_from_an_existing_issue() -> None:
-    """Scenario: Plan from an existing issue — the planner writes its number (#242: a
-    placeholder sent the tail down its create branch and duplicated #199 as #241)."""
+    """Scenario: Plan from an existing issue — the planner writes its number: a placeholder
+    would send the tail down its create branch and duplicate the issue."""
     group0 = _group0()
     assert "tracking issue <N>" in group0
     assert "the number of the issue the change is planned from" in group0

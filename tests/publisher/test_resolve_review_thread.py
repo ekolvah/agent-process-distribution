@@ -214,7 +214,7 @@ def _round(*, status: str | None, calls: list[str]) -> dict:
     }
 
 
-# The recovery command is pasted, not reconstructed (D3, Codex's P2 on PR 140).
+# The recovery command is pasted, not reconstructed.
 _REPLY_CALL = "repos/ekolvah/agent-process-distribution/pulls/140/comments/1/replies"
 
 
@@ -264,7 +264,7 @@ def _failing(transports: dict, name: str) -> dict:
 
 
 def test_close_round_names_the_rerun_and_the_reply_when_the_rerun_fails() -> None:
-    """D3 (issue 139): after a successful resolve the thread is gone from `--list`
+    """After a successful resolve the thread is gone from `--list`
     and `--thread` cannot be retried; the error names what is still undone with
     the ids filled in — here the rerun and the reply — and nothing after the
     failure runs."""
@@ -283,8 +283,7 @@ def test_close_round_names_the_rerun_and_the_reply_when_the_rerun_fails() -> Non
     assert "gh run rerun 35" in message
     assert _REPLY_CALL in message
     assert "<owner" not in message and "<pr>" not in message
-    # `gh api -f` sends a static string; only `-F` reads a leading `@` as a file
-    # (Codex's P1 on PR 140).
+    # `gh api -f` sends a static string; only `-F` reads a leading `@` as a file.
     assert "-F body=@" in message
     assert "-f body=" not in message
     assert "502" in message
@@ -316,7 +315,7 @@ def test_close_round_names_the_reply_alone_when_the_reply_fails() -> None:
 
 def test_close_round_refuses_an_unknown_thread_before_any_write() -> None:
     """A mistyped or already-resolved thread id is the `error:` line of the resolve
-    guard, not a KeyError of the reply lookup (Codex's P2 on PR 140)."""
+    guard, not a KeyError of the reply lookup."""
     payload = _payload(threads=[_thread("thread-1", priority="P1", original_commit_oid=_BEHIND)])
     calls: list[str] = []
 
@@ -343,7 +342,7 @@ def test_review_thread_parsing_does_not_drift() -> None:
     The package boundary (design D2) leaves `check_blocking_review_threads.py` in the
     repository control plane while the skill carries its own copy of the query and the
     parsing, so nothing but this guard keeps the merge verdict and the fixer's resolve on
-    one reading. One reader again is the control-plane issue (#114).
+    one reading.
     """
     from scripts import check_blocking_review_threads as required_check
 

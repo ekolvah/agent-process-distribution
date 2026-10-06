@@ -106,8 +106,8 @@ def _run_guard(run: str, sha: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_trusted_checkout_is_the_called_commit() -> None:
-    """Issue 226: the former ref, a `github` context property that does not exist, was empty and made
-    `actions/checkout` fall back to the PR's merge ref. The checkout takes the called
+    """A `github` context property that does not exist is empty and makes `actions/checkout`
+    fall back to the PR's merge ref. The checkout takes the called
     workflow's commit, and an empty one fails the job before the checkout."""
     for name in ("reusable-agent-review.yml", "quality.yml"):
         for job in _workflow(name)["jobs"].values():
@@ -367,7 +367,7 @@ def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
     """Scenario: New head — the job reads once whether its closing comment names the head,
     runs the Claude action only when it does not, posts and verifies the closing comment
     itself, and fails on an unresolved P0/P1 thread. Nothing parses a review and nobody requests one. Every
-    event runs the same path: a skipped job would pass the required check (#137)."""
+    event runs the same path: a skipped job would pass the required check."""
     document = _workflow("reusable-agent-review.yml")
     job = document["jobs"]["agent-review"]
     steps = _steps("reusable-agent-review.yml")
@@ -396,7 +396,7 @@ def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
 
     # Scenarios: Re-run on a reviewed head, Reader failure — one read, no wait: `gh run
     # rerun` re-executes every step, so a head the job reviewed returns on its closing
-    # comment (issue 139). Absence (exit 3) is the step's recorded output; a crash of the
+    # comment. Absence (exit 3) is the step's recorded output; a crash of the
     # reader (exit 2) fails the step and the job, so the action never runs on a read that
     # did not establish absence.
     read = steps["Read the Claude review of the head"]
@@ -556,8 +556,8 @@ def test_agent_review_caller_runs_on_pushes_alone() -> None:
     """Scenario: Review event re-runs the check — by the fixer's `gh run rerun` of
     the head's `pull_request` run, not by an event: every event is a required
     context of its own, so a `pull_request_review` run leaves the `pull_request`
-    context as it was (PR #137: `BLOCKED` with the review-event runs green, `CLEAN`
-    after the rerun). GitHub rejects `pull_request_review_thread`."""
+    context as it was (a shared context reads `BLOCKED` with the review-event runs green).
+    GitHub rejects `pull_request_review_thread`."""
     trigger = _trigger(_workflow("agent-review.yml"))
 
     assert set(trigger) == {"pull_request"}
@@ -690,7 +690,7 @@ def test_release_workflow_enables_auto_merge() -> None:
 
 
 def test_release_workflow_parses_no_unset_output() -> None:
-    """#213: the runner evaluates a step's `env` although its `if` is false, and an output
+    """The runner evaluates a step's `env` although its `if` is false, and an output
     the guarded step needs may be unset then; `fromJSON('')` fails the run."""
     (job,) = _workflow("release-please.yml")["jobs"].values()
     guarded = [s for s in job["steps"] if "steps." in str(s.get("if", ""))]
@@ -702,7 +702,7 @@ def test_release_workflow_parses_no_unset_output() -> None:
 
 def test_release_workflow_moves_stable() -> None:
     """Scenarios: Release created, No release — a release fast-forwards `stable` to its
-    tagged commit with the tagging token; a refused update fails the run (#199)."""
+    tagged commit with the tagging token; a refused update fails the run."""
     (job,) = _workflow("release-please.yml")["jobs"].values()
     raw = job["steps"]
     merge = next(s for s in raw if s.get("name") == "Enable auto-merge on the release PR")

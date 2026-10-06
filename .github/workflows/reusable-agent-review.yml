@@ -62,7 +62,7 @@ jobs:
 
       # One read, no wait: `gh run rerun` re-executes every step, so a re-run of a
       # reviewed head returns on the job's closing comment instead of paying for a
-      # second review of an unchanged head (issue 139). The job posts that comment only
+      # second review of an unchanged head. The job posts that comment only
       # after a session that ended normally, so inline comments alone are an
       # interrupted review, and the re-run reviews again. Exit 3 (absent) is the
       # recorded condition for the review, not a failure of the step; a crash of the

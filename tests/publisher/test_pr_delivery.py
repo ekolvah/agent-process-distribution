@@ -187,7 +187,7 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     assert code == 0 and "clean:" in out and _PR_URL in out
     # A concluded set is trusted once two reads 30 s apart agree on it: a workflow that
     # attaches late is never hidden behind a fast one that already passed, because a clean
-    # verdict ends the delivery loop and no later read would see it (PR 147, round 2).
+    # verdict ends the delivery loop and no later read would see it.
     assert gh.polls == 2 and sleeps == [30]
     code, out, gh, _ = _wait(
         capsys,
@@ -195,7 +195,7 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
         rules=only_quality,
     )
     assert code == 0 and gh.polls == 4
-    # The two reads must be of one head (PR 147, round 3): a push between them, each head
+    # The two reads must be of one head: a push between them, each head
     # read while only its fast check had attached, agrees on the names and proves nothing.
     code, out, gh, _ = _wait(
         capsys,
@@ -215,8 +215,8 @@ def test_pending_review(capsys: pytest.CaptureFixture[str]) -> None:
     assert code == 3 and "timeout" in out.lower() and "agent-review" in out
     assert sleeps == [30, 30, 30, 30]
 
-    # The timeout is the time that elapsed, not the number of whole poll intervals that fit
-    # (PR 147, round 1): a timeout that is not a multiple of the interval is waited through,
+    # The timeout is the time that elapsed, not the number of whole poll intervals that fit:
+    # a timeout that is not a multiple of the interval is waited through,
     # the last sleep is the remainder, and the last read is at the deadline.
     code, out, gh, sleeps = _wait(capsys, [_checks(green, running)], timeout=31)
     assert code == 3 and sleeps == [30, 1] and gh.polls == 3
@@ -247,7 +247,7 @@ def test_empty_rollup_after_push(capsys: pytest.CaptureFixture[str]) -> None:
 def test_required_check_not_yet_attached(capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Required check not yet attached — a head reporting only concluded foreign
     checks is waited on, never clean; the timeout names each required check it lacks, of
-    every rule; a failed read of the rules is an error, never a verdict (issue 348)."""
+    every rule; a failed read of the rules is an error, never a verdict."""
     wait_for_pr = load_script("wait_for_pr")
     foreign = (("CodeQL", "pass"), ("Analyze (python)", "pass"))
     quality, review = (_QUALITY, "pass"), (_REVIEW, "pass")
@@ -342,7 +342,7 @@ def test_archive_commit(tmp_path: Path, own_task: str) -> None:
     archive.mkdir()
     lock = archive / ".openspec-archive.lock"
     tasks = change_dir / "tasks.md"
-    # The own task's command sits on a continuation line (as on #124's task 4.3).
+    # The own task's command sits on a continuation line.
     tasks.write_text(
         "- [x] 1.1 done\n"
         "- [ ] 4.1 `git status --short` empty;\n"
@@ -395,7 +395,7 @@ def test_archive_commit(tmp_path: Path, own_task: str) -> None:
 
 def test_ticks_left_for_the_archive(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Ticks left for the archive — a modified own `tasks.md` rides in the archive
-    commit; another changed file, or that `tasks.md` deleted, still stops it (issue 252)."""
+    commit; another changed file, or that `tasks.md` deleted, still stops it."""
     archive_change = load_script("archive_change")
     change = "v2-9-example"
     rel = f"openspec/changes/{change}/tasks.md"

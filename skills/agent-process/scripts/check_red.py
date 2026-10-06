@@ -5,14 +5,13 @@ Usage: python skills/agent-process/scripts/check_red.py <node-id> ...
 
 The script runs the test runner itself: `python -m pytest` of the `python` on `PATH`, not of
 its own interpreter — the launcher runs scripts in the plugin environment, which has neither
-pytest nor the consumer's dependencies, and the tests run as the consumer runs them (issue
-342; no `python` on `PATH` is exit 2) — under its own configuration — `--tb=no --maxfail=0 -p no:stepwise -o cache_dir=<its own
+pytest nor the consumer's dependencies, and the tests run as the consumer runs them (no
+`python` on `PATH` is exit 2) — under its own configuration — `--tb=no --maxfail=0 -p no:stepwise -o cache_dir=<its own
 temporary directory> --junitxml=<its own temporary file>` — with the node ids appended,
 then judges every testcase of the report that run wrote: the report is the runner's
 answer to the node ids, and the script re-derives no selection of its own. The project
 declares no runner and no report path for it, and the script takes no runner argument (an
-input without a consumer; a consumer with another runner is designed with that consumer,
-issue 112).
+input without a consumer; a consumer with another runner is designed with that consumer).
 
 **The boundary.** The gate guarantees that every node id it was given ran to a verdict,
 or that it exits 2. The signal that the run reached the end is pytest's exit code: 0, 1
@@ -26,12 +25,12 @@ wherever it came from (rc 1 either way); an empty `cache_dir` of the script's ow
 `--lf`, `--ff`, `--nf` nothing to replay, and the `cache` fixture stays available;
 `-p no:stepwise` makes `--stepwise`/`--sw-skip` a usage error. The run writes nothing of
 its own into the working tree: the cache and the report live in a temporary directory, and
-`PYTHONDONTWRITEBYTECODE=1` stops the bytecode (issue 250). An explicit selection in
+`PYTHONDONTWRITEBYTECODE=1` stops the bytecode. An explicit selection in
 the project's `addopts` (`-k`, `-m`, `--deselect`) is the project's configuration: the
 gate judges the run under it, as the project runs its tests.
 
 It exits 2 before running anything while `.github/agent-process-quality.json` of the current
-directory declares no `test` (#249): tests CI would never run prove nothing.
+directory declares no `test`: tests CI would never run prove nothing.
 
 Exits 0 only when the given tests are RED: no test is green AND at least one
 failed. Used by the implementer adapter to gate the RED→GREEN transition: if the
@@ -210,7 +209,7 @@ def main(argv: list[str] | None = None) -> None:
         )
         sys.exit(2)
     # The consumer's interpreter, never a fallback to this script's own: the plugin
-    # environment would answer "No module named pytest" (issue 342).
+    # environment would answer "No module named pytest".
     python = shutil.which("python")
     if python is None:
         print(
@@ -247,7 +246,7 @@ def main(argv: list[str] | None = None) -> None:
             *paths,
         ]
         # No bytecode: in a project that does not ignore `__pycache__` it is untracked
-        # output, and `archive_change` refuses a dirty worktree (issue 250). The variable,
+        # output, and `archive_change` refuses a dirty worktree. The variable,
         # not `-B`: it also reaches every Python process a test starts.
         completed = subprocess.run(
             cmd,
