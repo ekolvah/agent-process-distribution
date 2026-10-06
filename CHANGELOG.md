@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.0...v3.10.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* edit-lint-file-repo-root ([#361](https://github.com/ekolvah/agent-process-distribution/issues/361)) ([77b3417](https://github.com/ekolvah/agent-process-distribution/commit/77b3417a5599ab26fc087ce5534f47cdfb944f78))
+
 ## [3.10.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.9.0...v3.10.0) (2026-10-06)
 
 
