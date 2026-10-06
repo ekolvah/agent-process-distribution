@@ -22,6 +22,8 @@
 
 - [x] 3.1 Add the guard hook of design D5 to the `PreToolUse` `Bash` group of `hooks/hooks.json`, and remove from `.claude/settings.json` every deny entry except `Bash(sleep:*)` (design D7). Verify that the group-1 targets and `python -m pytest tests/publisher -q` pass. Commit as `feat(distribution): the plugin ships the git guard, gated on adoption`
 
+- [x] 3.2 Found by the 5.2 gate: `review-and-merge` "Local safety in Claude Code" required the deny entries 3.1 removes. Add its MODIFIED delta naming the guard, and remove `tests/agent_process/test_delivery_gate_wiring.py::test_claude_denies_push_to_main_force_push_and_merge`. Verify that `python -m pytest tests/agent_process/test_delivery_gate_wiring.py -q` and `openspec validate ship-git-guard --strict` pass. Commit as `fix(review-and-merge): local safety names the git guard`
+
 ## 4. Documentation
 
 - [x] 4.1 In `skills/agent-process/SKILL.md` Install, name the guard and what it denies (merge, push to `main`, force, `--no-verify`, `reset --hard`, `branch -D`, `repo delete`) in the existing sentence on the plugin's navigation hooks, adding no other clause (design D8). Verify that `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `docs(distribution): Install names the git guard`
@@ -44,4 +46,5 @@
 - `distribution` / Ordinary git command → `tests/publisher/test_git_guard.py::test_ordinary_command_is_silent`
 - `distribution` / Unparsed git command → `tests/publisher/test_git_guard.py::test_unparsed_git_command_is_a_visible_hook_error`
 - `distribution` / Repository settings carry no guard deny → `tests/publisher/test_git_guard.py::test_no_static_deny_shadows_the_guard`
+- `review-and-merge` / Push to main from Claude Code → `tests/publisher/test_git_guard.py::test_guarded_command_is_denied_with_the_alternative` (`git push origin main`, `git push --force`, `gh pr merge 5 --squash`), `tests/publisher/test_plugin.py::test_plugin_hooks_guard_git_in_an_adopted_repository`
 - `distribution` / Unadopted repository (existing) → `tests/publisher/test_plugin.py::test_plugin_hooks_are_silent_outside_an_adopted_repository`, which gets a guarded payload in 1.2

@@ -97,7 +97,9 @@ command when the guard misses (bypass form or unparsed):
 
 **D7 — This repository drops the covered deny entries** and keeps `Bash(sleep:*)`; otherwise
 each deny shadows the guard's message (proposal, Why). A settings test asserts no remaining
-entry matches a guarded command. *Lost proof:* the static entries block in every session today,
+entry matches a guarded command. The `review-and-merge` requirement "Local safety in Claude Code"
+named the deny-list as this stop; its delta names the guard, and the test that asserted the deny
+entries (catcher of ADR 0033) is replaced by `test_git_guard.py`. *Lost proof:* the static entries block in every session today,
 including the heredoc forms D6 only reports; after the change this repository relies on the
 installed plugin's `hooks.json` running its checkout's `git_guard.py`.
 - Caught: the group-1 tests run every command of the checkout's `hooks.json`, so a broken entry

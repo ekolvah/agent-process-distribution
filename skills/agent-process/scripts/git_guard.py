@@ -148,7 +148,7 @@ def _git(args: list[str]) -> str | None:
 
 
 def _gh(args: list[str]) -> str | None:
-    return {("pr", "merge"): _MERGE, ("repo", "delete"): _REPO_DELETE}.get(tuple(args[:2]))
+    return {"pr merge": _MERGE, "repo delete": _REPO_DELETE}.get(" ".join(args[:2]))
 
 
 def _rule(tokens: list[str]) -> str | None:

@@ -52,6 +52,8 @@ None.
 
 - `distribution`: the plugin ships the git guard, and this repository's settings carry no deny
   entry that shadows it.
+- `review-and-merge`: "Local safety in Claude Code" names the git guard instead of the
+  deny-list as the local stop for a push to `main`, a force push and `gh pr merge`.
 
 ## Impact
 
@@ -59,7 +61,8 @@ None.
 - Edited: `skills/agent-process/scripts/navigation_policy.py` (shared splitter),
   `hooks/hooks.json`, `.claude/settings.json`, `skills/agent-process/SKILL.md` (Install),
   `tests/publisher/test_plugin.py`, `tests/publisher/test_start_change.py` (`MOVED_SCRIPTS`).
-- Removed: none.
+- Removed: `tests/agent_process/test_delivery_gate_wiring.py::test_claude_denies_push_to_main_force_push_and_merge`,
+  which asserted the deny entries; its scenario maps to `tests/publisher/test_git_guard.py`.
 - Consumers: after the release, sessions in adopted repositories get the guard.
   kinozal_scraper deletes its deny block afterwards, or its entries keep shadowing the
   guard's messages (tracked in the consumer's roadmap epic).
