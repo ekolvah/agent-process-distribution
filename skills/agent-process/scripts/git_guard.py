@@ -30,6 +30,7 @@ from navigation_policy import _basename, _deny, first_stage_verdict
 
 _UNCHECKED = "git_guard: command not parsed, not checked"
 _GIT_WORD = re.compile(r"\b(?:git|gh)\b")
+_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
 _DEFAULT_BRANCH = frozenset({"main", "refs/heads/main"})
 
 # Git's global options that take a separate value before the subcommand: `git -C . push`.
@@ -148,10 +149,16 @@ def _git(args: list[str]) -> str | None:
 
 
 def _gh(args: list[str]) -> str | None:
+    # `-R`/`--repo` is accepted before the subcommand: `gh -R o/r pr merge 5` merges.
+    while args and args[0].startswith(("-R", "--repo")):
+        args = args[2:] if args[0] in {"-R", "--repo"} else args[1:]
     return {"pr merge": _MERGE, "repo delete": _REPO_DELETE}.get(" ".join(args[:2]))
 
 
 def _rule(tokens: list[str]) -> str | None:
+    # `A=1 git push --force` and `env A=1 git ...` (after the walker drops `env`) run git.
+    while len(tokens) > 1 and _ASSIGNMENT.match(tokens[0]):
+        tokens = tokens[1:]
     name = _basename(tokens[0])
     if name == "git":
         return _git(tokens[1:])

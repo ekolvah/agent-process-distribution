@@ -41,15 +41,22 @@ GUARDED = (
 )
 
 GIT_GLOBAL_OPTIONS = ("-C .", "-c a=b", "--git-dir=.git")
+GH_GLOBAL_OPTIONS = ("-R o/r", "--repo o/r", "--repo=o/r")
 
 
 def _forms(command: str) -> list[str]:
     """`command` alone and in every form the guard must see through."""
-    forms = [command, f"cd x && {command}", f"sh -c {shlex.quote(command)}", f"timeout 5 {command}"]
-    if command.startswith("git "):
-        rest = command.removeprefix("git ")
-        forms += [f"git {option} {rest}" for option in GIT_GLOBAL_OPTIONS]
-    return forms
+    forms = [
+        command,
+        f"cd x && {command}",
+        f"sh -c {shlex.quote(command)}",
+        f"timeout 5 {command}",
+        f"A=1 {command}",
+        f"env A=1 {command}",
+    ]
+    tool, _, rest = command.partition(" ")
+    options = GIT_GLOBAL_OPTIONS if tool == "git" else GH_GLOBAL_OPTIONS
+    return forms + [f"{tool} {option} {rest}" for option in options]
 
 
 def _guard(stdin: str, *args: str) -> subprocess.CompletedProcess:
