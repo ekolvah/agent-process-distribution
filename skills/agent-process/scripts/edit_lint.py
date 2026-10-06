@@ -6,12 +6,15 @@ runs over all files. A project that declares none sees nothing.
 
 The plugin's `hooks/hooks.json` runs it as `agent-process edit_lint post-edit` (PostToolUse,
 matcher `Edit|Write`), with the hook JSON on stdin and the project as the working directory.
+`pre-commit` runs in the root of the repository holding the edited file; a file outside an
+adopted repository is not linted.
 """
 
 from __future__ import annotations
 
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -23,6 +26,29 @@ def edited_path(payload: object) -> str | None:
     tool_input = payload.get("tool_input") if isinstance(payload, dict) else None
     path = tool_input.get("file_path") if isinstance(tool_input, dict) else None
     return path if isinstance(path, str) and path else None
+
+
+def adopted_root(git: str, path: str) -> str | None:
+    """The root of the repository holding `path` when it has adopted the process, else None.
+
+    pre-commit takes the root and config from its working directory and makes `--files`
+    relative to that root, so it runs there: a worktree is its own root.
+    """
+    toplevel = subprocess.run(
+        [git, "-C", os.path.dirname(path), "rev-parse", "--show-toplevel"],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if toplevel.returncode != 0:
+        return None  # not repository code: nothing to lint
+    if toplevel.stdout is None:
+        print("edit-time lint is not active: git output was not captured", file=sys.stderr)
+        sys.exit(2)
+    root = toplevel.stdout.strip()
+    adopted = os.path.isfile(os.path.join(root, ".github", "workflows", "agent-process.yml"))
+    return root if adopted else None
 
 
 def main() -> None:
@@ -42,12 +68,20 @@ def main() -> None:
     path = edited_path(payload)
     if path is None:
         sys.exit(0)
-    pre_commit = shutil.which("pre-commit")
-    if pre_commit is None:
-        print("edit-time lint is not active: pre-commit is not on PATH", file=sys.stderr)
-        sys.exit(2)
+    tools = {name: shutil.which(name) for name in ("pre-commit", "git")}
+    for name, found in tools.items():
+        if found is None:
+            print(f"edit-time lint is not active: {name} is not on PATH", file=sys.stderr)
+            sys.exit(2)
+    pre_commit, git = cast(str, tools["pre-commit"]), cast(str, tools["git"])
+    # The path stays absolute: pre-commit resolves a relative one against its working directory.
+    path = os.path.abspath(path)
+    root = adopted_root(git, path)
+    if root is None:
+        sys.exit(0)
     run = subprocess.run(
         [pre_commit, "run", "--hook-stage", "pre-commit", "--color", "never", "--files", path],
+        cwd=root,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
