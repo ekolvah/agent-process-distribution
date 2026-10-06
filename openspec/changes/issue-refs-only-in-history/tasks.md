@@ -11,8 +11,8 @@
 
 ## 2. Rule and hook
 
-- [ ] 2.1 In `.pre-commit-config.yaml`, add under `repo: local` the hook `no-issue-refs` exactly as design D1 declares it, with the name `issue or PR reference outside history records (ADR, CHANGELOG.md, openspec/changes)` (design D3). Verify that `python -m pytest tests/agent_process/test_issue_refs.py -q` passes
-- [ ] 2.2 Remove `tests/agent_process/test_doc_narrative.py` (design D2). Verify that `python -m pytest tests/agent_process -q` passes. Commit 2.1–2.2 as `feat(maintenance): issue references only in history records`
+- [x] 2.1 In `.pre-commit-config.yaml`, add under `repo: local` the hook `no-issue-refs` exactly as design D1 declares it, with the name `issue or PR reference outside history records (ADR, CHANGELOG.md, openspec/changes)` (design D3). Verify that `python -m pytest tests/agent_process/test_issue_refs.py -q` passes
+- [x] 2.2 Remove `tests/agent_process/test_doc_narrative.py` (design D2). Verify that `python -m pytest tests/agent_process -q` passes. Commit 2.1–2.2 as `feat(maintenance): issue references only in history records`
 
 ## 3. Remove the existing references
 

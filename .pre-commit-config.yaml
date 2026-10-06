@@ -13,6 +13,14 @@ repos:
         stages: [pre-commit]
   - repo: local
     hooks:
+      - id: no-issue-refs
+        name: issue or PR reference outside history records (ADR, CHANGELOG.md, openspec/changes)
+        language: pygrep
+        entry: '(?<![\w&/#])#\d+\b|\b(?:issues?|PRs?|pull requests?)[\s#]+\d+\b'
+        args: [--multiline, --ignore-case]
+        types: [text]
+        exclude: '^(\.agent-process/docs/adr/|CHANGELOG\.md$|openspec/changes/)'
+        stages: [pre-commit]
       - id: quality
         name: quality
         entry: python skills/agent-process/scripts/quality.py --hook
