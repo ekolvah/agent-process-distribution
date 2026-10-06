@@ -15,7 +15,7 @@
 
 ## 2. Guard into the package
 
-- [ ] 2.1 In `skills/agent-process/scripts/navigation_policy.py`, extract `first_stage_verdict(command, rule)` from `_hint`/`_stage_hint` (design D2); the navigation verdict becomes a call with its rule. Verify that `python -m pytest tests/publisher/test_navigation_policy.py tests/agent_process/test_doc_headers.py -q` passes unchanged. Commit as `refactor(distribution): navigation_policy exposes its stage walker`
+- [x] 2.1 In `skills/agent-process/scripts/navigation_policy.py`, extract `first_stage_verdict(command, rule)` from `_hint`/`_stage_hint` (design D2); the navigation verdict becomes a call with its rule. Verify that `python -m pytest tests/publisher/test_navigation_policy.py tests/agent_process/test_doc_headers.py -q` passes unchanged. Commit as `refactor(distribution): navigation_policy exposes its stage walker`
 - [ ] 2.2 Add `skills/agent-process/scripts/git_guard.py` (design D1, D3, D4, D6): the module docstring states the problem (#312), that it is a guardrail and not a boundary (#357), and why it is a hook rather than a deny list. Add `git_guard.py` to `MOVED_SCRIPTS` in `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`. Verify that every test of `tests/publisher/test_git_guard.py` except `test_no_static_deny_shadows_the_guard` passes. Commit as `feat(distribution): git_guard denies merge and irreversible git commands`
 
 ## 3. Wiring

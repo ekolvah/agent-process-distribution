@@ -28,8 +28,12 @@ from __future__ import annotations
 import json
 import shlex
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TypeVar
+
+T = TypeVar("T")
 
 _SEPARATORS = frozenset({"|", "||", "&&", ";", "&", "|&", "\n"})
 _REDIRECTS = frozenset({">", ">>", ">|", ">&", "&>", "&>>", "<", "<<", "<<<", "<&"})
@@ -112,19 +116,49 @@ def _split_arguments(name: str, rest: list[str]) -> Stage:
     return Stage(name=name, flags=flags, operands=operands, heredoc=heredoc)
 
 
-def _stage_hint(tokens: list[str], depth: int) -> str | None:
+def _stage_verdict(
+    tokens: list[str], rule: Callable[[list[str]], T | None], depth: int
+) -> T | None:
     tokens = _strip_wrappers(tokens)
     if not tokens:
         return None
-    name = _basename(tokens[0])
-    if name in _SHELLS and depth < _MAX_DEPTH:
+    if _basename(tokens[0]) in _SHELLS:
         # `sh -c "..."` is NOT unwrapped by Claude Code's permission matcher — it was the
         # documented hole in the static list. Recursing closes it.
-        if "-c" in tokens[1:]:
+        if depth < _MAX_DEPTH and "-c" in tokens[1:]:
             position = tokens.index("-c", 1)
             inner = tokens[position + 1] if position + 1 < len(tokens) else ""
-            return _hint(inner, depth + 1)
+            return first_stage_verdict(inner, rule, depth + 1)
         return None
+    return rule(tokens)
+
+
+def first_stage_verdict(
+    command: str, rule: Callable[[list[str]], T | None], depth: int = 0
+) -> T | None:
+    """Apply `rule` to each stage of `command` — its tokens after process wrappers, between
+    shell separators, inside `sh -c` — and return the first verdict that is not None.
+
+    Raises ValueError when the command, or an `sh -c` body in it, does not lex (an unbalanced
+    quote): each caller decides what an unchecked command means for it.
+    """
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    tokens = list(lexer)
+    stage: list[str] = []
+    for token in [*tokens, "\n"]:
+        if token in _SEPARATORS:
+            verdict = _stage_verdict(stage, rule, depth)
+            if verdict is not None:
+                return verdict
+            stage = []
+            continue
+        stage.append(token)
+    return None
+
+
+def _navigation_rule(tokens: list[str]) -> str | None:
+    name = _basename(tokens[0])
     if name not in _RULES:
         return None
     return _RULES[name](_split_arguments(name, tokens[1:]))
@@ -186,30 +220,14 @@ _RULES = {
 }
 
 
-def _hint(command: str, depth: int) -> str | None:
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
-    lexer.whitespace_split = True
-    try:
-        tokens = list(lexer)
-    except ValueError:
-        return None  # unbalanced quote: a lexer limit, not a violation.
-    stage: list[str] = []
-    for token in [*tokens, "\n"]:
-        if token in _SEPARATORS:
-            hint = _stage_hint(stage, depth)
-            if hint is not None:
-                return hint
-            stage = []
-            continue
-        stage.append(token)
-    return None
-
-
 def navigation_hint(command: str) -> str | None:
     """Return an actionable replacement message when a stage reads the filesystem."""
     if not isinstance(command, str) or not command.strip():
         return None
-    hint = _hint(command, depth=0)
+    try:
+        hint = first_stage_verdict(command, _navigation_rule)
+    except ValueError:
+        return None  # unbalanced quote: a lexer limit, not a violation.
     return None if hint is None else f"{hint} Repository navigation goes through tools."
 
 
