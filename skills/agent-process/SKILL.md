@@ -200,9 +200,9 @@ Run from the consumer's root:
 
 The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude
 plugin install agent-process@agent-process-marketplace`), and applies in every project with no
-project setting: a project that enables it gets a project-scope install per spelling of its path
-(#256). Claude runs the release the machine last fetched for the marketplace name: the `ref` in
-`.claude/settings.json` does not re-point a marketplace the machine already knows (#184). The
+project setting: a project that enables it gets a project-scope install per spelling of its path.
+Claude runs the release the machine last fetched for the marketplace name: the `ref` in
+`.claude/settings.json` does not re-point a marketplace the machine already knows. The
 marketplace follows the branch `stable`, which each release fast-forwards, with auto-update on,
 so a machine that did the `plugin-channel` row gets a release within a session. The plugin's
 tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session

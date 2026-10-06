@@ -151,7 +151,7 @@ def test_rerender_replaces_only_owned_content(
 
 
 def test_config_block_records_release(sandbox: Sandbox) -> None:
-    """Scenario: Release recorded — install and rerender record the installed release (#190)."""
+    """Scenario: Release recorded — install and rerender record the installed release."""
     init = load_init()
     line, old = f"# agent-process release: {init.VERSION}", "# agent-process release: 1.9.0"
     config = sandbox.root / "openspec" / "config.yaml"
@@ -164,7 +164,7 @@ def test_config_block_records_release(sandbox: Sandbox) -> None:
 
 
 def test_dependabot_leaves_process_refs_to_install(sandbox: Sandbox) -> None:
-    """Scenario: Dependabot render — the process refs are ignored; Install moves them (#199)."""
+    """Scenario: Dependabot render — the process refs are ignored; Install moves them."""
     init = load_init()
     _installed(init, sandbox)
     dependabot = yaml.safe_load(
@@ -176,7 +176,7 @@ def test_dependabot_leaves_process_refs_to_install(sandbox: Sandbox) -> None:
 
 def test_pre_commit_block_references_the_hook(sandbox: Sandbox) -> None:
     """Scenario: Consumer render — the block pins this repository's `quality` hook at the
-    installed release, and pre-commit installs it at `pre-push` (#188)."""
+    installed release, and pre-commit installs it at `pre-push`."""
     init = load_init()
     _installed(init, sandbox)
     config = yaml.safe_load((sandbox.root / ".pre-commit-config.yaml").read_text(encoding="utf-8"))

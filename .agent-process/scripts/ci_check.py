@@ -66,11 +66,10 @@ def _has_product_scope() -> bool:
     """Whether this checkout has its own product test/lint scope to run.
 
     A bare consumer render has neither a recognized product config file nor
-    any Python source outside `_PROCESS_PATHS` (criterion 6 of #55): the
-    process config alone covers it. The publisher's own self-hosted checkout,
-    and an adopted existing project (criterion 10), have one or the other —
-    so their own lint/test scope keeps running exactly as it did before the
-    process config moved under `.agent-process/`. A single config filename is
+    any Python source outside `_PROCESS_PATHS`: the process config alone
+    covers it. The publisher's own self-hosted checkout, and an adopted
+    existing project, have one or the other, so their own lint/test scope
+    runs as well. A single config filename is
     not a reliable proxy for either case: a consumer may use `pytest.ini` or
     `setup.cfg`, or have product Python files with no config file at all.
     """
@@ -85,7 +84,7 @@ def _product_scope_excludes(flag: str) -> list[str]:
     A consumer with no config of its own (no `testpaths`) would otherwise
     re-collect `tests/agent_process` and `.agent-process` under its own root
     config — which lacks the process's `pythonpath` — producing failures
-    that have nothing to do with product code (#57 findings).
+    that have nothing to do with product code.
     """
     return [f"{flag}={path}" for path in _PROCESS_PATHS]
 

@@ -132,9 +132,8 @@ class TestProductScopeExcludesProcessPaths:
     A consumer with no config of its own re-collects
     `tests/agent_process` and `.agent-process` under its own root config —
     which lacks the process's `pythonpath` —
-    producing failures that have nothing to do with product code (#57
-    findings: the second `pytest` pass re-collected the process suite and
-    failed to import `scripts`)."""
+    producing failures that have nothing to do with product code (the second
+    `pytest` pass re-collects the process suite and fails to import `scripts`)."""
 
     @pytest.fixture(autouse=True)
     def _force_product_scope(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -216,7 +215,7 @@ class TestFindModules:
 
 class TestStamp:
     """`.ci_check_stamp` lets a full run skip checks already verified for this
-    exact, clean tree — see issue #43. Every test runs in a temporary repo
+    exact, clean tree. Every test runs in a temporary repo
     (never the real one) since `run_selected()` now touches a stamp file at
     cwd.
 

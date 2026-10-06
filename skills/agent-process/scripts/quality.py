@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read the repository's quality declaration (issue 249).
+"""Read the repository's quality declaration.
 
 Usage: python skills/agent-process/scripts/quality.py (--github-output | --hook)
 
@@ -18,7 +18,7 @@ and `checks` to `$GITHUB_OUTPUT`. An absent file is a warning annotation and emp
 (CI runs no tests, visibly); a malformed one is an error annotation and exit 1. `check_red`
 and the installer call `read`.
 
-`hook` is the pre-push hook (issue 188): the console script `agent-process-quality` for a
+`hook` is the pre-push hook: the console script `agent-process-quality` for a
 consumer, through pre-commit, and `--hook` for this repository. It runs the declared `test`
 once through `bash` and exits with its code.
 """

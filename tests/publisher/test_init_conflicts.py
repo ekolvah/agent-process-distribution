@@ -111,7 +111,7 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         "settings",
         lambda init, sb: _write(sb, ".claude/settings.json", _settings(enabled=False)),
     ),
-    # YAML spellings of the same top-level key (review of PR 159).
+    # YAML spellings of the same top-level key.
     **{
         f"config-rules-{name}": ("config", _writing("openspec/config.yaml", text))
         for name, text in {

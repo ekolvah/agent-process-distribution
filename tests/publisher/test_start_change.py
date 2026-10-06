@@ -66,6 +66,10 @@ def test_moved_start_scripts_resolve_consumer_root(
 _CHANGE = "v2-9-example"
 _START = [_CHANGE, "--planner", "Claude", "--implementer", "Claude"]
 _PLACEHOLDER = "tracking issue <N>"
+# Fixture numbers are built, so the `no-issue-refs` hook does not read them as references.
+_ISSUE = 7
+_TOKEN = f"tracking issue {_ISSUE}"
+_LATER_TOKEN = f"tracking issue {_ISSUE + 2}"
 _GROUP0 = (
     "- [ ] 0.1 `python skills/agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
 )
@@ -119,7 +123,7 @@ def _creates(gh: Gh) -> list[list[str]]:
 def test_verdict_is_rework(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Verdict is rework — exit 2 naming the rework, no branch."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, verdict="rework", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, verdict="rework", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh()
 
     with pytest.raises(SystemExit) as exc:
@@ -153,7 +157,7 @@ def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     )
 
     start_change = load_script("start_change")
-    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"), review=review)
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_TOKEN), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -175,7 +179,7 @@ def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
 
 def test_plan_without_a_prior_issue(tmp_path: Path) -> None:
     """Scenario: Plan without a prior issue — an approve with no problem reference creates
-    the issue (#186: the reviewer had to cite an unrelated one)."""
+    the issue: the reviewer never has to cite an unrelated one."""
     create = load_script("create_tracking_issue")
     root = _change(tmp_path, tasks=_GROUP0.format(token=_PLACEHOLDER))
     gh = Gh()
@@ -191,7 +195,7 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
     message = "Additional properties are not allowed ('additions'"
 
     start_change = load_script("start_change")
-    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"), review=review)
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_TOKEN), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -210,8 +214,8 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
 def test_review_approves_an_open_finding(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """`approve` beside a class whose result is `finding` is invalid: an open finding is rework
-    (PR 158, Codex P1)."""
+    """`approve` beside a class whose result is `finding` is invalid: an open finding is
+    rework."""
     review = _review()
     review["classes"]["length"] = {
         "evidence": "the rule is 41 words, the test asserts 12",
@@ -220,7 +224,7 @@ def test_review_approves_an_open_finding(
     }
 
     start_change = load_script("start_change")
-    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"), review=review)
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_TOKEN), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -251,7 +255,7 @@ def test_review_validator_absent(
 ) -> None:
     """No validator is a visible stop, not a pass."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
     monkeypatch.setitem(sys.modules, "jsonschema", None)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
@@ -276,12 +280,11 @@ def test_propose_run_stopped_before_its_tail(
     assert line in capsys.readouterr().err
 
     # The first token decides (Group 0 comes first): the literal `<N>`, the whole token or
-    # `tracking issue 9` in a later line — a test description, a quoted rule — is text
-    # (PR 148, Codex P2).
+    # another token in a later line — a test description, a quoted rule — is text.
     root = _change(
         tmp_path / "b",
-        tasks=_GROUP0.format(token="tracking issue 7")
-        + "- [ ] 1.1 asserts `<N>` and `tracking issue <N>` in the rule; fixture tracking issue 9\n",
+        tasks=_GROUP0.format(token=_TOKEN)
+        + f"- [ ] 1.1 asserts `<N>` and `tracking issue <N>` in the rule; fixture {_LATER_TOKEN}\n",
     )
     gh = Gh(root=root)
     start_change.main(_START, gh=gh, root=root)
@@ -289,7 +292,7 @@ def test_propose_run_stopped_before_its_tail(
 
     root = _change(
         tmp_path / "b2",
-        tasks=_GROUP0.format(token=_PLACEHOLDER) + "- [ ] 1.1 fixture tracking issue 9\n",
+        tasks=_GROUP0.format(token=_PLACEHOLDER) + f"- [ ] 1.1 fixture {_LATER_TOKEN}\n",
     )
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
@@ -297,7 +300,7 @@ def test_propose_run_stopped_before_its_tail(
     assert exc.value.code == 2 and _develops(gh) == []
     assert line in capsys.readouterr().err
 
-    root = _change(tmp_path / "c", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "c", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(status="Todo")
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -305,7 +308,7 @@ def test_propose_run_stopped_before_its_tail(
     err = capsys.readouterr().err
     assert line in err and "Todo" in err
 
-    root = _change(tmp_path / "d", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "d", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(status=None)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -314,15 +317,15 @@ def test_propose_run_stopped_before_its_tail(
     assert line in err and "Status: none" in err
 
     # The Status read is the linked Project's, not the first item's: an unrelated board in
-    # Planned does not start the delivery, one in Todo does not block it (PR 148, Codex P1).
-    root = _change(tmp_path / "e", tasks=_GROUP0.format(token="tracking issue 7"))
+    # Planned does not start the delivery, one in Todo does not block it.
+    root = _change(tmp_path / "e", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(status=None, other_items=[("Other", "Planned")])
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
     assert exc.value.code == 2 and _develops(gh) == []
     assert "Status: none" in capsys.readouterr().err
 
-    root = _change(tmp_path / "f", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "f", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(status="Planned", other_items=[("Other", "Todo")], root=root)
     start_change.main(_START, gh=gh, root=root)
     assert len(_develops(gh)) == 1
@@ -332,7 +335,7 @@ def test_tasks_of_a_new_change_start(tmp_path: Path) -> None:
     """Scenario: Tasks of a new change — on a Planned issue: the linked branch, In Progress,
     the provenance line, in that order; nothing asked."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(status="Planned", root=root)
 
     start_change.main(_START, gh=gh, root=root)
@@ -374,7 +377,7 @@ def test_codex_carrier_is_rejected(tmp_path: Path) -> None:
     """Scenario: Codex carrier — Claude is the only carrier; `Codex` for either role is a
     usage error before any GitHub call."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
     for argv in (
         [_CHANGE, "--planner", "Codex", "--implementer", "Claude"],
         [_CHANGE, "--planner", "Claude", "--implementer", "Codex"],
@@ -391,12 +394,12 @@ def test_interrupted_start_names_the_continuation(
 ) -> None:
     """A failure after the branch exists is exit 1 whose message names the steps left —
     `set_status.py 7 "In Progress"` and the `gh issue comment` — so the person completes
-    them without a second `start_change` (PR 148, Codex P1)."""
+    them without a second `start_change`."""
     start_change = load_script("start_change")
     status_path = str(SKILL_SCRIPTS / "set_status.py")
     comment_cmd = 'gh issue comment 7 --body "planner: Claude; implementer: Claude"'
 
-    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(fail_on=["gh", "project", "item-edit"], root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -404,7 +407,7 @@ def test_interrupted_start_names_the_continuation(
     err = capsys.readouterr().err
     assert status_path in err and '7 "In Progress"' in err and comment_cmd in err
 
-    root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(fail_on=["gh", "issue", "comment"], root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -413,8 +416,8 @@ def test_interrupted_start_names_the_continuation(
     assert comment_cmd in err and status_path not in err
 
     # The plan commit fails (no identity, a commit hook): the continuation starts with it —
-    # the tick, the add and the commit — and still names the Status and the comment (#252).
-    root = _change(tmp_path / "e", tasks=_GROUP0.format(token="tracking issue 7"))
+    # the tick, the add and the commit — and still names the Status and the comment.
+    root = _change(tmp_path / "e", tasks=_GROUP0.format(token=_TOKEN))
     worktree = root / ".claude" / "worktrees" / _CHANGE
     gh = Gh(fail_on=["git", "-C", str(worktree), "commit"], root=root)
     with pytest.raises(SystemExit) as exc:
@@ -430,10 +433,10 @@ def test_interrupted_start_names_the_continuation(
 
     # `gh issue develop` can fail after it created the remote branch: the branch exists
     # (`git ls-remote --heads origin <change>` lists it) and the continuation starts with
-    # the worktree steps, never `git switch` (PR 148, Codex P1, round 2; #236).
+    # the worktree steps, never `git switch`.
     switch_cmd = f"git switch {_CHANGE}"
     fetch_cmd = f"git fetch origin {_CHANGE}"
-    root = _change(tmp_path / "c", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "c", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(fail_on=["gh", "issue", "develop"], remote_branch=True, root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -443,7 +446,7 @@ def test_interrupted_start_names_the_continuation(
     assert err.index(fetch_cmd) < err.index(status_path) < err.index(comment_cmd)
     assert gh.edits() == []
 
-    root = _change(tmp_path / "d", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "d", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(fail_on=["gh", "issue", "develop"], remote_branch=False, root=root)
     with pytest.raises(SystemExit) as exc:
         start_change.main(_START, gh=gh, root=root)
@@ -475,7 +478,7 @@ def _clone(tmp_path: Path) -> Path:
     _git("-C", str(root), "add", "openspec/config.yaml")
     _git("-C", str(root), "commit", "-qm", "init")
     _git("-C", str(root), "push", "-q", "origin", "main")
-    _change(root, tasks=_GROUP0.format(token="tracking issue 7"), config=config)
+    _change(root, tasks=_GROUP0.format(token=_TOKEN), config=config)
     return root
 
 
@@ -494,7 +497,7 @@ def test_main_checkout_stays_clean(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, present: bool
 ) -> None:
     """Scenario: Main checkout stays clean — the start leaves the main checkout's status
-    empty and `info/exclude` with the worktrees line exactly once (issue 292)."""
+    empty and `info/exclude` with the worktrees line exactly once."""
     start_change = load_script("start_change")
     root = _clone(tmp_path)
     exclude = root / ".git" / "info" / "exclude"
@@ -538,7 +541,7 @@ def test_parallel_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
 
 def test_plan_committed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Scenario: Plan committed — the worktree is clean, its head carries the plan with the
-    Group 0 task ticked, and the plan commit is not pushed (issue 252)."""
+    Group 0 task ticked, and the plan commit is not pushed."""
     start_change = load_script("start_change")
     root = _clone(tmp_path)
     monkeypatch.chdir(root)
@@ -559,7 +562,7 @@ def test_worktree_step_fails_after_branch_exists(
     """Scenario: Worktree step fails after the branch exists — exit 1 naming the steps left
     from the failed one, in order, and no `git switch`."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(fail_on=["git", "worktree", "add"], remote_branch=True, root=root)
 
     with pytest.raises(SystemExit) as exc:
@@ -616,7 +619,7 @@ def test_started_from_inside_the_previous_changes_worktree(
     start_change = load_script("start_change")
     main_root = _clone(tmp_path)
     prev = _worktree(main_root, "prev")
-    _change(prev, tasks=_GROUP0.format(token="tracking issue 7"), config=None)
+    _change(prev, tasks=_GROUP0.format(token=_TOKEN), config=None)
     monkeypatch.chdir(prev)
     gh = Gh(root=main_root, git_runner=_run, pr_states={"prev": "MERGED"})
 
@@ -635,7 +638,7 @@ def test_cleanup_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> No
     """Scenario: Cleanup fails — a `kept:` line naming the worktree and the failure; the
     start still creates its branch and exits 0."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(
         root=root,
         extra_worktrees=["done"],
@@ -654,7 +657,7 @@ def test_cleanup_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> No
 def test_worktree_listing_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Worktree listing fails — exit 1 naming the error before any branch exists."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh(root=root, fail_on=["git", "worktree", "list"])
 
     with pytest.raises(SystemExit) as exc:
@@ -670,7 +673,7 @@ def test_exclude_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str], failu
     """Scenario: Worktree listing fails — a failed resolve, read or write of `info/exclude`
     is exit 1 naming the failure before any branch exists."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
     exclude = root / ".git" / "info" / "exclude"
     if failure == "directory":
         exclude.mkdir(parents=True)
@@ -707,7 +710,7 @@ def test_plan_approved_creates_the_issue(
     # The number in the token and the literal `<N>` elsewhere: the existing-issue branch.
     root = _change(
         tmp_path / "b",
-        tasks=_GROUP0.format(token="tracking issue 7") + "- [ ] 1.1 asserts `<N>` in the rule\n",
+        tasks=_GROUP0.format(token=_TOKEN) + "- [ ] 1.1 asserts `<N>` in the rule\n",
     )
     gh = Gh()
     create.main([_CHANGE], gh=gh, root=root)
@@ -723,7 +726,7 @@ def test_plan_approved_creates_the_issue(
     body_file = Path(created[0][created[0].index("--body-file") + 1])
     assert body_file == root / "openspec" / "changes" / _CHANGE / "proposal.md"
     tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
-    assert "tracking issue 7" in tasks and _PLACEHOLDER not in tasks
+    assert _TOKEN in tasks and _PLACEHOLDER not in tasks
     edits = gh.edits()
     assert [e[e.index("--single-select-option-id") + 1] for e in edits] == ["S_PLAN", "A_OBS"]
     assert gh.calls.index(created[0]) < gh.calls.index(edits[0])
@@ -738,7 +741,7 @@ def test_plan_approved_creates_the_issue(
         create.main([_CHANGE, "--area", "Token efficiency"], gh=gh, root=root)
     assert exc.value.code == 1
     tasks = (root / "openspec" / "changes" / _CHANGE / "tasks.md").read_text(encoding="utf-8")
-    assert "tracking issue 7" in tasks
+    assert _TOKEN in tasks
     err = capsys.readouterr().err
     assert str(SKILL_SCRIPTS / "set_status.py") in err
     assert '7 Planned --area "Token efficiency"' in err
@@ -748,14 +751,14 @@ def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[s
     """Scenario: Existing tracking issue — no create, an area refused, Planned alone."""
     create = load_script("create_tracking_issue")
 
-    root = _change(tmp_path / "a", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "a", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
         create.main([_CHANGE, "--area", "Observability"], gh=gh, root=root)
     assert exc.value.code == 2 and gh.edits() == [] and _creates(gh) == []
     assert "area is set at creation" in capsys.readouterr().err
 
-    root = _change(tmp_path / "b", tasks=_GROUP0.format(token="tracking issue 7"))
+    root = _change(tmp_path / "b", tasks=_GROUP0.format(token=_TOKEN))
     gh = Gh()
     create.main([_CHANGE], gh=gh, root=root)
     assert _creates(gh) == []
@@ -833,7 +836,7 @@ def test_release_drift(
         root = _change(
             tmp_path / verdict,
             verdict=verdict,
-            tasks=_GROUP0.format(token="tracking issue 7"),
+            tasks=_GROUP0.format(token=_TOKEN),
             config=text,
         )
         gh = Gh(status="Planned")

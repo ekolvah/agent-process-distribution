@@ -85,7 +85,8 @@ def test_linked_project_of_another_owner() -> None:
 def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Several linked Projects — zero or several linked Projects → exit 2 naming them."""
     set_status = load_script("set_status")
-    gh = Gh(projects=[PROJECT, {"id": "PVT_2", "number": 5, "title": "Other"}])
+    other = {"id": "PVT_2", "number": 5, "title": "Other"}
+    gh = Gh(projects=[PROJECT, other])
 
     with pytest.raises(SystemExit) as exc:
         set_status.main(["7", "In Progress"], gh=gh)
@@ -93,7 +94,8 @@ def test_several_linked_projects(capsys: pytest.CaptureFixture[str]) -> None:
     assert exc.value.code == 2
     assert gh.edits() == []
     err = capsys.readouterr().err
-    assert "#4 Board" in err and "#5 Other" in err
+    for project in (PROJECT, other):
+        assert f"#{project['number']} {project['title']}" in err
 
     gh = Gh(projects=[])
     with pytest.raises(SystemExit) as exc:

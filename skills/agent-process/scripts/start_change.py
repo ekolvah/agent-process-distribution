@@ -95,7 +95,7 @@ def verdict(change_dir: Path) -> str:
 def tracking_issue(tasks_md: Path) -> int | None:
     """The `tracking issue <N>` token of tasks.md: `None` while it carries the placeholder, the
     number once the propose run wrote it. The first token in the file decides — Group 0 is
-    the first group — so the literal `<N>`, the whole token or another `tracking issue 9` in
+    the first group — so the literal `<N>`, the whole token or another `tracking issue <N>` in
     a later line (a test description, a quoted rule) is text. No token is a ValueError naming
     the convention."""
     match = _TOKEN.search(tasks_md.read_text(encoding="utf-8"))

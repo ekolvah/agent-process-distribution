@@ -1,4 +1,4 @@
-"""The bash that tests execute shell code with (#88).
+"""The bash that tests execute shell code with.
 
 On Windows the first `bash` on a registry PATH is `System32\\bash.exe`, the WSL launcher; Git
 runs hooks with its own `usr/bin/bash.exe` instead, so tests take that one, derived from

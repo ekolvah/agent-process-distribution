@@ -4,7 +4,7 @@ The model publishes inline comments under the workflow token; once the action
 concluded `success`, the job posts one PR comment naming the head
 (`Reviewed head SHA: <sha>`). ``--wait`` reads
 *whether* that closing comment exists, never what the review says (ADR 0027). Inline
-comments without it are an interrupted review, not a review of the head (issue 139).
+comments without it are an interrupted review, not a review of the head.
 The job reads once before reviewing, so a re-run of a reviewed head returns on it, and
 again after the action, because the action can finish green without publishing (ADR 0004).
 Absence exits 3, a read error 2.

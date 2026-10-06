@@ -667,20 +667,16 @@ def test_publisher_pre_push_runs_the_entry() -> None:
     `pre-push` in the pusher's environment (design D7)."""
     config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
     assert config["default_install_hook_types"] == ["pre-push"]
-    assert [repo for repo in config["repos"] if repo["repo"] == "local"] == [
+    local = [hook for repo in config["repos"] if repo["repo"] == "local" for hook in repo["hooks"]]
+    assert [hook for hook in local if "pre-push" in hook["stages"]] == [
         {
-            "repo": "local",
-            "hooks": [
-                {
-                    "id": "quality",
-                    "name": "quality",
-                    "entry": "python skills/agent-process/scripts/quality.py --hook",
-                    "language": "unsupported",
-                    "stages": ["pre-push"],
-                    "always_run": True,
-                    "pass_filenames": False,
-                }
-            ],
+            "id": "quality",
+            "name": "quality",
+            "entry": "python skills/agent-process/scripts/quality.py --hook",
+            "language": "unsupported",
+            "stages": ["pre-push"],
+            "always_run": True,
+            "pass_filenames": False,
         }
     ]
 

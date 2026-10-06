@@ -3,7 +3,7 @@
 ``check_red`` is exercised at the ``subprocess.run`` boundary: a fake that records the
 command it received, writes the fixture report at the ``--junitxml=`` argument and returns
 a ``CompletedProcess``. The fakes cover the configuration; one live test spawns pytest,
-because what the run leaves in the working tree is observable only there (issue 250).
+because what the run leaves in the working tree is observable only there.
 
 One test per scenario of the change's spec deltas that a script can prove; the
 scenario name is the test name. Scripts are imported inside the tests so that a
@@ -77,7 +77,7 @@ def test_refuses_without_quality_declaration(
     declaration: str | None,
 ) -> None:
     """Scenario: No quality command declared — a repository whose tests have no declared
-    command gets no verdict: CI would run none of them (issue 249)."""
+    command gets no verdict: CI would run none of them."""
     check_red = load_script("check_red")
     _root(monkeypatch, tmp_path, declaration)
     commands = _fake_pytest(monkeypatch, "<testsuites/>")
@@ -91,8 +91,8 @@ def test_refuses_without_quality_declaration(
 def test_behavioural_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Scenarios: Behavioural change, Runner given, Configuration that cuts the run —
     `check_red` runs `python -m pytest` of the `python` on `PATH`, not of its own interpreter
-    (the plugin environment, which has neither pytest nor the consumer's dependencies — issue
-    342), under its own configuration with its own report path and the node ids, and judges
+    (the plugin environment, which has neither pytest nor the consumer's dependencies),
+    under its own configuration with its own report path and the node ids, and judges
     RED from that report; no runner argument exists."""
     check_red = load_script("check_red")
     _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
@@ -117,8 +117,8 @@ def test_behavioural_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     # fail-fast `-x`/`--maxfail` from `addopts` (pytest's last `maxfail` wins);
     # `-p no:stepwise` makes `--stepwise` a usage error (rc 4, no report → exit 2); an
     # empty `cache_dir` of the script's own leaves `--lf`/`--ff`/`--nf` nothing to replay
-    # while the `cache` fixture stays (`-p no:cacheprovider` took it away — PR 145,
-    # round 9). The RED verdict needs every node id run (rounds 6–9).
+    # while the `cache` fixture stays (`-p no:cacheprovider` takes it away). The RED
+    # verdict needs every node id run.
     assert "--maxfail=0" in cmd
     assert "no:stepwise" in cmd and cmd[cmd.index("no:stepwise") - 1] == "-p"
     assert "no:cacheprovider" not in cmd
@@ -133,8 +133,7 @@ def test_behavioural_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         check_red.main([node])
     assert exc.value.code == 1
 
-    # No runner argument: `--test` was an input for a consumer that does not exist
-    # (issue 112), and its failure modes cost three review rounds (PR 145).
+    # No runner argument: `--test` would be an input for a consumer that does not exist.
     with pytest.raises(SystemExit) as exc:
         check_red.main(["--test", "python -m pytest", node])
     assert exc.value.code == 2
@@ -144,7 +143,8 @@ def test_no_python_on_path(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Scenario: No python on PATH — no verdict, the missing `python` named, nothing run: a
-    silent fallback to the script's own interpreter would bring issue 342 back unseen."""
+    silent fallback to the script's own interpreter would run the tests without the
+    consumer's dependencies, unseen."""
     check_red = load_script("check_red")
     _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
     empty = tmp_path / "empty"
@@ -163,7 +163,7 @@ def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     every testcase in it and re-derives no selection of its own. A node id spelled `./` or
     as an absolute path, or a project whose `rootdir` differs, spells the classname its own
     way; a second interpreter of the node id would drop the test and report "no tests
-    collected" (PR 145)."""
+    collected"."""
     check_red = load_script("check_red")
     _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
     _fake_pytest(
@@ -178,7 +178,7 @@ def test_runner_owns_the_selection(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 def test_run_leaves_the_tree_clean(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Scenario: Run leaves the tree clean — in a repository with no ignore rule for bytecode,
     a real RED run leaves `git status --porcelain` as it was: no bytecode, no cache, no report
-    (issue 250: `__pycache__` blocked `archive_change` and the merged-worktree cleanup)."""
+    (`__pycache__` blocks `archive_change` and the merged-worktree cleanup)."""
     check_red = load_script("check_red")
     # An outer setting would make the test pass whatever `check_red` does.
     monkeypatch.delenv("PYTHONDONTWRITEBYTECODE", raising=False)
@@ -249,8 +249,7 @@ def test_interrupted_run_is_no_verdict(
     """Scenario: Configuration that cuts the run — pytest's exit code is the signal that the
     run reached the end: 0, 1 and 5 are complete runs; 2 (interrupted: `pytest.exit()` from a
     hook, `--stepwise`, Ctrl-C), 3 (internal error) and 4 (usage error) are not, and the
-    report they leave — partial or absent — is no verdict (exit 2), never RED (PR 145,
-    round 9)."""
+    report they leave — partial or absent — is no verdict (exit 2), never RED."""
     check_red = load_script("check_red")
     _root(monkeypatch, tmp_path, '{"test": "pytest -q"}')
     red = (

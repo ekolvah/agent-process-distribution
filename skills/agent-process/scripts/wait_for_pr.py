@@ -8,7 +8,7 @@ The implementing run ends only after checks and reviews: a check that has not co
 and its checks (`gh pr checks <PR> --json name,bucket,link`) every 30 s until two reads in a
 row report, on one head, the same non-empty set of checks with none in the `pending` bucket
 and every check the base branch requires among them (the runs of one push attach one at a
-time, minutes apart behind a fast foreign check — issue 348 — and a clean verdict ends the
+time, minutes apart behind a fast foreign check, and a clean verdict ends the
 delivery loop), then reads the unresolved review threads of the review job (GraphQL) — on
 that head, or reads again. The required checks are read once, before the wait: the
 `context` of every `required_status_checks` rule on the PR's base
@@ -150,7 +150,7 @@ def _awaited(checks: list[dict[str, Any]] | None, required: list[str]) -> str:
         return _NO_CHECKS
     pending = [str(c["name"]) for c in checks if c["bucket"] == "pending"]
     # A required check that has not attached yet is pending too: a fast foreign check can
-    # conclude minutes before the base's own workflows attach (issue 348).
+    # conclude minutes before the base's own workflows attach.
     reported = {str(c["name"]) for c in checks}
     absent = [context for context in required if context not in reported]
     if absent:
@@ -180,8 +180,8 @@ def wait_for_pr(
             # A concluded set is trusted once two reads 30 s apart agree on it, on one head:
             # the runs of one push attach one at a time, and a clean verdict ends the delivery
             # loop, so no later read would see a workflow that attached after a fast one
-            # passed (PR 147, round 2); two heads each read with only its fast check attached
-            # agree on the names and prove nothing (round 3). The threads must be of that
+            # passed; two heads each read with only its fast check attached agree on the
+            # names and prove nothing. The threads must be of that
             # head too, or a push after the last read hides its runs.
             names = sorted(str(c["name"]) for c in checks)
             if (head, names) == settled:
@@ -197,7 +197,7 @@ def wait_for_pr(
             settled = None
         # The timeout is elapsed time, not a count of whole poll intervals: the last sleep
         # is the remainder and the last read is at the deadline, so a rollup that never
-        # fills ends here, and never before `timeout` seconds passed (PR 147, round 1).
+        # fills ends here, and never before `timeout` seconds passed.
         now = clock()
         if now >= deadline:
             print(f"timeout after {int(timeout)}s: {waiting}")

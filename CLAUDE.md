@@ -2,8 +2,7 @@
 
 The process is specified with [OpenSpec](https://github.com/Fission-AI/OpenSpec) and is the
 source of truth: `openspec/specs/` holds what is implemented, `openspec/changes/` what is
-pending (the tracking issue #107 lists the v2 changes), `openspec/config.yaml` the repository
-context, and [`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md) the portable
+pending, `openspec/config.yaml` the repository context, and [`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md) the portable
 procedure. A PR that changes behaviour carries its change's spec delta
 (`openspec validate --strict`).
 

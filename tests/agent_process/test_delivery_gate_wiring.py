@@ -23,7 +23,7 @@ def _resource_attributes() -> dict[str, str]:
     """Parse `OTEL_RESOURCE_ATTRIBUTES` the way the OTel SDK does: a comma-joined
     `key=value` list. Returning a mapping rather than the raw string is the point —
     the carrier has to stay a list so a later launch-time step can add a pair to it
-    (issue #101) without rewriting the format."""
+    without rewriting the format."""
     raw = _settings()["env"]["OTEL_RESOURCE_ATTRIBUTES"]
     pairs = {}
     for part in raw.split(","):
@@ -45,7 +45,7 @@ def test_claude_denies_push_to_main_force_push_and_merge() -> None:
 
 
 class TestTelemetryAttribution:
-    """Project attribution on the agent telemetry (issue #97).
+    """Project attribution on the agent telemetry.
 
     A telemetry assertion in a file whose stated subject is hook and gate wiring is
     deliberate: this is the one place that already reads `.claude/settings.json`,
@@ -53,8 +53,8 @@ class TestTelemetryAttribution:
 
     Deliberate gap, recorded here rather than reopened as work-for-work: no test
     asserts that a *live* Claude Code session emits these attributes. That crosses
-    a process boundary into the harness and a third-party exporter; issue #97's
-    AC1(a) covers it as a one-shot observation with captured evidence, following
+    a process boundary into the harness and a third-party exporter; it was covered
+    once as an observation with captured evidence, following
     the convention in `tests/publisher/test_test_suite_ownership.py`.
     """
 

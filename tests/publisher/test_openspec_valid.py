@@ -1,4 +1,4 @@
-"""The v2 target spec validates under OpenSpec's strict rules (issue #105).
+"""The v2 target spec validates under OpenSpec's strict rules.
 
 OpenSpec is the spec format and validator; this test only runs it, so a delta
 with a scenario-less requirement, a missing SHALL, or a malformed heading fails

@@ -115,7 +115,7 @@ def _branch_step(to: Target) -> Step:
 
 def _root_step(to: Target) -> Step:
     """A commit with no files on the default branch of a repository with none, the base the PR
-    needs (#271). The push has no force, so a default branch pushed meanwhile rejects it."""
+    needs. The push has no force, so a default branch pushed meanwhile rejects it."""
 
     def push_root() -> bool:
         # The worktree is clean, so the unborn checkout's index is the empty tree.

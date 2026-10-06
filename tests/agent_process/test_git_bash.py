@@ -1,4 +1,4 @@
-"""`git_bash()`: tests run shell code with Git's bash, not the first `bash` on PATH (#88)."""
+"""`git_bash()`: tests run shell code with Git's bash, not the first `bash` on PATH."""
 
 from __future__ import annotations
 

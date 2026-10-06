@@ -4,8 +4,8 @@
 Usage: python skills/agent-process/scripts/activate_protection.py --pr <N> (--dry-run | --confirm)
 
 The required contexts are `agent-process / quality` and `agent-review / agent-review`,
-the review gate every install carries (#215). A required check that never reported blocks
-every merge (PR 151, run 35523639249), so the run first reads these facts and refuses
+the review gate every install carries. A required check that never reported blocks
+every merge, so the run first reads these facts and refuses
 (exit 2) without them: the default branch carries `.github/workflows/agent-process.yml` and
 `.github/workflows/agent-review.yml`, and the current head of PR <N> against that branch
 has, for each context, a check run that GitHub Actions concluded `success`. That run's app

@@ -16,9 +16,9 @@
 
 ## 3. Remove the existing references
 
-- [ ] 3.1 In the non-test files of the proposal's Impact list, remove each issue or PR reference, rewriting the sentence so it states the current state, or dropping it when it only records history. In `CLAUDE.md` and `openspec/config.yaml`, drop the pointers to the closed tracking issue and the v2 delivery sentence they carry; in `skills/agent-process/scripts/start_change.py` write the example token as `tracking issue <N>`
-- [ ] 3.2 In the test files of the Impact list, do the same for comments and docstrings; build fixture numbers from a named constant (`tracking issue 7` in `test_start_change.py`, `#4 Board` / `#5 Other` in `test_set_status.py`) (design D4)
-- [ ] 3.3 Run `python -m pre_commit run no-issue-refs --all-files` and verify that it passes; run `python -m pytest -q` and verify that it passes. Commit 3.1–3.3 as `refactor: remove issue references outside history records`
+- [x] 3.1 In the non-test files of the proposal's Impact list, remove each issue or PR reference, rewriting the sentence so it states the current state, or dropping it when it only records history. In `CLAUDE.md` and `openspec/config.yaml`, drop the pointers to the closed tracking issue and the v2 delivery sentence they carry; in `skills/agent-process/scripts/start_change.py` write the example token as `tracking issue <N>`
+- [x] 3.2 In the test files of the Impact list, do the same for comments and docstrings; build fixture numbers from a named constant (`tracking issue 7` in `test_start_change.py`, `#4 Board` / `#5 Other` in `test_set_status.py`) (design D4)
+- [x] 3.3 Run `python -m pre_commit run no-issue-refs --all-files` and verify that it passes; run `python -m pytest -q` and verify that it passes. Commit 3.1–3.3 as `refactor: remove issue references outside history records`
 
 ## 4. Verify
 
