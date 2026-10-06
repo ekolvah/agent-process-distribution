@@ -15,7 +15,7 @@ import pytest
 import yaml
 
 from tests.publisher.init_harness import load_init
-from tests.publisher.lint_harness import FINDING, edit_payload, lint_repo
+from tests.publisher.lint_harness import ADOPTION_MARKER, FINDING, edit_payload, lint_repo
 
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
@@ -365,7 +365,6 @@ def test_launcher_runs_the_session_interpreter(tmp_path: Path) -> None:
 
 
 PLUGIN_HOOKS = ROOT / "hooks" / "hooks.json"
-ADOPTION_MARKER = Path(".github") / "workflows" / "agent-process.yml"
 
 
 def _plugin_hooks() -> list[tuple[str, str, str]]:
@@ -481,8 +480,6 @@ def test_plugin_hooks_lint_the_edited_file_in_an_adopted_repository(tmp_path: Pa
     """Scenarios: Commit-stage finding, Lint error — the plugin's PostToolUse hook runs the
     project's `pre-commit`-stage hooks on the edited file and shows the finding."""
     repo = lint_repo(tmp_path / "repo", FINDING)
-    (repo / ADOPTION_MARKER).parent.mkdir(parents=True)
-    (repo / ADOPTION_MARKER).write_text("", encoding="utf-8")
     groups = _json(PLUGIN_HOOKS)["hooks"]["PostToolUse"]
     lint = [
         (group, hook)
