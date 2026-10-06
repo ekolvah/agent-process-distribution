@@ -1,7 +1,7 @@
 ## Why
 
-Issue #349. A clean PR fails `agent-review` at random. Observed on consumer
-ekolvah/kinozal_scraper (3.8.3), PR #629, head `3207e04`, run 37339592131: the Claude review
+A clean PR fails `agent-review` at random (#349). Observed on consumer
+ekolvah/kinozal_scraper (3.8.3), head `3207e04` of its PR 629, run 37339592131: the Claude review
 found nothing and posted its closing note as an inline comment (`No findings.` on
 `scripts/hooks.py:1`) instead of a PR comment; `Verify the Claude review of the head` read
 `review of 3207e04…: absent after 60s` and exited 3. The log shows

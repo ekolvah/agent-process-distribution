@@ -11,13 +11,13 @@
 
 ## 2. Review job
 
-- [ ] 2.1 In `.github/workflows/reusable-agent-review.yml`: give `Claude review` `id: claude`; drop `Bash(gh pr comment:*)` from `--allowed-tools`; rewrite the prompt — findings inline and labelled, no other comment, the job posts the closing comment when the review ends (D3); add `Close the Claude review of the head` with `env` `GH_TOKEN`, `CONCLUSION`, `REPO`, `PR`, `SHA` and a `run` that fails with `::error::` naming the conclusion unless it is `success`, and otherwise runs `gh pr comment "$PR" --repo "$REPO" --body "Reviewed head SHA: $SHA"` (D1, D2); update the header comments of the read, close and verify steps. Verify that `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes
-- [ ] 2.2 In `.agent-process/REVIEW_CONTRACT.md`, rewrite the publication bullet: one labelled inline comment per finding and no other comment; the job posts the closing comment it reads the review by when the review ends (D3). In `.agent-process/scripts/head_review.py`, change the docstring's first sentences to say the job posts the closing comment once the action concluded `success`. Verify that `python -m pytest tests/publisher -q` passes. Commit as `fix(review-and-merge): the job closes the Claude review`
+- [x] 2.1 In `.github/workflows/reusable-agent-review.yml`: give `Claude review` `id: claude`; drop `Bash(gh pr comment:*)` from `--allowed-tools`; rewrite the prompt — findings inline and labelled, no other comment, the job posts the closing comment when the review ends (D3); add `Close the Claude review of the head` with `env` `GH_TOKEN`, `CONCLUSION`, `REPO`, `PR`, `SHA` and a `run` that fails with `::error::` naming the conclusion unless it is `success`, and otherwise runs `gh pr comment "$PR" --repo "$REPO" --body "Reviewed head SHA: $SHA"` (D1, D2); update the header comments of the read, close and verify steps. Verify that `python -m pytest tests/publisher/test_reusable_workflows.py -q` passes
+- [x] 2.2 In `.agent-process/REVIEW_CONTRACT.md`, rewrite the publication bullet: one labelled inline comment per finding and no other comment; the job posts the closing comment it reads the review by when the review ends (D3). In `.agent-process/scripts/head_review.py`, change the docstring's first sentences to say the job posts the closing comment once the action concluded `success`. Verify that `python -m pytest tests/publisher -q` passes. Commit as `fix(review-and-merge): the job closes the Claude review`
 
 ## 3. Verify
 
-- [ ] 3.1 Run `openspec validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 3.1 Run `openspec validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 4. Deliver
 
