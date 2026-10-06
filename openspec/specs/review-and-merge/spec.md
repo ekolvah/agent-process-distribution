@@ -150,12 +150,13 @@ the threads.
 
 ### Requirement: Local safety in Claude Code
 Push to the default branch, force push and `gh pr merge` SHALL be denied locally by the
-deny-list of `.claude/settings.json`. Merging is the person's, except the release PR, which the
-platform's auto-merge merges once its required checks pass.
+plugin's git guard (distribution requirement "The plugin ships the git guard") in a repository
+carrying `.github/workflows/agent-process.yml`. Merging is the person's, except the release PR,
+which the platform's auto-merge merges once its required checks pass.
 
 #### Scenario: Push to main from Claude Code
-- **WHEN** an agent runs `git push origin main`, `git push --force` or `gh pr merge` in Claude Code
-- **THEN** the project's deny-list carries a rule that denies it
+- **WHEN** an agent runs `git push origin main`, `git push --force` or `gh pr merge` in Claude Code in an adopted repository
+- **THEN** the plugin's git guard denies it and names the alternative
 
 ### Requirement: Only the fixer resolves a review-job thread
 No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
