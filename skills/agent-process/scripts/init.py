@@ -88,7 +88,7 @@ import onboarding
 import quality
 from steps import InstallError, Step
 
-VERSION = "3.8.5"  # x-release-please-version
+VERSION = "3.9.0"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
 REPOSITORY_ENV = "AGENT_PROCESS_REPOSITORY"
 GITHUB_REPO = "ekolvah/agent-process-distribution"

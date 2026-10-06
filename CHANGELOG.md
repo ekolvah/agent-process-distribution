@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.9.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.5...v3.9.0) (2026-10-06)
+
+
+### Features
+
+* issue-refs-only-in-history ([#355](https://github.com/ekolvah/agent-process-distribution/issues/355)) ([f02926b](https://github.com/ekolvah/agent-process-distribution/commit/f02926bb0b175bdc731331d29fd75387b9d7f619))
+
 ## [3.8.5](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.4...v3.8.5) (2026-10-06)
 
 
