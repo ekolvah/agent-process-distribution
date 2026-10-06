@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.9.0...v3.10.0) (2026-10-06)
+
+
+### Features
+
+* ship-git-guard ([#358](https://github.com/ekolvah/agent-process-distribution/issues/358)) ([c8ade8a](https://github.com/ekolvah/agent-process-distribution/commit/c8ade8a4f011af09971ba3b5abaced980508e545))
+
 ## [3.9.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.8.5...v3.9.0) (2026-10-06)
 
 
