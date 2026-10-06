@@ -208,7 +208,9 @@ so a machine that did the `plugin-channel` row gets a release within a session. 
 tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session
 start it installs its own Python dependencies, once per machine and pin set; a failure prints
 `agent-process plugin environment not installed` with the cause. Its navigation
-hooks deny shell file reads and over-budget whole-file `Read`, naming the cheaper call; a
+hooks deny shell file reads and over-budget whole-file `Read`, naming the cheaper call, and its
+git guard denies `gh pr merge`, `gh repo delete`, a push to `main`, a force push, `--no-verify`,
+`git reset --hard` and `git branch -D`, naming the alternative; a
 `permissions.deny` rule matching the same command blocks first, so their message never reaches
 the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks
 whether every session and every person needs the fact, and if so to move it into the

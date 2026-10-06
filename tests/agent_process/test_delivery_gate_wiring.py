@@ -1,7 +1,8 @@
-"""The hook wiring and the deny-list of `.claude/settings.json`.
+"""The hook wiring of `.claude/settings.json`.
 
 The turn-boundary `Stop` gate was removed (change v2-4a-review-protection, design D2), so
-no `Stop` event is wired.
+no `Stop` event is wired. Local denial of a push to `main`, a force push and `gh pr merge`
+moved from the deny-list to the plugin's git guard (`tests/publisher/test_git_guard.py`).
 """
 
 from __future__ import annotations
@@ -35,13 +36,6 @@ def _resource_attributes() -> dict[str, str]:
 
 def test_claude_wires_no_stop_hook() -> None:
     assert "Stop" not in _settings()["hooks"]
-
-
-def test_claude_denies_push_to_main_force_push_and_merge() -> None:
-    """Scenario: Push to main from Claude Code — the deny-list is the local safety layer."""
-    deny = _settings()["permissions"]["deny"]
-    for rule in ("Bash(git push origin main)", "Bash(git push --force)", "Bash(gh pr merge*)"):
-        assert rule in deny, rule
 
 
 class TestTelemetryAttribution:
