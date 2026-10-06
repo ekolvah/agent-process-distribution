@@ -20,7 +20,7 @@
 
 ## 3. Wiring
 
-- [ ] 3.1 Add the guard hook of design D5 to the `PreToolUse` `Bash` group of `hooks/hooks.json`, and remove from `.claude/settings.json` every deny entry except `Bash(sleep:*)` (design D7). Verify that the group-1 targets and `python -m pytest tests/publisher -q` pass. Commit as `feat(distribution): the plugin ships the git guard, gated on adoption`
+- [x] 3.1 Add the guard hook of design D5 to the `PreToolUse` `Bash` group of `hooks/hooks.json`, and remove from `.claude/settings.json` every deny entry except `Bash(sleep:*)` (design D7). Verify that the group-1 targets and `python -m pytest tests/publisher -q` pass. Commit as `feat(distribution): the plugin ships the git guard, gated on adoption`
 
 ## 4. Documentation
 
