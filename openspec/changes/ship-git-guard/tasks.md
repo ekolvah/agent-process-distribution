@@ -24,7 +24,7 @@
 
 ## 4. Documentation
 
-- [ ] 4.1 In `skills/agent-process/SKILL.md` Install, name the guard and what it denies (merge, push to `main`, force, `--no-verify`, `reset --hard`, `branch -D`, `repo delete`) in the existing sentence on the plugin's navigation hooks, adding no other clause (design D8). Verify that `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `docs(distribution): Install names the git guard`
+- [x] 4.1 In `skills/agent-process/SKILL.md` Install, name the guard and what it denies (merge, push to `main`, force, `--no-verify`, `reset --hard`, `branch -D`, `repo delete`) in the existing sentence on the plugin's navigation hooks, adding no other clause (design D8). Verify that `python -m pytest tests/publisher/test_plugin.py -q` passes. Commit as `docs(distribution): Install names the git guard`
 
 ## 5. Verify
 
