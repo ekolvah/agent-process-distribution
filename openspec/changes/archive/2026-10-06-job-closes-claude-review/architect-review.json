@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The job posts the closing comment once the action's declared `conclusion` output is `success`. This fixes the root cause of #349 (the closing comment depended on model compliance) with a two-command step, keeps the ADR 0004 and ADR 0027 guards, and names a catcher for every failure path that the action's source shows is reached.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 gates on `steps.claude.outputs.conclusion == 'success'`, with no `--json-schema`, no schema field and no model-facing finishing instruction. Structured output, a bounded re-run, posting on any step success, and parsing inline comments are each rejected for a stated reason. D2 adds a two-command step and no script. Nothing simpler keeps the ADR 0004 guard.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The delta has eight scenarios, and tasks.md's map gives each one an entry. New head maps to the structural test and test_close_step_posts_the_comment_the_reader_reads. Silent action maps to test_close_step_fails_unless_the_review_concluded. Both Re-run scenarios map to test_head_review.py::test_rerun_reads_the_closing_comment_not_inline_nodes. Reader failure, Head from a fork and Event other than a push map to the structural test. Release PR review maps to test_agent_review_skips_the_review_on_a_release_pr. The removed 'Closing note posted inline' has neither a scenario nor a map entry.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.4 passes check_red every node id from 1.1–1.3: the two edited tests, the posting test and both parametrized failure cases. It expects `RED: 5 failed`, each failing in its body on the missing step, and the RED commit comes before Group 2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Checked against anthropics/claude-code-action@v1 (cab360f). action.yml declares the output `conclusion` as \"Execution status of Claude Code ('success' or 'failure')\". In src/entrypoints/run.ts, `core.setOutput(\"conclusion\", …)` (line 315) comes after `runClaude`. The WorkflowValidationSkipError path (line ~180) and the 'No trigger found, skipping remaining steps' path (line 220) both return before it. base-action/src/run-claude-sdk.ts sets `isSuccess = subtype === \"success\" && !is_error`. D1 quotes each of these. D2's comment author is observed on the re-run of run 37339592131. Migration names the first post-merge PR run as the one that must be green before the next release.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No guard is dropped. Task 1.1 keeps the v2-2b assertion `\"--json-schema\" not in claude_args`. `Bash(gh pr comment:*)` moves out of the model's tools and into the job's step, and the model's closing comment is replaced by the job's. D2 records that both are posted under the same workflow token (author `github-actions[bot]`, which `head_review.py` accepts), so the reader's input is unchanged.",
+      "result": "ok"
+    },
+    "catcher": {
+      "result": "ok",
+      "evidence": "design.md Risks bullet 1 now names the catcher that is reached. On a turn limit or model error, base-action/src/run-claude-sdk.ts throws `Claude execution failed: …` and src/entrypoints/run.ts calls `core.setFailed(\"Action failed with error: …\")` without setting `conclusion`. The `Claude review` step fails, the close and verify steps are skipped by their implicit success(), `Enforce unresolved P0/P1 threads` runs under always(), and the check is red on that head. D1 records that the action emits `success` or nothing. Test 1.3's `failure` case covers the class 'any conclusion but success'. Risk 2 (`conclusion` renamed or dropped, so it reads empty) reaches the close step's `::error::` on the first post-merge PR head, and Migration requires that run to be green before the next release."
+    },
+    "length": {
+      "evidence": "Requirement body: 150 → 160 words. Requirement with scenarios: 502 → 514 words. Each added or edited clause has an asserting test. 'has no tool to post a PR comment' is asserted by 1.1 (`gh pr comment` absent from `claude_args`). 'concludes `success` … SHALL post the closing comment naming the head' is asserted by 1.2 (env `CONCLUSION`, logged `pr comment <pr> --repo <repo>`, `head_review.reviewed` on the posted body). 'otherwise … fail the check without posting it' is asserted by 1.3 (non-zero exit, `::error::`, no `gh` call). The Silent action scenario's ten words are asserted by 1.3. The 'closing comment' clause in Event other than a push is covered by the step order in 1.1.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No new script. The only new check is the close step's `test \"$CONCLUSION\" = success` plus `gh pr comment`. design.md D2 names the problem (issue #349, run 37339592131) and why two shell commands do not earn a script (§VII). It reads the action's declared output rather than a parser of ours (ADR 0027). Its body agrees with `_REVIEWED_HEAD` through test 1.2.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

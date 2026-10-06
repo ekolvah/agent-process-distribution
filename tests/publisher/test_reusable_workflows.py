@@ -365,8 +365,8 @@ def test_the_v1_quality_callee_is_gone() -> None:
 
 def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
     """Scenario: New head — the job reads once whether its closing comment names the head,
-    runs the Claude action only when it does not, verifies the action published, and fails
-    on an unresolved P0/P1 thread. Nothing parses a review and nobody requests one. Every
+    runs the Claude action only when it does not, posts and verifies the closing comment
+    itself, and fails on an unresolved P0/P1 thread. Nothing parses a review and nobody requests one. Every
     event runs the same path: a skipped job would pass the required check (#137)."""
     document = _workflow("reusable-agent-review.yml")
     job = document["jobs"]["agent-review"]
@@ -379,6 +379,7 @@ def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
         "Detect a release PR",
         "Read the Claude review of the head",
         "Claude review",
+        "Close the Claude review of the head",
         "Verify the Claude review of the head",
         "Enforce unresolved P0/P1 threads",
     ]
@@ -416,27 +417,30 @@ def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
     absent = "steps.review.outputs.absent == 'true'"
     claude = steps["Claude review"]
     assert claude["if"] == absent
+    assert claude["id"] == "claude"
     assert claude["uses"].startswith("anthropics/claude-code-action@")
     assert claude["with"]["claude_code_oauth_token"] == "${{ secrets.claude_code_oauth_token }}"
     assert claude["with"]["github_token"] == "${{ github.token }}"
     assert "mcp__github_inline_comment__create_inline_comment" in claude["with"]["claude_args"]
     assert "--json-schema" not in claude["with"]["claude_args"]
+    # The job alone writes the closing comment: a model that could post it would leave
+    # the review's mark behind an interrupted session, and a re-run would take that
+    # session for a review of the head.
+    assert "gh pr comment" not in claude["with"]["claude_args"]
     prompt = claude["with"]["prompt"]
-    # The closing comment is the review: the action publishes finding by finding, so an
-    # interrupted action has left inline comments and no closing comment, and the
-    # second attempt reviews again (issue 139).
     for anchor in (
         "trusted/.agent-process/REVIEW_CONTRACT.md",
         "untrusted",
         "P0",
-        "last, on every review",
-        "Reviewed head SHA: <sha>",
+        "no other comment",
         "Never approve",
     ):
         assert anchor in prompt
+    assert "gh pr comment" not in prompt
+    assert "Reviewed head SHA" not in prompt
 
-    # Scenario: Silent action — the action can finish green without publishing
-    # (ADR 0004); a bounded read of its closing comment fails the check instead.
+    # The bounded read proves the comment the job posted reads as the pre-review read of a
+    # re-run will read it.
     verify = steps["Verify the Claude review of the head"]
     assert verify["if"] == absent
     assert "continue-on-error" not in verify
@@ -495,6 +499,57 @@ def test_review_steps_call_head_review_with_its_arguments(
         head_review.main(argv[1:])
 
         assert "present" in capsys.readouterr().out, name
+
+
+def _run_close(tmp_path: Path, conclusion: str) -> tuple[subprocess.CompletedProcess[str], Path]:
+    """Run the close step's script with `gh` replaced by a function that logs its argv."""
+    log = tmp_path / "gh.log"
+    run = _steps("reusable-agent-review.yml")["Close the Claude review of the head"]["run"]
+    fake_gh = 'gh() { printf \'%s\\n\' "$@" > "$GH_LOG"; }\n'
+    result = subprocess.run(
+        [git_bash(), "-c", fake_gh + run],
+        env={
+            **os.environ,
+            "GH_LOG": log.as_posix(),
+            "CONCLUSION": conclusion,
+            "REPO": "owner/repo",
+            "PR": "1",
+            "SHA": _HEAD,
+        },
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    return result, log
+
+
+def test_close_step_posts_the_comment_the_reader_reads(tmp_path: Path) -> None:
+    """Scenario: New head — once the action concluded `success`, the job posts the closing
+    comment in the form the pre-review read of a re-run recognises."""
+    close = _steps("reusable-agent-review.yml")["Close the Claude review of the head"]
+    assert close["if"] == "steps.review.outputs.absent == 'true'"
+    assert close["env"]["CONCLUSION"] == "${{ steps.claude.outputs.conclusion }}"
+    assert "${{" not in close["run"]
+
+    result, log = _run_close(tmp_path, "success")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    args = log.read_text(encoding="utf-8").splitlines()
+    assert args[:5] == ["pr", "comment", "1", "--repo", "owner/repo"]
+    body = args[args.index("--body") + 1]
+    comment = {"author": {"login": "github-actions[bot]"}, "body": body}
+    assert head_review.reviewed({"comments": {"nodes": [comment]}}, _HEAD)
+
+
+@pytest.mark.parametrize("conclusion", ["", "failure"])
+def test_close_step_fails_unless_the_review_concluded(tmp_path: Path, conclusion: str) -> None:
+    """Scenario: Silent action — a skipped action sets no conclusion (ADR 0004); any
+    conclusion but `success` posts no closing comment and fails the check."""
+    result, log = _run_close(tmp_path, conclusion)
+
+    assert result.returncode != 0
+    assert "::error::" in result.stdout
+    assert not log.exists()
 
 
 def test_agent_review_caller_runs_on_pushes_alone() -> None:
@@ -608,6 +663,9 @@ def test_agent_review_skips_the_review_on_a_release_pr() -> None:
     _assert_detects_a_release_pr(raw)
     assert steps["Read the Claude review of the head"]["if"] == NOT_RELEASE
     assert steps["Claude review"]["if"] == "steps.review.outputs.absent == 'true'"
+    assert steps["Close the Claude review of the head"]["if"] == (
+        "steps.review.outputs.absent == 'true'"
+    )
     assert steps["Verify the Claude review of the head"]["if"] == (
         "steps.review.outputs.absent == 'true'"
     )

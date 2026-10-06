@@ -107,21 +107,22 @@ failed read SHALL fail the check instead of deciding either way.
 The review job SHALL read once whether a closing comment of the workflow token's login names
 the current head, and when none does SHALL run the Claude Code action with the review
 contract read from the trusted checkout of the process at the ref the caller pinned. The
-action publishes findings as inline comments labelled `P0`–`P3` and closes every review with
-one comment naming the reviewed head; that closing comment alone is its review — its inline
-comments are review nodes an interrupted action leaves behind. After the action the job SHALL
-read, within a bounded time, whether that closing comment exists, and fail the check when it
-does not. The job leaves no review state, no evidence and no classification, and nobody
-requests the review. On a release PR the job SHALL neither read nor run the Claude Code
-action, and SHALL conclude on the enforcement of the threads.
+action publishes findings as inline comments labelled `P0`–`P3` and has no tool to post a PR
+comment. When the action concludes `success` the job SHALL post the closing comment naming
+the head — that comment alone is its review; inline comments without it are review nodes an
+interrupted action leaves behind — and SHALL read, within a bounded time, whether it exists;
+otherwise the job SHALL fail the check without posting it. The job leaves no review state, no
+evidence and no classification, and nobody requests the review. On a release PR the job
+SHALL neither read nor run the Claude Code action, and SHALL conclude on the enforcement of
+the threads.
 
 #### Scenario: New head
 - **WHEN** the job runs on a head that no closing comment names — including a head whose only closing comment names an older head
-- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments and, last, the comment naming the head, and the job verifies that closing comment
+- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments, and the job posts and then verifies the comment naming the head
 
 #### Scenario: Silent action
-- **WHEN** the action finishes without publishing the closing comment within the bounded time
-- **THEN** the check fails
+- **WHEN** the action finishes without concluding `success`
+- **THEN** the job posts no closing comment and the check fails
 
 #### Scenario: Re-run on a reviewed head
 - **WHEN** the head's run is re-run and a closing comment names the head
@@ -141,7 +142,7 @@ action, and SHALL conclude on the enforcement of the threads.
 
 #### Scenario: Event other than a push
 - **WHEN** a caller runs the job for an event that is not `pull_request`
-- **THEN** it runs the same path — the read, the action on absence, the verification, the enforcement — so its conclusion derives from a review of the head
+- **THEN** it runs the same path — the read, the action on absence, the closing comment, the verification, the enforcement — so its conclusion derives from a review of the head
 
 #### Scenario: Release PR review
 - **WHEN** the job runs on a release PR
