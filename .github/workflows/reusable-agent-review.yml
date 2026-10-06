@@ -110,7 +110,7 @@ jobs:
             contract defines, and no other comment; the job closes the review
             when you finish. Never approve, request changes or merge.
 
-      # The job alone writes the closing comment (issue 349): the action sets
+      # The job alone writes the closing comment: the action sets
       # `conclusion` to `success` only when the session ended normally and leaves it
       # empty when it skipped without invoking the model (ADR 0004). Any other value
       # is no review of the head and fails the check with no comment, so a re-run

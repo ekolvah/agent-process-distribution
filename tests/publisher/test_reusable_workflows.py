@@ -423,9 +423,9 @@ def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
     assert claude["with"]["github_token"] == "${{ github.token }}"
     assert "mcp__github_inline_comment__create_inline_comment" in claude["with"]["claude_args"]
     assert "--json-schema" not in claude["with"]["claude_args"]
-    # The job alone writes the closing comment (issue 349): a model that could post it
-    # would leave the review's mark behind an interrupted session, and a re-run would
-    # take that session for a review of the head (issue 139).
+    # The job alone writes the closing comment: a model that could post it would leave
+    # the review's mark behind an interrupted session, and a re-run would take that
+    # session for a review of the head.
     assert "gh pr comment" not in claude["with"]["claude_args"]
     prompt = claude["with"]["prompt"]
     for anchor in (
@@ -525,7 +525,7 @@ def _run_close(tmp_path: Path, conclusion: str) -> tuple[subprocess.CompletedPro
 
 def test_close_step_posts_the_comment_the_reader_reads(tmp_path: Path) -> None:
     """Scenario: New head — once the action concluded `success`, the job posts the closing
-    comment in the form the pre-review read of a re-run recognises (issue 349)."""
+    comment in the form the pre-review read of a re-run recognises."""
     close = _steps("reusable-agent-review.yml")["Close the Claude review of the head"]
     assert close["if"] == "steps.review.outputs.absent == 'true'"
     assert close["env"]["CONCLUSION"] == "${{ steps.claude.outputs.conclusion }}"
