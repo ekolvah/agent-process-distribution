@@ -484,6 +484,11 @@ questions of #114 in its order:
   second review yes/no>. For the record: the fallback and the verify step have not run
   live under the merged callee — every `pull_request` run of PR 137 had Codex requested
   and skipped both; a fact about the fallback's publication, not about this change.
+* The closing comment carries the session's final message. A green check certified any
+  session that concluded `success`, including one that read nothing past the diff. The job
+  now republishes, below the marker, the final message and every denied tool call from the
+  action's execution file, and fails when there is no final message; it gates on the
+  message's presence, never on its content, and a denial does not fail the check.
 * Platform facts are observed before a design rests on them (issue 138,
   `observe-platform-facts`). The `proposal` rule of `openspec/config.yaml` now says: a
   design that rests on a platform behaviour verifies it on the platform before the proposal

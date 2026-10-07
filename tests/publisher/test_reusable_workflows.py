@@ -433,6 +433,8 @@ def test_agent_review_reviews_every_head_and_enforces_threads() -> None:
         "untrusted",
         "P0",
         "no other comment",
+        "final message",
+        "did not verify",
         "Never approve",
     ):
         assert anchor in prompt
@@ -501,17 +503,36 @@ def test_review_steps_call_head_review_with_its_arguments(
         assert "present" in capsys.readouterr().out, name
 
 
-def _run_close(tmp_path: Path, conclusion: str) -> tuple[subprocess.CompletedProcess[str], Path]:
-    """Run the close step's script with `gh` replaced by a function that logs its argv."""
+_FINAL_MESSAGE = "Read the contract and the diff. No findings. Did not verify: the hook."
+
+
+def _execution_file(tmp_path: Path, text: str, denials: list[dict[str, Any]]) -> Path:
+    execution = tmp_path / "claude-execution-output.json"
+    result = {"type": "result", "subtype": "success", "result": text, "permission_denials": denials}
+    execution.write_text(json.dumps([{"type": "system"}, result]), encoding="utf-8")
+    return execution
+
+
+def _run_close(
+    tmp_path: Path, conclusion: str, execution: Path | None = None
+) -> tuple[subprocess.CompletedProcess[str], Path]:
+    """Run the close step's script from the repository root, as from the trusted checkout,
+    under the runner's default `bash -eo pipefail`, with `gh` replaced by a function that
+    logs its argv."""
     log = tmp_path / "gh.log"
+    if execution is None:
+        execution = _execution_file(tmp_path, _FINAL_MESSAGE, [])
     run = _steps("reusable-agent-review.yml")["Close the Claude review of the head"]["run"]
     fake_gh = 'gh() { printf \'%s\\n\' "$@" > "$GH_LOG"; }\n'
     result = subprocess.run(
-        [git_bash(), "-c", fake_gh + run],
+        [git_bash(), "-eo", "pipefail", "-c", fake_gh + run],
+        cwd=ROOT,
         env={
             **os.environ,
             "GH_LOG": log.as_posix(),
             "CONCLUSION": conclusion,
+            "EXECUTION_FILE": execution.as_posix(),
+            "RUNNER_TEMP": tmp_path.as_posix(),
             "REPO": "owner/repo",
             "PR": "1",
             "SHA": _HEAD,
@@ -524,19 +545,24 @@ def _run_close(tmp_path: Path, conclusion: str) -> tuple[subprocess.CompletedPro
 
 
 def test_close_step_posts_the_comment_the_reader_reads(tmp_path: Path) -> None:
-    """Scenario: New head — once the action concluded `success`, the job posts the closing
-    comment in the form the pre-review read of a re-run recognises."""
+    """Scenarios: New head, Denied tool — once the action concluded `success`, the job posts
+    the session's final message under the marker the pre-review read of a re-run
+    recognises; a denied call is published, not a failure."""
     close = _steps("reusable-agent-review.yml")["Close the Claude review of the head"]
     assert close["if"] == "steps.review.outputs.absent == 'true'"
     assert close["env"]["CONCLUSION"] == "${{ steps.claude.outputs.conclusion }}"
+    assert close["env"]["EXECUTION_FILE"] == "${{ steps.claude.outputs.execution_file }}"
     assert "${{" not in close["run"]
+    denial = {"tool_name": "Bash", "tool_use_id": "t", "tool_input": {"command": "gh api user"}}
+    execution = _execution_file(tmp_path, _FINAL_MESSAGE, [denial])
 
-    result, log = _run_close(tmp_path, "success")
+    result, log = _run_close(tmp_path, "success", execution)
 
     assert result.returncode == 0, result.stdout + result.stderr
     args = log.read_text(encoding="utf-8").splitlines()
-    assert args[:5] == ["pr", "comment", "1", "--repo", "owner/repo"]
-    body = args[args.index("--body") + 1]
+    assert args[:6] == ["pr", "comment", "1", "--repo", "owner/repo", "--body-file"]
+    body = Path(args[6]).read_text(encoding="utf-8")
+    assert _FINAL_MESSAGE in body
     comment = {"author": {"login": "github-actions[bot]"}, "body": body}
     assert head_review.reviewed({"comments": {"nodes": [comment]}}, _HEAD)
 
@@ -546,6 +572,16 @@ def test_close_step_fails_unless_the_review_concluded(tmp_path: Path, conclusion
     """Scenario: Silent action — a skipped action sets no conclusion (ADR 0004); any
     conclusion but `success` posts no closing comment and fails the check."""
     result, log = _run_close(tmp_path, conclusion)
+
+    assert result.returncode != 0
+    assert "::error::" in result.stdout
+    assert not log.exists()
+
+
+def test_close_step_fails_on_a_silent_finish(tmp_path: Path) -> None:
+    """Scenario: Silent finish — a `success` session without a final message posts no
+    closing comment and fails the check."""
+    result, log = _run_close(tmp_path, "success", _execution_file(tmp_path, "", []))
 
     assert result.returncode != 0
     assert "::error::" in result.stdout

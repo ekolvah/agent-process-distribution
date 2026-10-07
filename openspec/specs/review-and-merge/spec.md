@@ -108,21 +108,31 @@ The review job SHALL read once whether a closing comment of the workflow token's
 the current head, and when none does SHALL run the Claude Code action with the review
 contract read from the trusted checkout of the process at the ref the caller pinned. The
 action publishes findings as inline comments labelled `P0`–`P3` and has no tool to post a PR
-comment. When the action concludes `success` the job SHALL post the closing comment naming
-the head — that comment alone is its review; inline comments without it are review nodes an
-interrupted action leaves behind — and SHALL read, within a bounded time, whether it exists;
-otherwise the job SHALL fail the check without posting it. The job leaves no review state, no
-evidence and no classification, and nobody requests the review. On a release PR the job
-SHALL neither read nor run the Claude Code action, and SHALL conclude on the enforcement of
-the threads.
+comment. When the action concludes `success` and its session ended with a non-empty final
+message, the job SHALL post the closing comment naming the head, carrying that final message
+verbatim and every permission denial of the session — that comment alone is its review;
+inline comments without it are review nodes an interrupted action leaves behind — and SHALL
+read, within a bounded time, whether it exists; otherwise the job SHALL fail the check
+without posting it. A permission denial SHALL NOT fail the check. The job leaves no review
+state, no evidence and no classification, and nobody requests the review. On a
+release PR the job SHALL neither read nor run the Claude Code action, and SHALL conclude on
+the enforcement of the threads.
 
 #### Scenario: New head
 - **WHEN** the job runs on a head that no closing comment names — including a head whose only closing comment names an older head
-- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments, and the job posts and then verifies the comment naming the head
+- **THEN** the Claude Code action runs with the trusted contract and leaves inline `P0`–`P3` comments, and the job posts and then verifies the comment naming the head and carrying the session's final message
 
 #### Scenario: Silent action
 - **WHEN** the action finishes without concluding `success`
 - **THEN** the job posts no closing comment and the check fails
+
+#### Scenario: Silent finish
+- **WHEN** the action concludes `success` but the session's final message is empty or the session left no result
+- **THEN** the job posts no closing comment and the check fails
+
+#### Scenario: Denied tool
+- **WHEN** the session ended with a final message after one or more of its tool calls were denied
+- **THEN** the closing comment lists each denied tool with its command on a line of its own, even a multi-line command, and the check does not fail on them
 
 #### Scenario: Re-run on a reviewed head
 - **WHEN** the head's run is re-run and a closing comment names the head
