@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The plan fixes #363's root cause: the final message was thrown away and a silent finish counted as a review. The fix is the smallest one that fits ADR 0027, and every platform claim is backed by an observation. All three findings of the first review are applied: the `::warning::` channel is gone and each denial is JSON-encoded on its own line, the release-merge check has a holder in tasks 4.2 and 4.4, and the unasserted prose is removed.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects three alternatives. `--json-schema`: its fields are the model's own assertion, it breaks the v2-2b guard, and it repeats the rejection in archive/2026-10-06-job-closes-claude-review/design.md. `show_full_output`: it writes to the public log and carries a secret warning. `display_report`: it puts the output off the PR. The action's outputs at 5898584 (`execution_file`, `conclusion`, `structured_output`, `session_id`) include no final text, so the step has to read the execution file. Without the Silent finish failure, the bare marker would stay. D3 now drops the duplicate `::warning::` channel, so the closing comment is the only output.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md `## Scenario → test map` maps all 10 delta scenarios to named tests. New head maps to test_agent_review_reviews_every_head_and_enforces_threads, test_close_step_posts_the_comment_the_reader_reads and test_body_carries_marker_message_and_denials. Silent action maps to test_close_step_fails_unless_the_review_concluded. Silent finish maps to test_close_step_fails_on_a_silent_finish and test_silent_finish_writes_no_body[4 cases]. Denied tool maps to test_body_carries_marker_message_and_denials, test_denial_without_command_renders_its_input, test_multiline_denial_stays_on_one_line, and test_close_step_posts_the_comment_the_reader_reads, which is a step-level test with one denial that asserts exit 0. The five untouched scenarios keep the tests they already have in test_reusable_workflows.py and test_head_review.py. No scenario is n/a.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 adds a stub that raises NotImplementedError, so the tests of 1.2 fail in their bodies. Task 1.4 expects `RED: 10 failed`, and the count holds: 1.2 contributes 3 tests plus 4 parametrized cases, and 1.3 contributes 3 tests. Each 1.3 test is red against the current code. The prompt anchors are absent today. The test_close_step_posts assertion on the EXECUTION_FILE env fails today. The old step exits 0 on `CONCLUSION=success` with an empty result, so test_close_step_fails_on_a_silent_finish is red.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Checked against anthropics/claude-code-action@5898584. base-action/src/execution-file.ts writes `JSON.stringify(messages)` to `$RUNNER_TEMP/claude-execution-output.json`, and `setExecutionFileOutputIfPresent` sets `execution_file`. run-claude-sdk.ts pushes every SDK message, logs only `permission_denials_count` without show_full_output, and writes the file before it sets `conclusion`. The shape of the result and its denials is cited from the local `claude -p` probe in proposal.md Why. D3 no longer emits workflow commands built from model text. D1 JSON-encodes each denial's command so that a newline cannot break its line, and test_multiline_denial_stays_on_one_line pins this.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The body of the closing comment moves from a constant written by the job to text from the action's `execution_file`. The Risks section of design.md lists the new input's failure modes. A renamed output or field makes the script exit 1, so every review goes red and never green. A PR-steered final message with a forged marker is caught by `head_review.py`'s single `_REVIEWED_HEAD.search`, which matches the real first-line marker first. Task 1.2 asserts `reviewed` is True for the real head when the text holds another SHA's marker, and that holds only if the first match is the real one. A comment over 65,536 characters makes `gh pr comment` fail, so the check is red. No guard is dropped: the `--json-schema` absence check, `\"Reviewed head SHA\" not in prompt` and the conclusion check all stay (tasks 1.3, 2.2).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "D3: the closing comment, which the person reads before merging, catches a denial. Risks: the close step's exit 1, which turns the required check red on the next reviewed head, catches drift in the action's format. Forged marker: `head_review.reviewed` catches it in the Verify step and in the next run's Read step. Migration: release PRs skip the review (ADR 0031), so the release-merge condition is held by the person. Task 4.2's PR body and task 4.4's final report both carry it: merge the next release PR only after a reviewed PR's closing comment shows the final message.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The spec delta adds about 105 words.\n- Requirement:\n  - 'and its session ended with a non-empty final message' (9 words, asserted by the silent-finish tests).\n  - 'carrying that final message verbatim and every permission denial of the session' (12, asserted by test_body_carries...).\n  - 'A permission denial SHALL NOT fail the check.' (8, asserted by the step test's exit 0 with a denial).\n- Scenarios:\n  - New head adds 6 words, asserted by test_close_step_posts.\n  - Silent finish has about 29 words, asserted.\n  - Denied tool has about 40 words, asserted, including the multi-line clause.\n- Prompt: about 25 words, with the anchors `final message` and `did not verify` asserted in 1.3.\n- REVIEW_CONTRACT.md is no longer edited.\n- The ADR 0027 bullet is a decision record, not a rule.\n\nNo unasserted rule prose remains.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds one script, .agent-process/scripts/close_review.py. Design D2 names the problem it closes (#363) and the standard it considered: `jq` in the step, preinstalled on ubuntu-latest. The rejection is convincing. The step test runs its `run` under Git Bash on Windows, where jq is absent. The missing-file and empty-result branches, and now the JSON encoding of each denial, need unit tests. The job's readers are already Python (head_review.py, release_pr.py). The action exposes no output with the final text.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
