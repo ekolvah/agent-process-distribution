@@ -517,14 +517,15 @@ def _run_close(
     tmp_path: Path, conclusion: str, execution: Path | None = None
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     """Run the close step's script from the repository root, as from the trusted checkout,
-    with `gh` replaced by a function that logs its argv."""
+    under the runner's default `bash -eo pipefail`, with `gh` replaced by a function that
+    logs its argv."""
     log = tmp_path / "gh.log"
     if execution is None:
         execution = _execution_file(tmp_path, _FINAL_MESSAGE, [])
     run = _steps("reusable-agent-review.yml")["Close the Claude review of the head"]["run"]
     fake_gh = 'gh() { printf \'%s\\n\' "$@" > "$GH_LOG"; }\n'
     result = subprocess.run(
-        [git_bash(), "-c", fake_gh + run],
+        [git_bash(), "-eo", "pipefail", "-c", fake_gh + run],
         cwd=ROOT,
         env={
             **os.environ,
