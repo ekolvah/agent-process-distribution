@@ -54,6 +54,11 @@ Alternatives rejected:
   action's input description warns it may expose secrets.
 - *`display_report: true`* — writes Claude-authored turns to the step summary, off the PR, with
   the same warning.
+- *`track_progress: true`* — forces tag mode on `pull_request` events (`detector.ts`), which
+  adds file-edit and commit tools and a commit-and-push prompt to a reviewer of untrusted code
+  and demotes our prompt to `<custom_instructions>`; its tracking comment is created before the
+  review, holds what the model wrote, never the denials, and its header follows only the
+  session's success, so a silent finish still reads "finished".
 
 ### D2. `close_review.py` reads the execution file
 
