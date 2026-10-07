@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.1...v3.10.2) (2026-10-07)
+
+
+### Bug Fixes
+
+* close-review-with-session-summary ([#364](https://github.com/ekolvah/agent-process-distribution/issues/364)) ([9079a8d](https://github.com/ekolvah/agent-process-distribution/commit/9079a8d93d158f2d10deccdb95088ba5cc1b3af4))
+
 ## [3.10.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.0...v3.10.1) (2026-10-06)
 
 
