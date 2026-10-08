@@ -834,7 +834,8 @@ other than `bin/openspec` SHALL write an OpenSpec version after `@fission-ai/ope
 
 ### Requirement: The plugin ships the git guard
 The plugin's `PreToolUse` hook for the `Bash` tool SHALL deny a command when any of its stages,
-including one behind a shell separator, a process wrapper, an environment assignment, `sh -c`,
+including one behind a shell separator, a process wrapper, an environment assignment, a shell's
+`-c` alone or in a short-option cluster (`bash -lc`, `sh -ec`),
 git's global options or `gh`'s `-R`/`--repo` before the subcommand, is one of:
 - `gh pr merge` — the reason SHALL say that the person merges;
 - `gh repo delete`;
@@ -850,7 +851,7 @@ command SHALL get no output from the guard. This repository's `.claude/settings.
 that matches a guarded command.
 
 #### Scenario: Guarded command in an adopted consumer
-- **WHEN** the plugin's `PreToolUse` `Bash` hooks run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the guard, for each guarded command, alone and after `cd x &&`, under `sh -c`, after `A=1` and `env A=1`, and with `git -C .` or `gh -R o/r` before the subcommand
+- **WHEN** the plugin's `PreToolUse` `Bash` hooks run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the guard, for each guarded command, alone and after `cd x &&`, under `sh -c`, `bash -lc`, `sh -ec` and `bash -c -e`, after `A=1` and `env A=1`, and with `git -C .` or `gh -R o/r` before the subcommand
 - **THEN** the call is denied and the reason names the alternative
 
 #### Scenario: Ordinary git command
