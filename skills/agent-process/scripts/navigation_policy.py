@@ -26,6 +26,7 @@ The plugin's `hooks/hooks.json` runs it as `agent-process navigation_policy pre-
 from __future__ import annotations
 
 import json
+import re
 import shlex
 import sys
 from collections.abc import Callable
@@ -43,6 +44,8 @@ _WRAPPERS = frozenset(
     {"timeout", "time", "nice", "nohup", "stdbuf", "command", "builtin", "noglob", "env", "xargs"}
 )
 _SHELLS = frozenset({"sh", "bash", "zsh"})
+# A short-option cluster that sets `c`; the single dash keeps `--rcfile` and `--norc` out.
+_SHELL_C = re.compile(r"-[A-Za-z]*c[A-Za-z]*")
 _MAX_DEPTH = 3
 
 # Flags that consume the next token. Without this, `git log | grep -A 3 fix` would read `3`
@@ -124,10 +127,17 @@ def _stage_verdict(
         return None
     if _basename(tokens[0]) in _SHELLS:
         # `sh -c "..."` is NOT unwrapped by Claude Code's permission matcher — it was the
-        # documented hole in the static list. Recursing closes it.
-        if depth < _MAX_DEPTH and "-c" in tokens[1:]:
-            position = tokens.index("-c", 1)
-            inner = tokens[position + 1] if position + 1 < len(tokens) else ""
+        # documented hole in the static list. Recursing closes it. The flag may be clustered
+        # (`bash -lc`, `sh -ec`), and the shell runs the first operand after the options, so
+        # `bash -c -e "..."` runs `...`, not `-e`.
+        position = next(
+            (i for i, token in enumerate(tokens) if i and _SHELL_C.fullmatch(token)), None
+        )
+        if depth < _MAX_DEPTH and position is not None:
+            inner = next(
+                (token for token in tokens[position + 1 :] if not token.startswith(("-", "+"))),
+                "",
+            )
             return first_stage_verdict(inner, rule, depth + 1)
         return None
     return rule(tokens)

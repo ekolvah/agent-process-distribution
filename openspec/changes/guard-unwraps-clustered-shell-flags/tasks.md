@@ -10,7 +10,7 @@
 
 ## 2. Walker
 
-- [ ] 2.1 In `navigation_policy._stage_verdict` find the first token of `tokens[1:]` for which `re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", token)` holds (D1) and take as the command string the first later token that starts with neither `-` nor `+`, else `""` (D2); update the comment to name a clustered `-c`. Verify that `python -m pytest tests/publisher/test_git_guard.py tests/publisher/test_navigation_policy.py tests/publisher/test_plugin.py -q` passes. Commit as `fix(distribution): unwrap a clustered shell -c in the guard and navigation policy`
+- [x] 2.1 In `navigation_policy._stage_verdict` find the first token of `tokens[1:]` for which `re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", token)` holds (D1) and take as the command string the first later token that starts with neither `-` nor `+`, else `""` (D2); update the comment to name a clustered `-c`. Verify that `python -m pytest tests/publisher/test_git_guard.py tests/publisher/test_navigation_policy.py tests/publisher/test_plugin.py -q` passes. Commit as `fix(distribution): unwrap a clustered shell -c in the guard and navigation policy`
 
 ## 3. Verify
 
