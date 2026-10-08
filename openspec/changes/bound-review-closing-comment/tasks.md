@@ -13,7 +13,7 @@
 
 ## 2. Bounded closing comment
 
-- [ ] 2.1 In `.agent-process/scripts/close_review.py`:
+- [x] 2.1 In `.agent-process/scripts/close_review.py`:
   - Cut a denial line at 1,000 characters with ` … truncated` (D2).
   - Build the body as marker, blank line, `Permission denials: <n>`, then the denial lines inside ```` ``` ```` fences when there are any, then a blank line and the final message (D1).
   - Cut a body over 60,000 characters to 60,000, append `\n\n… truncated\n`, and print `::warning::The closing comment of <sha> is cut at 60000 characters` (D3).

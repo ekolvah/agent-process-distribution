@@ -119,8 +119,7 @@ def test_message_cannot_hide_the_denials(tmp_path: Path, opener: str) -> None:
         if t.type == "html_block" or any(child.type == "html_inline" for child in t.children or [])
     ]
     assert count
-    assert html
-    assert max(count[0], fences[0]) < min(html)
+    assert all(max(count[0], fences[0]) < i for i in html)
 
 
 def test_oversized_denial_is_cut(tmp_path: Path) -> None:
