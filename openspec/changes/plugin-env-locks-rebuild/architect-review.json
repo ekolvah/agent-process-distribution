@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "The three earlier findings are answered in design.md D1/D3 and tasks.md 1.1/2.1. The timeout test now fails rather than hangs on main, the lock retries only on the two observed contention errors, and the test asserts the spec's 240 s. The lock-and-recheck design is the minimal fix for the reproduced race.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects temp-dir-and-rename (moves a non-portable venv, needs a second branch for repair) and per-session environments (network and venv cost per session, unsweepable leftovers). D2 rejects an unbounded wait, because the hook would be killed at 300 s with no marker. A blocking lock with no bound, or an O_EXCL lockfile that goes stale after a kill, is not simpler for the scenarios. _usable has two callers (fast path and under the lock). One .lock per data directory, not per manifest, is the smaller choice and is recorded as a non-goal.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The MODIFIED requirement keeps all 7 scenarios of openspec/specs/distribution/spec.md and adds Parallel install and Install waits too long (9 in the delta). The tasks.md Scenario → test map names a test for each. The 7 existing ones map to existing tests in tests/publisher/test_plugin.py, checked by name, and the 2 new ones to the tests of task 1.1. The marker half of Install waits too long rides on test_session_start_reports_a_missing_environment, which proves that session_start turns any InstallError into the marker.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.2 expects `RED: 2 failed`. Parallel install fails on main because B's first command is `venv --clear` within A's bounded 5 s wait (proposal Why row 3). Install waits too long fails on main with DID NOT RAISE: only A is held, so the main thread builds. Its `finally` then sets `release` and joins A, and A's own wait is bounded at 10 s, so check_red ends (D3, task 1.1). The 240 assertion comes after the behaviour assertions, so RED fails on behaviour, not on the missing constant. On GREEN, A takes the lock before its `venv --clear`, so the main thread meets a held lock even if its ≤5 s wait for `reached` expires during a slow Windows venv creation. The task correctly does not assert on that wait; an assertion there would make the test flaky.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design.md Context records a lockprobe run on Windows 11 / Python 3.12.8 and python:3.12-slim / 3.12.15. Contention raises PermissionError 13 (msvcrt LK_NBLCK) and BlockingIOError 11 (flock LOCK_EX|LOCK_NB). A second handle conflicts in-process, which is the basis for D3's threads, and a killed holder releases the lock. D1 and task 2.1 now retry only on those two observed errors, and any other OSError propagates. LK_UNLCK before close cites the msvcrt docs, and the shared-cache role of ${CLAUDE_PLUGIN_DATA} quotes the plugin reference. The 300 s hook timeout is asserted by _session_start. The `a+b` lock file is never written, so the locked byte is always offset 0, consistent with the unlock at offset 0. 'pip check has no network step' supports only the accepted residual that task 4.2 reports to the person.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. The fast path (.complete plus pip check), the in-place build, the marker path and the hook command and timeout stay (proposal Impact). The change adds a guard: the lock and the recheck under it. On migration, existing venv-<digest> directories stay valid and old code ignores .lock.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "check_red (1.2) reaches both new tests on main and now terminates. `pytest -k \"session_start or install\"` (2.1) selects both new tests and the three session_start tests. Task 3.2 runs ci_check.py, as pre-push does, on the implementer's Windows machine, so it reaches the msvcrt branch. quality.yml runs ubuntu-latest only and reaches the fcntl branch on the pushed head, which wait_for_pr (4.3) waits for. openspec validate (3.1) reaches the delta.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The requirement gains one 34-word sentence (one at a time; reuse the other's environment; fail after 240 seconds). The two new scenarios have about 25 and 30 words. Each assertion is now covered. One at a time: B issues no command until after A's last. Reuse: same interpreter and unchanged pyvenv.cfg mtime. Fail with a cause naming the wait: InstallError naming .lock and the seconds. 240: the original LOCK_WAIT is asserted == 240. The marker is covered by the existing test.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No new script or check. The plan adds _locked, a helper of about 20 lines, inside the existing plugin_env.py. design.md Context names the problem (the proposal Why reproduction, issue 368) and the standard. The `filelock` package cannot be used because the hook runs on the session's stdlib-only python before the environment exists, so the plan follows pre-commit's stdlib file_lock.py pattern (exclusive lock plus recheck).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
