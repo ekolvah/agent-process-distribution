@@ -109,11 +109,13 @@ the current head, and when none does SHALL run the Claude Code action with the r
 contract read from the trusted checkout of the process at the ref the caller pinned. The
 action publishes findings as inline comments labelled `P0`–`P3` and has no tool to post a PR
 comment. When the action concludes `success` and its session ended with a non-empty final
-message, the job SHALL post the closing comment naming the head, carrying that final message
-verbatim and every permission denial of the session — that comment alone is its review;
-inline comments without it are review nodes an interrupted action leaves behind — and SHALL
-read, within a bounded time, whether it exists; otherwise the job SHALL fail the check
-without posting it. A permission denial SHALL NOT fail the check. The job leaves no review
+message, the job SHALL post the closing comment naming the head, carrying every permission
+denial of the session in a fenced block and then that final message verbatim — that comment
+alone is its review; inline comments without it are review nodes an interrupted action leaves
+behind — and SHALL read, within a bounded time, whether it exists; otherwise the job SHALL fail
+the check without posting it. The job SHALL keep the comment under GitHub's comment limit: a
+denial or a comment cut to fit SHALL end with `… truncated`, and the head name and the denial
+count SHALL stay whole. A permission denial SHALL NOT fail the check. The job leaves no review
 state, no evidence and no classification, and nobody requests the review. On a
 release PR the job SHALL neither read nor run the Claude Code action, and SHALL conclude on
 the enforcement of the threads.
@@ -132,7 +134,11 @@ the enforcement of the threads.
 
 #### Scenario: Denied tool
 - **WHEN** the session ended with a final message after one or more of its tool calls were denied
-- **THEN** the closing comment lists each denied tool with its command on a line of its own, even a multi-line command, and the check does not fail on them
+- **THEN** the closing comment lists each denied tool with its command on a line of its own, even a multi-line command, in a fenced block before the final message, so nothing the final message opens hides them, and the check does not fail on them
+
+#### Scenario: Oversized session
+- **WHEN** a denied call's input or the final message would take the closing comment past GitHub's comment limit
+- **THEN** the job posts a closing comment within the limit, with the head name and the denial count whole and each cut ending with `… truncated`
 
 #### Scenario: Re-run on a reviewed head
 - **WHEN** the head's run is re-run and a closing comment names the head
