@@ -1,11 +1,7 @@
-"""The navigation policy and its Claude PreToolUse adapters.
+"""The navigation policy's read budget and its Claude PreToolUse adapter.
 
-The policy replaces the static `permissions.deny` navigation block: a static pattern
-cannot carry a denial message and cannot tell `grep FILE` (a tool replaces it) from
-`cmd | grep` (nothing does). Both properties are asserted here.
-
-The second route is `Read` itself: the same policy, applied to the byte size of
-the slice the tool will actually return rather than to a shell command.
+The policy applies to the byte size of the slice `Read` will actually return, and its
+denial names the cheaper slice or search.
 """
 
 from __future__ import annotations
@@ -24,16 +20,10 @@ from tests.publisher.delivery_fakes import ROOT, SKILL_SCRIPTS, load_script
 
 _policy = load_script("navigation_policy")
 _READ_BUDGET_BYTES = _policy._READ_BUDGET_BYTES
-navigation_hint = _policy.navigation_hint
 read_budget_hint = _policy.read_budget_hint
-pre_bash_response = _policy.pre_bash_response
 pre_read_response = _policy.pre_read_response
 
 _CLAUDE_SETTINGS = ROOT / ".claude" / "settings.json"
-
-# Commands whose filesystem-reading form the hook owns. A static deny on any of them
-# would match first and swallow the message (a deny rule blocks before a hook runs).
-_OWNED = ("ls", "find", "cat", "sed", "grep", "head", "tail")
 
 
 def _settings() -> Any:
@@ -78,92 +68,6 @@ def _asset(suffix: str) -> Callable[[Path], str]:
         return str(_over_budget(tmp_path, f"asset{suffix}"))
 
     return make
-
-
-@pytest.mark.parametrize(
-    ("command", "tool"),
-    (
-        ("ls tests/", "Glob"),
-        ("ls", "Glob"),
-        ("ls -la src/", "Glob"),
-        ('find . -name "*.py"', "Glob"),
-        ("cat README.md", "Read"),
-        ("cat src/a.py src/b.py", "Read"),
-        ("sed -n '1,40p' CLAUDE.md", "Read"),
-        ('grep -rn "foo" src/', "Grep"),
-        # The static pattern `Bash(grep -r*)` missed these two; the parser does not.
-        ('grep -nr "foo" src/', "Grep"),
-        ('grep -n -r "foo" src/', "Grep"),
-        # Not reachable by a static pattern at all: `grep`/`head`/`tail` reading a file
-        # look exactly like their pipe form until the operands are counted.
-        ('grep -n "foo" .agent-process/scripts/hooks.py', "Grep"),
-        ("head -40 .agent-process/scripts/hooks.py", "Read"),
-        ("tail -n 20 .agent-process/scripts/hooks.py", "Read"),
-    ),
-)
-def test_filesystem_reads_are_denied_with_the_replacement_named(command: str, tool: str) -> None:
-    hint = navigation_hint(command)
-    assert hint is not None, command
-    assert tool in hint, hint
-
-
-@pytest.mark.parametrize(
-    "command",
-    (
-        # Trimming another command's output. No tool expresses this, so it stays allowed.
-        "git log --oneline | head -40",
-        "git status --short | tail -5",
-        "gh issue view 485 | grep -n fix",
-        "git diff | sed -n '1,20p'",
-        "git diff | cat",
-        "python -m pytest | grep -c passed",
-        # `grep -A 3 pattern` downstream: the value flag must not be read as a file.
-        "git log | grep -A 3 fix",
-        # Untouched toolchain.
-        "python .agent-process/scripts/ci_check.py",
-        "git commit -m 'cat the file'",
-        "gh pr view 497",
-        # No line-counting tool exists, so `wc` is not owned.
-        "wc -l .agent-process/scripts/hooks.py",
-    ),
-)
-def test_pipe_stages_and_toolchain_stay_allowed(command: str) -> None:
-    assert navigation_hint(command) is None, command
-
-
-@pytest.mark.parametrize(
-    "command",
-    (
-        "cd tests && ls",
-        "ls tests/ | head -3",
-        "python -m pytest -q; cat README.md",
-        # `sh -c` is not unwrapped by Claude Code's matcher — it was the documented hole
-        # in the static list, and the parser closes it.
-        'sh -c "cat README.md"',
-        'bash -c "grep -rn foo src/"',
-    ),
-)
-def test_a_denied_stage_is_found_anywhere_in_a_compound_command(command: str) -> None:
-    assert navigation_hint(command) is not None, command
-
-
-@pytest.mark.parametrize(
-    "command",
-    ('bash -lc "cat README.md"', 'sh -ec "cat file"', 'bash -c -e "grep -rn foo src/"'),
-)
-def test_clustered_shell_flag_is_unwrapped(command: str) -> None:
-    assert navigation_hint(command) is not None, command
-
-
-def test_heredoc_write_is_routed_to_the_edit_tools() -> None:
-    hint = navigation_hint("cat > notes.md <<'EOF'")
-    assert hint is not None
-    assert "Write" in hint and "Edit" in hint
-
-
-def test_unparseable_command_fails_open() -> None:
-    """An unbalanced quote is a lexer limit, not a violation: never block on it."""
-    assert navigation_hint('grep "unterminated src/') is None
 
 
 class TestReadBudget:
@@ -228,22 +132,6 @@ class TestReadBudget:
 
 
 class TestClaudeAdapter:
-    def test_denial_uses_the_documented_pretooluse_shape(self) -> None:
-        response = pre_bash_response({"tool_input": {"command": "cat README.md"}})
-        assert response is not None
-        specific = response["hookSpecificOutput"]
-        assert specific["hookEventName"] == "PreToolUse"
-        assert specific["permissionDecision"] == "deny"
-        assert "Read" in specific["permissionDecisionReason"]
-
-    def test_allowed_command_returns_no_decision(self) -> None:
-        assert pre_bash_response({"tool_input": {"command": "git status"}}) is None
-
-    def test_malformed_payload_is_a_no_op(self) -> None:
-        """Fail-open: a payload bug must not brick Bash."""
-        assert pre_bash_response({}) is None
-        assert pre_bash_response({"tool_input": {"command": None}}) is None
-
     def test_read_denial_uses_the_documented_pretooluse_shape(self, tmp_path: Path) -> None:
         response = pre_read_response({"tool_input": {"file_path": str(_over_budget(tmp_path))}})
         assert response is not None
@@ -275,14 +163,10 @@ def test_unknown_subcommand_is_a_visible_non_blocking_error(args: tuple[str, ...
     assert "usage" in result.stderr
 
 
-@pytest.mark.parametrize("subcommand", ("pre-bash", "pre-read"))
-def test_pre_tool_use_subcommands_are_accepted(subcommand: str) -> None:
-    """`main()` is fail-CLOSED on an unknown argv (exit 2). Behind a `Bash`/`Read` matcher that
-    reads as "deny every call in the session" — the opposite of the fail-open policy — so
-    the dispatcher's allowlist is a guarded requirement, not an implementation detail.
-    """
+def test_pre_read_subcommand_is_accepted() -> None:
+    """The hook's own subcommand reaches the policy: an empty payload is no decision."""
     result = subprocess.run(
-        [sys.executable, str(SKILL_SCRIPTS / "navigation_policy.py"), subcommand],
+        [sys.executable, str(SKILL_SCRIPTS / "navigation_policy.py"), "pre-read"],
         input="{}",
         capture_output=True,
         encoding="utf-8",
@@ -293,15 +177,6 @@ def test_pre_tool_use_subcommands_are_accepted(subcommand: str) -> None:
 
 
 class TestClaudeHookWiring:
-    def test_no_static_deny_shadows_the_hook(self) -> None:
-        """A matching `permissions.deny` rule blocks before the hook runs, so a static
-        navigation entry would silently drop the replacement message."""
-        patterns = [str(p) for p in _settings()["permissions"]["deny"]]
-        shadowing = [
-            pattern for pattern in patterns if re.match(rf"Bash\((?:{'|'.join(_OWNED)})\b", pattern)
-        ]
-        assert not shadowing, f"navigation deny entries shadow the hook: {shadowing}"
-
     def test_no_static_deny_shadows_the_read_hook(self) -> None:
         """A `Read(...)` deny rule would block before the hook runs and drop the budget
         message, leaving the agent with a refusal and no cheaper route named."""

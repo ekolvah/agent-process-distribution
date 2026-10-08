@@ -30,21 +30,19 @@ from __future__ import annotations
 
 import importlib.util
 import re
-import sys
 from pathlib import Path
 
 import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# The policy is a skill script, not an importable package module; `@dataclass` resolves its
-# module through `sys.modules`, so it is registered before it runs.
+# The policy is a skill script, not an importable package module.
 _POLICY_SPEC = importlib.util.spec_from_file_location(
     "agent_process_skill_navigation_policy",
     _REPO_ROOT / "skills" / "agent-process" / "scripts" / "navigation_policy.py",
 )
 assert _POLICY_SPEC and _POLICY_SPEC.loader
-_policy = sys.modules.setdefault(_POLICY_SPEC.name, importlib.util.module_from_spec(_POLICY_SPEC))
+_policy = importlib.util.module_from_spec(_POLICY_SPEC)
 _POLICY_SPEC.loader.exec_module(_policy)
 read_budget_hint = _policy.read_budget_hint
 

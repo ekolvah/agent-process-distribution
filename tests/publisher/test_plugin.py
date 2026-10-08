@@ -404,7 +404,8 @@ def _run_plugin_hook(
 
 
 def _denied_payloads(project: Path) -> dict[str, dict]:
-    """Per matcher, a payload the navigation policy denies inside `project`."""
+    """Per matcher, a payload for the plugin hooks inside `project`: a `Read` over the budget the
+    navigation policy denies, and a `Bash` read, the fallback for a matcher with no payload."""
     large = project / "large.txt"
     large.write_text(("x" * 79 + "\n") * 1000, encoding="utf-8")  # 80000 bytes, over budget
     return {
@@ -445,10 +446,14 @@ def test_plugin_hooks_guard_git_in_an_adopted_repository(tmp_path: Path) -> None
     (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
     guards = _bash_hooks("git_guard")
     assert len(guards) == 1, _plugin_hooks()
-    group, hook = guards[0]
-    navigation = [other for other in group["hooks"] if "navigation_policy" in other["command"]]
-    assert len(navigation) == 1, group
-    gate = navigation[0]["command"].split("||")[0]
+    _, hook = guards[0]
+    navigation = [
+        command
+        for event, matcher, command in _plugin_hooks()
+        if event == "PreToolUse" and matcher == "Read" and "navigation_policy" in command
+    ]
+    assert len(navigation) == 1, _plugin_hooks()
+    gate = navigation[0].split("||")[0]
     assert hook["command"].startswith(gate), hook["command"]
     assert hook["timeout"] == 10
     result = _run_plugin_hook(tmp_path, hook["command"], GUARDED_PAYLOAD)

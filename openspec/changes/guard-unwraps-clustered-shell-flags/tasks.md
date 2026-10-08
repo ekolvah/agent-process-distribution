@@ -18,7 +18,7 @@
   - In `_forms` of `tests/publisher/test_git_guard.py` add `true; {command}` and `true | {command}`: they pass now and keep the separators covered once the walker moves (D4).
 
   Run `agent-process check_red tests/publisher/test_plugin.py::test_plugin_hooks_deny_navigation_in_an_adopted_repository tests/publisher/test_plugin.py::test_plugin_hooks_allow_shell_navigation_in_an_adopted_repository tests/publisher/test_navigation_policy.py::test_unknown_subcommand_is_a_visible_non_blocking_error`; verify that it prints `RED: 4 failed` and exits 0. Commit as `test(distribution): the plugin ships no Bash navigation hook`
-- [ ] 2.3 Remove the route and move the walker:
+- [x] 2.3 Remove the route and move the walker:
   - Remove the `navigation_policy pre-bash` entry from `hooks/hooks.json` and, from `navigation_policy.py`, the `Bash` route of D3 with its `pre-bash` subcommand; make `main` exit 1 with the usage for any argv but `pre-read` (D5).
   - Rewrite for the `Read` route alone the module docstring, the docstrings that cite `pre_bash_response` or `Bash`, and the Read denial's closing "Reading is budgeted like shell navigation."
   - Move the walker of D4 into `git_guard.py`, importing only `_deny` from `navigation_policy`.
