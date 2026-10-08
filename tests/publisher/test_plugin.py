@@ -686,8 +686,8 @@ def _plugin_env(
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    module.MANIFEST = tmp_path / "requirements.txt"
-    module.MANIFEST.write_text("# none\n", encoding="utf-8")
+    manifest = tmp_path / "requirements.txt"
+    manifest.write_text("# none\n", encoding="utf-8")
     log: list[tuple[str, Command]] = []
     run = module._run
 
@@ -697,7 +697,7 @@ def _plugin_env(
         before(thread, command)
         run(*args)
 
-    module._run = recorded
+    vars(module).update(MANIFEST=manifest, _run=recorded)
     return module, log
 
 

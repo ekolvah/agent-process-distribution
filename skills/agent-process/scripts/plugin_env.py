@@ -30,7 +30,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-if os.name == "nt":
+if sys.platform == "win32":
     import msvcrt
 
     HELD: type[OSError] = PermissionError  # what a lock another handle holds raises
@@ -74,7 +74,7 @@ def _locked(path: Path) -> Iterator[None]:
         deadline = time.monotonic() + LOCK_WAIT
         while True:
             try:
-                if os.name == "nt":
+                if sys.platform == "win32":
                     msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
                 else:
                     fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -86,7 +86,7 @@ def _locked(path: Path) -> Iterator[None]:
         try:
             yield
         finally:
-            if os.name == "nt":
+            if sys.platform == "win32":
                 handle.seek(0)
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:
