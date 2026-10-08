@@ -670,14 +670,15 @@ stderr before stdout. When neither stream was captured, it SHALL say `output not
 - **THEN** the error says `output not captured`
 
 ### Requirement: The plugin ships the navigation hooks
-The plugin SHALL deliver the PreToolUse navigation policy of the implementation requirement
-"Shift-left feedback in Claude" as its own hooks for the `Bash` and `Read` tools, running the
-policy from the package, so a consumer needs no copy of it. This repository's
-`.claude/settings.json` SHALL declare no PreToolUse hook for `Bash` or `Read`.
+The plugin SHALL deliver the PreToolUse read-budget policy of the implementation requirement
+"Shift-left feedback in Claude" as its own hook for the `Read` tool, running the policy from the
+package, so a consumer needs no copy of it, and SHALL ship no navigation hook for the `Bash`
+tool. This repository's `.claude/settings.json` SHALL declare no PreToolUse hook for `Bash` or
+`Read`.
 
 #### Scenario: Adopted consumer
-- **WHEN** the plugin's hook commands run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the policy, for a `Bash` command with a denied navigation stage and for a whole-file `Read` of a file over the budget
-- **THEN** each denies the call and names the tool or range to use instead
+- **WHEN** the plugin's hook commands run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the policy, for a whole-file `Read` of a file over the budget
+- **THEN** the call is denied and the reason names the range to use instead, and no navigation hook of the plugin matches `Bash`
 
 #### Scenario: Repository settings carry no navigation hook
 - **WHEN** the publisher tests read this repository's `.claude/settings.json`
@@ -834,7 +835,8 @@ other than `bin/openspec` SHALL write an OpenSpec version after `@fission-ai/ope
 
 ### Requirement: The plugin ships the git guard
 The plugin's `PreToolUse` hook for the `Bash` tool SHALL deny a command when any of its stages,
-including one behind a shell separator, a process wrapper, an environment assignment, `sh -c`,
+including one behind a shell separator, a process wrapper, an environment assignment, a shell's
+`-c` alone or in a short-option cluster (`bash -lc`, `sh -ec`),
 git's global options or `gh`'s `-R`/`--repo` before the subcommand, is one of:
 - `gh pr merge` — the reason SHALL say that the person merges;
 - `gh repo delete`;
@@ -850,7 +852,7 @@ command SHALL get no output from the guard. This repository's `.claude/settings.
 that matches a guarded command.
 
 #### Scenario: Guarded command in an adopted consumer
-- **WHEN** the plugin's `PreToolUse` `Bash` hooks run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the guard, for each guarded command, alone and after `cd x &&`, under `sh -c`, after `A=1` and `env A=1`, and with `git -C .` or `gh -R o/r` before the subcommand
+- **WHEN** the plugin's `PreToolUse` `Bash` hooks run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the guard, for each guarded command, alone and after `cd x &&`, under `sh -c`, `bash -lc`, `sh -ec` and `bash -c -e`, after `A=1` and `env A=1`, and with `git -C .` or `gh -R o/r` before the subcommand
 - **THEN** the call is denied and the reason names the alternative
 
 #### Scenario: Ordinary git command
