@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
 import shlex
 import shutil
 import subprocess
+import threading
 import tomllib
 from pathlib import Path
+from types import ModuleType
+from typing import Callable
 
 import pytest
 import yaml
@@ -666,6 +670,111 @@ def test_session_start_reports_a_missing_environment(
             assert ENV_MARKER in text and named in text, text
         assert interpreter is None
         assert not list((tmp_path / "data").glob("venv-*/.complete"))
+
+
+Command = tuple[str, ...]
+
+
+def _plugin_env(
+    tmp_path: Path, before: Callable[[str, Command], None]
+) -> tuple[ModuleType, list[tuple[str, Command]]]:
+    """`plugin_env` loaded in-process with the manifest `tmp_path/requirements.txt`; its `_run`
+    records each command under the calling thread's name, calls `before` and runs it."""
+    spec = importlib.util.spec_from_file_location(
+        "agent_process_plugin_env_under_test", SCRIPTS / "plugin_env.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.MANIFEST = tmp_path / "requirements.txt"
+    module.MANIFEST.write_text("# none\n", encoding="utf-8")
+    log: list[tuple[str, Command]] = []
+    run = module._run
+
+    def recorded(*args: str | Path) -> None:
+        thread, command = threading.current_thread().name, tuple(str(arg) for arg in args)
+        log.append((thread, command))
+        before(thread, command)
+        run(*args)
+
+    module._run = recorded
+    return module, log
+
+
+def _step(command: Command) -> str:
+    """`venv`, `pip install` or `pip check`: the words after `-m`."""
+    words = command[command.index("-m") + 1 :]
+    return " ".join(words[:2] if words[0] == "pip" else words[:1])
+
+
+def test_parallel_install_waits_and_reuses_the_environment(tmp_path: Path) -> None:
+    """Scenario: Parallel install."""
+    data = tmp_path / "data"
+    results: dict[str, object] = {}
+    b_ran = threading.Event()
+
+    def session(name: str) -> None:
+        try:
+            python = results[name] = module.install(data)
+        except module.InstallError as error:  # reported by the assertions below
+            results[name] = error
+        else:
+            if name == "A":
+                results["built"] = (python.parents[1] / "pyvenv.cfg").stat().st_mtime_ns
+
+    a = threading.Thread(target=session, args=("A",), name="A")
+    b = threading.Thread(target=session, args=("B",), name="B")
+
+    def before(thread: str, command: Command) -> None:
+        if thread == "B":
+            b_ran.set()
+        elif _step(command) == "pip install" and b.ident is None:
+            b.start()
+            b_ran.wait(5)
+
+    module, log = _plugin_env(tmp_path, before)
+    a.start()
+    a.join()
+    if b.ident is not None:
+        b.join()
+    b_steps = [(i, _step(command)) for i, (thread, command) in enumerate(log) if thread == "B"]
+    a_last = max(i for i, (thread, _) in enumerate(log) if thread == "A")
+    assert [step for _, step in b_steps] == ["pip check"], log
+    assert b_steps[0][0] > a_last, log
+    assert isinstance(results["A"], Path), results
+    assert results["B"] == results["A"], results
+    venv = results["A"].parents[1]
+    assert (venv / "pyvenv.cfg").stat().st_mtime_ns == results["built"]
+
+
+def test_install_reports_a_lock_held_too_long(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Scenario: Install waits too long."""
+    data = tmp_path / "data"
+    reached, release = threading.Event(), threading.Event()
+
+    def before(thread: str, command: Command) -> None:
+        if thread == "A" and _step(command) == "pip install" and not reached.is_set():
+            reached.set()
+            release.wait(10)
+
+    module, log = _plugin_env(tmp_path, before)
+    wait = getattr(module, "LOCK_WAIT", None)
+    monkeypatch.setattr(module, "LOCK_WAIT", 1, raising=False)
+    a = threading.Thread(target=lambda: module.install(data), name="A")
+    a.start()
+    try:
+        reached.wait(5)
+        me = threading.current_thread().name
+        with pytest.raises(module.InstallError) as caught:
+            module.install(data)
+        assert ".lock" in str(caught.value) and "1 s" in str(caught.value), caught.value
+        assert [command for thread, command in log if thread == me] == [], log
+        assert wait == 240
+    finally:
+        release.set()
+        a.join(60)
 
 
 def test_publisher_settings_declare_no_navigation_hook() -> None:
