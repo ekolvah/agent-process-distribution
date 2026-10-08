@@ -4,12 +4,12 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_close_review.py`, parse bodies with `markdown_it.MarkdownIt("commonmark").parse` and add:
+- [x] 1.1 In `tests/publisher/test_close_review.py`, parse bodies with `markdown_it.MarkdownIt("commonmark").parse` and add:
   - `test_message_cannot_hide_the_denials`, parametrized over final messages whose last line is `<!--`, `<details>` or an unclosed ```` ``` ```` (each opens a block that runs to the end of the document), with one `Bash` denial whose command is ``"echo '```'\n<!--"``. Assert that the first `fence` token's content is exactly the denial line. Assert that the fence and the paragraph `Permission denials: 1` come before every `html_block` and `html_inline` token (D1).
   - `test_oversized_denial_is_cut`: one `Write` denial whose `tool_input.content` is 100,000 characters. Assert that `len(body) <= 65_536`, that `Permission denials: 1` is whole, and that the denial line is at most 1,000 characters plus ` … truncated` and ends with it (D2).
   - `test_oversized_body_is_cut`, parametrized over a 100,000-character ASCII message, a message of 100,000 `😀`, and 100 `Bash` denials of 5,000 characters each. Assert that `len(body) <= 65_536` and `len(body.encode("utf-8")) <= 262_144`. Assert that line 1 is the marker, that `Permission denials: <n>` is whole, that the body ends with `… truncated` on a line of its own, and that stdout carries `::warning::` (D3).
   - Rewrite `test_multiline_denial_stays_on_one_line`: the heredoc denial is the one line of the `fence` token's content (D1).
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_close_review.py::test_message_cannot_hide_the_denials tests/publisher/test_close_review.py::test_oversized_denial_is_cut tests/publisher/test_close_review.py::test_oversized_body_is_cut tests/publisher/test_close_review.py::test_multiline_denial_stays_on_one_line`. Verify that it prints `RED: 8 failed` and exits 0. Commit as `test(review): the closing comment is unbounded and the message can hide the denials`
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_close_review.py::test_message_cannot_hide_the_denials tests/publisher/test_close_review.py::test_oversized_denial_is_cut tests/publisher/test_close_review.py::test_oversized_body_is_cut tests/publisher/test_close_review.py::test_multiline_denial_stays_on_one_line`. Verify that it prints `RED: 8 failed` and exits 0. Commit as `test(review): the closing comment is unbounded and the message can hide the denials`
 
 ## 2. Bounded closing comment
 
