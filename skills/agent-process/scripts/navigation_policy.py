@@ -129,7 +129,8 @@ def _stage_verdict(
         # `sh -c "..."` is NOT unwrapped by Claude Code's permission matcher — it was the
         # documented hole in the static list. Recursing closes it. The flag may be clustered
         # (`bash -lc`, `sh -ec`), and the shell runs the first operand after the options, so
-        # `bash -c -e "..."` runs `...`, not `-e`.
+        # `bash -c -e "..."` runs `...`, not `-e`. Value-taking options are not modelled: in
+        # `bash -c -o pipefail "..."` the value `pipefail` is read as the command string.
         position = next(
             (i for i, token in enumerate(tokens) if i and _SHELL_C.fullmatch(token)), None
         )
