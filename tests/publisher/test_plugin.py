@@ -404,7 +404,8 @@ def _run_plugin_hook(
 
 
 def _denied_payloads(project: Path) -> dict[str, dict]:
-    """Per matcher, a payload the navigation policy denies inside `project`."""
+    """Per matcher, a payload for the plugin hooks inside `project`: a `Read` over the budget the
+    navigation policy denies, and a `Bash` read, the fallback for a matcher with no payload."""
     large = project / "large.txt"
     large.write_text(("x" * 79 + "\n") * 1000, encoding="utf-8")  # 80000 bytes, over budget
     return {
@@ -445,10 +446,14 @@ def test_plugin_hooks_guard_git_in_an_adopted_repository(tmp_path: Path) -> None
     (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
     guards = _bash_hooks("git_guard")
     assert len(guards) == 1, _plugin_hooks()
-    group, hook = guards[0]
-    navigation = [other for other in group["hooks"] if "navigation_policy" in other["command"]]
-    assert len(navigation) == 1, group
-    gate = navigation[0]["command"].split("||")[0]
+    _, hook = guards[0]
+    navigation = [
+        command
+        for event, matcher, command in _plugin_hooks()
+        if event == "PreToolUse" and matcher == "Read" and "navigation_policy" in command
+    ]
+    assert len(navigation) == 1, _plugin_hooks()
+    gate = navigation[0].split("||")[0]
     assert hook["command"].startswith(gate), hook["command"]
     assert hook["timeout"] == 10
     result = _run_plugin_hook(tmp_path, hook["command"], GUARDED_PAYLOAD)
@@ -507,16 +512,31 @@ def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -
         for _, matcher, command in _plugin_hooks()
         if "navigation_policy" in command
     ]
-    assert sorted(matcher for matcher, _ in hooks if matcher in payloads) == ["Bash", "Read"]
-    replacement = {"Bash": "Read", "Read": "offset"}
-    for matcher, command in hooks:
-        if matcher not in payloads:
-            continue
-        result = _run_plugin_hook(tmp_path, command, payloads[matcher])
-        assert result.returncode == 0, (matcher, result.stderr)
-        output = json.loads(result.stdout)["hookSpecificOutput"]
-        assert output["permissionDecision"] == "deny", matcher
-        assert replacement[matcher] in output["permissionDecisionReason"], matcher
+    assert [matcher for matcher, _ in hooks] == ["Read"], hooks
+    result = _run_plugin_hook(tmp_path, hooks[0][1], payloads["Read"])
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["permissionDecision"] == "deny"
+    assert "offset" in output["permissionDecisionReason"]
+
+
+def test_plugin_hooks_allow_shell_navigation_in_an_adopted_repository(tmp_path: Path) -> None:
+    """Scenario: Shell navigation — no plugin `Bash` hook denies a shell read of the repository."""
+    (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
+    (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
+    hooks = _bash_hooks("")
+    assert hooks, _plugin_hooks()
+    for command in (
+        "cat README.md",
+        "grep -rn foo src/",
+        "find . -name '*.py'",
+        "sed -n 1,5p a.py",
+    ):
+        payload = {"tool_input": {"command": command}}
+        for _, hook in hooks:
+            result = _run_plugin_hook(tmp_path, hook["command"], payload)
+            assert result.returncode == 0, (command, hook["command"], result.stderr)
+            assert "deny" not in result.stdout, (command, result.stdout)
 
 
 def test_plugin_hooks_are_silent_outside_an_adopted_repository(tmp_path: Path) -> None:
