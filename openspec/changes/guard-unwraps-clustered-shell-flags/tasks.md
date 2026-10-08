@@ -11,7 +11,7 @@
 ## 2. Walker and navigation route
 
 - [x] 2.1 In `navigation_policy._stage_verdict` find the first token of `tokens[1:]` for which `re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", token)` holds (D1) and take as the command string the first later token that starts with neither `-` nor `+`, else `""` (D2); update the comment to name a clustered `-c`. Verify that `python -m pytest tests/publisher/test_git_guard.py tests/publisher/test_navigation_policy.py tests/publisher/test_plugin.py -q` passes. Commit as `fix(distribution): unwrap a clustered shell -c in the guard and navigation policy`
-- [ ] 2.2 RED for D3 and D5:
+- [x] 2.2 RED for D3 and D5:
   - In `tests/publisher/test_plugin.py::test_plugin_hooks_deny_navigation_in_an_adopted_repository` assert that the plugin's `navigation_policy` hooks match `Read` only, and run only the `Read` payload through them; keep the `Bash` key of `_denied_payloads`, which `test_plugin_hooks_are_silent_outside_an_adopted_repository` falls back to.
   - Add `test_plugin_hooks_allow_shell_navigation_in_an_adopted_repository`: in an adopted directory run `cat README.md`, `grep -rn foo src/`, `find . -name '*.py'` and `sed -n 1,5p a.py` through every plugin `PreToolUse` `Bash` hook and assert that none outputs a deny.
   - In `tests/publisher/test_navigation_policy.py` add `test_unknown_subcommand_is_a_visible_non_blocking_error`, parametrized over `()` and `("pre-bash",)`, mirroring the `git_guard` test of that name: exit 1 and `usage` on stderr.

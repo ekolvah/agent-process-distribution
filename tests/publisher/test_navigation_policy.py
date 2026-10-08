@@ -261,6 +261,20 @@ class TestClaudeAdapter:
         assert pre_read_response({"tool_input": {"file_path": None}}) is None
 
 
+@pytest.mark.parametrize("args", ((), ("pre-bash",)))
+def test_unknown_subcommand_is_a_visible_non_blocking_error(args: tuple[str, ...]) -> None:
+    """Exit 2 behind a `Bash` matcher would deny every call; exit 1 is a visible hook error."""
+    result = subprocess.run(
+        [sys.executable, str(SKILL_SCRIPTS / "navigation_policy.py"), *args],
+        input="{}",
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "usage" in result.stderr
+
+
 @pytest.mark.parametrize("subcommand", ("pre-bash", "pre-read"))
 def test_pre_tool_use_subcommands_are_accepted(subcommand: str) -> None:
     """`main()` is fail-CLOSED on an unknown argv (exit 2). Behind a `Bash`/`Read` matcher that

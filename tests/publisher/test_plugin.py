@@ -507,16 +507,31 @@ def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -
         for _, matcher, command in _plugin_hooks()
         if "navigation_policy" in command
     ]
-    assert sorted(matcher for matcher, _ in hooks if matcher in payloads) == ["Bash", "Read"]
-    replacement = {"Bash": "Read", "Read": "offset"}
-    for matcher, command in hooks:
-        if matcher not in payloads:
-            continue
-        result = _run_plugin_hook(tmp_path, command, payloads[matcher])
-        assert result.returncode == 0, (matcher, result.stderr)
-        output = json.loads(result.stdout)["hookSpecificOutput"]
-        assert output["permissionDecision"] == "deny", matcher
-        assert replacement[matcher] in output["permissionDecisionReason"], matcher
+    assert [matcher for matcher, _ in hooks] == ["Read"], hooks
+    result = _run_plugin_hook(tmp_path, hooks[0][1], payloads["Read"])
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["permissionDecision"] == "deny"
+    assert "offset" in output["permissionDecisionReason"]
+
+
+def test_plugin_hooks_allow_shell_navigation_in_an_adopted_repository(tmp_path: Path) -> None:
+    """Scenario: Shell navigation — no plugin `Bash` hook denies a shell read of the repository."""
+    (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
+    (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
+    hooks = _bash_hooks("")
+    assert hooks, _plugin_hooks()
+    for command in (
+        "cat README.md",
+        "grep -rn foo src/",
+        "find . -name '*.py'",
+        "sed -n 1,5p a.py",
+    ):
+        payload = {"tool_input": {"command": command}}
+        for _, hook in hooks:
+            result = _run_plugin_hook(tmp_path, hook["command"], payload)
+            assert result.returncode == 0, (command, hook["command"], result.stderr)
+            assert "deny" not in result.stdout, (command, result.stdout)
 
 
 def test_plugin_hooks_are_silent_outside_an_adopted_repository(tmp_path: Path) -> None:

@@ -49,6 +49,8 @@ def _forms(command: str) -> list[str]:
     forms = [
         command,
         f"cd x && {command}",
+        f"true; {command}",
+        f"true | {command}",
         f"sh -c {shlex.quote(command)}",
         f"bash --rcfile /dev/null -c {shlex.quote(command)}",
         f"bash -o pipefail -c {shlex.quote(command)}",
