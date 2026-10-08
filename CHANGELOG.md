@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.4](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.3...v3.10.4) (2026-10-08)
+
+
+### Bug Fixes
+
+* bound-review-closing-comment ([#374](https://github.com/ekolvah/agent-process-distribution/issues/374)) ([51d97a3](https://github.com/ekolvah/agent-process-distribution/commit/51d97a3ee44303e65750b08efd6554314677b7c9))
+
 ## [3.10.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.2...v3.10.3) (2026-10-08)
 
 
