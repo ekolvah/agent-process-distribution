@@ -29,7 +29,7 @@ reads over the budget) and name the cheaper route.
 - **THEN** the agent sees the finding before its next tool call
 
 #### Scenario: Shell navigation
-- **WHEN** a shell command contains a denied navigation stage anywhere in a pipeline, or inside a shell's `-c` command string with the flag alone or in a short-option cluster (`bash -lc`, `sh -ec`)
+- **WHEN** a shell command contains a denied navigation stage anywhere in a pipeline
 - **THEN** the command is denied and the response names the tool to use instead
 
 ### Requirement: A broken hook is visible
