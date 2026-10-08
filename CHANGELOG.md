@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.2...v3.10.3) (2026-10-08)
+
+
+### Bug Fixes
+
+* **distribution:** guard unwraps clustered shell flags; drop the Bash navigation route ([#372](https://github.com/ekolvah/agent-process-distribution/issues/372)) ([9dbf1d1](https://github.com/ekolvah/agent-process-distribution/commit/9dbf1d1823c4fc78f693dc81930f1e76cfc18f9f))
+
 ## [3.10.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.1...v3.10.2) (2026-10-07)
 
 
