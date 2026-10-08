@@ -50,6 +50,8 @@ def _forms(command: str) -> list[str]:
         command,
         f"cd x && {command}",
         f"sh -c {shlex.quote(command)}",
+        f"bash --rcfile /dev/null -c {shlex.quote(command)}",
+        f"bash -o pipefail -c {shlex.quote(command)}",
         f"timeout 5 {command}",
         f"A=1 {command}",
         f"env A=1 {command}",
@@ -82,6 +84,22 @@ def test_guarded_command_is_denied_with_the_alternative(command: str, word: str)
     assert result.returncode == 0, result.stderr
     output = json.loads(result.stdout)["hookSpecificOutput"]
     assert output["hookEventName"] == "PreToolUse"
+    assert output["permissionDecision"] == "deny"
+    assert word in output["permissionDecisionReason"]
+
+
+@pytest.mark.parametrize(
+    ("command", "word"),
+    [
+        (form.format(shlex.quote(base)), word)
+        for base, word in GUARDED
+        for form in ("bash -lc {}", "sh -ec {}", "bash -c -e {}")
+    ],
+)
+def test_clustered_shell_flag_is_unwrapped(command: str, word: str) -> None:
+    result = _pre_bash(command)
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout)["hookSpecificOutput"]
     assert output["permissionDecision"] == "deny"
     assert word in output["permissionDecisionReason"]
 

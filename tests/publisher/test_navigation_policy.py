@@ -147,6 +147,14 @@ def test_a_denied_stage_is_found_anywhere_in_a_compound_command(command: str) ->
     assert navigation_hint(command) is not None, command
 
 
+@pytest.mark.parametrize(
+    "command",
+    ('bash -lc "cat README.md"', 'sh -ec "cat file"', 'bash -c -e "grep -rn foo src/"'),
+)
+def test_clustered_shell_flag_is_unwrapped(command: str) -> None:
+    assert navigation_hint(command) is not None, command
+
+
 def test_heredoc_write_is_routed_to_the_edit_tools() -> None:
     hint = navigation_hint("cat > notes.md <<'EOF'")
     assert hint is not None

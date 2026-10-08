@@ -4,9 +4,9 @@
 
 ## 1. RED first
 
-- [ ] 1.1 In `tests/publisher/test_git_guard.py` add `test_clustered_shell_flag_is_unwrapped`, parametrized over every `GUARDED` command under `bash -lc`, `sh -ec` and `bash -c -e` (the command `shlex.quote`d): assert the call is denied and the reason carries the command's word, as `test_guarded_command_is_denied_with_the_alternative` does (D1, D2). In `_forms` add `bash --rcfile /dev/null -c {quoted}` and `bash -o pipefail -c {quoted}`: both pass on `main`, so they are preservation rows of the existing test, not RED rows (D1)
-- [ ] 1.2 In `tests/publisher/test_navigation_policy.py` add `test_clustered_shell_flag_is_unwrapped`, parametrized over `bash -lc "cat README.md"`, `sh -ec "cat file"` and `bash -c -e "grep -rn foo src/"`: assert `navigation_hint` is not None (D1, D2)
-- [ ] 1.3 Run `agent-process check_red tests/publisher/test_git_guard.py::test_clustered_shell_flag_is_unwrapped tests/publisher/test_navigation_policy.py::test_clustered_shell_flag_is_unwrapped`. Verify that it prints `RED: 54 failed` and exits 0. Commit as `test(distribution): a clustered shell -c hides the inner command`
+- [x] 1.1 In `tests/publisher/test_git_guard.py` add `test_clustered_shell_flag_is_unwrapped`, parametrized over every `GUARDED` command under `bash -lc`, `sh -ec` and `bash -c -e` (the command `shlex.quote`d): assert the call is denied and the reason carries the command's word, as `test_guarded_command_is_denied_with_the_alternative` does (D1, D2). In `_forms` add `bash --rcfile /dev/null -c {quoted}` and `bash -o pipefail -c {quoted}`: both pass on `main`, so they are preservation rows of the existing test, not RED rows (D1)
+- [x] 1.2 In `tests/publisher/test_navigation_policy.py` add `test_clustered_shell_flag_is_unwrapped`, parametrized over `bash -lc "cat README.md"`, `sh -ec "cat file"` and `bash -c -e "grep -rn foo src/"`: assert `navigation_hint` is not None (D1, D2)
+- [x] 1.3 Run `agent-process check_red tests/publisher/test_git_guard.py::test_clustered_shell_flag_is_unwrapped tests/publisher/test_navigation_policy.py::test_clustered_shell_flag_is_unwrapped`. Verify that it prints `RED: 54 failed` and exits 0. Commit as `test(distribution): a clustered shell -c hides the inner command`
 
 ## 2. Walker
 
