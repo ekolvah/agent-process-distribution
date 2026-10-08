@@ -33,3 +33,18 @@ that matches a guarded command.
 #### Scenario: Repository settings carry no guard deny
 - **WHEN** the publisher tests read this repository's `.claude/settings.json`
 - **THEN** no `permissions.deny` entry matches a guarded command, so the guard's reason reaches the agent
+
+### Requirement: The plugin ships the navigation hooks
+The plugin SHALL deliver the PreToolUse read-budget policy of the implementation requirement
+"Shift-left feedback in Claude" as its own hook for the `Read` tool, running the policy from the
+package, so a consumer needs no copy of it, and SHALL ship no navigation hook for the `Bash`
+tool. This repository's `.claude/settings.json` SHALL declare no PreToolUse hook for `Bash` or
+`Read`.
+
+#### Scenario: Adopted consumer
+- **WHEN** the plugin's hook commands run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the policy, for a whole-file `Read` of a file over the budget
+- **THEN** the call is denied and the reason names the range to use instead, and no navigation hook of the plugin matches `Bash`
+
+#### Scenario: Repository settings carry no navigation hook
+- **WHEN** the publisher tests read this repository's `.claude/settings.json`
+- **THEN** no PreToolUse entry matches `Bash` or `Read`
