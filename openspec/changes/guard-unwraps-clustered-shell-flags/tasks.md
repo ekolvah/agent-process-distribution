@@ -31,8 +31,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `openspec validate --strict --all` and verify that every change and spec passes
-- [ ] 3.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 3.1 Run `openspec validate --strict --all` and verify that every change and spec passes
+- [x] 3.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 4. Deliver
 
