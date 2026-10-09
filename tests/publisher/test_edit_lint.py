@@ -97,17 +97,43 @@ def test_worktree_branch_config_runs(tmp_path: Path) -> None:
     assert "branch:" in result.stderr
 
 
-@pytest.mark.parametrize("case", ["no-repo", "not-adopted"])
+@pytest.mark.parametrize("case", ["no-repo", "git-dir", "not-adopted"])
 def test_file_outside_adopted_repository_is_silent(tmp_path: Path, case: str) -> None:
     """Scenario: File outside an adopted repository — exit 0, no output."""
     repo = lint_repo(tmp_path / "repo", FINDING)
     if case == "no-repo":
         payload = _edit_in(tmp_path / "scratchpad" / "pr-body.md")
+    elif case == "git-dir":
+        payload = json.dumps(edit_payload(repo / ".git" / "info" / "exclude"))
     else:
         other = lint_repo(tmp_path / "other", FINDING, adopted=False)
         payload = json.dumps(edit_payload(other / "a.py"))
     result = _run(["post-edit"], repo, payload)
     assert (result.returncode, result.stdout, result.stderr) == (0, "", "")
+
+
+@pytest.mark.parametrize("case", ["dubious", "extension", "gitfile"])
+def test_git_failure_inside_a_repository_is_visible(tmp_path: Path, case: str) -> None:
+    """Scenario: Git fails inside a repository — a marker carrying git's message, exit 2."""
+    repo = lint_repo(tmp_path / "repo", FINDING)
+    env, payload = None, _edit(repo)
+    if case == "dubious":
+        env = {**os.environ, "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1"}
+        expected = "dubious ownership"
+    elif case == "extension":
+        git("config", "core.repositoryformatversion", "1", cwd=repo)
+        git("config", "extensions.zzz", "true", cwd=repo)
+        expected = "zzz"
+    else:
+        gitfile = repo / "removed" / ".git"
+        gitfile.parent.mkdir()
+        gitfile.write_text(f"gitdir: {(tmp_path / 'missing').as_posix()}\n", encoding="utf-8")
+        payload = _edit_in(repo / "removed" / "a.py")
+        expected = "missing"
+    result = _run(["post-edit"], repo, payload, env)
+    assert result.returncode == 2, result.stderr
+    assert "edit-time lint is not active:" in result.stderr
+    assert expected in result.stderr
 
 
 @pytest.mark.parametrize("case", ["no-pre-commit", "no-config"])
