@@ -1,12 +1,12 @@
 ## Why
 
 The per-task telemetry change (#101) waits for a backend decision
-([ADR 0029](../../../.agent-process/docs/adr/0029-telemetry-leaves-the-v2-migration.md)).
+([ADR 0029](../../../../.agent-process/docs/adr/0029-telemetry-leaves-the-v2-migration.md)).
 Langfuse models a task natively (trace, generations, tool calls, usage per observation)
 and ships an official Claude Code plugin; the incumbent Grafana stack reconstructs a task
 from labels. Issue 103 asks for a bounded spike that answers one fixed criterion before any
 number is read. Its v1 plan is void: Codex is gone
-([ADR 0033](../../../.agent-process/docs/adr/0033-claude-code-is-the-only-carrier.md)) and
+([ADR 0033](../../../../.agent-process/docs/adr/0033-claude-code-is-the-only-carrier.md)) and
 the #101 launcher that was to mint `task_id` / `attempt_id` waits for this spike.
 
 Observed on 2026-10-07 in the Langfuse integration page

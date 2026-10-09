@@ -29,7 +29,7 @@ The integration page and this source disagree on tags and the gate; the source d
 with an egress and key-handling record the owner signed off before the first trace.
 
 **Non-Goals:** the Codex route (AC6 of issue 103; no Codex carrier,
-[ADR 0033](../../../.agent-process/docs/adr/0033-claude-code-is-the-only-carrier.md)); a task
+[ADR 0033](../../../../.agent-process/docs/adr/0033-claude-code-is-the-only-carrier.md)); a task
 launcher (#101); edits to the Grafana stack or its setup doc; the community plugin
 `pdhoolia/langfuse-claude-code-plugin` unless D5 fails on fidelity.
 
