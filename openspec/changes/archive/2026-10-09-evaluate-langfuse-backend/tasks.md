@@ -37,7 +37,7 @@ Skipped on a D9 early exit: tick each task with `skipped: early exit at <task>`.
 
 ## 7. Deliver
 
-- [ ] 7.1 With a clean worktree, run `agent-process archive_change evaluate-langfuse-backend`. Verify that it archives the change with no spec update, commits, and pushes the branch
+- [x] 7.1 With a clean worktree, run `agent-process archive_change evaluate-langfuse-backend`. Verify that it archives the change with no spec update, commits, and pushes the branch
 - [ ] 7.2 Run `gh pr create --title "docs: evaluate-langfuse-backend" --body-file <report>`. The report references the tracking issue plainly (#103), never with `Closes`, states the verdict, and carries the scenario → test map and the deferrals (Codex criterion dropped; `CC_LANGFUSE_TRACEPARENT` left to #101)
 - [ ] 7.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread, with `agent-process resolve_review_thread --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 7.4 Post the verdict with a link to the ADR on #101 and #99
