@@ -7,7 +7,7 @@ runs over all files. A project that declares none sees nothing.
 The plugin's `hooks/hooks.json` runs it as `agent-process edit_lint post-edit` (PostToolUse,
 matcher `Edit|Write`), with the hook JSON on stdin and the project as the working directory.
 `pre-commit` runs in the root of the repository holding the edited file; a file outside an
-adopted repository is not linted.
+adopted repository is not linted, and a repository git cannot read is a marker.
 """
 
 from __future__ import annotations
@@ -19,6 +19,14 @@ import shutil
 import subprocess
 import sys
 from typing import cast
+
+# git's messages for a directory in no repository (`(or any of the parent directories)` and
+# `(or any parent up to mount point`) and for one inside a git directory. A `.git` file
+# naming a missing directory prints `not a git repository: <gitdir>` and is not matched.
+_NOT_REPOSITORY_CODE = (
+    "fatal: not a git repository (or any ",
+    "fatal: this operation must be run in a work tree",
+)
 
 
 def edited_path(payload: object) -> str | None:
@@ -34,17 +42,25 @@ def adopted_root(git: str, path: str) -> str | None:
     pre-commit takes the root and config from its working directory and makes `--files`
     relative to that root, so it runs there: a worktree is its own root.
     """
+    # The failure is classified by git's message, so it must not be translated.
+    env = {key: value for key, value in os.environ.items() if key != "LANGUAGE"}
+    env["LC_ALL"] = "C"
     toplevel = subprocess.run(
         [git, "-C", os.path.dirname(path), "rev-parse", "--show-toplevel"],
         capture_output=True,
         encoding="utf-8",
         errors="replace",
+        env=env,
         check=False,
     )
-    if toplevel.returncode != 0:
-        return None  # not repository code: nothing to lint
-    if toplevel.stdout is None:
+    if toplevel.stdout is None or toplevel.stderr is None:
         print("edit-time lint is not active: git output was not captured", file=sys.stderr)
+        sys.exit(2)
+    if toplevel.returncode != 0:
+        # Exit 128 both when git finds no repository and when it refuses the one it found.
+        if toplevel.stderr.startswith(_NOT_REPOSITORY_CODE):
+            return None  # no repository, or inside a git directory: nothing to lint
+        print(f"edit-time lint is not active: {toplevel.stderr}", file=sys.stderr, end="")
         sys.exit(2)
     root = toplevel.stdout.strip()
     adopted = os.path.isfile(os.path.join(root, ".github", "workflows", "agent-process.yml"))
