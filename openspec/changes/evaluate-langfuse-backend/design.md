@@ -30,7 +30,7 @@ with an egress and key-handling record the owner signed off before the first tra
 
 **Non-Goals:** the Codex route (AC6 of issue 103; no Codex carrier,
 [ADR 0033](../../../.agent-process/docs/adr/0033-claude-code-is-the-only-carrier.md)); a task
-launcher (#116); edits to the Grafana stack or its setup doc; the community plugin
+launcher (#101); edits to the Grafana stack or its setup doc; the community plugin
 `pdhoolia/langfuse-claude-code-plugin` unless D5 fails on fidelity.
 
 ## Decisions
@@ -82,7 +82,7 @@ list, so a JSON value that keeps shell quotes silently becomes wrong tags); the 
 the task identifier this process already has. A task spanning several sessions (propose,
 apply) shares the tag. If the tags do not reach the trace, that is the AC3 finding; no second
 scheme is introduced. `CC_LANGFUSE_TRACEPARENT` (nesting sessions under one task trace) is
-noted for #116, not exercised.
+noted for #101, not exercised.
 
 Owner-typed tags replace a launcher-minted id, so their failure modes are listed here: a
 missing tag (session untagged, invisible to the readings), a mistyped tag (session under a
@@ -126,19 +126,20 @@ table cannot overturn a failed criterion.
 ## Risks / Trade-offs
 
 - [Every session in this repository is traced while the plugin is enabled, including
-  unmeasured ones] → `local` scope, a bounded window, uninstall at the end; untagged traces are
-  ignored by the readings and deleted from the Langfuse project after the ADR lands.
+  unmeasured ones] → `local` scope; untagged traces are ignored by the readings.
 - [Fail-open hook drops turns silently] → D6 compares against `ccusage`; the debug log is on
   during the spike.
 - [The hook is POSIX shell under Git Bash on Windows; `uv` may be missing] → vetting runs one
   Stop event with debug on and reads the log before any measured task.
 - [Fewer than three tasks land in the window] → the apply pauses; no verdict on two.
-- [The source changes after v1.2.1] → the ADR names the version; #116 re-vets on upgrade.
+- [The source changes after v1.2.1] → the ADR names the version; #101 re-vets on upgrade.
 
 ## Migration Plan
 
-Nothing in the tree changes but the ADR. Rollback, also run at the end of the spike:
+Nothing in the tree changes but the ADR. Rollback, run on an early exit (D9):
 `claude plugin uninstall` at local scope, remove the local marketplace, the plugin's
 `pluginConfigs` entry in `~/.claude/settings.json`, the secret in the credential store, and
-`UV_EXCLUDE_NEWER` from `.claude/settings.local.json`; delete untagged traces (or the whole
-Langfuse project on rollback). Grafana stays in place throughout.
+`UV_EXCLUDE_NEWER` and `CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS` from
+`.claude/settings.local.json`. After a full run the owner keeps Langfuse in use beside
+Grafana (plugin, keys, traces, the `langfuse` skill and MCP server), so the end of the spike
+removes only its path-logging hooks. Grafana stays in place throughout.
