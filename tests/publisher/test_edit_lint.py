@@ -118,7 +118,16 @@ def test_git_failure_inside_a_repository_is_visible(tmp_path: Path, case: str) -
     repo = lint_repo(tmp_path / "repo", FINDING)
     env, payload = None, _edit(repo)
     if case == "dubious":
-        env = {**os.environ, "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1"}
+        # A `safe.directory = *` overrides the ownership check; the GitHub runner image sets
+        # it in its system config.
+        empty = tmp_path / "empty.gitconfig"
+        empty.write_text("", encoding="utf-8")
+        env = {
+            **os.environ,
+            "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": str(empty),
+        }
         expected = "dubious ownership"
     elif case == "extension":
         git("config", "core.repositoryformatversion", "1", cwd=repo)
@@ -129,7 +138,8 @@ def test_git_failure_inside_a_repository_is_visible(tmp_path: Path, case: str) -
         gitfile.parent.mkdir()
         gitfile.write_text(f"gitdir: {(tmp_path / 'missing').as_posix()}\n", encoding="utf-8")
         payload = _edit_in(repo / "removed" / "a.py")
-        expected = "missing"
+        # git for Windows names the missing gitdir; git on Linux prints `(null)` in its place.
+        expected = "fatal: not a git repository: "
     result = _run(["post-edit"], repo, payload, env)
     assert result.returncode == 2, result.stderr
     assert "edit-time lint is not active:" in result.stderr
