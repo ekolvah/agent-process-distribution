@@ -718,8 +718,11 @@ post-edit hook of its own.
 After an `Edit` or `Write`, the plugin's hook SHALL run `pre-commit run --hook-stage pre-commit
 --files <edited path>` in the root of the git repository that holds the edited file, a worktree
 being its own root, and SHALL show the agent that run's output with exit 2 when the run fails.
-A run that passes SHALL produce no output. A file in no git repository, or in one without
-`.github/workflows/agent-process.yml`, SHALL produce no output. When
+A run that passes SHALL produce no output. A file for which git finds no repository, a file inside a git
+directory, or a file in a repository without `.github/workflows/agent-process.yml` SHALL
+produce no output. When git fails
+for the edited file's directory for any other reason, the hook SHALL exit 2 with a marker saying
+that edit-time lint is not active and carrying git's error output. When
 `pre-commit` is not on `PATH`, the hook SHALL exit 2 with a marker saying that edit-time lint is
 not active. This repository's `.pre-commit-config.yaml` SHALL
 declare the `ruff-check` and `ruff-format` hooks of `astral-sh/ruff-pre-commit` at the
@@ -743,8 +746,12 @@ declare the `ruff-check` and `ruff-format` hooks of `astral-sh/ruff-pre-commit` 
 - **THEN** the branch's `pre-commit`-stage hooks run, not the main checkout's
 
 #### Scenario: File outside an adopted repository
-- **WHEN** the hook runs from an adopted consumer for a file in no git repository, or in a git repository without `.github/workflows/agent-process.yml`
+- **WHEN** the hook runs from an adopted consumer for a file in no git repository, a file inside a repository's `.git` directory, or a file in a git repository without `.github/workflows/agent-process.yml`
 - **THEN** it exits 0 with no output
+
+#### Scenario: Git fails inside a repository
+- **WHEN** the hook runs for a file of a git repository that git refuses to read: dubious ownership, an unknown repository extension, or a `.git` file naming a missing git directory
+- **THEN** it exits 2 with stderr saying that edit-time lint is not active and carrying git's message
 
 #### Scenario: pre-commit missing
 - **WHEN** the hook runs with no `pre-commit` on `PATH`
