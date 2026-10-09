@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.6](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.5...v3.10.6) (2026-10-09)
+
+
+### Bug Fixes
+
+* edit-lint-surfaces-git-failure ([#378](https://github.com/ekolvah/agent-process-distribution/issues/378)) ([15ac741](https://github.com/ekolvah/agent-process-distribution/commit/15ac741051d0efc6c65c2f36f0a1c85e6cfe983d))
+
 ## [3.10.5](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.4...v3.10.5) (2026-10-09)
 
 
