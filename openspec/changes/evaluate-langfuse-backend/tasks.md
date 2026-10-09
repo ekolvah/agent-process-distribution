@@ -32,8 +32,8 @@ Skipped on a D9 early exit: tick each task with `skipped: early exit at <task>`.
 
 ## 6. Verify
 
-- [ ] 6.1 Run `openspec validate --strict --all` and verify that every change and spec passes
-- [ ] 6.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 6.1 Run `openspec validate --strict --all` and verify that every change and spec passes
+- [x] 6.2 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 7. Deliver
 

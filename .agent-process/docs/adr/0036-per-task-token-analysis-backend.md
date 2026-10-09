@@ -66,6 +66,11 @@ Cross-check: for every delivered session, input, output, cache-creation and cach
 totals and the generation count equal `ccusage@20.0.26 session --id <id> --offline`
 exactly, after the repair.
 
+## Considered Options
+
+* Grafana, fed by Claude Code's own OpenTelemetry metrics and events.
+* Langfuse, fed by the official Claude Code plugin's transcript hook.
+
 ## Decision Outcome
 
 Chosen: **per-task totals stay on Grafana; the plugin route does not become the per-task
