@@ -9,7 +9,7 @@
 
 ## 2. Visible git failure
 
-- [ ] 2.1 In `skills/agent-process/scripts/edit_lint.py` `adopted_root`: run git with `LC_ALL=C` set and `LANGUAGE` removed from the inherited environment (decision 3); check `stdout`/`stderr is None` before the exit code (decision 5); on a non-zero exit return None only when stderr starts with `fatal: not a git repository (or any ` (decision 1) or `fatal: this operation must be run in a work tree` (decision 2), else print `edit-time lint is not active: <stderr>` to stderr and exit 2 (decision 4). Update the module docstring's last sentence. Verify that `python -m pytest tests/publisher/test_edit_lint.py tests/publisher/test_plugin.py -q` passes. Commit as `fix(edit_lint): a git failure inside a repository is a marker, not a silent skip`
+- [x] 2.1 In `skills/agent-process/scripts/edit_lint.py` `adopted_root`: run git with `LC_ALL=C` set and `LANGUAGE` removed from the inherited environment (decision 3); check `stdout`/`stderr is None` before the exit code (decision 5); on a non-zero exit return None only when stderr starts with `fatal: not a git repository (or any ` (decision 1) or `fatal: this operation must be run in a work tree` (decision 2), else print `edit-time lint is not active: <stderr>` to stderr and exit 2 (decision 4). Update the module docstring's last sentence. Verify that `python -m pytest tests/publisher/test_edit_lint.py tests/publisher/test_plugin.py -q` passes. Commit as `fix(edit_lint): a git failure inside a repository is a marker, not a silent skip`
 
 ## 3. Verify
 
