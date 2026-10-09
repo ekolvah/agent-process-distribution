@@ -786,7 +786,9 @@ At session start, the plugin SHALL install its runtime manifest `.agent-process/
 into a virtual environment under `${CLAUDE_PLUGIN_DATA}` named by the manifest's content, when
 no completed environment of that name exists or its interpreter fails `pip check`, and SHALL then export `AGENT_PROCESS_PYTHON`, the
 environment's interpreter, through `CLAUDE_ENV_FILE`. An install SHALL NOT modify an environment
-of another manifest. The launcher SHALL run every script with `AGENT_PROCESS_PYTHON` when it is
+of another manifest. Installs under one `${CLAUDE_PLUGIN_DATA}` SHALL run one at a time; an install
+that waited for another SHALL reuse the environment the other completed, and an install that
+waits longer than 240 seconds SHALL fail. The launcher SHALL run every script with `AGENT_PROCESS_PYTHON` when it is
 set, and with `python` otherwise. A failed install, or a hook run without `CLAUDE_PLUGIN_DATA` or
 `CLAUDE_ENV_FILE`, SHALL exit 0 with an `agent-process plugin environment not installed` marker
 to the person and to the agent; a failed install SHALL be retried at the next session start.
@@ -814,6 +816,14 @@ to the person and to the agent; a failed install SHALL be retried at the next se
 #### Scenario: Manifest changed
 - **WHEN** the hook runs with a manifest different from the one an existing environment was installed from
 - **THEN** it installs a second environment, exports that one, and leaves the first unchanged
+
+#### Scenario: Parallel install
+- **WHEN** a second install of the same manifest starts while the first is installing
+- **THEN** the second runs no install step until the first ends, does not rebuild the environment, and returns the same interpreter
+
+#### Scenario: Install waits too long
+- **WHEN** an install has waited 240 seconds for another install to end
+- **THEN** it fails with a cause that names the wait, so the hook prints the `agent-process plugin environment not installed` marker
 
 #### Scenario: Launcher uses the session interpreter
 - **WHEN** `agent-process <script>` runs with `AGENT_PROCESS_PYTHON` set

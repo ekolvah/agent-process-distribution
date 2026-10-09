@@ -5,6 +5,9 @@ Claude Code documents the remedy: a `SessionStart` hook installs dependencies in
 `${CLAUDE_PLUGIN_DATA}`, which survives plugin updates. The environment is named by the
 manifest's content, so a new manifest never touches the environment a parallel session uses;
 an existing one is rebuilt only when it has no `.complete` or its interpreter fails `pip check`.
+Sessions build one at a time under an exclusive lock on `${CLAUDE_PLUGIN_DATA}/.lock` and check
+again under it, so a session that waited reuses what the other built; a wait longer than
+`LOCK_WAIT` seconds fails the install.
 The hook exports `AGENT_PROCESS_PYTHON` through `CLAUDE_ENV_FILE`, which reaches the Bash tool,
 and `bin/agent-process` runs scripts with it.
 
@@ -22,11 +25,24 @@ import os
 import shlex
 import subprocess
 import sys
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+
+if sys.platform == "win32":
+    import msvcrt
+
+    HELD: type[OSError] = PermissionError  # what a lock another handle holds raises
+else:
+    import fcntl
+
+    HELD = BlockingIOError
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST = PLUGIN_ROOT / ".agent-process" / "requirements.txt"
 MARKER = "agent-process plugin environment not installed"
+LOCK_WAIT = 240  # seconds; below the hook's timeout of 300, so the marker reaches the session
 
 
 class InstallError(Exception):
@@ -50,21 +66,58 @@ def interpreter(venv: Path) -> Path:
     return venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
+@contextmanager
+def _locked(path: Path) -> Iterator[None]:
+    """Hold an exclusive lock on `path`, polling each second for at most `LOCK_WAIT` seconds;
+    any error but `HELD` propagates. The OS releases the lock of a killed holder."""
+    with open(path, "a+b") as handle:
+        deadline = time.monotonic() + LOCK_WAIT
+        while True:
+            try:
+                if sys.platform == "win32":
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except HELD:
+                if time.monotonic() >= deadline:
+                    raise InstallError(f"another session held {path} for {LOCK_WAIT} s") from None
+                time.sleep(1)
+        try:
+            yield
+        finally:
+            if sys.platform == "win32":
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _usable(venv: Path) -> bool:
+    if not (venv / ".complete").is_file():
+        return False
+    try:
+        _run(interpreter(venv), "-m", "pip", "check")
+    except InstallError:
+        return False
+    return True
+
+
 def install(data: Path) -> Path:
     """The interpreter of the manifest's completed environment, installing it when needed."""
     digest = hashlib.sha256(MANIFEST.read_bytes()).hexdigest()[:12]
     venv = data / f"venv-{digest}"
     python = interpreter(venv)
-    if (venv / ".complete").is_file():
-        try:
-            _run(python, "-m", "pip", "check")
+    if _usable(venv):
+        return python
+    data.mkdir(parents=True, exist_ok=True)
+    with _locked(data / ".lock"):
+        if _usable(venv):  # another session built it while this one waited
             return python
-        except InstallError:
-            pass
-    (venv / ".complete").unlink(missing_ok=True)
-    _run(sys.executable, "-m", "venv", "--clear", venv)
-    _run(python, "-m", "pip", "install", "--disable-pip-version-check", "-q", "-r", MANIFEST)
-    (venv / ".complete").write_text("", encoding="utf-8")
+        (venv / ".complete").unlink(missing_ok=True)
+        _run(sys.executable, "-m", "venv", "--clear", venv)
+        _run(python, "-m", "pip", "install", "--disable-pip-version-check", "-q", "-r", MANIFEST)
+        (venv / ".complete").write_text("", encoding="utf-8")
     return python
 
 
