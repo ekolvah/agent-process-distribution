@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.5](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.4...v3.10.5) (2026-10-09)
+
+
+### Bug Fixes
+
+* plugin-env-locks-rebuild ([#376](https://github.com/ekolvah/agent-process-distribution/issues/376)) ([05307b6](https://github.com/ekolvah/agent-process-distribution/commit/05307b6b6c21063d45fd3b0803b7a67155a89458))
+
 ## [3.10.4](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.3...v3.10.4) (2026-10-08)
 
 
