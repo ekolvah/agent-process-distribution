@@ -83,6 +83,7 @@ def _review(verdict: str = "approve") -> dict[str, Any]:
     """A review valid against the skill's schema: every class checked and `ok`."""
     return {
         "verdict": verdict,
+        "round": 1,
         "reviewer": "architect-reviewer",
         "reasoning": "r",
         "classes": {name: {"evidence": "read", "result": "ok"} for name in _CLASSES},

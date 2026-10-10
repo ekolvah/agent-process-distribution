@@ -17,7 +17,7 @@
 
 ## 2. Review round (design D5)
 
-- [ ] 2.1 Add the required `round` (integer, `minimum` 1, description stating the D5 rule) to `skills/agent-process/architect-review.schema.json`. Add `"round": 1` to `_valid_review` in `tests/publisher/test_planning_workflow.py` and to `_review` in `tests/publisher/test_start_change.py`. Verify with `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_start_change.py`. Commit
+- [x] 2.1 Add the required `round` (integer, `minimum` 1, description stating the D5 rule) to `skills/agent-process/architect-review.schema.json`. Add `"round": 1` to `_valid_review` in `tests/publisher/test_planning_workflow.py` and to `_review` in `tests/publisher/test_start_change.py`. Verify with `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_start_change.py`. Commit
 
 ## 3. Readings script (design D1–D4, D6)
 

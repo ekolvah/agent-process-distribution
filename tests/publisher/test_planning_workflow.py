@@ -65,6 +65,7 @@ def _valid_review(verdict: str) -> str:
     return json.dumps(
         {
             "verdict": verdict,
+            "round": 1,
             "reviewer": "architect-reviewer",
             "reasoning": "the plan holds",
             "classes": {name: {"evidence": "read", "result": "ok"} for name in _CLASSES},
