@@ -33,9 +33,8 @@ The person chose the start source (the first Grafana sample) and the plan-round 
 
 ## Goals / Non-Goals
 
-**Goals:** one command reads both metrics for one task. Every value it cannot read shows up as
-a gap. Non-task sessions never move the reading. A baseline is recorded before the source
-expires.
+**Goals:** documented reads give both metrics for one task. Non-task sessions never move the
+reading. A baseline is recorded before the source expires.
 
 **Non-Goals:** cost, failed/denied calls and compactions, together with the telemetry
 window-rejection rules (the sibling issue). Aggregation across tasks. Dashboards.
@@ -46,10 +45,8 @@ window-rejection rules (the sibling issue). Aggregation across tasks. Dashboards
 
 The start is `min(min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",attempt_id="<K>"})[30d:1m]))`.
 It is evaluated at the read time: the range is longer than retention, so the earliest sample is
-the same at any later instant, and D2 needs the start before it can choose the PR. Exact `=`
-matchers on both labels keep every non-task session out (observation above). The range is
-fixed at the observed 30 days, longer than retention. An empty result is the gap
-`start: no token sample of issue-<N> attempt <K>` and leaves the hours null.
+the same at any later instant. Exact `=` matchers on both labels keep every non-task session
+out (observation above). An empty result means the task has no start.
 
 The alternatives were a launcher comment on the issue, which posts to GitHub on every launch,
 and the plan commit of `start_change`, which leaves planning out of the metric. The person
@@ -60,18 +57,19 @@ chose this source.
 - Work done before the first launched session is invisible, so the start is too late. That
   is the ADR 0037 owner-supplied identity.
 - The first sample lags the first request by up to one metric export interval.
-- After retention the gap shows instead of a value.
+- After retention the read is empty.
 
-### D2 — The task's PR is the merged PR connected to the issue
+### D2 — The task's PR is the merged PR of the change's branch
 
-The candidates are the `ConnectedEvent` PRs of issue N that merged at or after the start, or
-all merged connected PRs when the start is a gap. If there is none, the reading carries the
-gap `merge: no merged PR connected to issue <N>`. If there is more than one, the script exits
-2 listing their numbers: the attempt cannot be attributed, and the person decides.
+`gh pr list --head <change> --state merged --json number,mergedAt,additions,deletions`:
+`start_change` names the branch after the change and links it to the issue (the
+`ConnectedEvent` above). Observed at delivery: for `one-emitter-task-telemetry` it returned
+exactly PR 382 with 922 additions, 76 deletions and `mergedAt` 2026-10-10T16:19:44Z.
 
-The alternatives were the free-text `tracking issue` reference in the PR body (not enforced,
-and cross-references also include unrelated PRs, observed) and `closingIssuesReferences`,
-which the process never sets because its reports never use `Closes`.
+The alternatives were the issue's `ConnectedEvent` over GraphQL (the same PR, a longer read),
+the free-text `tracking issue` reference in the PR body (not enforced, and cross-references
+also include unrelated PRs, observed) and `closingIssuesReferences`, which the process never
+sets because its reports never use `Closes`.
 
 ### D3 — Size is the PR's additions plus deletions
 
@@ -94,13 +92,10 @@ because the reviewer adapter already reads the schema as its contract: 1 on the 
 review, otherwise one more than the `round` of the file it replaces, a file without `round`
 counting as 1 (a review written before this change).
 
-The script reads `openspec/changes/archive/<date>-<head branch>/architect-review.json` at the
-PR's merge commit with the GraphQL `object(expression:)` reads observed above, inside the
-GitHub protocol D2 already uses: a `Tree` listing of the archive picks the entry ending in
-`-<head branch>`, then a `Blob` read returns the file. The head branch is the change name,
-because `start_change` names the branch. A review without `round`, or no archived change, is a
-gap. A local `git show` was the other read; it needs the merge commit fetched and a third
-protocol, for the same file.
+After the merge the archived change is on `main`, so the read is
+`grep '"round"' openspec/changes/archive/*-<change>/architect-review.json`. A review without
+`round` has none. The GraphQL `object(expression:)` reads observed above were the other read;
+they are only needed before the merge reaches the local checkout.
 
 The alternatives were a list of past verdicts in the file, which is a larger schema change
 for one integer, and counting reviewer runs in transcripts, which is not deterministic.
@@ -110,35 +105,21 @@ rule under-counts, and nothing catches it except reading the archived file in th
 This is accepted. A deterministic counter would need a write path outside the reviewer that
 the propose run does not have.
 
-### D6 — An owner script behind protocols
+### D6 — Documented reads, no script
 
-`.agent-process/scripts/task_metrics.py --issue N [--attempt K]`, `--attempt` defaults to 1,
-like the launcher. It runs owner-side next to `task_session.py`. It is not distributed:
-consumers have neither the Grafana tenant nor the launcher.
+The four reads (D1, D2, D4, D5) are commands in the setup doc, run by hand. The planned owner
+script `task_metrics.py` was built, then removed at delivery by the person's decision to
+minimise new code: it joined four one-line reads into one JSON object, for a measurement taken
+now and then over a few tasks. Its gap markers do not pay for the code: an empty read is
+visible to the person or agent who runs it.
 
-- **Protocols (§II).** `Prometheus.instant(expr) -> float | None` and a `GitHub` protocol
-  (connected PRs of an issue with merge time, merge commit, head branch, additions, deletions;
-  comment authors and bodies of a PR; the archived review text at a commit, D5). Tests use
-  in-memory doubles. The real adapters use `urllib` (no new dependency) and `gh api graphql`
-  with `encoding="utf-8"`.
-- **Credentials (§VI).** `GRAFANA_URL` and `GRAFANA_SERVICE_ACCOUNT_TOKEN` are read at start.
-  A missing one exits 2 naming the variable, never a value.
-- **Output and exit codes (§IV).** One JSON object: `task_id`, `attempt_id`, `pr`, `start`,
-  `merged`, `hours_to_merge`, `lines_changed`, `plan_rounds`, `code_rounds`, `gaps`. Exit 0
-  when `gaps` is empty, 1 otherwise. Exit 2 on bad arguments, a missing credential, an
-  ambiguous PR, or a failed read (HTTP error, `gh` non-zero), naming the cause.
-
-**Problem it closes:** issue 383. No reading of either metric exists. By hand it takes a
-Prometheus query and four GraphQL reads per task, and the start expires after about
-14 days. **The standard for the job** is a Grafana dashboard panel or `gh` by hand. A panel
-cannot join PR data without a GitHub datasource plugin, which is new host state. `gh` alone
-has no start, and by hand nothing records the gap markers. The standard covers half the
-reading at best, so the script is the smaller thing.
+**Observed at delivery** on PR 382: the D4 command printed 3, and the D5 `grep` found no
+`round` in the archived review of `one-emitter-task-telemetry`.
 
 ### D7 — The baseline lives in the setup doc
 
-`telemetry-measurement-setup.md` gains a "Per-task readings" section: the command, the five
-sources (D1–D5), the retention limit, and a table. Its first row is the baseline, the reading
+`telemetry-measurement-setup.md` gains a "Per-task readings" section: the four reads, the
+retention limit, and a table. Its first row is the baseline, the reading
 of `issue-101` attempt 1. A later reading of any task is set beside it.
 
 The baseline's caveat goes into that row: that task was first launched for the ADR 0037 gate,
@@ -148,11 +129,11 @@ PR numbers in `.agent-process/docs/` outside ADRs.
 
 ## Risks / Trade-offs
 
-- **The baseline expires.** The issue 101 sample ages out around 2026-10-24. The baseline
-  task runs right after the implementation. If it is too late, the row records the start gap
-  rather than a guessed value.
-- **Owner-supplied identity.** A wrong `--issue`/`--attempt` at launch moves the start to
-  another task. Only D2's merge-after-start filter and the person reading the row catch it.
+- **The start expires.** Grafana keeps about 14 days; the doc says to read the start at merge.
+  The baseline was read on 2026-10-10.
+- **Owner-supplied identity.** A session without the launcher, or with a wrong
+  `--issue`/`--attempt`, leaves the start late or empty. Only the person reading the row
+  catches it.
 - **The reviewer writes the round.** See D5.
 
 ## Migration Plan
@@ -160,8 +141,7 @@ PR numbers in `.agent-process/docs/` outside ADRs.
 1. The schema changes in this PR. In a consumer, a change in flight
    whose review lacks `round` fails `start_change` validation, naming `round`. Running the
    review again writes it (D5: 2, the replaced file counting as 1).
-2. Archived reviews are not validated again, so they stay as they are. The script reports
-   their plan rounds as a gap.
+2. Archived reviews are not validated again, so they stay as they are, without `round`.
 
 **Rollback:** revert the PR. Reviews written in between carry `round`, which the old schema
 (`additionalProperties: false`) rejects. A change in flight then needs its review run again.

@@ -22,25 +22,21 @@ Observed on 2026-10-10 (design.md records the exact readings):
 - `architect-review.json` gets a required `round` (integer ≥ 1). The schema's description
   states the rule: 1 on the first review of a change, one more than the file it replaces on
   every later review.
-- New owner script `.agent-process/scripts/task_metrics.py --issue N [--attempt K]`. It prints
-  one JSON reading of the task:
-  - its PR, start, merge time, hours to merge and lines changed (additions + deletions);
-  - plan rounds (the archived review's `round`) and code rounds (distinct reviewed heads);
-  - a `gaps` list naming every value it could not read.
-  It exits 1 when there is a gap and 2 on bad arguments, a missing credential, an ambiguous PR
-  or a failed read.
+- The reading is four documented reads, run by hand: the start, the PR's merge time and size,
+  code rounds (distinct reviewed heads) and plan rounds (the archived review's `round`). No new
+  script (design D6).
 - The start is the task's first token sample in Grafana, matched on the exact `task_id` and
   `attempt_id`. A session started without the launcher has no such series, so it never
   counts toward the task.
 - `.agent-process/docs/telemetry-measurement-setup.md` gets a "Per-task readings" section: the
-  command, the sources, the retention limit, and the baseline reading beside the current value.
+  four reads, the retention limit, and the baseline reading beside the current value.
 
 ## Capabilities
 
 ### New Capabilities
 
-None. The readings are owner-side measurement tooling, like the ADR 0037 launcher, and not
-part of the distributed process.
+None. The readings are owner-side measurement, like the ADR 0037 launcher, and not part of the
+distributed process.
 
 ### Modified Capabilities
 
@@ -53,9 +49,8 @@ part of the distributed process.
   `.agent-process/docs/telemetry-measurement-setup.md`,
   `tests/publisher/test_planning_workflow.py`, `tests/publisher/test_start_change.py` (the
   valid-review fixtures gain `round`).
-- Added: `.agent-process/scripts/task_metrics.py`, `tests/agent_process/test_task_metrics.py`.
 - Consumers: a change in flight whose review has no `round` fails `start_change` validation,
   which names `round`. A new review run fixes it. Archived reviews are not validated again.
-- No ADR. The source decisions only matter to this script and are recorded in design.md. The
-  doc names the sources for the reader. Telemetry metrics (cost, failed/denied calls,
+- No ADR. The source decisions only matter to the reading and are recorded in design.md. The
+  doc holds the reads. Telemetry metrics (cost, failed/denied calls,
   compactions) and their window-rejection rules stay with the sibling issue.

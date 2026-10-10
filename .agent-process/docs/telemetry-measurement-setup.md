@@ -170,27 +170,25 @@ points at a trace-schema change of the beta.
 
 ## Per-task readings
 
-One task's delivery reading, owner-side, with `GRAFANA_URL` and
-`GRAFANA_SERVICE_ACCOUNT_TOKEN` set and `gh` authenticated in the repository:
+One task's delivery reading is four reads, owner-side, by hand. `<change>` is the change
+name, which is also the branch `start_change` creates.
 
 ```
-python .agent-process/scripts/task_metrics.py --issue <N> [--attempt <K>]
+# Start: the task's first token sample, a PromQL query in Grafana
+min(min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",attempt_id="<K>"})[30d:1m]))
+
+# Merge time and size (additions plus deletions, plan artifacts included)
+gh pr list --head <change> --state merged --json number,mergedAt,additions,deletions
+
+# Code rounds: the distinct heads the review job read; one round is no rework
+gh pr view <number> --json comments --jq '[.comments[] | select(.author.login=="github-actions") | .body | split("\n")[0] | capture("^Reviewed head SHA: (?<s>[0-9a-f]+)$").s] | unique | length'
+
+# Plan rounds: the archived review's round; a review written before the field has none
+grep '"round"' openspec/changes/archive/*-<change>/architect-review.json
 ```
 
-It prints one JSON object. A value it cannot read is null and named in `gaps` (exit 1).
-Bad arguments, a missing credential, more than one candidate pull request or a failed
-read exit 2.
-
-| Value | Source |
-| --- | --- |
-| `start` | The task's first token sample: `min(min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",attempt_id="<K>"})[30d:1m]))` through the datasource proxy. Exact matchers keep sessions without the launcher out. |
-| `pr`, `merged` | The merged pull request of the issue's `ConnectedEvent` (the branch `start_change` links), merged at or after the start. |
-| `lines_changed` | The pull request's additions plus deletions, plan artifacts included. |
-| `code_rounds` | Distinct SHAs on the first line `Reviewed head SHA: <sha>` of the review job's comments. One round is no rework. |
-| `plan_rounds` | `round` of the archived `architect-review.json` at the merge commit. Reviews written before the field have none: a gap. |
-
-Grafana keeps about 14 days of samples, so a task's start must be read within that
-window; later the start is a gap, not a value.
+Exact matchers keep sessions without the launcher out of the start, so such a session
+leaves it late or empty. Grafana keeps about 14 days of samples: read the start at merge.
 
 | Task | Start | Merged | Hours | Lines | Plan rounds | Code rounds | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- |

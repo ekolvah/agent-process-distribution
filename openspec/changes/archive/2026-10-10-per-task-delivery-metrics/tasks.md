@@ -23,6 +23,8 @@
 
 - [x] 3.1 Implement `.agent-process/scripts/task_metrics.py`. It has a pure `reading(issue, attempt, prometheus, github)` and the two protocols. The real adapters are `urllib` on the datasource proxy and `gh api graphql` (D5's `object(expression:)` reads included) with `encoding="utf-8"`. `main(argv, environ, ...)` checks the credentials first. Verify with `python -m pytest tests/agent_process/test_task_metrics.py`. Commit
 
+- [x] 3.2 At delivery, by the person's decision (design D6): remove `task_metrics.py` and `test_task_metrics.py`, and put the four reads in the setup doc. Verify each read live on PR 382 against 4.1
+
 ## 4. Baseline and docs (design D7)
 
 - [x] 4.1 In the change's worktree, run `python .agent-process/scripts/task_metrics.py --issue 101 --attempt 1`. This is the only check of the real adapters. Verify the live output against the design's observations: PR 382, start `2026-10-10T15:02:36Z`, `lines_changed` 998, `code_rounds` 3, and `plan_rounds` reported as a gap (the review predates `round`). If the start is a gap because the sample expired, record the gap rather than a value
@@ -55,5 +57,6 @@
 | Review archives with the change | `tests/publisher/test_planning_workflow.py::test_review_archives_with_the_change` (unchanged) |
 | Review round | `tests/publisher/test_planning_workflow.py::test_review_round`, `tests/publisher/test_start_change.py::test_review_without_round` |
 
-The script's decisions D1–D6 have no delta scenario (owner tooling). They are covered by
-`tests/agent_process/test_task_metrics.py` (Group 1.2) and the live reading of 4.1.
+The reading's decisions D1–D6 have no delta scenario (owner measurement). Its four reads are
+documented commands, checked live by 4.1 and 3.2; the script and tests of 1.2 and 3.1 were
+removed at delivery (design D6).
