@@ -41,7 +41,8 @@ early.
   for that session only.
 - Owner host: traces of launched sessions go to the local Alloy receiver. Alloy copies the
   token attributes to `gen_ai.usage.*`, adds the task and attempt as Langfuse trace tags,
-  and exports to Langfuse's OTLP endpoint. Metrics and logs keep their direct route to
+  and exports to Langfuse's OTLP endpoint. The dead Codex metric chain leaves `config.alloy`,
+  and `run-alloy.ps1` requires the Langfuse keys instead of the Codex route's variables. Metrics and logs keep their direct route to
   Grafana and get the task identity from the same resource attributes.
 - Once one task's Langfuse usage equals its Grafana token totals, the Langfuse plugin is
   uninstalled.

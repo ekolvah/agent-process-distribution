@@ -5,8 +5,9 @@ See proposal.md, Why, for the observations this design rests on.
 Owner host today: Claude Code exports metrics and logs straight to Grafana Cloud (User-scope
 `OTEL_EXPORTER_OTLP_*`). Local Alloy 1.18.1 listens on `127.0.0.1:4318` with a metrics-only
 pipeline left from the Codex route (receiver `codex`, filter, transform, delta-to-cumulative,
-batch, Grafana exporter). It is started by `~/.config/alloy/run-alloy.ps1` and reads its
-secrets with `sys.env`. The Langfuse plugin is installed at local scope in the main checkout
+batch, Grafana exporter). It is started by `~/.config/alloy/run-alloy.ps1`, which refuses to
+start without the `GRAFANA_CLOUD_*` User variables of that route; those variables are
+already gone, so a restart fails. Alloy reads its secrets with `sys.env`. The Langfuse plugin is installed at local scope in the main checkout
 ([ADR 0036](../../../../.agent-process/docs/adr/0036-per-task-token-analysis-backend.md)).
 The project's `.claude/settings.json` sets `OTEL_RESOURCE_ATTRIBUTES` to the two
 `vcs.repository.*` pairs ([ADR 0026](../../../../.agent-process/docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md)).
@@ -22,7 +23,6 @@ The project's `.claude/settings.json` sets `OTEL_RESOURCE_ATTRIBUTES` to the two
 **Non-Goals:**
 
 - Traces in Grafana Tempo: no reader exists for them.
-- Removing the dead Codex metric chain from `config.alloy`: unrelated host cleanup.
 - M1–M6 readings, dashboards, outcome resolution, and a compaction signal: #99 consumes
   the labels and tags.
 - Prompt, response or tool content in Langfuse.
@@ -87,7 +87,9 @@ nor resource attributes as filterable fields (D3).
 
 ### D3 Alloy: one traces pipeline with a standard transform
 
-The `codex` receiver gains a `traces` output. The new chain is
+The dead Codex metric chain and the `GRAFANA_CLOUD_*` requirement of `run-alloy.ps1` are
+removed: Alloy cannot restart with them (Context). `config.alloy` keeps one receiver,
+`otelcol.receiver.otlp "claude_code"`, with a `traces` output only, and the chain
 `otelcol.processor.transform "langfuse"` → `otelcol.processor.batch "langfuse"` →
 `otelcol.exporter.otlphttp "langfuse"`. The exporter sends to
 `https://cloud.langfuse.com/api/public/otel` with `otelcol.auth.basic`, whose username and
@@ -158,18 +160,19 @@ suspect.
 - [Account fields such as `user.email` and `organization.id` ride on every span to
   Langfuse] → accepted. This is the owner's own project, and the plugin already sent more.
   ADR 0037 records the field list from the probe.
-- [Alloy restart] → only the dead Codex metrics and the new traces depend on Alloy. The
-  Grafana metrics and logs route does not pass through it.
+- [Alloy restart] → only the new traces depend on Alloy. The Grafana metrics and logs
+  route does not pass through it.
 
 ## Migration Plan
 
-1. Back up `config.alloy` as `config.alloy.one-emitter.pre` and record the User-scope
-   variable names that will change.
+1. Back up `config.alloy` and `run-alloy.ps1` with the suffix `.one-emitter.pre` and record
+   the User-scope variable names that will change. `run-alloy.ps1` now requires the
+   Langfuse key variables instead of `GRAFANA_CLOUD_*`.
 2. Validate the candidate with the installed `alloy.exe validate
    --stability.level=experimental` before replacing the config. Restart through
    `run-alloy.ps1` and verify that `127.0.0.1:4318` listens.
 3. Set the Langfuse key variables at User scope and restart Alloy so that it reads them.
 4. Gate D5. When it passes, uninstall the Langfuse plugin and remove its settings entries.
-5. Rollback, on an early exit or on owner request: restore the backup, restart Alloy, and
+5. Rollback, on an early exit or on owner request: restore both backups, restart Alloy, and
    delete the key variables. On an early exit the D2 variables also leave the launcher
    before the PR. The plugin is untouched until step 4.

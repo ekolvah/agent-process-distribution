@@ -12,9 +12,9 @@
 
 ## 3. Host traces route (design D2, D3; Migration Plan 1–3)
 
-- [ ] 3.1 Back up `~/.config/alloy/config.alloy` to `config.alloy.one-emitter.pre`. Record in `evidence/issue-101/host-change.md` the names (no values) of the User-scope variables that exist before the change. Verify that the backup is byte-identical (`cmp`)
-- [ ] 3.2 Write the candidate config: the `codex` receiver gains `traces`, followed by the D3 transform, batch and Langfuse exporter with `otelcol.auth.basic` from `sys.env`. Validate it with the installed `alloy.exe validate --stability.level=experimental <candidate>` before replacing the config. Verify that validation exits 0 that the metric chain is unchanged (`diff` against the backup shows additions only), and that `grep -c include_metadata <candidate>` prints 0
-- [ ] 3.3 Ask the owner to set the Langfuse public and secret key variables at User scope; the agent does not see or print them. Restart Alloy through `run-alloy.ps1`. Verify that `127.0.0.1:4318` listens and that the Alloy log shows the `langfuse` exporter started with no error. On failure, run Migration Plan step 5 and stop
+- [x] 3.1 Back up `~/.config/alloy/config.alloy` and `run-alloy.ps1` with the suffix `.one-emitter.pre`. Record in `evidence/issue-101/host-change.md` the names (no values) of the User-scope variables that exist before the change. Verify that each backup is byte-identical (`cmp`)
+- [x] 3.2 Write the candidate config of design D3: the `claude_code` receiver with a `traces` output only, followed by the transform, batch and Langfuse exporter with `otelcol.auth.basic` from `sys.env`; the Codex metric chain is gone. Validate it with the installed `alloy.exe validate --stability.level=experimental <candidate>` before replacing the config. Verify that validation exits 0 and that `grep -c -E 'include_metadata|codex|grafana' <candidate>` prints 0
+- [x] 3.3 Set the Langfuse public and secret key variables at User scope from the owner's local Langfuse configuration, printing no value. Make `run-alloy.ps1` require them instead of `GRAFANA_CLOUD_*`. Restart Alloy through `run-alloy.ps1`. Verify that `127.0.0.1:4318` listens and that the Alloy log shows the `langfuse` exporter started with no error. On failure, run Migration Plan step 5 and stop
 
 ## 4. Live gate (design D5)
 
@@ -39,7 +39,7 @@
 ## 8. Deliver
 
 - [ ] 8.1 With a clean worktree, run `agent-process archive_change one-emitter-task-telemetry`. Verify that it archives the change with no spec update, commits, and pushes the branch
-- [ ] 8.2 Run `gh pr create --title "chore: one-emitter-task-telemetry" --body-file <report>`. The report references the tracking issue plainly (#101), never with `Closes`. It carries the gate result, the scenario → test map and the deferrals: compaction signal and readings to #99, the Codex chain cleanup, and Tempo
+- [ ] 8.2 Run `gh pr create --title "chore: one-emitter-task-telemetry" --body-file <report>`. The report references the tracking issue plainly (#101), never with `Closes`. It carries the gate result, the scenario → test map and the deferrals: compaction signal and readings to #99, and Tempo
 - [ ] 8.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread, with `agent-process resolve_review_thread --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person: report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 8.4 Close draft PR 104 with a comment naming the new PR as its replacement. Post on #99 the labels and tags it consumes and two rejection rules, naming #99 as their catcher: reject a measured window that contains a `vcs_repository_name` series of the measured repository without `task_id` (a session started without the launcher), and reject one whose per-type Langfuse usage differs from the D5 Grafana total (trace-schema drift). Verify that `gh pr view 104 --json state` prints `CLOSED`
 - [ ] 8.5 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change in the final message. The person merges it
