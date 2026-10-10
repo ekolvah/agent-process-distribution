@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 
 import pytest
+from markdown_it import MarkdownIt
+from markdown_it.token import Token
 
 from scripts import close_review, head_review
 
@@ -29,6 +31,11 @@ def _result(text: str, denials: list[dict[str, object]] | None = None) -> dict[s
 
 def _denial(tool: str, tool_input: dict[str, object]) -> dict[str, object]:
     return {"tool_name": tool, "tool_use_id": "toolu_1", "tool_input": tool_input}
+
+
+_GITHUB_LIMIT = 65_536
+_MEDIUMBLOB = 262_144
+_TRUNCATED = " … truncated"
 
 
 def _close(tmp_path: Path, messages: object) -> Path:
@@ -71,17 +78,89 @@ def test_denial_without_command_renders_its_input(tmp_path: Path) -> None:
     assert "/home/runner/.ssh/id_rsa" in body
 
 
+def _fences(body: str) -> list[Token]:
+    return [t for t in MarkdownIt("commonmark").parse(body) if t.type == "fence"]
+
+
 def test_multiline_denial_stays_on_one_line(tmp_path: Path) -> None:
-    """Scenario: Denied tool — a multi-line command stays on its own line."""
+    """Scenario: Denied tool — a multi-line command is the one line of the fenced block."""
     heredoc = "cat > x <<EOF\nline one\nline two\nEOF"
-    without = _close(tmp_path, [_result(_TEXT)]).read_text(encoding="utf-8")
 
     body = _close(tmp_path, [_result(_TEXT, [_denial("Bash", {"command": heredoc})])]).read_text(
         encoding="utf-8"
     )
 
-    assert len(body.splitlines()) == len(without.splitlines()) + 1
-    assert json.dumps(heredoc) in body
+    fences = _fences(body)
+    assert fences
+    assert fences[0].content == f"- Bash: {json.dumps(heredoc)}\n"
+
+
+@pytest.mark.parametrize("opener", ["<!--", "<details>", "```"])
+def test_message_cannot_hide_the_denials(tmp_path: Path, opener: str) -> None:
+    """Scenario: Denied tool — a block the final message opens and never closes hides
+    nothing: the denials come before it, in a fence their own text cannot close."""
+    command = "echo '```'\n<!--"
+    denial = _denial("Bash", {"command": command})
+
+    body = _close(tmp_path, [_result(f"{_TEXT}\n{opener}", [denial])]).read_text(encoding="utf-8")
+
+    tokens = MarkdownIt("commonmark").parse(body)
+    fences = [i for i, t in enumerate(tokens) if t.type == "fence"]
+    assert fences
+    assert tokens[fences[0]].content == f"- Bash: {json.dumps(command)}\n"
+    count = [
+        i
+        for i, t in enumerate(tokens)
+        if t.type == "inline" and t.content == "Permission denials: 1"
+    ]
+    html = [
+        i
+        for i, t in enumerate(tokens)
+        if t.type == "html_block" or any(child.type == "html_inline" for child in t.children or [])
+    ]
+    assert count
+    assert all(max(count[0], fences[0]) < i for i in html)
+
+
+def test_oversized_denial_is_cut(tmp_path: Path) -> None:
+    """Scenario: Oversized session — one denied call cannot fill the comment."""
+    denial = _denial("Write", {"file_path": "a.py", "content": "x" * 100_000})
+
+    body = _close(tmp_path, [_result(_TEXT, [denial])]).read_text(encoding="utf-8")
+
+    lines = body.splitlines()
+    assert len(body) <= _GITHUB_LIMIT
+    assert "Permission denials: 1" in lines
+    [line] = [line for line in lines if line.startswith("- Write: ")]
+    assert line.endswith(_TRUNCATED)
+    assert len(line) <= 1_000 + len(_TRUNCATED)
+
+
+@pytest.mark.parametrize(
+    ("text", "denials"),
+    [
+        ("x" * 100_000, 0),
+        ("😀" * 100_000, 0),
+        (_TEXT, 100),
+    ],
+    ids=["ascii-message", "emoji-message", "many-denials"],
+)
+def test_oversized_body_is_cut(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], text: str, denials: int
+) -> None:
+    """Scenario: Oversized session — the comment stays under GitHub's limit, the marker
+    and the count stay whole, and the cut is marked on the PR and in the job log."""
+    calls = [_denial("Bash", {"command": "y" * 5_000}) for _ in range(denials)]
+
+    body = _close(tmp_path, [_result(text, calls)]).read_text(encoding="utf-8")
+
+    lines = body.splitlines()
+    assert len(body) <= _GITHUB_LIMIT
+    assert len(body.encode("utf-8")) <= _MEDIUMBLOB
+    assert lines[0] == f"Reviewed head SHA: {_HEAD}"
+    assert f"Permission denials: {denials}" in lines
+    assert lines[-1] == "… truncated"
+    assert "::warning::" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(

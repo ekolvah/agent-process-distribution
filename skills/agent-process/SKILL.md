@@ -32,8 +32,8 @@ On any conflict, the full text of `principles.md` decides.
 
 ## Claude harness
 
-- Read narrowly: a search or an `offset`/`limit` read before a whole file. When a navigation
-  hook denies a command, take the call it names; never route around it.
+- Read narrowly: a search or an `offset`/`limit` read before a whole file. When the read-budget
+  hook denies a `Read`, take the call it names; never route around it.
 - Spawn a subagent only for independent work, or for research that needs more than three
   round trips.
 - Be concise by default, in replies and in files.
@@ -207,8 +207,8 @@ marketplace follows the branch `stable`, which each release fast-forwards, with 
 so a machine that did the `plugin-channel` row gets a release within a session. The plugin's
 tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session
 start it installs its own Python dependencies, once per machine and pin set; a failure prints
-`agent-process plugin environment not installed` with the cause. Its navigation
-hooks deny shell file reads and over-budget whole-file `Read`, naming the cheaper call, and its
+`agent-process plugin environment not installed` with the cause. Its read-budget
+hook denies an over-budget whole-file `Read`, naming the cheaper call, and its
 git guard denies `gh pr merge`, `gh repo delete`, a push to `main`, a force push, `--no-verify`,
 `git reset --hard` and `git branch -D`, naming the alternative; a
 `permissions.deny` rule matching the same command blocks first, so their message never reaches

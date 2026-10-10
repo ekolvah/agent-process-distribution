@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.10.6](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.5...v3.10.6) (2026-10-09)
+
+
+### Bug Fixes
+
+* edit-lint-surfaces-git-failure ([#378](https://github.com/ekolvah/agent-process-distribution/issues/378)) ([15ac741](https://github.com/ekolvah/agent-process-distribution/commit/15ac741051d0efc6c65c2f36f0a1c85e6cfe983d))
+
+## [3.10.5](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.4...v3.10.5) (2026-10-09)
+
+
+### Bug Fixes
+
+* plugin-env-locks-rebuild ([#376](https://github.com/ekolvah/agent-process-distribution/issues/376)) ([05307b6](https://github.com/ekolvah/agent-process-distribution/commit/05307b6b6c21063d45fd3b0803b7a67155a89458))
+
+## [3.10.4](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.3...v3.10.4) (2026-10-08)
+
+
+### Bug Fixes
+
+* bound-review-closing-comment ([#374](https://github.com/ekolvah/agent-process-distribution/issues/374)) ([51d97a3](https://github.com/ekolvah/agent-process-distribution/commit/51d97a3ee44303e65750b08efd6554314677b7c9))
+
+## [3.10.3](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.2...v3.10.3) (2026-10-08)
+
+
+### Bug Fixes
+
+* **distribution:** guard unwraps clustered shell flags; drop the Bash navigation route ([#372](https://github.com/ekolvah/agent-process-distribution/issues/372)) ([9dbf1d1](https://github.com/ekolvah/agent-process-distribution/commit/9dbf1d1823c4fc78f693dc81930f1e76cfc18f9f))
+
 ## [3.10.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.1...v3.10.2) (2026-10-07)
 
 

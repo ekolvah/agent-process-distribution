@@ -670,14 +670,15 @@ stderr before stdout. When neither stream was captured, it SHALL say `output not
 - **THEN** the error says `output not captured`
 
 ### Requirement: The plugin ships the navigation hooks
-The plugin SHALL deliver the PreToolUse navigation policy of the implementation requirement
-"Shift-left feedback in Claude" as its own hooks for the `Bash` and `Read` tools, running the
-policy from the package, so a consumer needs no copy of it. This repository's
-`.claude/settings.json` SHALL declare no PreToolUse hook for `Bash` or `Read`.
+The plugin SHALL deliver the PreToolUse read-budget policy of the implementation requirement
+"Shift-left feedback in Claude" as its own hook for the `Read` tool, running the policy from the
+package, so a consumer needs no copy of it, and SHALL ship no navigation hook for the `Bash`
+tool. This repository's `.claude/settings.json` SHALL declare no PreToolUse hook for `Bash` or
+`Read`.
 
 #### Scenario: Adopted consumer
-- **WHEN** the plugin's hook commands run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the policy, for a `Bash` command with a denied navigation stage and for a whole-file `Read` of a file over the budget
-- **THEN** each denies the call and names the tool or range to use instead
+- **WHEN** the plugin's hook commands run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the policy, for a whole-file `Read` of a file over the budget
+- **THEN** the call is denied and the reason names the range to use instead, and no navigation hook of the plugin matches `Bash`
 
 #### Scenario: Repository settings carry no navigation hook
 - **WHEN** the publisher tests read this repository's `.claude/settings.json`
@@ -717,8 +718,11 @@ post-edit hook of its own.
 After an `Edit` or `Write`, the plugin's hook SHALL run `pre-commit run --hook-stage pre-commit
 --files <edited path>` in the root of the git repository that holds the edited file, a worktree
 being its own root, and SHALL show the agent that run's output with exit 2 when the run fails.
-A run that passes SHALL produce no output. A file in no git repository, or in one without
-`.github/workflows/agent-process.yml`, SHALL produce no output. When
+A run that passes SHALL produce no output. A file for which git finds no repository, a file inside a git
+directory, or a file in a repository without `.github/workflows/agent-process.yml` SHALL
+produce no output. When git fails
+for the edited file's directory for any other reason, the hook SHALL exit 2 with a marker saying
+that edit-time lint is not active and carrying git's error output. When
 `pre-commit` is not on `PATH`, the hook SHALL exit 2 with a marker saying that edit-time lint is
 not active. This repository's `.pre-commit-config.yaml` SHALL
 declare the `ruff-check` and `ruff-format` hooks of `astral-sh/ruff-pre-commit` at the
@@ -742,8 +746,12 @@ declare the `ruff-check` and `ruff-format` hooks of `astral-sh/ruff-pre-commit` 
 - **THEN** the branch's `pre-commit`-stage hooks run, not the main checkout's
 
 #### Scenario: File outside an adopted repository
-- **WHEN** the hook runs from an adopted consumer for a file in no git repository, or in a git repository without `.github/workflows/agent-process.yml`
+- **WHEN** the hook runs from an adopted consumer for a file in no git repository, a file inside a repository's `.git` directory, or a file in a git repository without `.github/workflows/agent-process.yml`
 - **THEN** it exits 0 with no output
+
+#### Scenario: Git fails inside a repository
+- **WHEN** the hook runs for a file of a git repository that git refuses to read: dubious ownership, an unknown repository extension, or a `.git` file naming a missing git directory
+- **THEN** it exits 2 with stderr saying that edit-time lint is not active and carrying git's message
 
 #### Scenario: pre-commit missing
 - **WHEN** the hook runs with no `pre-commit` on `PATH`
@@ -785,7 +793,9 @@ At session start, the plugin SHALL install its runtime manifest `.agent-process/
 into a virtual environment under `${CLAUDE_PLUGIN_DATA}` named by the manifest's content, when
 no completed environment of that name exists or its interpreter fails `pip check`, and SHALL then export `AGENT_PROCESS_PYTHON`, the
 environment's interpreter, through `CLAUDE_ENV_FILE`. An install SHALL NOT modify an environment
-of another manifest. The launcher SHALL run every script with `AGENT_PROCESS_PYTHON` when it is
+of another manifest. Installs under one `${CLAUDE_PLUGIN_DATA}` SHALL run one at a time; an install
+that waited for another SHALL reuse the environment the other completed, and an install that
+waits longer than 240 seconds SHALL fail. The launcher SHALL run every script with `AGENT_PROCESS_PYTHON` when it is
 set, and with `python` otherwise. A failed install, or a hook run without `CLAUDE_PLUGIN_DATA` or
 `CLAUDE_ENV_FILE`, SHALL exit 0 with an `agent-process plugin environment not installed` marker
 to the person and to the agent; a failed install SHALL be retried at the next session start.
@@ -814,6 +824,14 @@ to the person and to the agent; a failed install SHALL be retried at the next se
 - **WHEN** the hook runs with a manifest different from the one an existing environment was installed from
 - **THEN** it installs a second environment, exports that one, and leaves the first unchanged
 
+#### Scenario: Parallel install
+- **WHEN** a second install of the same manifest starts while the first is installing
+- **THEN** the second runs no install step until the first ends, does not rebuild the environment, and returns the same interpreter
+
+#### Scenario: Install waits too long
+- **WHEN** an install has waited 240 seconds for another install to end
+- **THEN** it fails with a cause that names the wait, so the hook prints the `agent-process plugin environment not installed` marker
+
 #### Scenario: Launcher uses the session interpreter
 - **WHEN** `agent-process <script>` runs with `AGENT_PROCESS_PYTHON` set
 - **THEN** the script runs under that interpreter
@@ -834,7 +852,8 @@ other than `bin/openspec` SHALL write an OpenSpec version after `@fission-ai/ope
 
 ### Requirement: The plugin ships the git guard
 The plugin's `PreToolUse` hook for the `Bash` tool SHALL deny a command when any of its stages,
-including one behind a shell separator, a process wrapper, an environment assignment, `sh -c`,
+including one behind a shell separator, a process wrapper, an environment assignment, a shell's
+`-c` alone or in a short-option cluster (`bash -lc`, `sh -ec`),
 git's global options or `gh`'s `-R`/`--repo` before the subcommand, is one of:
 - `gh pr merge` — the reason SHALL say that the person merges;
 - `gh repo delete`;
@@ -850,7 +869,7 @@ command SHALL get no output from the guard. This repository's `.claude/settings.
 that matches a guarded command.
 
 #### Scenario: Guarded command in an adopted consumer
-- **WHEN** the plugin's `PreToolUse` `Bash` hooks run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the guard, for each guarded command, alone and after `cd x &&`, under `sh -c`, after `A=1` and `env A=1`, and with `git -C .` or `gh -R o/r` before the subcommand
+- **WHEN** the plugin's `PreToolUse` `Bash` hooks run with a project directory that carries `.github/workflows/agent-process.yml` and no copy of the guard, for each guarded command, alone and after `cd x &&`, under `sh -c`, `bash -lc`, `sh -ec` and `bash -c -e`, after `A=1` and `env A=1`, and with `git -C .` or `gh -R o/r` before the subcommand
 - **THEN** the call is denied and the reason names the alternative
 
 #### Scenario: Ordinary git command

@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Minimal, test-first, fully mapped, and every platform claim it rests on is now observed: design.md D1 records GitHub's renderer output for the new layout.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects escaping `<` in the message because it changes the verbatim text and `<details>` can still fold the denials. D3 rejects bounding only the denials because a long message still overflows, and rejects splitting the comment because that needs a new reader contract. Non-Goals reject fencing the message because the findings summary must render. D2 is needed: with the denials first, one 100k `Write` would otherwise use the whole D3 budget and push out the other denials and the message (proposal.md Why repro, test_oversized_body_is_cut's 100x5,000 case). The `::warning::` line is one print that makes a cut visible when an unclosed tag in the message hides the trailing marker (§IV). Omitting the empty block when there are no denials is one conditional; not worth a finding.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The delta MODIFIES the whole requirement, so all 11 scenarios are in it, and tasks.md's map has an entry for each. The existing tests it names exist: test_reusable_workflows.py lines 366, 547, 571, 581, 693 and test_head_review.py line 124. Denied tool -> test_message_cannot_hide_the_denials plus the existing close_review tests. Oversized session -> test_oversized_denial_is_cut and test_oversized_body_is_cut. test_body_carries_marker_message_and_denials and test_close_step_posts_the_comment_the_reader_reads still hold under the new order: the marker stays on line 1, and they check `_TEXT in body`, `json.dumps(command) in body` and head_review.reviewed.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.2 runs check_red on four node ids and expects `RED: 8 failed`. That is 3 (hide: `<!--`, `<details>`, unclosed fence) + 1 (oversized denial) + 3 (oversized body: ASCII, emoji, 100 denials) + 1 (rewritten multiline). Each one fails on the current close_review.py. `<!--` swallows the rest, so there is no fence token. `<details>` ends at the blank line, so there is still no fence. An unclosed ``` fence swallows the count and the denial, so the first fence's content is not the denial line. Every oversized body is longer than 65,536. The multiline test finds no fence token.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Three platform claims. (1) GitHub's comment limit of 65,536 characters / 262,144 bytes: proposal.md Why cites the GitHub staff answer with its sentence, a reference page and sentence as SKILL.md#proposal allows. The emoji parametrization and the Risks byte-bound argument cover how characters are counted. (2) The caller pins @main: observed at .github/workflows/agent-review.yml:17. (3) D1's claim that nothing the message opens hides the fenced denials: design.md D1 now records the `gh api markdown -f mode=gfm -f context=ekolvah/agent-process-distribution -F text=@body.md` command run on 2026-10-08 against GitHub's renderer. The body has the marker, `Permission denials: 1`, a fenced `- Bash: \"echo '```'\n<!--\"` and a message ending in `<!--`. The recorded output shows the count paragraph and the `<pre><code>` denial before the message, with `<!--` escaped to `&lt;!--`. D1 also cites this review's `<details>` run, which gave the same result. The markdown-it tests stay as the regression proof.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. The only reader of the comment's layout is head_review.reviewed, which takes the first `Reviewed head SHA:` match. The marker stays on line 1 (design Context), so existing closing comments still count (Migration Plan). A grep finds no other consumer of `Permission denials`. The workflow step header comment and ADR 0027's sentence do not fix an order and stay true (proposal Impact).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Risks: a body GitHub still rejects. `gh pr comment` in 'Close the Claude review of the head' (.github/workflows/reusable-agent-review.yml:139) runs under the runner's `bash -eo pipefail`, so the agent-review check of that PR head goes red. Traced. Risks: a cut message. close_review.py, run in the same Close step, prints `::warning::` to stdout as an annotation on that head's agent-review run. Traced, and test_oversized_body_is_cut asserts it. Migration: this PR's own heads run the old close step because agent-review.yml:17 pins @main; the first head reviewed after merge runs the new one. Traced. A posted comment the reader cannot find is still caught by 'Verify the Claude review of the head' (head_review.py --wait), which is unchanged.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "spec.md requirement edit: 'carrying every permission denial of the session in a fenced block and then that final message verbatim', 17 words (was 12). All 17 are asserted: fence-token content and order in test_message_cannot_hide_the_denials, and verbatim text in test_body_carries_marker_message_and_denials. New sentence 'The job SHALL keep the comment under GitHub's comment limit: ... SHALL stay whole', 34 words. All are asserted: len <= 65,536, ends with `… truncated` for a denial and for the body, marker on line 1, count whole. Denied tool THEN adds 16 words ('in a fenced block before the final message, so nothing the final message opens hides them'), all asserted by the three parametrized hide cases. New scenario Oversized session: WHEN 18 and THEN 25 words, all asserted by test_oversized_denial_is_cut and test_oversized_body_is_cut. No unasserted clause.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check. It edits closing_body / _denial_line in the existing .agent-process/scripts/close_review.py (design.md: 'No new script and no new check'). The tests reuse markdown-it-py, already pinned in .agent-process/requirements.txt and already used by tests/agent_process/test_doc_links.py and test_adr_records.py. No dependency is added.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

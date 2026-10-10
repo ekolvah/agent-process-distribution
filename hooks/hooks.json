@@ -17,11 +17,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd \"$CLAUDE_PROJECT_DIR\" && { [ ! -f .github/workflows/agent-process.yml ] || sh \"${CLAUDE_PLUGIN_ROOT}/bin/agent-process\" navigation_policy pre-bash; }",
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "cd \"$CLAUDE_PROJECT_DIR\" && { [ ! -f .github/workflows/agent-process.yml ] || sh \"${CLAUDE_PLUGIN_ROOT}/bin/agent-process\" git_guard pre-bash; }",
             "timeout": 10
           }

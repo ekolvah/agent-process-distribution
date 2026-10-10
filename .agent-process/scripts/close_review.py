@@ -2,9 +2,12 @@
 
 The action writes every SDK message of the session to its ``execution_file``. The body is
 the marker ``Reviewed head SHA: <sha>`` on the first line, so ``head_review.py`` finds it
-before any text the model wrote, then the last result message's final text verbatim, then
-every permission denial on its own line. Nothing here judges what the text says (ADR 0027):
-a session that ends without a final message is a silent finish and exits 1 with no body.
+before any text the model wrote, then ``Permission denials: <n>`` and every denial on its own
+line inside a fenced block, then the last result message's final text verbatim, so nothing
+the final message opens hides the denials. A denial line is cut at 1,000 characters and the
+body at 60,000, under GitHub's comment limit; each cut ends with ``… truncated``. Nothing
+here judges what the text says (ADR 0027): a session that ends without a final message is a
+silent finish and exits 1 with no body.
 """
 
 from __future__ import annotations
@@ -13,6 +16,10 @@ import argparse
 import json
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+
+_DENIAL_LIMIT = 1_000
+_BODY_LIMIT = 60_000
+_TRUNCATED = "… truncated"
 
 
 class SilentFinish(Exception):
@@ -44,18 +51,27 @@ def _denial_line(denial: object) -> str:
     return f"- {denial.get('tool_name')}: {json.dumps(shown, separators=(',', ':'))}"
 
 
+def _cut_denial(line: str) -> str:
+    return line if len(line) <= _DENIAL_LIMIT else f"{line[:_DENIAL_LIMIT]} {_TRUNCATED}"
+
+
 def closing_body(result: Mapping[str, object], head_sha: str) -> str:
     denials = result.get("permission_denials")
     denials = denials if isinstance(denials, list) else []
+    fenced = ["```", *(_cut_denial(_denial_line(denial)) for denial in denials), "```"]
     lines = [
         f"Reviewed head SHA: {head_sha}",
         "",
-        str(result["result"]),
-        "",
         f"Permission denials: {len(denials)}",
-        *(_denial_line(denial) for denial in denials),
+        *(fenced if denials else []),
+        "",
+        str(result["result"]),
     ]
-    return "\n".join(lines) + "\n"
+    body = "\n".join(lines) + "\n"
+    if len(body) <= _BODY_LIMIT:
+        return body
+    print(f"::warning::The closing comment of {head_sha} is cut at {_BODY_LIMIT} characters")
+    return f"{body[:_BODY_LIMIT]}\n\n{_TRUNCATED}\n"
 
 
 def main(argv: Sequence[str] | None = None) -> None:

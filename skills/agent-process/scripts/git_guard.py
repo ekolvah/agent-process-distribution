@@ -22,11 +22,23 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from navigation_policy import _basename, _deny, first_stage_verdict
+from navigation_policy import _deny
+
+_SEPARATORS = frozenset({"|", "||", "&&", ";", "&", "|&", "\n"})
+# Wrappers Claude Code itself strips before matching a permission rule; mirrored so a
+# wrapped command is classified by what it actually runs.
+_WRAPPERS = frozenset(
+    {"timeout", "time", "nice", "nohup", "stdbuf", "command", "builtin", "noglob", "env", "xargs"}
+)
+_SHELLS = frozenset({"sh", "bash", "zsh"})
+# A short-option cluster that sets `c`; the single dash keeps `--rcfile` and `--norc` out.
+_SHELL_C = re.compile(r"-[A-Za-z]*c[A-Za-z]*")
+_MAX_DEPTH = 3
 
 _UNCHECKED = "git_guard: command not parsed, not checked"
 _GIT_WORD = re.compile(r"\b(?:git|gh)\b")
@@ -165,6 +177,65 @@ def _rule(tokens: list[str]) -> str | None:
     return _gh(tokens[1:]) if name == "gh" else None
 
 
+def _basename(token: str) -> str:
+    """`/usr/bin/git` and `git.exe` both classify as `git`."""
+    name = token.replace("\\", "/").rsplit("/", 1)[-1]
+    return name[:-4] if name.endswith(".exe") else name
+
+
+def _strip_wrappers(tokens: list[str]) -> list[str]:
+    while tokens and _basename(tokens[0]) in _WRAPPERS:
+        tokens = tokens[1:]
+        while tokens and (tokens[0].startswith("-") or tokens[0].isdigit()):
+            tokens = tokens[1:]
+    return tokens
+
+
+def _stage_verdict(tokens: list[str], depth: int) -> str | None:
+    tokens = _strip_wrappers(tokens)
+    if not tokens:
+        return None
+    if _basename(tokens[0]) in _SHELLS:
+        # `sh -c "..."` is NOT unwrapped by Claude Code's permission matcher, so recursing is
+        # what makes the inner command visible. The flag may be clustered (`bash -lc`,
+        # `sh -ec`), and the shell runs the first operand after the options, so
+        # `bash -c -e "..."` runs `...`, not `-e`. Value-taking options are not modelled: in
+        # `bash -c -o pipefail "..."` the value `pipefail` is read as the command string.
+        position = next(
+            (i for i, token in enumerate(tokens) if i and _SHELL_C.fullmatch(token)), None
+        )
+        if depth < _MAX_DEPTH and position is not None:
+            inner = next(
+                (token for token in tokens[position + 1 :] if not token.startswith(("-", "+"))),
+                "",
+            )
+            return first_stage_verdict(inner, depth + 1)
+        return None
+    return _rule(tokens)
+
+
+def first_stage_verdict(command: str, depth: int = 0) -> str | None:
+    """The first guard verdict over the stages of `command` — its tokens after process
+    wrappers, between shell separators, inside `sh -c`.
+
+    Raises ValueError when the command, or an `sh -c` body in it, does not lex (an unbalanced
+    quote).
+    """
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    tokens = list(lexer)
+    stage: list[str] = []
+    for token in [*tokens, "\n"]:
+        if token in _SEPARATORS:
+            verdict = _stage_verdict(stage, depth)
+            if verdict is not None:
+                return verdict
+            stage = []
+            continue
+        stage.append(token)
+    return None
+
+
 def main() -> None:
     if sys.argv[1:] != ["pre-bash"]:
         # Exit 1, not 2: behind a `Bash` matcher exit 2 denies every call, while a hook and a
@@ -183,7 +254,7 @@ def main() -> None:
     if not isinstance(command, str):
         sys.exit(0)
     try:
-        reason = first_stage_verdict(command, _rule)
+        reason = first_stage_verdict(command)
     except ValueError:
         if _GIT_WORD.search(command):
             print(_UNCHECKED, file=sys.stderr)
