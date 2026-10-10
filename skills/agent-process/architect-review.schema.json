@@ -3,7 +3,7 @@
   "title": "Architect review",
   "description": "openspec/changes/<change>/architect-review.json: the review of a change's proposal, specs, design and tasks against principles §I–VII, written after tasks.md.",
   "type": "object",
-  "required": ["verdict", "reviewer", "reasoning", "classes", "scenario_coverage"],
+  "required": ["verdict", "round", "reviewer", "reasoning", "classes", "scenario_coverage"],
   "additionalProperties": false,
   "if": {"properties": {"verdict": {"const": "approve"}}},
   "then": {
@@ -15,6 +15,11 @@
     "verdict": {
       "description": "What the delivery gate reads: approve, or rework while any finding is open.",
       "enum": ["approve", "rework"]
+    },
+    "round": {
+      "description": "The review round: 1 on the first review of the change, otherwise one more than the `round` of the file this one replaces, a file without `round` counting as 1.",
+      "type": "integer",
+      "minimum": 1
     },
     "reviewer": {
       "description": "Who reviewed: the architect-reviewer subagent.",

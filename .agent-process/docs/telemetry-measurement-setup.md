@@ -1,7 +1,8 @@
 # Agent telemetry measurement setup
 
 **Question this document answers:** how agent token usage is exported, where it
-lands, and which labels identify the project and the task it was spent on.
+lands, which labels identify the project and the task it was spent on, and how one
+task's time to merge and review rounds are read.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
 Every claim below was observed, not read out of vendor documentation, and the
@@ -166,6 +167,32 @@ series counts from zero for its process. `increase()` is not used: it extrapolat
 drops a new series' first sample. For the same session, the sum of Langfuse usage
 details over its generations equals this total type by type; a window where they differ
 points at a trace-schema change of the beta.
+
+## Per-task readings
+
+One task's delivery reading is four reads, owner-side, by hand. `<change>` is the change
+name, which is also the branch `start_change` creates.
+
+```
+# Start: the task's first token sample, a PromQL query in Grafana
+min(min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",attempt_id="<K>"})[30d:1m]))
+
+# Merge time and size (additions plus deletions, plan artifacts included)
+gh pr list --head <change> --state merged --json number,mergedAt,additions,deletions
+
+# Code rounds: the distinct heads the review job read; one round is no rework
+gh pr view <number> --json comments --jq '[.comments[] | select(.author.login=="github-actions") | .body | split("\n")[0] | capture("^Reviewed head SHA: (?<s>[0-9a-f]+)$").s] | unique | length'
+
+# Plan rounds: the archived review's round; a review written before the field has none
+grep '"round"' openspec/changes/archive/*-<change>/architect-review.json
+```
+
+Exact matchers keep sessions without the launcher out of the start, so such a session
+leaves it late or empty. Grafana keeps about 14 days of samples: read the start at merge.
+
+| Task | Start | Merged | Hours | Lines | Plan rounds | Code rounds | Note |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `task_id=issue-101`, `attempt_id=1` (baseline) | 2026-10-10T15:02:36Z | 2026-10-10T16:19:44Z | 1.29 | 998 | gap | 3 | First launched for the task-identity gate, after its planning ran without the launcher: the start is late. |
 
 ## Two failure conditions that are usually silent
 
