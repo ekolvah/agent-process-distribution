@@ -1,13 +1,14 @@
 """Tests for `.agent-process/scripts/task_session.py` — the task identity launcher.
 
 The launcher adds one `--settings` JSON layer to a Claude Code command: the project's
-`OTEL_RESOURCE_ATTRIBUTES` plus `task_id`/`attempt_id`, and the traces route to the local
-Alloy receiver. The runner is injected, so no test starts Claude.
+`OTEL_RESOURCE_ATTRIBUTES` plus `task_id`/`attempt_id` and a per-launch `service.instance.id`,
+and the traces route to the local Alloy receiver. The runner is injected, so no test starts Claude.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -22,6 +23,7 @@ _TRACES_ENV = {
     "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "http://127.0.0.1:4318/v1/traces",
     "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": "http/protobuf",
 }
+_UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 
 
 class _Recorder:
@@ -58,14 +60,14 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 class TestComposeAttributes:
     def test_appends_task_and_attempt_to_project_value(self) -> None:
         assert (
-            compose_attributes(_PROJECT_VALUE, 101, 2)
-            == f"{_PROJECT_VALUE},task_id=issue-101,attempt_id=2"
+            compose_attributes(_PROJECT_VALUE, 101, 2, "i-1")
+            == f"{_PROJECT_VALUE},task_id=issue-101,attempt_id=2,service.instance.id=i-1"
         )
 
-    @pytest.mark.parametrize("key", ["task_id", "attempt_id"])
+    @pytest.mark.parametrize("key", ["task_id", "attempt_id", "service.instance.id"])
     def test_rejects_project_value_naming_identity(self, key: str) -> None:
         with pytest.raises(ValueError, match=key):
-            compose_attributes(f"{_PROJECT_VALUE},{key}=x", 101, 1)
+            compose_attributes(f"{_PROJECT_VALUE},{key}=x", 101, 1, "i-1")
 
 
 class TestArguments:
@@ -118,18 +120,28 @@ class TestLaunch:
         [command] = runner.calls
         assert command[:2] == ["claude", "--settings"]
         assert command[3:] == ["--model", "opus"]
-        assert json.loads(command[2]) == {
-            "env": {
-                "OTEL_RESOURCE_ATTRIBUTES": f"{_PROJECT_VALUE},task_id=issue-101,attempt_id=3",
-                **_TRACES_ENV,
-            }
-        }
+        env = json.loads(command[2])["env"]
+        assert re.fullmatch(
+            re.escape(f"{_PROJECT_VALUE},task_id=issue-101,attempt_id=3,service.instance.id=")
+            + _UUID,
+            env.pop("OTEL_RESOURCE_ATTRIBUTES"),
+        )
+        assert env == _TRACES_ENV
+
+    def test_each_launch_gets_its_own_instance(self, project: Path) -> None:
+        # A resumed session is a new process whose cumulative counters restart from zero; a
+        # shared series would hide the earlier process's tokens behind the reset.
+        runner = _Recorder()
+        main(["--issue", "7", "--", "claude"], runner)
+        main(["--issue", "7", "--", "claude"], runner)
+        first, second = (json.loads(c[2])["env"]["OTEL_RESOURCE_ATTRIBUTES"] for c in runner.calls)
+        assert first != second
 
     def test_attempt_defaults_to_1(self, project: Path) -> None:
         runner = _Recorder()
         main(["--issue", "7", "--", "claude"], runner)
         env = json.loads(runner.calls[0][2])["env"]
-        assert env["OTEL_RESOURCE_ATTRIBUTES"].endswith(",task_id=issue-7,attempt_id=1")
+        assert ",task_id=issue-7,attempt_id=1," in env["OTEL_RESOURCE_ATTRIBUTES"]
 
     def test_returns_the_command_exit_code(self, project: Path) -> None:
         assert main(["--issue", "7", "--", "claude"], _Recorder(code=5)) == 5
