@@ -40,7 +40,8 @@ def _repo(tmp_path: Path, settings: object | None) -> Path:
     subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True)
     if settings is not None:
         (tmp_path / ".claude").mkdir()
-        (tmp_path / ".claude" / "settings.json").write_text(json.dumps(settings), encoding="utf-8")
+        text = settings if isinstance(settings, str) else json.dumps(settings)
+        (tmp_path / ".claude" / "settings.json").write_text(text, encoding="utf-8")
     return tmp_path
 
 
@@ -95,6 +96,10 @@ class TestArguments:
         [
             (None, "settings.json"),
             ({"env": {}}, "OTEL_RESOURCE_ATTRIBUTES"),
+            ("{", "not valid JSON"),
+            ([], "OTEL_RESOURCE_ATTRIBUTES"),
+            ({"env": []}, "OTEL_RESOURCE_ATTRIBUTES"),
+            ({"env": {"OTEL_RESOURCE_ATTRIBUTES": 5}}, "OTEL_RESOURCE_ATTRIBUTES"),
             ({"env": {"OTEL_RESOURCE_ATTRIBUTES": f"{_PROJECT_VALUE},task_id=x"}}, "task_id"),
         ],
     )
