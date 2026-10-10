@@ -4,8 +4,10 @@
     python .agent-process/scripts/task_session.py --issue N [--attempt K] -- claude [args...]
 
 The command gets one `--settings` JSON layer after its executable. Its `env` holds the
-project's `OTEL_RESOURCE_ATTRIBUTES` plus `task_id=issue-N,attempt_id=K`, and the variables
-that send this session's traces to the local Alloy receiver. The process environment cannot
+project's `OTEL_RESOURCE_ATTRIBUTES` plus `task_id=issue-N,attempt_id=K` and a new
+`service.instance.id`, and the variables that send this session's traces to the local Alloy
+receiver. A resumed session is a new process whose cumulative counters restart from zero; its
+own instance keeps it on its own Grafana series. The process environment cannot
 carry the attributes: the project's `.claude/settings.json` value replaces it. See ADR 0037.
 Exits 2 naming the cause on bad arguments or project settings; otherwise with the command's
 exit code.
@@ -18,11 +20,12 @@ import json
 import shutil
 import subprocess
 import sys
+import uuid
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol
 
-_IDENTITY_KEYS = ("task_id", "attempt_id")
+_IDENTITY_KEYS = ("task_id", "attempt_id", "service.instance.id")
 _TRACES_ENV = {
     "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA": "1",
     "OTEL_TRACES_EXPORTER": "otlp",
@@ -39,12 +42,14 @@ class _UsageError(Exception):
     pass
 
 
-def compose_attributes(project_value: str, issue: int, attempt: int) -> str:
+def compose_attributes(project_value: str, issue: int, attempt: int, instance: str) -> str:
     keys = {pair.split("=", 1)[0].strip() for pair in project_value.split(",")}
     for key in _IDENTITY_KEYS:
         if key in keys:
             raise ValueError(f"project OTEL_RESOURCE_ATTRIBUTES already names {key}")
-    return f"{project_value},task_id=issue-{issue},attempt_id={attempt}"
+    return (
+        f"{project_value},task_id=issue-{issue},attempt_id={attempt},service.instance.id={instance}"
+    )
 
 
 def settings_layer(attributes: str) -> str:
@@ -84,7 +89,9 @@ def main(argv: Sequence[str], runner: Runner) -> int:
     if not command:
         parser.error("no command after --")
     try:
-        attributes = compose_attributes(_project_value(), args.issue, args.attempt)
+        attributes = compose_attributes(
+            _project_value(), args.issue, args.attempt, str(uuid.uuid4())
+        )
     except (_UsageError, ValueError) as exc:
         print(f"task_session: {exc}", file=sys.stderr)
         return 2

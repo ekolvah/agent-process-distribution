@@ -7,7 +7,9 @@ Owner host today: Claude Code exports metrics and logs straight to Grafana Cloud
 pipeline left from the Codex route (receiver `codex`, filter, transform, delta-to-cumulative,
 batch, Grafana exporter). It is started by `~/.config/alloy/run-alloy.ps1`, which refuses to
 start without the `GRAFANA_CLOUD_*` User variables of that route; those variables are
-already gone, so a restart fails. Alloy reads its secrets with `sys.env`. The Langfuse plugin is installed at local scope in the main checkout
+already gone, so a restart fails. Claude Code processes started while the v1 route set a
+User-scope `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` still send their metrics to this receiver
+until they restart. Alloy reads its secrets with `sys.env`. The Langfuse plugin is installed at local scope in the main checkout
 ([ADR 0036](../../../../.agent-process/docs/adr/0036-per-task-token-analysis-backend.md)).
 The project's `.claude/settings.json` sets `OTEL_RESOURCE_ATTRIBUTES` to the two
 `vcs.repository.*` pairs ([ADR 0026](../../../../.agent-process/docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md)).
@@ -33,11 +35,17 @@ The project's `.claude/settings.json` sets `OTEL_RESOURCE_ATTRIBUTES` to the two
 
 `task_session.py --issue N [--attempt K] -- <command…>` reads `env.OTEL_RESOURCE_ATTRIBUTES`
 from `.claude/settings.json` of the current Git top level and appends
-`task_id=issue-N,attempt_id=K`. It runs the command with `--settings <json>` inserted after
+`task_id=issue-N,attempt_id=K,service.instance.id=<uuid4>`. It runs the command with `--settings <json>` inserted after
 its first element, and exits with the command's exit code. The JSON's `env` holds that value
 and the four trace variables of D2. `claude --help` (2.1.295) documents
 `--settings <file-or-json>`, so no temporary file is written. A settings `env` layer turned
 on the telemetry exporters in a shell that had none (issue 101 comment of 2026-09-12).
+
+`service.instance.id` is new on every launch. A resumed session is a new process whose
+cumulative counters restart from zero; without its own instance it writes to the series of
+the previous process, and the reset hides that process's tokens from the D5 query (gate,
+first run). The OpenTelemetry semantic conventions define this attribute for one process
+instance of a service.
 
 `attempt_id` is a resource attribute. The `attempt` attribute on `claude_code.llm_request`,
 seen in the probe, is a different field (the API request retry) and does not collide.
@@ -51,7 +59,7 @@ seen in the probe, is a different field (the API request retry) and does not col
   also has to be quoted for a native executable differently in PowerShell and in Git Bash.
 - The launcher exits 2, naming the cause, when `N` or `K` is not a positive integer, when
   the project sets no `OTEL_RESOURCE_ATTRIBUTES`, or when that value already names
-  `task_id` or `attempt_id` (§VI).
+  `task_id`, `attempt_id` or `service.instance.id` (§VI).
 - The command runs through an injected runner (§II), so the tests observe the argument list
   without starting Claude.
 
@@ -88,7 +96,9 @@ nor resource attributes as filterable fields (D3).
 ### D3 Alloy: one traces pipeline with a standard transform
 
 The dead Codex metric chain and the `GRAFANA_CLOUD_*` requirement of `run-alloy.ps1` are
-removed: Alloy cannot restart with them (Context). `config.alloy` keeps one receiver,
+removed: Alloy cannot restart with them (Context). Processes with the stale metrics
+endpoint lose their metrics until the owner restarts them; the loss is recorded in the
+evidence. `config.alloy` keeps one receiver,
 `otelcol.receiver.otlp "claude_code"`, with a `traces` output only, and the chain
 `otelcol.processor.transform "langfuse"` → `otelcol.processor.batch "langfuse"` →
 `otelcol.exporter.otlphttp "langfuse"`. The exporter sends to
@@ -96,18 +106,19 @@ removed: Alloy cannot restart with them (Context). `config.alloy` keeps one rece
 password are the public and secret keys from `sys.env`, and the header
 `x-langfuse-ingestion-version: 4`. The transform runs these span-context statements:
 
-- When the source attribute exists, copy `input_tokens`, `output_tokens`,
-  `cache_read_tokens` and `cache_creation_tokens` to `gen_ai.usage.input_tokens`,
-  `gen_ai.usage.output_tokens`, `gen_ai.usage.cache_read_input_tokens` and
-  `gen_ai.usage.cache_creation_input_tokens`.
+- When all four source attributes exist, `langfuse.observation.usage_details` = the JSON
+  `{"input":…,"output":…,"input_cached_tokens":…,"input_cache_creation":…}` built with
+  `Concat` from `input_tokens`, `output_tokens`, `cache_read_tokens` and
+  `cache_creation_tokens`.
 - `langfuse.trace.tags` = `["task:<task_id>", "attempt:<attempt_id>"]` from the resource
   when `task_id` is present. The tags go on every span, because Langfuse filters per
   observation.
 
-The `gen_ai.usage.*` names are the OpenTelemetry GenAI convention, which Langfuse documents
-as a usage source. If the gate (D5) shows the cache keys missing from Langfuse usage, the
-fallback is one `langfuse.observation.usage_details` JSON built with `Concat`. The tag
-format is the one of the ADR 0036 spike. `otelcol.processor.transform` is the standard,
+The first candidate copied the source attributes to the OpenTelemetry GenAI
+`gen_ai.usage.*` names. Langfuse read `gen_ai.usage.input_tokens` as including the cached
+tokens and subtracted them, so the input of every cached request became 0 (gate, first
+run). Langfuse stores `usage_details` keys verbatim, so the fallback named here replaced it.
+The tag format is the one of the ADR 0036 spike. `otelcol.processor.transform` is the standard,
 already in this config.
 
 ### D4 No content in Langfuse
@@ -135,7 +146,8 @@ passes when all three hold:
 The Grafana total is
 `sum by (type) (max_over_time(claude_code_token_usage_tokens_total{session_id="<id>"}[<window>]))`,
 with a window covering the session. The User scope sets cumulative temporality (observed),
-so each series counts from zero for its session. PromQL `increase()` is not used: it
+so each series counts from zero for its process; `service.instance.id` (D1) gives every
+process its own series. PromQL `increase()` is not used: it
 extrapolates and drops a new series' first sample. No external reference calibrates the
 query: ccusage counts transcript messages, while both sides of (c) count every API request,
 side requests such as `generate_session_title` included (probe).
@@ -161,7 +173,8 @@ suspect.
   Langfuse] → accepted. This is the owner's own project, and the plugin already sent more.
   ADR 0037 records the field list from the probe.
 - [Alloy restart] → only the new traces depend on Alloy. The Grafana metrics and logs
-  route does not pass through it.
+  route does not pass through it, except for processes with the stale v1 metrics endpoint
+  (Context), which the owner restarts.
 
 ## Migration Plan
 

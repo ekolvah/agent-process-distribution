@@ -5,6 +5,7 @@
 ## 1. RED first
 
 - [x] 1.1 Write `tests/agent_process/test_task_session.py` against a signature stub of `.agent-process/scripts/task_session.py`. `TestComposeAttributes`: the project value is kept and `task_id=issue-N,attempt_id=K` is appended; a project value that already names `task_id` or `attempt_id` is rejected. `TestArguments`: a non-positive or non-integer `--issue` or `--attempt`, a missing `.claude/settings.json`, and a missing `env.OTEL_RESOURCE_ATTRIBUTES` each exit 2 with the cause on stderr, and the runner is not called. `TestLaunch`: the injected runner receives the command with `--settings` and one JSON argument after its first element, the JSON's `env` holds exactly `OTEL_RESOURCE_ATTRIBUTES` and the four design D2 trace variables with their D2 values, `--attempt` defaults to 1, and the runner's exit code is returned. Run `agent-process check_red tests/agent_process/test_task_session.py` and commit RED with this tick
+- [x] 1.2 After the first gate run (D1, D5): each launch adds `service.instance.id=<uuid4>`, and a project value that names it is rejected. RED committed, then green
 
 ## 2. Launcher (design D1)
 

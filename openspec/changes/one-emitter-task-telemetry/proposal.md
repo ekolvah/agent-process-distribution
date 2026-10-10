@@ -37,10 +37,11 @@ early.
 
 - Owner launcher `.agent-process/scripts/task_session.py`: `--issue N [--attempt K] --
   <claude command>` adds one `--settings` JSON layer. Its `OTEL_RESOURCE_ATTRIBUTES` is the
-  project's own value plus `task_id=issue-N,attempt_id=K`, and it turns on the traces beta
+  project's own value plus `task_id=issue-N,attempt_id=K` and a per-launch
+  `service.instance.id`, and it turns on the traces beta
   for that session only.
-- Owner host: traces of launched sessions go to the local Alloy receiver. Alloy copies the
-  token attributes to `gen_ai.usage.*`, adds the task and attempt as Langfuse trace tags,
+- Owner host: traces of launched sessions go to the local Alloy receiver. Alloy maps the
+  token attributes to Langfuse usage details, adds the task and attempt as Langfuse trace tags,
   and exports to Langfuse's OTLP endpoint. The dead Codex metric chain leaves `config.alloy`,
   and `run-alloy.ps1` requires the Langfuse keys instead of the Codex route's variables. Metrics and logs keep their direct route to
   Grafana and get the task identity from the same resource attributes.
