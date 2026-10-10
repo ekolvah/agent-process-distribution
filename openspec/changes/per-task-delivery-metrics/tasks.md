@@ -21,7 +21,7 @@
 
 ## 3. Readings script (design D1–D4, D6)
 
-- [ ] 3.1 Implement `.agent-process/scripts/task_metrics.py`. It has a pure `reading(issue, attempt, prometheus, github)` and the two protocols. The real adapters are `urllib` on the datasource proxy and `gh api graphql` (D5's `object(expression:)` reads included) with `encoding="utf-8"`. `main(argv, environ, ...)` checks the credentials first. Verify with `python -m pytest tests/agent_process/test_task_metrics.py`. Commit
+- [x] 3.1 Implement `.agent-process/scripts/task_metrics.py`. It has a pure `reading(issue, attempt, prometheus, github)` and the two protocols. The real adapters are `urllib` on the datasource proxy and `gh api graphql` (D5's `object(expression:)` reads included) with `encoding="utf-8"`. `main(argv, environ, ...)` checks the credentials first. Verify with `python -m pytest tests/agent_process/test_task_metrics.py`. Commit
 
 ## 4. Baseline and docs (design D7)
 
