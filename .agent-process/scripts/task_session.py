@@ -71,11 +71,14 @@ def _project_value() -> str:
     path = Path(top.stdout.strip()) / ".claude" / "settings.json"
     if not path.is_file():
         raise _UsageError(f"{path} does not exist")
-    value = (
-        json.loads(path.read_text(encoding="utf-8")).get("env", {}).get("OTEL_RESOURCE_ATTRIBUTES")
-    )
-    if not value:
-        raise _UsageError(f"{path} sets no env.OTEL_RESOURCE_ATTRIBUTES")
+    try:
+        settings = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise _UsageError(f"{path} is not valid JSON: {exc}") from exc
+    env = settings.get("env") if isinstance(settings, dict) else None
+    value = env.get("OTEL_RESOURCE_ATTRIBUTES") if isinstance(env, dict) else None
+    if not isinstance(value, str) or not value:
+        raise _UsageError(f"{path} sets no string env.OTEL_RESOURCE_ATTRIBUTES")
     return value
 
 
