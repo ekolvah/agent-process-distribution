@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.11.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.6...v3.11.0) (2026-10-10)
+
+
+### Features
+
+* per-task-delivery-metrics ([#385](https://github.com/ekolvah/agent-process-distribution/issues/385)) ([7384598](https://github.com/ekolvah/agent-process-distribution/commit/73845989e7fc8919a476f654853ea1b2600a8146))
+
 ## [3.10.6](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.5...v3.10.6) (2026-10-09)
 
 
