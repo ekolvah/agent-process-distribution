@@ -212,6 +212,20 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
     assert message in capsys.readouterr().err
 
 
+def test_review_without_round(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Review round — a review without `round` fails validation naming it."""
+    review = _review()
+    review.pop("round", None)
+
+    start_change = load_script("start_change")
+    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN), review=review)
+    gh = Gh()
+    with pytest.raises(SystemExit) as exc:
+        start_change.main(_START, gh=gh, root=root)
+    assert exc.value.code == 2 and _develops(gh) == []
+    assert "'round' is a required property" in capsys.readouterr().err
+
+
 def test_review_approves_an_open_finding(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

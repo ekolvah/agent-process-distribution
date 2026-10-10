@@ -4,8 +4,8 @@
 
 ## 1. RED first
 
-- [ ] 1.1 Add `test_review_round` to `tests/publisher/test_planning_workflow.py`: the schema requires `round`, an integer with minimum 1, and its description states the D5 rule (1 on the first review, one more than the replaced file, a file without `round` counting as 1). Add `test_review_without_round` to `tests/publisher/test_start_change.py`, beside `test_review_not_valid`: a review without `round` exits 2 with an error naming `round`, and nothing is created. The fixtures stay unchanged in RED
-- [ ] 1.2 Write `tests/agent_process/test_task_metrics.py` against a signature stub of `.agent-process/scripts/task_metrics.py`, with in-memory `Prometheus` and `GitHub` doubles (design D6):
+- [x] 1.1 Add `test_review_round` to `tests/publisher/test_planning_workflow.py`: the schema requires `round`, an integer with minimum 1, and its description states the D5 rule (1 on the first review, one more than the replaced file, a file without `round` counting as 1). Add `test_review_without_round` to `tests/publisher/test_start_change.py`, beside `test_review_not_valid`: a review without `round` exits 2 with an error naming `round`, and nothing is created. The fixtures stay unchanged in RED
+- [x] 1.2 Write `tests/agent_process/test_task_metrics.py` against a signature stub of `.agent-process/scripts/task_metrics.py`, with in-memory `Prometheus` and `GitHub` doubles (design D6):
   - `TestStart`: the start query carries `task_id="issue-N"` and `attempt_id="K"` as exact `=` matchers; an empty result gives the start gap and null hours (D1).
   - `TestPullRequest`: one connected PR merged after the start is chosen and a PR merged before it is not; none gives the merge gap; two exit 2 naming both (D2).
   - `TestSize`: `lines_changed` is additions plus deletions (D3).

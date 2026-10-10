@@ -199,6 +199,16 @@ def test_over_long_rule_or_bespoke_check() -> None:
     assert "the problem it closes" in design and "the standard for its job" in design
 
 
+def test_review_round() -> None:
+    """Scenario: Review round — the schema requires `round` and states how it is counted."""
+    schema = _schema()
+    assert "round" in schema["required"]
+    round_ = schema["properties"]["round"]
+    assert round_["type"] == "integer" and round_["minimum"] == 1
+    for phrase in ("1 on the first review", "one more than", "without `round` counting as 1"):
+        assert phrase in round_["description"], phrase
+
+
 def test_fourth_round_leaves_the_rest_to_the_person() -> None:
     """The three-round limit is only a limit when the procedure says what happens after it."""
     deliver = _section("Delivery")
