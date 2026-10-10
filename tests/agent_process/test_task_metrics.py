@@ -150,7 +150,7 @@ class TestPullRequest:
         assert result["pr"] is None and result["merged"] is None
         assert result["lines_changed"] is None and result["code_rounds"] is None
         assert f"merge: no merged PR connected to issue {_ISSUE}" in result["gaps"]  # type: ignore[operator]
-        assert github.calls == ["prs 101"]
+        assert github.calls == [f"prs {_ISSUE}"]
 
     def test_two_exit_2_naming_both(self, capsys: pytest.CaptureFixture[str]) -> None:
         github = _GitHub(prs=[_pr(), _pr(number=385)])
