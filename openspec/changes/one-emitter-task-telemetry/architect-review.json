@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "All findings are applied: traces are scoped to launched sessions, the D5 Grafana total rests on the observed cumulative temporality with no unfounded calibration reference, and #99 is handed both rejection rules, so the plan is the minimum that meets its two goals.",
+  "classes": {
+    "simpler": {
+      "evidence": "D2 now puts the four trace variables in the launcher's --settings layer, so only launched sessions export traces, and only the Langfuse keys live at User scope. The rejected host-wide alternative is named with its reason: other checkouts and sandboxes would send account fields. The unassigned branch is gone from D3. 4.3 checks that an unlaunched session sends no trace and that its Grafana series carries vcs_repository_name without task_id. TestLaunch pins the five env keys. The PR is titled chore: (8.2). The launcher is the smallest carrier: it already exists for the identity, and the alternatives are rejected in D1 for stated reasons.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "skip_specs: true, so there are no delta scenarios. The map names test_task_session.py::TestComposeAttributes, ::TestArguments and ::TestLaunch for D1, and the Group 4 live gate for D2–D5, with the reason (third-party ingest, no credentials in CI).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 writes test_task_session.py against a signature stub, including the D2 env keys in TestLaunch. It runs agent-process check_red and commits RED before Group 2. The early exit in 4.1 removes the D2 variables test first.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Observed or cited:\n- Traces, span attributes and env precedence: probe of 2026-10-10 (evidence/issue-101/traces-probe-2026-10-10.json).\n- A --settings layer carries the resource attributes and turns on the exporters: issue 101 comment of 2026-09-12.\n- claude --help 2.1.295 documents --settings <file-or-json>.\n- Langfuse usage, generation and tag mapping: langfuse.com/integrations/native/opentelemetry, with the D3 fallback and gate (a).\n- Header non-forwarding: the Alloy otelcol.receiver.otlp reference (include_metadata, default false), checked by the 3.2 grep.\n- Cumulative temporality: User-scope OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE reads 'cumulative' (read in this review).\n\nD5 now derives the session total from that temporality with max_over_time per series and rejects increase() for a stated reason. It no longer claims a ccusage calibration, and gives the reason: ccusage counts transcript messages, while both sides of (c) count every API request, including generate_session_title (probe). The (c) divergence path in D5 and 4.2 names the query's window and series selection as the first suspect.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D1 lists the failure modes of the identity the caller supplies: a launch without the launcher (no traces, and a Grafana series without task_id, which #99 rejects) and a wrong number (visible in the tags, not caught automatically). The repository pairs are re-read from the Git top level and pinned by TestComposeAttributes. Moving the trace variables into the launcher adds one failure mode: Alloy is down for a launched session. The schema-drift rule handed to #99 (Langfuse differs from Grafana per type) catches it. The plugin removal drops content deliberately (D4).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "A launch without the launcher and trace-schema drift both name #99 as the catcher in D1 and Risks. Task 8.4 posts both rejection rules on #99, against the D5 Grafana total, so the handover is a delivery step this plan reaches. The gate's failure paths are reached in 4.1 (rollback and early exit, test first) and 4.2 (query check, then stop before the PR). include_metadata is checked in 3.2.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds or edits no rule, no SKILL.md sentence and no spec sentence. ADR 0037 and the owner-side setup document are checked by test_adr_records.py, test_doc_headers.py and test_doc_links.py.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "One script, .agent-process/scripts/task_session.py. D1 names the problem it closes: the project settings replace the process env (probe of 2026-10-10). It names the standard, a hand-typed claude --settings, and why it does not fit: the project pairs and now four trace variables must be repeated exactly, and JSON quoting differs by shell. The decision is convincing. No new check script is added: the 3.2 grep and the gate are task verifications.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
