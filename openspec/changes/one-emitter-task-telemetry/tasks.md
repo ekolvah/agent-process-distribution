@@ -8,7 +8,7 @@
 
 ## 2. Launcher (design D1)
 
-- [ ] 2.1 Implement `task_session.py` with pure composition functions, a runner `Protocol`, and a `main(argv, runner)` that resolves the Git top level and reads `.claude/settings.json` as UTF-8. The CLI wires `subprocess.run` with an argument list and no shell. Verify with `python -m pytest tests/agent_process/test_task_session.py`. Commit
+- [x] 2.1 Implement `task_session.py` with pure composition functions, a runner `Protocol`, and a `main(argv, runner)` that resolves the Git top level and reads `.claude/settings.json` as UTF-8. The CLI wires `subprocess.run` with an argument list and no shell. Verify with `python -m pytest tests/agent_process/test_task_session.py`. Commit
 
 ## 3. Host traces route (design D2, D3; Migration Plan 1–3)
 
