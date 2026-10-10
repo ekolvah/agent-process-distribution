@@ -1,27 +1,30 @@
 # Agent telemetry measurement setup
 
 **Question this document answers:** how agent token usage is exported, where it
-lands, and which label identifies the project it was spent on.
+lands, and which labels identify the project and the task it was spent on.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
-Every claim below was observed, not read out of vendor documentation, and the two
-that contradict the documentation are marked.
+Every claim below was observed, not read out of vendor documentation, and the
+claims that contradict the documentation are marked.
 
 ## What exports what
 
-| Route | Switch | Metric | Token categories |
+| Route | Switch | Lands in | Token categories |
 | --- | --- | --- | --- |
-| Claude Code | `CLAUDE_CODE_ENABLE_TELEMETRY=1` plus the `OTEL_EXPORTER_OTLP_*` transport variables | `claude_code_token_usage_tokens_total` | `type` ∈ `input` / `output` / `cacheRead` / `cacheCreation` |
-| Codex | the `[otel]` table in `~/.codex/config.toml` | `codex_turn_token_usage_sum` | `token_type` ∈ `input` / `cached_input` / `output` / `reasoning_output` / `total` |
+| Metrics, logs | `CLAUDE_CODE_ENABLE_TELEMETRY=1` plus the `OTEL_EXPORTER_OTLP_*` transport variables | Grafana Cloud: `claude_code_token_usage_tokens_total`, Loki | `type` ∈ `input` / `output` / `cacheRead` / `cacheCreation` |
+| Traces (beta) | the launcher's settings layer (below) | Langfuse, through the local Alloy collector | usage details `input` / `output` / `input_cached_tokens` / `input_cache_creation` |
 
-Both push OTLP to Grafana Cloud: metrics to the Prometheus datasource, logs to
-the Loki datasource. The transport variables (endpoint, protocol, headers) and
-the service-account token live in the owner's Windows User-scope environment and
-are deliberately absent from this repository — nothing here reads them, and
-nothing here should print them.
+Metrics and logs push OTLP straight to Grafana Cloud: metrics to the Prometheus
+datasource, logs to the Loki datasource. The transport variables (endpoint, protocol,
+headers), the service-account token and the Langfuse keys live in the owner's Windows
+User-scope environment and are deliberately absent from this repository — nothing here
+reads them, and nothing here should print them.
 
 Dashboards are referred to by UID rather than by URL, for the same reason:
 `agwhkq` and `axwvz9`.
+
+The decision and the gate readings are in
+[ADR 0037](adr/0037-one-emitter-feeds-both-telemetry-backends.md).
 
 ## Which label carries the project
 
@@ -40,9 +43,10 @@ a guessed one is worse than an absent one.
 
 `vcs.repository.name` and `vcs.repository.url.full` are documented OpenTelemetry
 registry attributes, not invented keys. The identifying attributes
-`service.namespace` and `service.instance.id` were rejected on purpose: the
+`service.namespace` and `service.instance.id` were rejected as the project carrier: the
 OTLP-to-Prometheus translation folds them into `job` and `instance`, which would
-orphan the series already accumulated under `job="claude-code"`.
+orphan the series already accumulated under `job="claude-code"`. The launcher sets
+`service.instance.id` per process for another reason (below).
 
 **Observed, not assumed:** the dotted keys survive the translation as
 `vcs_repository_name` and `vcs_repository_url_full`, and they arrive **as labels
@@ -55,9 +59,113 @@ stream labels — `service_name` is the only indexed label — so a Loki query m
 select on `service_name` first and filter on the project afterwards.
 
 The carrier is a **list from the first commit** on purpose. `OTEL_RESOURCE_ATTRIBUTES`
-is one string with no merge semantics, and a per-task attribute has
-to be appended to the same variable; a single-pair carrier would have to be
-rewritten to accept it.
+is one string with no merge semantics, and the per-task attributes are appended to
+the same variable.
+
+A tree with a `.claude/settings.json` that lacks the `env` key gets no attribution
+from the process: it gets the key by hand or it stays unlabelled. That is the safe
+direction — an unlabelled tree reads on the dashboard as "not this project" rather
+than being silently folded in.
+
+## Which labels carry the task
+
+A session launched for a task gets its identity from the owner launcher, the same in
+PowerShell and Git Bash:
+
+```
+python .agent-process/scripts/task_session.py --issue <N> [--attempt <K>] -- claude [args...]
+```
+
+It inserts one `--settings` JSON after `claude`. Its `env` holds the project's
+`OTEL_RESOURCE_ATTRIBUTES` plus `task_id=issue-<N>,attempt_id=<K>,service.instance.id=<uuid4>`
+and the four trace variables:
+
+```
+CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1
+OTEL_TRACES_EXPORTER=otlp
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
+OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
+```
+
+`--attempt` defaults to 1. The process environment cannot carry the identity: the
+project's settings value replaces it (precedence, below).
+
+**Observed:** the token series carry `task_id`, `attempt_id` and `instance`; `job` stays
+`claude-code`. A resumed session is a new process whose cumulative counters restart from
+zero, and `instance` keeps each process on its own series. Without it the reset hides the
+earlier process's tokens from the per-session query below.
+
+A session started without the launcher sends no trace, and its series carry
+`vcs_repository_name` without `task_id`. A measured window that contains such a series
+of the measured repository is not attributable.
+
+## Traces through Alloy to Langfuse
+
+Local Grafana Alloy listens on `127.0.0.1:4318` with a traces-only pipeline. Its
+configuration lives on the owner's machine, outside this repository: it is host state,
+not project state, and a consumer of this template must not inherit it. Changing it is
+an owner decision each time. The pipeline, without secrets:
+
+```alloy
+otelcol.receiver.otlp "claude_code" {
+  http { endpoint = "127.0.0.1:4318" }
+  output { traces = [otelcol.processor.transform.langfuse.input] }
+}
+
+otelcol.processor.transform "langfuse" {
+  error_mode = "ignore"
+  trace_statements {
+    context    = "span"
+    statements = [
+      `set(attributes["langfuse.observation.usage_details"], Concat(["{\"input\":", attributes["input_tokens"], ",\"output\":", attributes["output_tokens"], ",\"input_cached_tokens\":", attributes["cache_read_tokens"], ",\"input_cache_creation\":", attributes["cache_creation_tokens"], "}"], "")) where attributes["input_tokens"] != nil and attributes["output_tokens"] != nil and attributes["cache_read_tokens"] != nil and attributes["cache_creation_tokens"] != nil`,
+      `set(attributes["langfuse.trace.tags"], [Concat(["task:", resource.attributes["task_id"]], ""), Concat(["attempt:", resource.attributes["attempt_id"]], "")]) where resource.attributes["task_id"] != nil`,
+    ]
+  }
+  output { traces = [otelcol.processor.batch.langfuse.input] }
+}
+
+otelcol.processor.batch "langfuse" {
+  output { traces = [otelcol.exporter.otlphttp.langfuse.input] }
+}
+
+otelcol.auth.basic "langfuse" {
+  username = sys.env("LANGFUSE_PUBLIC_KEY")
+  password = sys.env("LANGFUSE_SECRET_KEY")
+}
+
+otelcol.exporter.otlphttp "langfuse" {
+  client {
+    endpoint = "https://cloud.langfuse.com/api/public/otel"
+    auth     = otelcol.auth.basic.langfuse.handler
+    headers  = { "x-langfuse-ingestion-version" = "4" }
+  }
+}
+```
+
+`run-alloy.ps1` starts Alloy only when both Langfuse key variables are set.
+
+**Observed, against the documentation's suggestion:** Langfuse reads
+`gen_ai.usage.input_tokens` as including the cached tokens and subtracts them, so an
+Anthropic request with cache reads shows input 0. The flat `usage_details` JSON is
+stored verbatim. Langfuse filters on trace tags, not on resource attributes, so the
+transform puts the tags on every span.
+
+Prompts arrive as `<REDACTED>`: `OTEL_LOG_USER_PROMPTS` and `OTEL_LOG_TOOL_DETAILS` stay
+unset.
+
+## Per-session totals
+
+The Grafana total per type for one session:
+
+```promql
+sum by (type) (max_over_time(claude_code_token_usage_tokens_total{session_id="<id>"}[<window>]))
+```
+
+with a window covering the session. The User scope sets cumulative temporality, so each
+series counts from zero for its process. `increase()` is not used: it extrapolates and
+drops a new series' first sample. For the same session, the sum of Langfuse usage
+details over its generations equals this total type by type; a window where they differ
+points at a trace-schema change of the beta.
 
 ## Two failure conditions that are usually silent
 
@@ -85,63 +193,3 @@ process-environment value appears nowhere in the telemetry. A settings-level
 set rather than adding to it. An adopter who already sets that variable loses
 their attributes silently once the process writes the settings value, and must
 fold their own pairs into that value by hand.
-
-## What a Codex-only adoption does not get
-
-A Codex-only adoption has no `.claude/settings.json` and therefore gets **no
-attribution from the process**. That is the safe direction — an unlabelled tree
-reads on the dashboard as "not this project" rather than being silently folded
-in — but it is not a no-op: such an adoption has to carry the attribute some
-other way before its numbers can be compared with anything. The same applies to
-any tree with a `.claude/settings.json` that lacks the `env` key: it gets the
-key by hand or it stays unlabelled.
-
-## The Codex route needs the collector
-
-Codex has no equivalent of `OTEL_RESOURCE_ATTRIBUTES`. It offers one global
-`[otel]` table in `~/.codex/config.toml` and a per-invocation
-`-c otel.environment=<value>` override; `[projects.'<path>']` accepts
-`trust_level` only, so there is no per-directory `[otel]` table.
-
-That override alone does **not** attribute the data series. It lands on the
-resource, which the translation parks in `target_info`, and `target_info` cannot
-be joined back onto `codex_turn_token_usage_sum` here: `job` varies by invocation
-mode (`codex-app-server`, `codex_cli_rs`, `codex_exec`) rather than by project,
-and `instance` is absent from every series in the tenant, so for one `job` the
-value flips per invocation and the join is ambiguous.
-
-The two routes take different paths out of the machine, and that is what makes a
-collector-side fix possible for one of them and unnecessary for the other:
-
-- **Claude Code** exports straight to Grafana Cloud over 443. It never touches
-  the collector, and it does not need to — its attributes are already on the
-  datapoints.
-- **Codex** exports to a local Grafana Alloy instance on `127.0.0.1:4318`, which
-  forwards to the same Grafana Cloud tenant.
-
-So Alloy carries an `otelcol.processor.transform` that copies the `env` resource
-attribute onto every Codex datapoint as `vcs.repository.name`. Both routes then
-carry the same label name and one dashboard filter covers both. **Observed:**
-after the transform, `codex_turn_token_usage_sum` and
-`codex_turn_token_usage_count` carry `vcs_repository_name` with this repository's
-value.
-
-The host-wide `[otel] environment` is `unattributed`, so a Codex run launched
-without the override lands under `unattributed` rather than being charged to
-whatever project was named last. Attribution therefore still depends on a
-per-invocation flag that nothing enforces:
-
-```
-codex -c otel.environment=<owner>/<repository>
-```
-
-That residual gap is not a documentation problem; it is a measurement condition,
-and it is auditable: Codex traffic sitting under `vcs_repository_name="unattributed"`
-inside a measured window means some role ran outside the attribution. The
-reasoning and the decision are in
-[ADR 0026](adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md).
-
-The collector configuration lives on the owner's machine, outside this
-repository, for the same reason the transport variables do: it is host state, not
-project state, and a consumer of this template must not inherit it. Changing it
-is an owner decision each time.
