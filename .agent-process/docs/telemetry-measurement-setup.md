@@ -1,7 +1,8 @@
 # Agent telemetry measurement setup
 
 **Question this document answers:** how agent token usage is exported, where it
-lands, and which labels identify the project and the task it was spent on.
+lands, which labels identify the project and the task it was spent on, and how one
+task's time to merge and review rounds are read.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
 Every claim below was observed, not read out of vendor documentation, and the
@@ -166,6 +167,34 @@ series counts from zero for its process. `increase()` is not used: it extrapolat
 drops a new series' first sample. For the same session, the sum of Langfuse usage
 details over its generations equals this total type by type; a window where they differ
 points at a trace-schema change of the beta.
+
+## Per-task readings
+
+One task's delivery reading, owner-side, with `GRAFANA_URL` and
+`GRAFANA_SERVICE_ACCOUNT_TOKEN` set and `gh` authenticated in the repository:
+
+```
+python .agent-process/scripts/task_metrics.py --issue <N> [--attempt <K>]
+```
+
+It prints one JSON object. A value it cannot read is null and named in `gaps` (exit 1).
+Bad arguments, a missing credential, more than one candidate pull request or a failed
+read exit 2.
+
+| Value | Source |
+| --- | --- |
+| `start` | The task's first token sample: `min(min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",attempt_id="<K>"})[30d:1m]))` through the datasource proxy. Exact matchers keep sessions without the launcher out. |
+| `pr`, `merged` | The merged pull request of the issue's `ConnectedEvent` (the branch `start_change` links), merged at or after the start. |
+| `lines_changed` | The pull request's additions plus deletions, plan artifacts included. |
+| `code_rounds` | Distinct SHAs on the first line `Reviewed head SHA: <sha>` of the review job's comments. One round is no rework. |
+| `plan_rounds` | `round` of the archived `architect-review.json` at the merge commit. Reviews written before the field have none: a gap. |
+
+Grafana keeps about 14 days of samples, so a task's start must be read within that
+window; later the start is a gap, not a value.
+
+| Task | Start | Merged | Hours | Lines | Plan rounds | Code rounds | Note |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `task_id=issue-101`, `attempt_id=1` (baseline) | 2026-10-10T15:02:36Z | 2026-10-10T16:19:44Z | 1.29 | 998 | gap | 3 | First launched for the task-identity gate, after its planning ran without the launcher: the start is late. |
 
 ## Two failure conditions that are usually silent
 
