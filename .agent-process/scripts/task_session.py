@@ -73,8 +73,8 @@ def _project_value() -> str:
         raise _UsageError(f"{path} does not exist")
     try:
         settings = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        raise _UsageError(f"{path} is not valid JSON: {exc}") from exc
+    except (OSError, ValueError) as exc:
+        raise _UsageError(f"{path} is not readable UTF-8 JSON: {exc}") from exc
     env = settings.get("env") if isinstance(settings, dict) else None
     value = env.get("OTEL_RESOURCE_ATTRIBUTES") if isinstance(env, dict) else None
     if not isinstance(value, str) or not value:
