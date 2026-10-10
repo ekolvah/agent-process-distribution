@@ -73,7 +73,7 @@ fixture-capture script; reproduction is a step of planning.
 The `tasks` rule of `openspec/config.yaml` SHALL end the propose run with the architect
 review: the `architect-reviewer` subagent writes `openspec/changes/<change>/architect-review.json` against `principles.md` §I–VII and
 the scenario → test map of `tasks.md`. The file SHALL be valid against
-`skills/agent-process/architect-review.schema.json`: the verdict, the reviewer, one entry per finding
+`skills/agent-process/architect-review.schema.json`: the verdict, the reviewer, the round (1 on the change's first review, otherwise one more than the file it replaces), one entry per finding
 class with its evidence and `ok` or the finding, and the scenario coverage; the classes and
 the evidence each requires are the schema's. The review contract SHALL live in the shared
 skill and that schema, not in a schema of OpenSpec: the OpenSpec schema is the unmodified
@@ -127,6 +127,10 @@ existence only.
 #### Scenario: Review archives with the change
 - **WHEN** a change whose directory holds `architect-review.json` is archived
 - **THEN** the file is in `openspec/changes/archive/<date>-<change>/` with the four artifacts
+
+#### Scenario: Review round
+- **WHEN** the reviewer reviews a change again after `rework`
+- **THEN** the new `architect-review.json` carries a `round` one more than the file it replaces, and a review without `round` fails validation naming it
 
 ### Requirement: Platform facts are observed before a design rests on them
 A proposal whose design rests on a platform behaviour — an event, a permission, a merge
