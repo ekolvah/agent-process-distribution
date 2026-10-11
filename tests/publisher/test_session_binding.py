@@ -12,22 +12,23 @@ from pathlib import Path
 
 import pytest
 
-from tests.publisher.delivery_fakes import Gh, load_script
-from tests.publisher.test_start_change import (
-    _CHANGE,
-    _GROUP0,
-    _ISSUE,
-    _PLACEHOLDER,
-    _START,
-    _TOKEN,
-    _change,
-    _creates,
-    _develops,
+from tests.publisher.delivery_fakes import (
+    CHANGE,
+    GROUP0,
+    ISSUE,
+    PLACEHOLDER,
+    START,
+    TOKEN,
+    Gh,
+    creates,
+    develops,
+    load_script,
+    make_change,
 )
 
 _VARIABLE = "CLAUDE_CODE_SESSION_ID"
-_OTHER = _ISSUE - 2
-_AREA = [_CHANGE, "--area", "Observability"]
+_OTHER = ISSUE - 2
+_AREA = [CHANGE, "--area", "Observability"]
 
 
 def _ledger(root: Path) -> Path:
@@ -52,7 +53,7 @@ def _archive_run(main: Path, worktree: Path) -> Callable[[list[str]], str]:
         if cmd[0] == "npx":
             changes = worktree / "openspec" / "changes"
             (changes / "archive").mkdir(exist_ok=True)
-            (changes / _CHANGE).rename(changes / "archive" / f"2026-01-01-{_CHANGE}")
+            (changes / CHANGE).rename(changes / "archive" / f"2026-01-01-{CHANGE}")
             return ""
         if cmd[:2] in (["git", "add"], ["git", "commit"], ["git", "push"]):
             return ""
@@ -66,42 +67,42 @@ def test_second_task_in_one_session(
 ) -> None:
     """Scenario: Second task in one session — exit 2 naming both issues, no branch."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
+    root = make_change(tmp_path, tasks=GROUP0.format(token=TOKEN))
     _seed(root, f"s-1 {_OTHER}\n")
     monkeypatch.setenv(_VARIABLE, "s-1")
     gh = Gh(status="Planned", root=root)
 
     with pytest.raises(SystemExit) as exc:
-        start_change.main(_START, gh=gh, root=root)
+        start_change.main(START, gh=gh, root=root)
 
     assert exc.value.code == 2
-    assert _develops(gh) == []
+    assert develops(gh) == []
     err = capsys.readouterr().err
-    assert f"issue-{_OTHER}" in err and f"issue-{_ISSUE}" in err
+    assert f"issue-{_OTHER}" in err and f"issue-{ISSUE}" in err
     assert "new session" in err
 
 
 def test_plan_creates_the_issue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Scenario: Plan creates the issue — the session is bound to the created issue."""
     create = load_script("create_tracking_issue")
-    root = _change(tmp_path, tasks=_GROUP0.format(token=_PLACEHOLDER))
+    root = make_change(tmp_path, tasks=GROUP0.format(token=PLACEHOLDER))
     monkeypatch.setenv(_VARIABLE, "s-plan")
 
     create.main(_AREA, gh=Gh(root=root), root=root)
 
-    assert _ledger(root).read_text(encoding="utf-8").splitlines() == [f"s-plan {_ISSUE}"]
+    assert _ledger(root).read_text(encoding="utf-8").splitlines() == [f"s-plan {ISSUE}"]
 
 
 def test_no_session_variable(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: No session variable — `session not bound` is printed and the change starts."""
     start_change = load_script("start_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token=_TOKEN))
+    root = make_change(tmp_path, tasks=GROUP0.format(token=TOKEN))
     gh = Gh(status="Planned", root=root)
 
-    start_change.main(_START, gh=gh, root=root)
+    start_change.main(START, gh=gh, root=root)
 
     assert "session not bound" in capsys.readouterr().out
-    assert len(_develops(gh)) == 1
+    assert len(develops(gh)) == 1
     assert not _ledger(root).exists()
 
 
@@ -112,17 +113,17 @@ def test_plan_and_implementation_in_two_sessions(
     create = load_script("create_tracking_issue")
     start_change = load_script("start_change")
     archive_change = load_script("archive_change")
-    root = _change(tmp_path, tasks=_GROUP0.format(token=_PLACEHOLDER))
+    root = make_change(tmp_path, tasks=GROUP0.format(token=PLACEHOLDER))
     monkeypatch.setenv(_VARIABLE, "s-plan")
     create.main(_AREA, gh=Gh(root=root), root=root)
     monkeypatch.setenv(_VARIABLE, "s-impl")
-    start_change.main(_START, gh=Gh(status="Planned", root=root), root=root)
-    worktree = root / ".claude" / "worktrees" / _CHANGE
+    start_change.main(START, gh=Gh(status="Planned", root=root), root=root)
+    worktree = root / ".claude" / "worktrees" / CHANGE
 
-    code = archive_change.archive_change(_CHANGE, root=worktree, run=_archive_run(root, worktree))
+    code = archive_change.archive_change(CHANGE, root=worktree, run=_archive_run(root, worktree))
 
     assert code == 0
-    archived = worktree / "openspec" / "changes" / "archive" / f"2026-01-01-{_CHANGE}"
+    archived = worktree / "openspec" / "changes" / "archive" / f"2026-01-01-{CHANGE}"
     assert (archived / "sessions").read_text(encoding="utf-8") == "s-impl\ns-plan\n"
 
 
@@ -132,11 +133,11 @@ def test_same_issue_binds_once(tmp_path: Path) -> None:
     ledger = tmp_path / "agent-process" / "sessions"
     environ = {_VARIABLE: "s-1"}
 
-    binding.bind(_ISSUE, environ=environ, ledger=lambda: ledger)
-    binding.bind(_ISSUE, environ=environ, ledger=lambda: ledger)
+    binding.bind(ISSUE, environ=environ, ledger=lambda: ledger)
+    binding.bind(ISSUE, environ=environ, ledger=lambda: ledger)
 
-    assert ledger.read_text(encoding="utf-8").splitlines() == [f"s-1 {_ISSUE}"]
-    assert binding.sessions(_ISSUE, ledger=ledger) == ["s-1"]
+    assert ledger.read_text(encoding="utf-8").splitlines() == [f"s-1 {ISSUE}"]
+    assert binding.sessions(ISSUE, ledger=ledger) == ["s-1"]
 
 
 def test_side_issue_refused_before_create(
@@ -144,7 +145,7 @@ def test_side_issue_refused_before_create(
 ) -> None:
     """D3: a session bound to another issue cannot create a change's issue."""
     create = load_script("create_tracking_issue")
-    root = _change(tmp_path, tasks=_GROUP0.format(token=_PLACEHOLDER))
+    root = make_change(tmp_path, tasks=GROUP0.format(token=PLACEHOLDER))
     _seed(root, f"s-1 {_OTHER}\n")
     monkeypatch.setenv(_VARIABLE, "s-1")
     gh = Gh(root=root)
@@ -153,7 +154,7 @@ def test_side_issue_refused_before_create(
         create.main(_AREA, gh=gh, root=root)
 
     assert exc.value.code == 2
-    assert _creates(gh) == []
+    assert creates(gh) == []
     assert f"issue-{_OTHER}" in capsys.readouterr().err
 
 
@@ -169,30 +170,30 @@ def test_rerun_after_failed_archive(tmp_path: Path, monkeypatch: pytest.MonkeyPa
             if failures:
                 raise failures.pop()
             changes = tmp_path / "openspec" / "changes"
-            (changes / _CHANGE).rename(changes / "archive" / f"2026-01-01-{_CHANGE}")
+            (changes / CHANGE).rename(changes / "archive" / f"2026-01-01-{CHANGE}")
             return ""
         if cmd[:2] == ["git", "push"]:
             return ""
         return real(cmd)
 
-    for args in (["init", "-q", "-b", _CHANGE], ["config", "user.name", "t"]):
+    for args in (["init", "-q", "-b", CHANGE], ["config", "user.name", "t"]):
         real(["git", *args])
     real(["git", "config", "user.email", "t@t"])
-    tasks = tmp_path / "openspec" / "changes" / _CHANGE / "tasks.md"
+    tasks = tmp_path / "openspec" / "changes" / CHANGE / "tasks.md"
     tasks.parent.mkdir(parents=True)
     (tmp_path / "openspec" / "changes" / "archive").mkdir()
-    tasks.write_text(_GROUP0.format(token=_TOKEN), encoding="utf-8")
+    tasks.write_text(GROUP0.format(token=TOKEN), encoding="utf-8")
     real(["git", "add", "-A"])
     real(["git", "commit", "-qm", "plan"])
     monkeypatch.setenv(_VARIABLE, "s-1")
 
     with pytest.raises(RuntimeError, match="boom"):
-        archive_change.archive_change(_CHANGE, root=tmp_path, run=run)
+        archive_change.archive_change(CHANGE, root=tmp_path, run=run)
     assert (tasks.parent / "sessions").read_text(encoding="utf-8") == "s-1\n"
     with _ledger(tmp_path).open("a", encoding="utf-8") as f:
-        f.write(f"s-2 {_ISSUE}\n")
+        f.write(f"s-2 {ISSUE}\n")
 
-    assert archive_change.archive_change(_CHANGE, root=tmp_path, run=run) == 0
-    archived = tmp_path / "openspec" / "changes" / "archive" / f"2026-01-01-{_CHANGE}"
+    assert archive_change.archive_change(CHANGE, root=tmp_path, run=run) == 0
+    archived = tmp_path / "openspec" / "changes" / "archive" / f"2026-01-01-{CHANGE}"
     assert (archived / "sessions").read_text(encoding="utf-8") == "s-1\ns-2\n"
     assert real(["git", "status", "--porcelain"]) == ""

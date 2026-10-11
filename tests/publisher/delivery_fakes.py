@@ -203,3 +203,59 @@ class Gh:
 
     def edits(self) -> list[list[str]]:
         return [c for c in self.calls if c[:3] == ["gh", "project", "item-edit"]]
+
+
+# A change fixture shared by the start and binding tests.
+CHANGE = "v2-9-example"
+START = [CHANGE, "--planner", "Claude", "--implementer", "Claude"]
+PLACEHOLDER = "tracking issue <N>"
+# Fixture numbers are built, so the `no-issue-refs` hook does not read them as references.
+ISSUE = 7
+TOKEN = f"tracking issue {ISSUE}"
+GROUP0 = (
+    "- [ ] 0.1 `python skills/agent-process/scripts/start_change.py v2-9-example …` ({token})\n"
+)
+_CLASSES = ("simpler", "map", "red", "platform", "replaced", "catcher", "length", "bespoke")
+
+
+def fake_review(verdict: str = "approve") -> dict[str, Any]:
+    """A review valid against the skill's schema: every class checked and `ok`."""
+    return {
+        "verdict": verdict,
+        "round": 1,
+        "reviewer": "architect-reviewer",
+        "reasoning": "r",
+        "classes": {name: {"evidence": "read", "result": "ok"} for name in _CLASSES},
+        "scenario_coverage": [],
+    }
+
+
+def make_change(
+    tmp_path: Path,
+    *,
+    verdict: str = "approve",
+    tasks: str,
+    review: dict[str, Any] | None = None,
+    config: bytes | None = None,
+) -> Path:
+    """A change directory under `tmp_path` with the three files the scripts read, in a
+    consumer whose `openspec/config.yaml` records the skill's release unless `config` is given."""
+    change_dir = tmp_path / "openspec" / "changes" / CHANGE
+    change_dir.mkdir(parents=True)
+    if config is None:
+        config = load_script("init").render_config_block().encode("utf-8")
+    (tmp_path / "openspec" / "config.yaml").write_bytes(config)
+    (change_dir / "architect-review.json").write_text(
+        json.dumps(review or fake_review(verdict)), encoding="utf-8"
+    )
+    (change_dir / "tasks.md").write_text(tasks, encoding="utf-8")
+    (change_dir / "proposal.md").write_text("## Why\n\nA fixture.\n", encoding="utf-8")
+    return tmp_path
+
+
+def develops(gh: Gh) -> list[list[str]]:
+    return [c for c in gh.calls if c[:3] == ["gh", "issue", "develop"]]
+
+
+def creates(gh: Gh) -> list[list[str]]:
+    return [c for c in gh.calls if c[:3] == ["gh", "issue", "create"]]

@@ -1,10 +1,13 @@
 ---
-status: "accepted; task attribution superseded by ADR-0038"
+status: "accepted"
 date: 2026-10-10
 decision-makers: ekolvah
 ---
 
 # One emitter feeds both telemetry backends
+
+Task attribution of the readings is superseded by
+[ADR 0038](0038-task-telemetry-follows-the-bound-sessions.md); the emitter decision stands.
 
 ## Context and Problem Statement
 
