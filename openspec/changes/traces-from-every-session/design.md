@@ -80,12 +80,25 @@ each content attribute truncated at 60 KB.
 
 The transform of `config.alloy` masks token shapes before export, in span attributes and span
 event attributes:
-`replace_all_patterns(attributes, "value", "(glc_|glsa_|sk-lf-|sk-ant-|gh[opsu]_|github_pat_)[A-Za-z0-9_+/=-]+", "<masked>")`.
+`replace_all_patterns(span.attributes, "value", "(glc_|glsa_|sk-lf-|sk-ant-|gh[opsu]_|github_pat_)[A-Za-z0-9_+/=-]+", "<masked>")`,
+and the same over `spanevent.attributes`.
 Observed 2026-10-11 by prefix only, no value printed: the User-scope Grafana service-account
 token starts with `glsa_`, and `~/.claude/.credentials.json` holds `sk-ant-` strings.
 Tool output, where a printed environment or config file would surface a token, goes only to
 traces and so passes the mask. Langfuse units count observations, not bytes, so the D1
 volume stands.
+
+Tool output arrives as the `tool.output` span event of the tool span, and Langfuse reads span
+events only under `gen_ai.*` names
+([its OTLP ingestion](https://github.com/langfuse/langfuse/blob/main/packages/shared/src/server/otel/OtelIngestionProcessor.ts)),
+so it drops the event; observed 2026-10-11 as tool observations without output. After the
+mask, the transform copies the event's `output`, `content` or `diff` into the span's
+`langfuse.observation.output`, the attribute Langfuse reads first.
+
+Model responses stay out of Langfuse: `response.model_output` comes only with detailed beta
+tracing, whose `BETA_TRACING_ENDPOINT` takes logs as well as traces off their exporters
+([env-vars](https://code.claude.com/docs/en/env-vars)), so Loki would receive its events only
+through Alloy, against ADR 0037's direct route.
 
 ### D5. Alloy runs as a Windows service
 
@@ -117,14 +130,14 @@ The route stays Claude Code → local collector → Langfuse, the OpenTelemetry
 
 ## Risks / Trade-offs
 
-- **Alloy stopped.** Not yet observed: what the session shows when its trace export fails,
-  and whether metrics and logs still arrive. Task 2.5 stops the service once and records the
-  extension log lines and the Grafana series; ADR 0039 states the observed behaviour.
+- **Alloy stopped.** Observed 2026-10-11 (task 2.5): the session runs normally, its debug log
+  has one `First traces export: FAILED` line, metrics and logs arrive, and its spans are lost.
 - **Content in Loki is not masked.** Prompts, responses and tool input of every repository,
   a token typed into a prompt or a Bash command line included, reach Grafana Cloud. The owner
   accepts it (D4).
-- **Keys at machine scope.** The service reads the Langfuse keys from `HKLM`, readable by
-  administrators of this single-user host.
+- **Keys at machine scope.** The service reads the Langfuse keys from `HKLM`; a non-elevated
+  process read them there (observed 2026-10-11), so every local account can, which on this
+  single-user host is the reach of the User-scope copy.
 - **Grafana headers on the trace export.** If the Grafana token of `otelHeadersHelper` reaches
   the trace exporter, it goes only to the loopback receiver. That receiver does not pass request
   metadata on: `include_metadata` is unset in `config.alloy`, and the
