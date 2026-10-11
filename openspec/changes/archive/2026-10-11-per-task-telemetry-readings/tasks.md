@@ -27,7 +27,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 With a clean worktree, run `agent-process archive_change per-task-telemetry-readings`. Verify that it archives the change with no spec update, commits and pushes the branch
+- [x] 5.1 With a clean worktree, run `agent-process archive_change per-task-telemetry-readings`. Verify that it archives the change with no spec update, commits and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "docs: per-task-telemetry-readings" --body-file <report>`. The report references the tracking issue plainly (#384), never with `Closes`. It carries the 2.1 and 2.2 readings, the scenario → test map, and the deferral: the baseline of five launched tasks goes to a later docs PR that closes the issue
 - [ ] 5.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread, with `agent-process resolve_review_thread --repo ekolvah/agent-process-distribution --pr <PR> --thread <id> --reply-file <path>`. Answer P2/P3 threads without resolving them. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person. Report the PR, its head, and each unresolved thread's link and one-line finding
 - [ ] 5.4 Once `wait_for_pr` settles a green head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change in the final message. The person merges it
