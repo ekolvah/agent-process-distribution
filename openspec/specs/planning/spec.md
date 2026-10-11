@@ -184,3 +184,12 @@ into the `tracking issue <N>` token of Group 0 as it writes `tasks.md`.
 #### Scenario: Plan from an existing issue
 - **WHEN** a change is planned from an existing issue
 - **THEN** Group 0 of its `tasks.md` carries that issue's number, and `create_tracking_issue` creates no issue and moves that issue to `Planned`
+
+### Requirement: A simplify pass precedes the architect review
+The architect-review procedure of the shared skill SHALL run `/simplify` on
+`openspec/changes/<change>/` once per propose run, after `tasks.md` and before the first
+architect review, and the plan's explanation SHALL state what `/simplify` changed.
+
+#### Scenario: Plan written
+- **WHEN** a propose run has written `tasks.md`
+- **THEN** `/simplify` runs on the change directory before the `architect-reviewer` is invoked, and the explanation states what it changed

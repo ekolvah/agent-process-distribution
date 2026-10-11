@@ -80,6 +80,12 @@ def _group0() -> str:
     return tasks[tasks.index("Group 0") : tasks.index("Group 1")]
 
 
+def _verify() -> str:
+    """The Verify item of the `## Tasks` section."""
+    tasks = _section("Tasks")
+    return tasks[tasks.index(" 4. Verify") : tasks.index(" 5. ")]
+
+
 def _script(name: str) -> ModuleType:
     """One moved script, imported from its file so no package layout is assumed."""
     spec = importlib.util.spec_from_file_location(f"agent_process_{name}", SCRIPTS / f"{name}.py")
@@ -383,7 +389,7 @@ def test_verify_runs_the_repository_quality_command() -> None:
     names a command that exists."""
     tasks = _section("Tasks")
     group1 = tasks[tasks.index("Group 1") : tasks.index(" 3. ")]
-    verify = tasks[tasks.index(" 4. Verify") : tasks.index(" 5. ")]
+    verify = _verify()
     assert QUALITY in group1 and QUALITY in verify
     assert "check_red" in group1 and "exits 2" in group1 and "`test`" in group1
     declared = json.loads((ROOT / QUALITY).read_text(encoding="utf-8"))["test"]
@@ -407,7 +413,7 @@ def test_group_commits_carry_their_ticks() -> None:
     group0 = tasks[tasks.index("Group 0") : tasks.index("Group 1")]
     group1 = tasks[tasks.index("Group 1") : tasks.index(" 3. ")]
     groups = tasks[tasks.index(" 3. ") : tasks.index(" 4. Verify")]
-    verify = tasks[tasks.index(" 4. Verify") : tasks.index(" 5. ")]
+    verify = _verify()
     assert "ticks its task" in group0 and "commits the plan" in group0
     assert "plan commit" in group1 and "Group 1 ticks" in group1
     assert "carries its ticks" in groups
@@ -467,6 +473,22 @@ def test_plan_is_explained_for_solution_review() -> None:
     assert review.index("Planned") < explained
     for part in ("what the person decides", "final message", "cannot publish"):
         assert part in review[explained:], part
+
+
+def test_simplify_precedes_the_architect_review() -> None:
+    """Scenario: Plan written — `/simplify` runs once on the change directory before the
+    reviewer, and the explanation states what it changed."""
+    review = _section("Architect review")
+    simplify = review.index("`/simplify openspec/changes/<change>/` once")
+    assert simplify < review.index("architect-reviewer")
+    assert "what `/simplify` changed" in review[review.index("plain words") :]
+
+
+def test_simplify_opens_verify() -> None:
+    """Scenario: Implementation done — Verify runs `/simplify` on the branch's commits before
+    `openspec validate` and the quality `test`."""
+    verify = _verify()
+    assert verify.index("`/simplify` without an argument") < verify.index("openspec validate")
 
 
 def test_delivered_change_is_explained_for_solution_review() -> None:

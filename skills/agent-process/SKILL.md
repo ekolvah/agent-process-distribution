@@ -102,17 +102,19 @@ delta scenario to a named test or `n/a: <reason>`.
 3. Implementation groups: one task per scenario, design decision, or review finding, each
    with its verification command. End each coherent group with a commit that carries its
    ticks.
-4. Verify: run `openspec validate --strict --all` and the `test`
-   that `.github/agent-process-quality.json` declares; their ticks ride in the archive commit.
+4. Verify: run `/simplify` without an argument and commit its edits, then run
+   `openspec validate --strict --all` and the `test` that
+   `.github/agent-process-quality.json` declares; their ticks ride in the archive commit.
 5. Deliver using the procedure below; the Deliver task titles the PR `<type>: <change>` with
    the Conventional Commit type the planner chose — `feat` or `fix` when behaviour changes,
    otherwise `docs`, `test`, `refactor` or `chore`. The person merges.
 
 ## Architect review
 
-After `tasks.md`, review proposal, specifications, design, and tasks against principles
-§I–VII by invoking the `architect-reviewer` subagent. It writes
-`architect-review.json`, valid against `skills/agent-process/architect-review.schema.json`.
+After `tasks.md`, run `/simplify openspec/changes/<change>/` once, then review proposal,
+specifications, design, and tasks against principles §I–VII by invoking the
+`architect-reviewer` subagent. It writes `architect-review.json`, valid against
+`skills/agent-process/architect-review.schema.json`.
 
 Findings point at artifacts instead of restating them. On `rework`, answer every finding and
 review again. The propose run ends on `approve`: if the change has no issue, choose the area
@@ -120,10 +122,10 @@ that fits the change from the Project's `Area` options and run
 `agent-process create_tracking_issue <change> --area <name>` (without
 `--area` it lists the options); otherwise run it without area. It validates the review
 first; send its errors back to the reviewer. The issue must be `Planned` before the
-plan is ready. Then explain the plan in plain words — what changes, why, what the person
-decides — as a page linked in the final message, or in that message when the carrier cannot
-publish one. Artifact status is file existence only: the verdict is the gate, and Group 0
-reads it.
+plan is ready. Then explain the plan in plain words — what changes, why, what `/simplify`
+changed, what the person decides — as a page linked in the final message, or in that
+message when the carrier cannot publish one. Artifact status is file existence only: the
+verdict is the gate, and Group 0 reads it.
 
 ## Delivery
 
