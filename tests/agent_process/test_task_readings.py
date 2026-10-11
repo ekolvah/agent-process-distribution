@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.task_readings import COLUMNS, main
+from scripts.task_readings import COLUMNS, main, query_result
 
 _ISSUE = 7
 _TOKEN = f"tracking issue {_ISSUE}"
@@ -327,3 +327,13 @@ def test_archived_change_matched_exactly(tmp_path: Path) -> None:
 
     assert code == 0
     assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [[], "oops", {"status": "error"}, {"status": "success", "data": {"result": {}}}],
+    ids=["list", "string", "error-status", "result-not-list"],
+)
+def test_unexpected_grafana_answer_is_a_runtime_error(payload: object) -> None:
+    with pytest.raises(RuntimeError, match="unexpected answer"):
+        query_result(payload)

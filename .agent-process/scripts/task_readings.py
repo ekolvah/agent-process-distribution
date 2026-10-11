@@ -318,6 +318,16 @@ def main(argv: Sequence[str], environ: Mapping[str, str], github: GitHub, grafan
     return 1 if gaps else 0
 
 
+def query_result(payload: object) -> Sequence[Mapping[str, object]]:
+    """The `data.result` list of a Prometheus or Loki query answer."""
+    if isinstance(payload, dict) and payload.get("status") == "success":
+        data = payload.get("data")
+        result = data.get("result") if isinstance(data, dict) else None
+        if isinstance(result, list):
+            return result
+    raise RuntimeError(f"unexpected answer: {str(payload)[:200]}")
+
+
 class _GhGitHub:
     def __init__(self, repo: str) -> None:
         self.repo = repo
@@ -344,12 +354,7 @@ class _HttpGrafana:
     def _result(self, request: urllib.request.Request) -> Sequence[Mapping[str, object]]:
         request.add_header("Authorization", f"Bearer {self.token}")
         with urllib.request.urlopen(request, timeout=60) as response:
-            payload = json.load(response)
-        data = payload.get("data") if isinstance(payload, dict) else None
-        result = data.get("result") if isinstance(data, dict) else None
-        if payload.get("status") != "success" or not isinstance(result, list):
-            raise RuntimeError(f"unexpected answer: {str(payload)[:200]}")
-        return result
+            return query_result(json.load(response))
 
     def prometheus(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
         body = urllib.parse.urlencode({"query": query, "time": f"{time:.3f}"}).encode()
