@@ -17,7 +17,7 @@ Observed on 2026-10-11 on the launched gate sessions of 2026-10-10 (Claude Code 
   54, equal to that observation's usage details.
 
 A task's session ids are already in the archived change's `sessions` file
-([ADR 0038](../../../.agent-process/docs/adr/0038-task-telemetry-follows-the-bound-sessions.md)),
+([ADR 0038](../../../../.agent-process/docs/adr/0038-task-telemetry-follows-the-bound-sessions.md)),
 so they find its traces in Langfuse with no tag, and the launcher's last job ("The launcher
 stays") disappears once the trace variables are set where every session reads them.
 

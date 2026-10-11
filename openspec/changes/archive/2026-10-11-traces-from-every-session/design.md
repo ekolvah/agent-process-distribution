@@ -2,9 +2,9 @@
 
 The transport of metrics and logs, and why it sits in user settings rather than the process
 environment, is in the setup document's
-[What exports what](../../../.agent-process/docs/telemetry-measurement-setup.md#what-exports-what);
+[What exports what](../../../../.agent-process/docs/telemetry-measurement-setup.md#what-exports-what);
 the Alloy pipeline is in
-[Traces through Alloy to Langfuse](../../../.agent-process/docs/telemetry-measurement-setup.md#traces-through-alloy-to-langfuse).
+[Traces through Alloy to Langfuse](../../../../.agent-process/docs/telemetry-measurement-setup.md#traces-through-alloy-to-langfuse).
 The user settings `env` has no trace variable today.
 
 ## Goals / Non-Goals
@@ -13,7 +13,7 @@ The user settings `env` has no trace variable today.
 
 - A Langfuse reading in `task_readings.py` or a link from the readings row to Langfuse.
 - Trace export for adopters: telemetry stays owner-side
-  ([ADR 0029](../../../.agent-process/docs/adr/0029-telemetry-leaves-the-v2-migration.md)).
+  ([ADR 0029](../../../../.agent-process/docs/adr/0029-telemetry-leaves-the-v2-migration.md)).
 - Routing metrics and logs through Alloy, or masking them: they stay direct (ADR 0037).
 
 ## Decisions
@@ -62,7 +62,7 @@ process's tokens. Extension sessions never had it, and resumed extension session
 - **What stops proving:** nothing that is kept. The documented per-session token total moves
   from the counter to the sum of the four token fields of the session's Loki `api_request`
   events (proposal), which no process restart resets, as the cost reading already does
-  ([Per-task metrics](../../../.agent-process/docs/telemetry-measurement-setup.md#per-task-metrics)).
+  ([Per-task metrics](../../../../.agent-process/docs/telemetry-measurement-setup.md#per-task-metrics)).
 - **Effect:** the per-session comparison with Langfuse has one meaning again, a trace-schema
   change of the beta, instead of also flagging every resumed session.
 
