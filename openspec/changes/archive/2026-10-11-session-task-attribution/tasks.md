@@ -30,11 +30,11 @@
 
 - [x] 5.1 Run `/simplify` without an argument and commit its edits
 - [x] 5.2 Run `openspec validate --strict --all` and verify that every change and spec passes
-- [ ] 5.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 5.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 6. Deliver
 
-- [ ] 6.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change session-task-attribution`. Verify that the archived change holds a `sessions` file that lists this session's id, and that the script archives, commits and pushes the branch
+- [x] 6.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change session-task-attribution`. Verify that the archived change holds a `sessions` file that lists this session's id, and that the script archives, commits and pushes the branch
 - [ ] 6.2 Run `gh pr create --title "feat: session-task-attribution" --body-file <report>`. The report references tracking issue #395 plainly, never with `Closes`. It carries the scenario → test map and the post-merge check of design, Migration
 - [ ] 6.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person with the PR, its head, and each open thread's link and one-line finding
 - [ ] 6.4 Once `wait_for_pr` settles a head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change. The explanation gives the person the post-merge check:
