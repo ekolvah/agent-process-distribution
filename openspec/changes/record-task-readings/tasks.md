@@ -4,7 +4,7 @@
 
 ## 1. RED first
 
-- [ ] 1.1 Write `tests/agent_process/test_task_readings.py` against a signature stub of `.agent-process/scripts/task_readings.py` (`main(argv, environ, github, grafana)` plus the `GitHub` and `Grafana` protocols, design D6). Use in-memory doubles and a `tmp_path` tree with an archived change whose `tasks.md` carries `tracking issue 7` and whose `architect-review.json` carries `round`. The tests are the scenario map below, plus these for the design decisions:
+- [x] 1.1 Write `tests/agent_process/test_task_readings.py` against a signature stub of `.agent-process/scripts/task_readings.py` (`main(argv, environ, github, grafana)` plus the `GitHub` and `Grafana` protocols, design D6). Use in-memory doubles and a `tmp_path` tree with an archived change whose `tasks.md` carries `tracking issue 7` and whose `architect-review.json` carries `round`. The tests are the scenario map below, plus these for the design decisions:
   - `test_absent_field_is_missing_not_zero` (D4): no `tool_result` row with a non-empty `success` leaves `failed` empty with a gap, and no `compaction` row in the repository's lookback leaves `compactions` empty with a gap
   - `test_review_without_round_is_gap` (D4, D5)
   - `test_code_rounds_count_distinct_reviewed_heads` (D4): only the reviewer, duplicate SHAs count once
