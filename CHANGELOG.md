@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.12.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.11.0...v3.12.0) (2026-10-11)
+
+
+### Features
+
+* record-task-readings ([#390](https://github.com/ekolvah/agent-process-distribution/issues/390)) ([1b5203f](https://github.com/ekolvah/agent-process-distribution/commit/1b5203fd46ba96639a63c7397127c4527f39ec76))
+
 ## [3.11.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.10.6...v3.11.0) (2026-10-10)
 
 
