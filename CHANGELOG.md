@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.13.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.12.0...v3.13.0) (2026-10-11)
+
+
+### Features
+
+* simplify-before-review ([#392](https://github.com/ekolvah/agent-process-distribution/issues/392)) ([8b276f1](https://github.com/ekolvah/agent-process-distribution/commit/8b276f1c2cd35e99909cfa7e3c8393be1cffdd57))
+
 ## [3.12.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.11.0...v3.12.0) (2026-10-11)
 
 
