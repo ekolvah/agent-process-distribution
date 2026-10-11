@@ -40,10 +40,13 @@ Counts:
 ```logql
 sum by (task_id, attempt_id, event_name, success, decision) (count_over_time(
   {service_name="claude-code"} | vcs_repository_name="<owner>/<repo>"
-  | event_name=~"tool_result|tool_decision|compaction" [$__range]))
+  | event_name=~"api_request|tool_result|tool_decision|compaction" [$__range]))
 ```
 
-The counts query has no task filter, so its rows also serve rule 1 (D2):
+The counts query has no task filter, so its rows also serve rule 1 (D2). It includes
+`api_request` because a plain session can make no tool call at all. The gate's plain
+session did exactly that, with 4 `api_request` events and no tool event, observed during
+implementation.
 
 - **Failed** is the `tool_result` row with `success="false"`.
 - **Denied** is the `tool_decision` row with `decision="reject"`, from any `source`.

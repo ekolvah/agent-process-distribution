@@ -8,8 +8,8 @@
 
 ## 2. Live readings (design D1–D3)
 
-- [ ] 2.1 Find the `issue-101` gate span. Run the D1 counts query with `[1h]` in place of `[$__range]`, as a range query with a 1-hour step over 2026-10-10 UTC. The span is the hours that have `issue-101` rows. In the same result, verify rule 1 (D2): an hour that holds the plain session of the ADR 0037 gate has a row that is not `issue-`, and any hour with only launched sessions has none (if there is no such hour, record that). Then run the D1 counts and cost queries as instant queries over the span. Verify that the cost equals 1.1960044 (proposal, Source), and read the failed, denied and compaction counts for `issue-101`. Record the readings for the document, without session ids
-- [ ] 2.2 Run the D3 query with `task_id="issue-101",attempt_id="1"` over the gate span, and compare it per type with the Langfuse usage of the generations tagged `task:issue-101` and `attempt:1`. Verify that they are equal, or record the difference
+- [x] 2.1 Find the `issue-101` gate span. Run the D1 counts query with `[1h]` in place of `[$__range]`, as a range query with a 1-hour step over 2026-10-10 UTC. The span is the hours that have `issue-101` rows. In the same result, verify rule 1 (D2): an hour that holds the plain session of the ADR 0037 gate has a row that is not `issue-`, and any hour with only launched sessions has none (if there is no such hour, record that). Then run the D1 counts and cost queries as instant queries over the span. Verify that the cost equals 1.1960044 (proposal, Source), and read the failed, denied and compaction counts for `issue-101`. Record the readings for the document, without session ids
+- [x] 2.2 Run the D3 query with `task_id="issue-101",attempt_id="1"` over the gate span, and compare it per type with the Langfuse usage of the generations tagged `task:issue-101` and `attempt:1`. Verify that they are equal, or record the difference
 
 ## 3. Document (design D1–D4)
 
