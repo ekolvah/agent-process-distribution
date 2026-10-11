@@ -17,7 +17,7 @@
 
 ## 2. Readings script (design D3–D6)
 
-- [ ] 2.1 Implement `.agent-process/scripts/task_readings.py` as in D3–D6: the pure reading returns the row, the adapters are `gh_io.run_gh` and `urllib.request` with `Authorization: Bearer`, and `code_rounds` imports from `head_review` as `release_pr.py` imports `gh_io`. The module docstring and comments carry no issue or PR reference (`no-issue-refs`). Verify with `python -m pytest tests/agent_process/test_task_readings.py`. Commit
+- [x] 2.1 Implement `.agent-process/scripts/task_readings.py` as in D3–D6: the pure reading returns the row, the adapters are `gh_io.run_gh` and `urllib.request` with `Authorization: Bearer`, and `code_rounds` imports from `head_review` as `release_pr.py` imports `gh_io`. The module docstring and comments carry no issue or PR reference (`no-issue-refs`). Verify with `python -m pytest tests/agent_process/test_task_readings.py`. Commit
 
 ## 3. Workflow and state (design D2, D7)
 
