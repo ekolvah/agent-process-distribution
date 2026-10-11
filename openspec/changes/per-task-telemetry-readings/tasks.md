@@ -4,7 +4,7 @@
 
 ## 1. RED first
 
-- [ ] 1.1 no RED: docs-only and `skip_specs`. Nothing in the tree has behaviour that a test could check
+- [x] 1.1 no RED: docs-only and `skip_specs`. Nothing in the tree has behaviour that a test could check
 
 ## 2. Live readings (design D1–D3)
 
