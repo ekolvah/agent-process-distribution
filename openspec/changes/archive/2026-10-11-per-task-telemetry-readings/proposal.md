@@ -1,7 +1,7 @@
 ## Why
 
 #99 judges one task by its cost, its failed and denied tool calls, and its context
-compactions. Since #382 ([ADR 0037](../../../.agent-process/docs/adr/0037-one-emitter-feeds-both-telemetry-backends.md))
+compactions. Since #382 ([ADR 0037](../../../../.agent-process/docs/adr/0037-one-emitter-feeds-both-telemetry-backends.md))
 every telemetry event of a launched session carries `task_id` and `attempt_id`, but nothing
 reads them per task yet, and the issue asks to confirm how the inputs appear before any
 baseline. Observed on 2026-10-10 in Loki (`{service_name="claude-code"}`, this repository,
