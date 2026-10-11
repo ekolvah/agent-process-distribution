@@ -16,7 +16,7 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `/simplify` without an argument, and commit its edits or record `no edits` with the skipped findings in this tick
+- [x] 3.1 Run `/simplify` without an argument, and commit its edits or record `no edits` with the skipped findings in this tick. Applied: a `_verify()` helper for the three Verify slices of the test file, and a rewrap of two `## Architect review` paragraphs. Skipped: a path target that leaves the plan out of the Verify pass (design D3), MODIFIED planning requirements instead of ADDED (weighed in the plan review), and moving the explanation assertion into `test_plan_is_explained_for_solution_review` (each scenario keeps its own test)
 - [ ] 3.2 Run `openspec validate --strict --all` and verify that every change and spec passes
 - [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 

@@ -113,8 +113,8 @@ delta scenario to a named test or `n/a: <reason>`.
 
 After `tasks.md`, run `/simplify openspec/changes/<change>/` once, then review proposal,
 specifications, design, and tasks against principles §I–VII by invoking the
-`architect-reviewer` subagent. It writes
-`architect-review.json`, valid against `skills/agent-process/architect-review.schema.json`.
+`architect-reviewer` subagent. It writes `architect-review.json`, valid against
+`skills/agent-process/architect-review.schema.json`.
 
 Findings point at artifacts instead of restating them. On `rework`, answer every finding and
 review again. The propose run ends on `approve`: if the change has no issue, choose the area
@@ -123,9 +123,9 @@ that fits the change from the Project's `Area` options and run
 `--area` it lists the options); otherwise run it without area. It validates the review
 first; send its errors back to the reviewer. The issue must be `Planned` before the
 plan is ready. Then explain the plan in plain words — what changes, why, what `/simplify`
-changed, what the person decides — as a page linked in the final message, or in that message when the carrier cannot
-publish one. Artifact status is file existence only: the verdict is the gate, and Group 0
-reads it.
+changed, what the person decides — as a page linked in the final message, or in that
+message when the carrier cannot publish one. Artifact status is file existence only: the
+verdict is the gate, and Group 0 reads it.
 
 ## Delivery
 
