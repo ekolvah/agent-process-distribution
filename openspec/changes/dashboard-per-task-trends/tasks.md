@@ -4,16 +4,16 @@
 
 ## 1. RED first
 
-- [ ] 1.1 no RED: the change edits host state (dashboard `aqxk4q`) and one document. It is checked live in 2.2
+- [x] 1.1 no RED: the change edits host state (dashboard `aqxk4q`) and one document. It is checked live in 2.2
 
 ## 2. Dashboard (design D1–D3)
 
-- [ ] 2.1 `GET /api/dashboards/uid/aqxk4q` and verify `version` is 8; if not, stop and compare with the design's Context. From that JSON remove panels 1–3 and 5–15 and the variables `task` and `attempt`, remove panel 17's transformations, edit panel 19 and add the two panels of D1 styled like panel 19, lay the six trends out three per row with `w: 8`, and rewrite panel 4 and the description per D3. Save with `POST /api/dashboards/db`, `overwrite: false`
-- [ ] 2.2 Verify that the save returns version 9 and that a `GET` of the UID has the row, the table, the text panel and the six trends of D1, no templating variable, and on the edited panel 19 an override for `lines` with `custom.axisPlacement: right` and unit `short`. Verify that `GET /api/dashboards/uid/aqxk4q/versions` still lists version 8, and that every link in panel 4 and the description names a heading of `.agent-process/docs/telemetry-measurement-setup.md` (`grep -n '^## '`). Run the targets of panels 19 and the two new panels, taken from that `GET`, in one `POST /api/ds/query` over `now-180d`; verify that PR 401 gives `hours` 2.07, `lines` 824, `failed` 18, `denied` 0 and `compactions` 4, and that the rows of PRs 390, 392 and 397 give `null` for the telemetry readings
+- [x] 2.1 `GET /api/dashboards/uid/aqxk4q` and verify `version` is 8; if not, stop and compare with the design's Context. From that JSON remove panels 1–3 and 5–15 and the variables `task` and `attempt`, remove panel 17's transformations, edit panel 19 and add the two panels of D1 styled like panel 19, lay the six trends out three per row with `w: 8`, and rewrite panel 4 and the description per D3. Save with `POST /api/dashboards/db`, `overwrite: false`
+- [x] 2.2 Verify that the save returns version 9 and that a `GET` of the UID has the row, the table, the text panel and the six trends of D1, no templating variable, and on the edited panel 19 an override for `lines` with `custom.axisPlacement: right` and unit `short`. Verify that `GET /api/dashboards/uid/aqxk4q/versions` still lists version 8, and that every link in panel 4 and the description names a heading of `.agent-process/docs/telemetry-measurement-setup.md` (`grep -n '^## '`). Run the targets of panels 19 and the two new panels, taken from that `GET`, in one `POST /api/ds/query` over `now-180d`; verify that PR 401 gives `hours` 2.07, `lines` 824, `failed` 18, `denied` 0 and `compactions` 4, and that the rows of PRs 390, 392 and 397 give `null` for the telemetry readings
 
 ## 3. Document (design D3)
 
-- [ ] 3.1 In `.agent-process/docs/telemetry-measurement-setup.md`, rewrite the *Recorded readings* paragraph of "Per-task readings" per D3. Verify that `git grep -n aqxk4q -- .agent-process/docs/telemetry-measurement-setup.md` prints a line of that section; it prints nothing today. Commit as `docs: per-task trends on the dashboard`
+- [x] 3.1 In `.agent-process/docs/telemetry-measurement-setup.md`, rewrite the *Recorded readings* paragraph of "Per-task readings" per D3. Verify that `git grep -n aqxk4q -- .agent-process/docs/telemetry-measurement-setup.md` prints a line of that section; it prints nothing today. Commit as `docs: per-task trends on the dashboard`
 
 ## 4. Verify
 

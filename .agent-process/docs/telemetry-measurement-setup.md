@@ -257,8 +257,10 @@ The first run on a file with an earlier header rewrites the header to the curren
 earlier rows keep their shared columns. Grafana keeps about 14 days of samples, so a PR
 recorded later than that has no start.
 
-The dashboard's *Recorded readings* row shows the CSV as a table, `gap` highlighted when it
-is not empty, and `cost_usd`, `hours`, `code_rounds` and `plan_rounds` by merge time.
+Dashboard `aqxk4q` (*Per-task delivery*) reads these columns and nothing else, so a
+column change here changes it too. It shows the CSV as a table, `gap` highlighted when it is
+not empty, and six trends by merge time: `cost_usd`; `hours` beside `lines`; `plan_rounds`;
+`code_rounds`; `failed` and `denied`; `compactions`. A task appears there after its merge.
 
 ## Per-task metrics
 
