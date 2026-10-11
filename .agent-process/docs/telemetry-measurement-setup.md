@@ -17,10 +17,27 @@ claims that contradict the documentation are marked.
 | Traces (beta) | the launcher's settings layer (below) | Langfuse, through the local Alloy collector | usage details `input` / `output` / `input_cached_tokens` / `input_cache_creation` |
 
 Metrics and logs push OTLP straight to Grafana Cloud: metrics to the Prometheus
-datasource, logs to the Loki datasource. The transport variables (endpoint, protocol,
-headers), the service-account token and the Langfuse keys live in the owner's Windows
-User-scope environment and are deliberately absent from this repository — nothing here
-reads them, and nothing here should print them.
+datasource, logs to the Loki datasource. The non-secret transport variables (switch,
+exporters, endpoint, protocol, temporality, intervals) live in the `env` block of the
+owner's user-level `~/.claude/settings.json`. The service-account token stays in the
+owner's Windows User-scope environment as `OTEL_EXPORTER_OTLP_HEADERS`, and an
+`otelHeadersHelper` script in the same settings file reads it from there. The token and
+the Langfuse keys are deliberately absent from this repository — nothing here reads
+them, and nothing here should print them.
+
+**Observed on Claude Code 2.1.296:** sessions spawned by the VS Code extension do not
+inherit `OTEL_EXPORTER_OTLP_ENDPOINT` or the headers from the User-scope environment,
+while the exporter switches still arrive. Without an endpoint the exporter falls back to
+`localhost:4318`, where the traces-only Alloy (below) answers metrics and logs with
+`404 page not found`, so no token series lands. That is why the transport is set in
+settings rather than in the environment.
+
+**Diagnose from the extension log, not from the Bash tool.** The Bash tool's environment
+lacks every `OTEL_*` variable, even one set in settings `env`, so `env | grep OTEL` says
+nothing about the session process. The log
+`%APPDATA%/Code/logs/<latest>/window1/exthost/Anthropic.claude-code/Claude VSCode.log`
+carries one `[3P telemetry] getOtlpReaders: … endpoint=…` line per session and then
+`First metrics export: SUCCESS` or `FAILED (<reason>)`.
 
 Dashboards are referred to by UID rather than by URL, for the same reason:
 `agwhkq` and `axwvz9`.
