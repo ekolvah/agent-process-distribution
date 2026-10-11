@@ -1,1 +1,4 @@
 pr,change,task_id,attempt_id,start,merged_at,hours,lines,plan_rounds,code_rounds,cost_usd,api_requests,failed,denied,compactions,unlaunched_events,gap
+382,one-emitter-task-telemetry,issue-101,1,2026-10-10T15:02:36Z,2026-10-10T16:19:44Z,1.29,998,,3,0.9549,18,0,0,0,4,plan_rounds: review without round
+385,per-task-delivery-metrics,issue-383,,,2026-10-10T20:38:48Z,,439,,2,,,,,,,plan_rounds: review without round; telemetry: no token sample of issue-383
+388,per-task-telemetry-readings,issue-384,,,2026-10-11T06:43:25Z,,350,,2,,,,,,,plan_rounds: review without round; telemetry: no token sample of issue-384
