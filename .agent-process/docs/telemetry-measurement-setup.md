@@ -2,7 +2,8 @@
 
 **Question this document answers:** how agent token usage is exported, where it
 lands, which labels identify the project and the task it was spent on, and how one
-task's time to merge and review rounds are read.
+task's time to merge, review rounds, cost, failed and denied calls and compactions are
+read.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
 Every claim below was observed, not read out of vendor documentation, and the
@@ -96,9 +97,9 @@ project's settings value replaces it (precedence, below).
 zero, and `instance` keeps each process on its own series. Without it the reset hides the
 earlier process's tokens from the per-session query below.
 
-A session started without the launcher sends no trace, and its series carry
-`vcs_repository_name` without `task_id`. A measured window that contains such a series
-of the measured repository is not attributable.
+A session started without the launcher sends no trace, and its series and events carry
+`vcs_repository_name` without `task_id`. Rule 1 of [Per-task metrics](#per-task-metrics)
+decides when such a session makes a window not attributable.
 
 ## Traces through Alloy to Langfuse
 
@@ -156,17 +157,21 @@ unset.
 
 ## Per-session totals
 
-The Grafana total per type for one session:
+The Grafana total per type for one session, or for one task attempt with
+`task_id="issue-<N>",attempt_id="<K>"` in place of the `session_id` matcher:
 
 ```promql
 sum by (type) (max_over_time(claude_code_token_usage_tokens_total{session_id="<id>"}[<window>]))
 ```
 
-with a window covering the session. The User scope sets cumulative temporality, so each
-series counts from zero for its process. `increase()` is not used: it extrapolates and
-drops a new series' first sample. For the same session, the sum of Langfuse usage
-details over its generations equals this total type by type; a window where they differ
-points at a trace-schema change of the beta.
+with a window covering the session or the attempt. The User scope sets cumulative
+temporality, so each series counts from zero for its process. `increase()` is not used: it
+extrapolates and drops a new series' first sample. For the same session, the sum of
+Langfuse usage details over its generations equals this total type by type; for a task
+attempt, the generations are those tagged `task:issue-<N>` and `attempt:<K>`. A window
+where they differ points at a trace-schema change of the beta. The sum holds only for
+series that carry `instance`; a process without it can lose tokens to the reset
+described under [Which labels carry the task](#which-labels-carry-the-task).
 
 ## Per-task readings
 
@@ -193,6 +198,69 @@ leaves it late or empty. Grafana keeps about 14 days of samples: read the start 
 | Task | Start | Merged | Hours | Lines | Plan rounds | Code rounds | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `task_id=issue-101`, `attempt_id=1` (baseline) | 2026-10-10T15:02:36Z | 2026-10-10T16:19:44Z | 1.29 | 998 | gap | 3 | First launched for the task-identity gate, after its planning ran without the launcher: the start is late. |
+
+## Per-task metrics
+
+A task's cost, failed and denied tool calls, and context compactions come from two Loki
+queries, run in Explore over a time range that covers the task's sessions. Every event
+attribute is per-entry structured metadata, so label filters and `unwrap` read it with no
+parser stage. `<owner>/<repo>` is the measured repository.
+
+```logql
+# Cost in USD
+sum by (task_id, attempt_id) (sum_over_time(
+  {service_name="claude-code"} | vcs_repository_name="<owner>/<repo>"
+  | task_id=~"issue-[0-9]+" | event_name="api_request"
+  | unwrap cost_usd [$__range]))
+
+# Counts, also the input of rule 1
+sum by (task_id, attempt_id, event_name, success, decision) (count_over_time(
+  {service_name="claude-code"} | vcs_repository_name="<owner>/<repo>"
+  | event_name=~"api_request|tool_result|tool_decision|compaction" [$__range]))
+```
+
+`$__range` is the whole selected range, so run them as instant queries; an hourly range
+query takes `[1h]` instead, or each step counts the whole range again.
+
+- **Failed** is the `tool_result` row with `success="false"`. The event also carries an
+  `error_type`.
+- **Denied** is the `tool_decision` row with `decision="reject"`, from any `source`
+  (`hook`, `config`, `user`). A rejected call emits no `tool_result`, so failed and
+  denied are disjoint and add up to the failed-plus-denied count.
+- **Compactions** is the sum of the `compaction` rows, which split by the event's own
+  `success`. The event also carries `trigger`, `pre_tokens` and `post_tokens`.
+- **Cost** is read from the events, not from `claude_code_cost_usage_USD_total`: the
+  counter loses a reset process's cost, the events do not. Subagent requests are
+  `api_request` events of the same session and are included.
+
+**Observed:** `cost_usd` prices the cache write at the 1-hour rate (2× input) that the
+sessions use, not at the 5-minute rate. Checked on one request with Claude Code 2.1.296;
+repeat the check on a newer version before relying on it.
+
+An absent row is a zero only when its field is shown to exist. The `success="true"` and
+`decision="accept"` rows show it for failed and denied, and a row with an empty field
+means a rename. A compaction has no such companion: a missing `compaction` row is 0 only
+if the counts query over the whole Loki retention returns some `compaction` row of the
+repository; otherwise the reading is missing. A task with no cost row exported nothing
+and is recorded as missing, not as zero.
+
+A window is rejected when either rule holds:
+
+1. The counts query returns a row whose `task_id` is not `issue-<N>`: a session of the
+   repository ran without the launcher. An absent `task_id` reads as empty, and the
+   retired collector route's `unassigned` value fails the pattern too. The launcher sets
+   the identity once for events, metrics and traces, so such a session shows in all
+   three. The rejection records which value caused it.
+2. The [Per-session totals](#per-session-totals) comparison with the task selector
+   differs for some type.
+
+The task-identity gate's attempt reads cost 1.1960044 USD, 0 failed, 0 denied and
+0 compactions, with 22 `api_request` events. Rule 1 rejects its window: its planning
+session ran without the launcher in the same hour, with 4 `api_request` events and no tool
+call — which is why the counts query matches `api_request`.
+
+Loki keeps about 14 days of events: read a task within that time after its last
+session.
 
 ## Two failure conditions that are usually silent
 
