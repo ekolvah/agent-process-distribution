@@ -12,9 +12,9 @@ stage. The oldest Loki event of the service is from 2026-09-27, about 14 days ba
 
 **Goals:**
 
-- Two Loki queries, keyed by `task_id` and `attempt_id`, give all three metrics, and the
-  baseline PR reads them.
-- The two window-rejection rules can be applied by hand at baseline time. The setup
+- Two Loki queries, keyed by `task_id` and `attempt_id`, give all three metrics for any
+  launched task.
+- The two window-rejection rules can be applied by hand when a task is read. The setup
   document states each rule once.
 
 **Non-Goals:**
@@ -85,7 +85,7 @@ same source as D1 keeps one window meaning one thing.
 ### D3. Rule 2 reuses the per-session totals check with a task selector
 
 The "Per-session totals" query and its Langfuse comparison change to accept either
-`session_id` or `task_id` with `attempt_id`. They are not copied. At baseline time, the
+`session_id` or `task_id` with `attempt_id`. They are not copied. When a task is read, the
 check runs through the Langfuse API or MCP for each task. Any difference rejects the
 task's window. The counter is safe here because every launched process has its own
 `instance` series. The undercount in the proposal predates `service.instance.id`.
@@ -93,17 +93,17 @@ task's window. The counter is safe here because every launched process has its o
 Alternative: an Infinity-datasource panel calling the Langfuse API. Rejected because it
 would put Langfuse keys in Grafana Cloud for a check that runs five times.
 
-### D4. The baseline is five launched tasks still inside Loki retention
+### D4. No baseline
 
-The baseline is deferred to a later PR (proposal, What Changes). That PR takes the first
-five delivered launched tasks whose events Loki still holds, replaces any task that has
-aged out with the next one, and states the date it read the data. A task with no cost
-row exported nothing. It is recorded as missing and not as zero, which catches a session
-that rule 1 cannot see. The cost check of the proposal is repeated only when the Claude
-Code version is newer than 2.1.296.
+The owner tracks the metrics across later tasks and skill experiments instead of recording
+a baseline (decision 2026-10-11). Loki keeps about 14 days of events, so a task is read
+within that time. A task with no cost row exported nothing. It is recorded as missing and
+not as zero, which catches a session that rule 1 cannot see. The cost check of the
+proposal is repeated only when the Claude Code version is newer than 2.1.296.
 
 Alternative: Loki recording rules that copy the readings into Prometheus for longer
-retention. Rejected because it adds new ruler state on the host for a one-off baseline.
+retention. Rejected because it adds new ruler state on the host before any reading has
+needed more than 14 days.
 
 ### D5. No ADR, no new check, no dashboard panel
 

@@ -259,9 +259,8 @@ The task-identity gate's attempt reads cost 1.1960044 USD, 0 failed, 0 denied an
 session ran without the launcher in the same hour, with 4 `api_request` events and no tool
 call — which is why the counts query matches `api_request`.
 
-**Baseline.** Loki keeps about 14 days of events. The baseline takes the first five
-delivered launched tasks whose events Loki still holds, replaces a task that has aged out
-with the next one, and states the date the data was read.
+Loki keeps about 14 days of events: read a task within that time after its last
+session.
 
 ## Two failure conditions that are usually silent
 

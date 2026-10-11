@@ -3,8 +3,8 @@
 #99 judges one task by its cost, its failed and denied tool calls, and its context
 compactions. Since #382 ([ADR 0037](../../../../.agent-process/docs/adr/0037-one-emitter-feeds-both-telemetry-backends.md))
 every telemetry event of a launched session carries `task_id` and `attempt_id`, but nothing
-reads them per task yet, and the issue asks to confirm how the inputs appear before any
-baseline. Observed on 2026-10-10 in Loki (`{service_name="claude-code"}`, this repository,
+reads them per task yet, and the issue asks to confirm how the inputs appear before they
+are used. Observed on 2026-10-10 in Loki (`{service_name="claude-code"}`, this repository,
 last 7 days, Claude Code 2.1.294–2.1.296):
 
 - **Denials.** A denied call is a `tool_decision` event with `decision="reject"`:
@@ -34,12 +34,11 @@ last 7 days, Claude Code 2.1.294–2.1.296):
 
 - The owner-side measurement setup document gains a per-task metrics section. It holds
   the LogQL queries for the three metrics, keyed by `task_id` and `attempt_id`, the
-  observations above, the two window-rejection rules handed over on #99, and the
-  procedure for recording a baseline. Rule 1 replaces the document's current
+  observations above, the two window-rejection rules handed over on #99. Rule 1 replaces the document's current
   unlaunched-series sentence, and rule 2 extends its per-session totals check to a task.
-- The baseline is not recorded in this change (owner's decision, 2026-10-10). Task sessions
-  are started through the CLI launcher. After the first five delivered tasks, a docs-only PR
-  records the per-task baseline beside the current values and closes #384.
+- No baseline is recorded (owner's decision, 2026-10-11): the metrics are tracked across
+  later tasks as skills are switched on and off. Task sessions are started through the CLI
+  launcher. This change closes #384.
 - Out of scope: restoring the VS Code export, and a task identity for VS Code sessions.
 
 ## Capabilities
