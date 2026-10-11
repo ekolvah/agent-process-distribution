@@ -79,14 +79,20 @@ def fetch_pull_request(repo: str, pr: str) -> Mapping[str, object]:
     return pull
 
 
-def reviewed(pull: Mapping[str, object], head: str) -> bool:
-    """True when the review job's closing comment names ``head``."""
-    for comment in _nodes(pull, "comments"):
+def reviewed_heads(comments: Sequence[object]) -> set[str]:
+    """The head SHAs named by the review job's closing comments."""
+    heads: set[str] = set()
+    for comment in comments:
         body = comment.get("body") if isinstance(comment, Mapping) else None
         match = _REVIEWED_HEAD.search(body) if isinstance(body, str) else None
-        if _by_reviewer(comment) and match is not None and head.startswith(match.group("sha")):
-            return True
-    return False
+        if _by_reviewer(comment) and match is not None:
+            heads.add(match.group("sha"))
+    return heads
+
+
+def reviewed(pull: Mapping[str, object], head: str) -> bool:
+    """True when the review job's closing comment names ``head``."""
+    return any(head.startswith(sha) for sha in reviewed_heads(_nodes(pull, "comments")))
 
 
 def wait_for_review(

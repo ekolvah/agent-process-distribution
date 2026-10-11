@@ -31,13 +31,10 @@ from typing import Protocol
 
 try:
     from scripts.gh_io import run_gh
-    from scripts.head_review import _REVIEWED_HEAD, _by_reviewer
+    from scripts.head_review import reviewed_heads
 except ModuleNotFoundError:  # run as a script from `.agent-process/`
     from gh_io import run_gh  # type: ignore[import-not-found, no-redef]
-    from head_review import (  # type: ignore[import-not-found, no-redef]
-        _REVIEWED_HEAD,
-        _by_reviewer,
-    )
+    from head_review import reviewed_heads  # type: ignore[import-not-found, no-redef]
 
 COLUMNS = (
     "pr",
@@ -110,11 +107,11 @@ def _issue(tasks_md: Path) -> int:
     return int(match.group(1))
 
 
-def _merged(pull: Mapping[str, object], pr: int) -> float:
+def _merged(pull: Mapping[str, object], pr: int) -> tuple[str, float]:
     merged_at = pull.get("mergedAt")
     if not isinstance(merged_at, str) or not merged_at:
         raise RuntimeError(f"PR {pr} is not merged")
-    return datetime.fromisoformat(merged_at).timestamp()
+    return merged_at, datetime.fromisoformat(merged_at).timestamp()
 
 
 def _github_cells(pull: Mapping[str, object]) -> Cells:
@@ -126,13 +123,7 @@ def _github_cells(pull: Mapping[str, object]) -> Cells:
     else:
         gaps.append("lines: no additions or deletions")
     comments = pull.get("comments")
-    heads = {
-        match.group("sha")
-        for comment in (comments if isinstance(comments, list) else [])
-        if isinstance(comment, Mapping)
-        and _by_reviewer(comment)
-        and (match := _REVIEWED_HEAD.search(str(comment.get("body") or ""))) is not None
-    }
+    heads = reviewed_heads(comments if isinstance(comments, list) else [])
     if heads:
         cells["code_rounds"] = str(len(heads))
     else:
@@ -173,27 +164,30 @@ def _iso(epoch: float) -> str:
 def _count_cells(rows: Sequence[Mapping[str, object]], task: str, attempt: int) -> Cells:
     """The task's counts, each 0 only where its field is shown to exist; and rule 1."""
     mine = [
-        (_labels(row), _value(row))
+        (labels, _value(row))
         for row in rows
-        if _labels(row).get("task_id") == task and _labels(row).get("attempt_id") == str(attempt)
+        if (labels := _labels(row)).get("task_id") == task
+        and labels.get("attempt_id") == str(attempt)
     ]
 
-    def total(event: str, field: str = "", value: str | None = None) -> int | None:
+    def total(event: str, field: str = "", value: str = "") -> int | None:
         found = [(labels, n) for labels, n in mine if labels.get("event_name") == event]
         if field:
             found = [(labels, n) for labels, n in found if labels.get(field)]
         if not found:
             return None
-        return int(sum(n for labels, n in found if value is None or labels.get(field) == value))
+        return int(sum(n for labels, n in found if not value or labels.get(field) == value))
 
     readings = {
         "api_requests": (total("api_request"), "no api_request event"),
         "failed": (total("tool_result", "success", "false"), "no tool_result with success"),
         "denied": (total("tool_decision", "decision", "reject"), "no tool_decision with decision"),
-        "compactions": (total("compaction"), ""),
     }
     cells = {name: str(n) for name, (n, _) in readings.items() if n is not None}
-    gaps = [f"{name}: {cause}" for name, (n, cause) in readings.items() if n is None and cause]
+    gaps = [f"{name}: {cause}" for name, (n, cause) in readings.items() if n is None]
+    compactions = total("compaction")
+    if compactions is not None:
+        cells["compactions"] = str(compactions)
     unlaunched = sum(
         _value(row) for row in rows if not _LAUNCHED.fullmatch(str(_labels(row).get("task_id", "")))
     )
@@ -231,8 +225,11 @@ def _telemetry(grafana: Grafana, repo: str, task: str, merged: float) -> Cells:
     cells.update(count_cells)
     gaps.extend(count_gaps)
     if "compactions" not in cells:
-        lookback = grafana.loki(_COMPACTION_LOOKBACK.format(selector=selector), merged)
-        if sum(_value(sample) for sample in lookback) > 0:
+        seen = any(_labels(row).get("event_name") == "compaction" for row in counts)
+        if not seen:
+            lookback = grafana.loki(_COMPACTION_LOOKBACK.format(selector=selector), merged)
+            seen = sum(_value(sample) for sample in lookback) > 0
+        if seen:
             cells["compactions"] = "0"
         else:
             gaps.append(f"compactions: no compaction row of {repo} in retention")
@@ -277,29 +274,21 @@ def _parse_options(argv: Sequence[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: Sequence[str], environ: Mapping[str, str], github: GitHub, grafana: Grafana) -> int:
-    options = _parse_options(argv)
+def _record(
+    options: argparse.Namespace, environ: Mapping[str, str], github: GitHub, grafana: Grafana
+) -> int:
     repo = environ.get("GITHUB_REPOSITORY", "")
-    try:
-        if not repo:
-            raise RuntimeError("GITHUB_REPOSITORY is unset")
-        pull = github.pull_request(options.pr)
-        change = str(pull.get("headRefName") or "")
-        change_dir = _archived_change(options.root, change)
-        if change_dir is None:
-            print(f"PR {options.pr}: head {change!r} names no archived change, not a task")
-            return 0
-        task = f"issue-{_issue(change_dir / 'tasks.md')}"
-        merged = _merged(pull, options.pr)
-    except (RuntimeError, OSError, ValueError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-    row = {
-        "pr": str(options.pr),
-        "change": change,
-        "task_id": task,
-        "merged_at": str(pull["mergedAt"]),
-    }
+    if not repo:
+        raise RuntimeError("GITHUB_REPOSITORY is unset")
+    pull = github.pull_request(options.pr)
+    change = str(pull.get("headRefName") or "")
+    change_dir = _archived_change(options.root, change)
+    if change_dir is None:
+        print(f"PR {options.pr}: head {change!r} names no archived change, not a task")
+        return 0
+    task = f"issue-{_issue(change_dir / 'tasks.md')}"
+    merged_at, merged = _merged(pull, options.pr)
+    row = {"pr": str(options.pr), "change": change, "task_id": task, "merged_at": merged_at}
     gaps: list[str] = []
     for cells, cell_gaps in (
         _plan_rounds(change_dir),
@@ -309,13 +298,17 @@ def main(argv: Sequence[str], environ: Mapping[str, str], github: GitHub, grafan
         row.update(cells)
         gaps.extend(cell_gaps)
     row["gap"] = "; ".join(gaps)
-    try:
-        upsert(options.csv, row)
-    except (RuntimeError, OSError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
+    upsert(options.csv, row)
     print(f"PR {options.pr}: {task} recorded" + (f" with gap: {row['gap']}" if gaps else ""))
     return 1 if gaps else 0
+
+
+def main(argv: Sequence[str], environ: Mapping[str, str], github: GitHub, grafana: Grafana) -> int:
+    try:
+        return _record(_parse_options(argv), environ, github, grafana)
+    except (RuntimeError, OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
 
 
 def query_result(payload: object) -> Sequence[Mapping[str, object]]:

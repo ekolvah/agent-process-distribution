@@ -124,8 +124,12 @@ def _tree(tmp_path: Path, review: dict[str, object] | None = None, name: str = "
     return tmp_path
 
 
+def _csv_path(tmp_path: Path) -> Path:
+    return tmp_path / "readings" / "task-readings.csv"
+
+
 def _csv(tmp_path: Path, rows: Sequence[str] = ()) -> Path:
-    path = tmp_path / "readings" / "task-readings.csv"
+    path = _csv_path(tmp_path)
     path.parent.mkdir()
     path.write_bytes(("\n".join([_HEADER, *rows]) + "\n").encode("utf-8"))
     return path
@@ -142,7 +146,7 @@ def _run(
         "--pr",
         str(pr),
         "--csv",
-        str(tmp_path / "readings" / "task-readings.csv"),
+        str(_csv_path(tmp_path)),
         "--root",
         str(tmp_path),
     ]

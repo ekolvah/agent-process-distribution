@@ -95,7 +95,7 @@ a file-location import.
 | `attempt_id`, `start` | One PromQL query, the setup document's start query grouped by attempt: `min by (attempt_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",vcs_repository_name="<owner>/<repo>"})[30d:1m]))` at `time=merged_at` (under the 768 h limit). The highest `attempt_id`, compared as an integer, is the row's, and its value is `start` |
 | `merged_at`, `lines`, `code_rounds` | One `gh pr view <n> --json mergedAt,additions,deletions,headRefName,comments`; lines are additions plus deletions |
 | `hours` | `merged_at − start`, two decimals |
-| `code_rounds` | Distinct heads of the reviewer's comments, by `head_review._REVIEWED_HEAD` and `head_review._by_reviewer`, the review job's own marker contract |
+| `code_rounds` | Distinct heads of the reviewer's comments, by `head_review.reviewed_heads`, the review job's own marker contract |
 | `plan_rounds` | `round` of the archived `architect-review.json`. A review archived before the field has none, and its count was never observed, so the cell is empty with `plan_rounds: review without round` in `gap` |
 | `cost_usd`, `api_requests`, `failed`, `denied`, `compactions` | The two Loki queries of "Per-task metrics", as GET instant queries at `time=merged_at` over `[<merged_at − start>s]`. The cost query is filtered to `task_id`/`attempt_id`; the counts query is not, since it groups by them |
 | `unlaunched_events` | The rule-1 count, read from the same counts result: rows whose `task_id` does not match `issue-[0-9]+` |
