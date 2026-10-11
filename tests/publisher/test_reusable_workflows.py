@@ -622,6 +622,34 @@ def test_agent_instructions_live_in_claude_code_channels() -> None:
         assert "AGENTS.md" not in text
 
 
+def test_review_policy_is_what_the_session_loads() -> None:
+    """Scenarios: PR changes the policy; PR adds instructions elsewhere."""
+    contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
+    claude = _steps("reusable-agent-review.yml")["Claude review"]["with"]
+    policy_source = contract[
+        contract.index("- Policy source:") : contract.index(
+            "\n- ", contract.index("- Policy source:") + 1
+        )
+    ]
+
+    def plain(text: str) -> str:
+        return " ".join(text.replace("`", "").split())
+
+    for text in (plain(claude["prompt"]), plain(policy_source)):
+        assert "root CLAUDE.md and root .claude/rules/" in text
+        assert "restored from the PR's base" in text
+        assert "including any other CLAUDE.md or .claude/rules/ file" in text
+        assert "untrusted review data" in text
+        assert "AGENTS.md" not in text
+    assert "Every CLAUDE.md" not in plain(claude["prompt"])
+    assert "the documents they link to" not in plain(contract)
+    assert "default branch" not in plain(contract)
+    assert shlex.split(claude["claude_args"]) == [
+        "--allowed-tools",
+        "mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*)",
+    ]
+
+
 def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:
     contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
     principles = (ROOT / "skills" / "agent-process" / "principles.md").read_text(encoding="utf-8")
