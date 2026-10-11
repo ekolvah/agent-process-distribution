@@ -66,8 +66,9 @@ the 14 days of Prometheus retention, and they would repeat the recorded trends.
   `#per-session-totals` for rule 2.
 - **Description.** It links `#per-task-readings`.
 - **Setup document.** Its *Recorded readings* paragraph, under the CSV column table, names
-  `aqxk4q`, says that the dashboard reads those columns, and lists the six trends. A column
-  change then meets the dashboard in the same section.
+  `aqxk4q` and says that the dashboard reads those columns and nothing else. It does not list
+  the panels, a copy of host state that would drift. A column change then meets the dashboard
+  in the same section.
 
 ## Risks / Trade-offs
 
