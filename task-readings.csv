@@ -5,3 +5,4 @@ pr,change,task_id,start,merged_at,hours,lines,plan_rounds,code_rounds,cost_usd,a
 390,record-task-readings,issue-389,,2026-10-11T10:48:17Z,,1301,5,2,,,,,,telemetry: no token sample of issue-389
 392,simplify-before-review,issue-387,,2026-10-11T11:50:41Z,,300,3,1,,,,,,telemetry: no token sample of issue-387
 397,session-task-attribution,issue-395,,2026-10-11T17:08:44Z,,1720,2,1,,,,,,telemetry: no token sample of a5a09290-c4c4-4877-81de-8d5946461354
+401,traces-from-every-session,issue-396,2026-10-11T17:54:37Z,2026-10-11T19:58:43Z,2.07,824,4,1,16.7782,274,18,0,4,
