@@ -60,8 +60,8 @@ are in the [setup document](../telemetry-measurement-setup.md).
   events instead, which no process restart resets.
 * **D4. Content, masked.** `OTEL_LOG_USER_PROMPTS=1`, `OTEL_LOG_TOOL_DETAILS=1` and
   `OTEL_LOG_TOOL_CONTENT=1` join D1, for every repository on the host. The Alloy transform
-  replaces `(glc_|glsa_|sk-lf-|sk-ant-|gh[opsu]_|github_pat_)[A-Za-z0-9_+/=-]+` with `<masked>`
-  in span and span event attributes. Tool output arrives as the span event `tool.output`,
+  replaces the token shapes of Grafana, Langfuse, Anthropic and GitHub with `<masked>` in span
+  and span event attributes. Tool output arrives as the span event `tool.output`,
   which Langfuse drops: its OTLP ingestion reads span events only under `gen_ai.*` names. After
   the mask, the transform copies the event's `output`, `content` or `diff` into the span's
   `langfuse.observation.output`. Model responses stay out of Langfuse: they come only with
