@@ -1,0 +1,40 @@
+{
+  "verdict": "approve",
+  "reviewer": "architect-reviewer",
+  "reasoning": "Both findings are answered: task 2.1 uses `[1h]` only for the hourly span and rule-1 run, with counts and cost from instant queries over the span, and D1 reads a missing compaction row as 0 only when the repository's whole Loki retention has a `compaction` row. The simplified plan holds with no open finding.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 merges four scans into one counts query whose presence rows replace a separate check, with 'one query per metric' recorded as the rejected alternative. D2 reuses the counts rows and rewrites the existing unlaunched-series sentence instead of adding a second rule statement. D3 extends 'Per-session totals' with a task selector and does not copy it. D5 rejects the dashboard panel. The secret grep is dropped because the quality test runs detect-secrets. The Risks section keeps only the one risk not covered elsewhere.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "skip_specs: true, so there are no delta scenarios. tasks.md ends with `## Scenario → test map`: D1–D3 are covered by the Group 2 live readings, D4 is the baseline-PR procedure, all are n/a in CI with the reason given, and the document is covered by the doc header and link tests run in 4.2.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 records `no RED: docs-only and skip_specs`.",
+      "result": "ok"
+    },
+    "platform": {
+      "result": "ok",
+      "evidence": "Observations on record: decision/source counts, 780 accept = 780 tool_result, the cost_usd 1-hour TTL arithmetic, the compaction fields, the per-session sums totalling 1.1960044 (all with task_id), structured metadata for every event attribute (design Context), and `instance` per launched process (setup document) behind D3. Task 2.1 now runs the hourly range query with `[1h]` in place of `[$__range]` only to find the span and check rule 1. Counts and cost come from instant queries over the span, where `$__range` is the span."
+    },
+    "replaced": {
+      "evidence": "D1 replaces the cost counter with api_request events and records the counter-reset undercount. D2 reads events instead of #99's metric series for rule 1 and rewrites the document's series sentence to point to it. D3 keeps the Prometheus counter for rule 2 and names why it is safe for launched sessions. D4 names the export-nothing session as the proof rule 1 loses, with 'no cost row → recorded missing' as its catcher.",
+      "result": "ok"
+    },
+    "catcher": {
+      "result": "ok",
+      "evidence": "Traced: a session that exports nothing → D4 no-cost-row check (recorded missing) in the baseline PR; a renamed success/decision field or value → an empty or unexpected value in a counts row; a renamed tool_result/tool_decision event → missing success=\"true\"/decision=\"accept\" presence rows; a renamed compaction event → D1 records the reading missing unless the counts query over the whole Loki retention has a compaction row; price drift → the cost recheck when the version is newer than 2.1.296."
+    },
+    "length": {
+      "evidence": "No spec sentence or process rule is added or edited (skip_specs). The text changes are owner-side sections of .agent-process/docs/telemetry-measurement-setup.md, net-reduced by stating rule 1 once and extending 'Per-session totals' in place; test_doc_headers/test_doc_links check them structurally.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script, check, scheduled job, recording rule or panel (Non-Goals, D5). The earlier ad-hoc secret grep is replaced by the quality test's detect-secrets. Rule 2 stays a manual comparison for five runs (D3).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
