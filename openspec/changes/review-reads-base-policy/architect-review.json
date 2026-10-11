@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 5,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The round-4 map finding is answered: `AGENTS.md` is gone from the delta, the proposal, D1 and tasks 2.1/2.2, and test 1.1 asserts that neither text names it, so the roles scenario 'Instructions live in Claude Code channels' holds. The plan names as policy only the root files the action restores, quotes the loading behaviour, and records both residual gaps for the person.",
+  "classes": {
+    "simpler": {
+      "evidence": "Design D1 rejects two alternatives: the `git show origin/<base>:<path>` instruction (no guarantee it runs) and `--append-system-prompt-file` (about 9k tokens, unverified in the action). D2 and D3 add no grant and no denial parser. The remaining change is a text edit to the prompt and the contract plus one test, which is the minimum.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "There are two ADDED scenarios, review-and-merge / 'PR changes the policy' and 'PR adds instructions elsewhere'. Both map to tests/publisher/test_reusable_workflows.py::test_review_policy_is_what_the_session_loads, and both are statements about prompt and contract text that a static test proves. The delta, the proposal, D1 and tasks 2.1/2.2 no longer name `AGENTS.md`; it remains only in design Risks. Test 1.1 asserts its absence, consistent with roles/spec.md 'Instructions live in Claude Code channels' and test_agent_instructions_live_in_claude_code_channels. That assertion duplicates the existing test, which is harmless.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 adds the test, and 1.2 runs check_red and commits RED. It fails on the current tree: prompt line 107 contains `Every CLAUDE.md` and does not name the root files, and REVIEW_CONTRACT.md line 7 contains 'the documents they link to at the reviewed repository's default branch'.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "(1) Restore: run 38132196665 logs the restore. I confirmed in claude-code-action@v1 restore-config.ts that the restored paths (lines 26-33) are root-level and that each is restored with `git checkout origin/${baseBranch} -- <p>`. (2) Loading: D1 quotes the Agent SDK page 'Modifying system prompts' (`'project'` loads `CLAUDE.md` or `.claude/CLAUDE.md` from the working directory; loading is controlled by setting sources, not by the preset). D1 also quotes the Claude Code memory page: rules without `paths` load at launch, path-scoped rules load on a matching Read, subdirectory files load on demand, and `AGENTS.md` is read only when there is no `CLAUDE.md`. The coordinator reports fetching these pages; I did not re-fetch them. The run log shows `settingSources [user, project, local]`. (3) Read-only git show/diff: observed in the nine closing comments.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The old guard ('Every CLAUDE.md … in the worktree is untrusted') is replaced by policy = root `CLAUDE.md` and root `.claude/rules/` restored from the base, with every other file untrusted. D1 names the instruction files that load but are not restored: nested CLAUDE.md and rules, `.claude-pr/` and `trusted/CLAUDE.md`. Design Risks lists the two failure modes: a dropped restore makes the PR's root CLAUDE.md policy, and nested files or `@path` imports still come from the PR head. Task 1.1 asserts the root qualifier and the untrusted clause.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "D2: a denied read is listed with its command in the closing comment that close_review.py writes in step 'Close the Claude review of the head'. That happens on the first head reviewed after the merge, because the caller pins `@main`. Risks: the dropped-restore case and the nested or `@path` case are stated as accepted gaps that no check catches, and task 4.2 puts both in the PR body for the person.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec requirement: about 70 words. The two scenarios are about 45 and 20 words. Test 1.1 asserts the root `CLAUDE.md` and `.claude/rules/`, 'restored from the PR's base', the untrusted clause naming any other `CLAUDE.md` or `.claude/rules/` file, and the absence of `Every CLAUDE.md`, `AGENTS.md`, 'the documents they link to' and 'default branch', about 35 words. The prompt sentence (2.1) is about 40 words and the contract bullet (2.2) about 60. The unasserted remainder is carried over unchanged. Proportionate.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script or check: one test plus prompt and contract text. D3 declines a denial classifier, citing ADR 0027.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
