@@ -8,6 +8,8 @@ decision-makers: ekolvah
 
 Task attribution of the readings is superseded by
 [ADR 0038](0038-task-telemetry-follows-the-bound-sessions.md); the emitter decision stands.
+The launcher, the trace scope and "No content" are superseded by
+[ADR 0039](0039-every-session-sends-traces.md).
 
 ## Context and Problem Statement
 

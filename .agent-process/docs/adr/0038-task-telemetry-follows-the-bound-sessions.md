@@ -6,6 +6,8 @@ decision-makers: ekolvah
 
 # Task telemetry follows the bound sessions
 
+"The launcher stays" is superseded by [ADR 0039](0039-every-session-sends-traces.md).
+
 ## Context and Problem Statement
 
 [ADR 0037](0037-one-emitter-feeds-both-telemetry-backends.md) gives a task its identity

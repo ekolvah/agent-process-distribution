@@ -14,12 +14,29 @@ claims that contradict the documentation are marked.
 | Route | Switch | Lands in | Token categories |
 | --- | --- | --- | --- |
 | Metrics, logs | `CLAUDE_CODE_ENABLE_TELEMETRY=1` plus the `OTEL_EXPORTER_OTLP_*` transport variables | Grafana Cloud: `claude_code_token_usage_tokens_total`, Loki | `type` ∈ `input` / `output` / `cacheRead` / `cacheCreation` |
-| Traces (beta) | the launcher's settings layer (below) | Langfuse, through the local Alloy collector | usage details `input` / `output` / `input_cached_tokens` / `input_cache_creation` |
+| Traces (beta) | the trace variables in user settings (below) | Langfuse, through the local Alloy collector | usage details `input` / `output` / `input_cached_tokens` / `input_cache_creation` |
 
 Metrics and logs push OTLP straight to Grafana Cloud: metrics to the Prometheus
 datasource, logs to the Loki datasource. The non-secret transport variables (switch,
 exporters, endpoint, protocol, temporality, intervals) live in the `env` block of the
-owner's user-level `~/.claude/settings.json`. The service-account token stays in the
+owner's user-level `~/.claude/settings.json`, beside the trace and content variables:
+
+```
+CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1
+OTEL_TRACES_EXPORTER=otlp
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
+OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
+OTEL_LOG_USER_PROMPTS=1
+OTEL_LOG_TOOL_DETAILS=1
+OTEL_LOG_TOOL_CONTENT=1
+```
+
+The signal-specific traces endpoint overrides the shared Grafana endpoint for traces only.
+Every Claude Code session on the host reads these, whatever its repository, so every
+session sends traces. The decision is in
+[ADR 0039](adr/0039-every-session-sends-traces.md).
+
+The service-account token stays in the
 owner's Windows User-scope environment as `OTEL_EXPORTER_OTLP_HEADERS`, and an
 `otelHeadersHelper` script in the same settings file reads it from there. The token and
 the Langfuse keys are deliberately absent from this repository — nothing here reads
@@ -64,8 +81,7 @@ a guessed one is worse than an absent one.
 registry attributes, not invented keys. The identifying attributes
 `service.namespace` and `service.instance.id` were rejected as the project carrier: the
 OTLP-to-Prometheus translation folds them into `job` and `instance`, which would
-orphan the series already accumulated under `job="claude-code"`. The launcher sets
-`service.instance.id` per process for another reason (below).
+orphan the series already accumulated under `job="claude-code"`.
 
 **Observed, not assumed:** the dotted keys survive the translation as
 `vcs_repository_name` and `vcs_repository_url_full`, and they arrive **as labels
@@ -78,8 +94,7 @@ stream labels — `service_name` is the only indexed label — so a Loki query m
 select on `service_name` first and filter on the project afterwards.
 
 The carrier is a **list from the first commit** on purpose. `OTEL_RESOURCE_ATTRIBUTES`
-is one string with no merge semantics, and the per-task attributes are appended to
-the same variable.
+is one string with no merge semantics.
 
 A tree with a `.claude/settings.json` that lacks the `env` key gets no attribution
 from the process: it gets the key by hand or it stays unlabelled. That is the safe
@@ -108,33 +123,9 @@ the issue's sessions into the change's `sessions` file, which the archive carrie
 [per-task readings](#per-task-readings); a session that starts after the archive is not
 counted.
 
-Traces need the owner launcher, the same in PowerShell and Git Bash:
-
-```
-python .agent-process/scripts/task_session.py --issue <N> [--attempt <K>] -- claude [args...]
-```
-
-It inserts one `--settings` JSON after `claude`. Its `env` holds the project's
-`OTEL_RESOURCE_ATTRIBUTES` plus `task_id=issue-<N>,attempt_id=<K>,service.instance.id=<uuid4>`
-and the four trace variables:
-
-```
-CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1
-OTEL_TRACES_EXPORTER=otlp
-OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4318/v1/traces
-OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
-```
-
-`--attempt` defaults to 1. The process environment cannot carry the identity: the
-project's settings value replaces it (precedence, below).
-
-**Observed:** the token series carry `task_id`, `attempt_id` and `instance`; `job` stays
-`claude-code`. A resumed session is a new process whose cumulative counters restart from
-zero, and `instance` keeps each process on its own series. Without it the reset hides the
-earlier process's tokens from the per-session query below.
-
-A session started without the launcher sends no trace, and its series and events carry
-`vcs_repository_name` without `task_id`. The readings do not read `task_id`.
+A task's traces are the Langfuse sessions of the same ids. **Observed:** every span carries
+`session.id`, and Langfuse sets the observation's `sessionId` from it with no transform. Each
+interaction is its own trace, and the session groups them.
 
 ## Traces through Alloy to Langfuse
 
@@ -154,8 +145,17 @@ otelcol.processor.transform "langfuse" {
   trace_statements {
     context    = "span"
     statements = [
-      `set(attributes["langfuse.observation.usage_details"], Concat(["{\"input\":", attributes["input_tokens"], ",\"output\":", attributes["output_tokens"], ",\"input_cached_tokens\":", attributes["cache_read_tokens"], ",\"input_cache_creation\":", attributes["cache_creation_tokens"], "}"], "")) where attributes["input_tokens"] != nil and attributes["output_tokens"] != nil and attributes["cache_read_tokens"] != nil and attributes["cache_creation_tokens"] != nil`,
-      `set(attributes["langfuse.trace.tags"], [Concat(["task:", resource.attributes["task_id"]], ""), Concat(["attempt:", resource.attributes["attempt_id"]], "")]) where resource.attributes["task_id"] != nil`,
+      `set(span.attributes["langfuse.observation.usage_details"], Concat(["{\"input\":", span.attributes["input_tokens"], ",\"output\":", span.attributes["output_tokens"], ",\"input_cached_tokens\":", span.attributes["cache_read_tokens"], ",\"input_cache_creation\":", span.attributes["cache_creation_tokens"], "}"], "")) where span.attributes["input_tokens"] != nil and span.attributes["output_tokens"] != nil and span.attributes["cache_read_tokens"] != nil and span.attributes["cache_creation_tokens"] != nil`,
+      `replace_all_patterns(span.attributes, "value", "(glc_|glsa_|sk-lf-|sk-ant-|gh[opsu]_|github_pat_)[A-Za-z0-9_+/=-]+", "<masked>")`,
+    ]
+  }
+  trace_statements {
+    context    = "spanevent"
+    statements = [
+      `replace_all_patterns(spanevent.attributes, "value", "(glc_|glsa_|sk-lf-|sk-ant-|gh[opsu]_|github_pat_)[A-Za-z0-9_+/=-]+", "<masked>")`,
+      `set(span.attributes["langfuse.observation.output"], spanevent.attributes["output"]) where spanevent.name == "tool.output" and spanevent.attributes["output"] != nil`,
+      `set(span.attributes["langfuse.observation.output"], spanevent.attributes["content"]) where spanevent.name == "tool.output" and spanevent.attributes["content"] != nil`,
+      `set(span.attributes["langfuse.observation.output"], spanevent.attributes["diff"]) where spanevent.name == "tool.output" and spanevent.attributes["diff"] != nil`,
     ]
   }
   output { traces = [otelcol.processor.batch.langfuse.input] }
@@ -179,34 +179,50 @@ otelcol.exporter.otlphttp "langfuse" {
 }
 ```
 
-`run-alloy.ps1` starts Alloy only when both Langfuse key variables are set.
+Alloy runs as the automatic Windows service of its installer, under `LocalSystem`, with
+`/CONFIG` pointing at this file. The service reads the two Langfuse keys from its
+`Environment` value under `HKLM\Software\GrafanaLabs\Alloy`, restarts after a crash
+(`sc.exe failure`), and logs to the Application event log under the source Alloy. After an
+edit, `POST http://127.0.0.1:12345/-/reload` answers `config reloaded` without elevation.
 
 **Observed, against the documentation's suggestion:** Langfuse reads
 `gen_ai.usage.input_tokens` as including the cached tokens and subtracts them, so an
 Anthropic request with cache reads shows input 0. The flat `usage_details` JSON is
-stored verbatim. Langfuse filters on trace tags, not on resource attributes, so the
-transform puts the tags on every span.
+stored verbatim.
 
-Prompts arrive as `<REDACTED>`: `OTEL_LOG_USER_PROMPTS` and `OTEL_LOG_TOOL_DETAILS` stay
-unset.
+The three content variables put prompt text, tool input and tool output on the spans. The
+transform masks the token shapes above in span and span event attributes before export.
+Tool output arrives as the span event `tool.output`, which Langfuse drops, so the transform
+copies its `output` (Bash), `content` (Read, Write) or `diff` (Edit) into the observation
+output. A failed call emits no `tool.output` and has no output. Model responses do not reach
+Langfuse: they come only with detailed beta tracing, which reroutes logs as well.
+
+`OTEL_LOG_USER_PROMPTS` and `OTEL_LOG_TOOL_DETAILS` also fill the log events, so Loki receives
+prompts, responses (`assistant_response`) and tool input of every repository on the host,
+unmasked. Tool output goes to spans only.
+
+**Observed:** with Alloy unreachable a session runs normally; its debug log has one
+`[3P telemetry] First traces export: FAILED (…)` line, its metrics and logs arrive, and its
+spans are lost.
 
 ## Per-session totals
 
-The Grafana total per type for one session, or for one task with
-`session_id=~"<a>|<b>"` of its bound sessions:
+The total of one token field for one session, or for one task with
+`session_id=~"<a>|<b>"` of its bound sessions, as an instant query over a range that covers
+them:
 
-```promql
-sum by (type) (max_over_time(claude_code_token_usage_tokens_total{session_id="<id>"}[<window>]))
+```logql
+sum(sum_over_time(
+  {service_name="claude-code"} | session_id="<id>" | event_name="api_request"
+  | unwrap <field> [$__range]))
 ```
 
-with a window covering the session or the attempt. The User scope sets cumulative
-temporality, so each series counts from zero for its process. `increase()` is not used: it
-extrapolates and drops a new series' first sample. For the same session, the sum of
-Langfuse usage details over its generations equals this total type by type; for a task,
-the generations are those of its bound sessions, when they were launched. A window
-where they differ points at a trace-schema change of the beta. The sum holds only for
-series that carry `instance`; a process without it can lose tokens to the reset
-described under [Which labels carry the task](#which-labels-carry-the-task).
+with `<field>` one of `input_tokens`, `output_tokens`, `cache_read_tokens` and
+`cache_creation_tokens`. The events are per request, so a resumed process, which restarts
+the cumulative token counter, loses nothing here. For the same session, the Langfuse usage
+details `input`, `output`, `input_cached_tokens` and `input_cache_creation` summed over its
+generations equal these totals (observed). A window where they differ points at a
+trace-schema change of the beta.
 
 ## Per-task readings
 
@@ -293,8 +309,8 @@ if the counts query over the whole Loki retention returns some `compaction` row 
 repository; otherwise the reading is missing. A task with no cost row exported nothing
 and is recorded as missing, not as zero.
 
-For launched sessions, a window is rejected when the
-[Per-session totals](#per-session-totals) comparison differs for some type.
+A window is rejected when the [Per-session totals](#per-session-totals) comparison differs
+for some type.
 
 Loki keeps about 31 days of events: read a task within that time after its last
 session.
