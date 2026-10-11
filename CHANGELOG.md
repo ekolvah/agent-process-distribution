@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.14.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.13.0...v3.14.0) (2026-10-11)
+
+
+### Features
+
+* session-task-attribution ([#397](https://github.com/ekolvah/agent-process-distribution/issues/397)) ([fee6a72](https://github.com/ekolvah/agent-process-distribution/commit/fee6a72c9baca71214451333f3ffdf081cbe7af1))
+
 ## [3.13.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.12.0...v3.13.0) (2026-10-11)
 
 
