@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All three round-1 findings are fixed in the design and tasks, and every other class holds as in round 1. The rollback cites the versions observation, rule 2 has a named read and link, and the lines unit and the Grafana-side links are now checked in 2.2.",
+  "classes": {
+    "simpler": {
+      "evidence": "- D1 adds only the two panels that issue 99's readings lack. It puts `lines` on panel 19 rather than a seventh panel, because issue 99 reads hours beside size and a ratio would be empty whenever either reading is a gap.\n- D2 rejects re-keying the live rows by session: they would hold 14 days of data and repeat the recorded trends.\n- Removing panel 17's `organize` drops a stale no-op. Its `indexByName` is the CSV header order plus the retired `attempt_id` and `unlaunched_events` (live JSON, version 8).\n- The round-2 additions are one D2 sentence, one link in D3, an override unit, and checks in 2.2. No script, test or ADR is added.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "`skip_specs: true`, so there are no delta scenarios. The measurement spec has no dashboard requirement beyond its Purpose line, which still holds. The tasks.md map points D1–D3 at the live checks in 2.2 and the document at 3.1's `git grep` and 4.3.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 reads `no RED: ...host state ... one document`. That is §I exception (b) for the document, and the dashboard is outside git (Non-Goals). The live checks in 2.2 verify it.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Every platform behaviour the design rests on now has an observation:\n- Live panels key by `task_id`, with an unlabelled bucket (proposal).\n- Infinity returns `null` for empty cells (design Context, `POST /api/ds/query`).\n- The dashboard is at version 8 (Context, re-checked by 2.1).\n- The rollback through version history cites `GET /api/dashboards/uid/aqxk4q/versions` listing 1–8 on 2026-10-11 (design Risks). This review saw the same list in round 1, and 2.2 checks that version 8 is still listed after the save.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Both dropped guards are listed with what replaces them:\n- Rule 1 (panel 2) is dropped by ADR 0038 (D2).\n- Rule 2 (panel 3): D2 now says it is read from the setup document's *Per-session totals* query in Explore, for the ids of a change's `sessions` file. That section's `session_id=~\"<a>|<b>\"` form supports this (setup doc line 208 onward). D3's text panel links `#per-session-totals`.\n\nThe variables `$task` and `$attempt` go with the panels that use them.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Every catcher reaches a step:\n- 2.1's version check and `overwrite: false` catch a concurrent edit before the save.\n- 2.2 catches a wrong column selector by running the targets of panel 19 and the two new panels and comparing them with PR 401's CSV values.\n- 2.2 now checks the `lines` override for both `custom.axisPlacement: right` and unit `short`. D1 records `h` for `hours`, so 824 lines can no longer show in the hour unit.\n- 2.2 checks every link in panel 4 and the description against `grep -n '^## '` of the setup document. The three anchors D3 names, `#which-labels-carry-the-task`, `#per-session-totals` and `#per-task-readings`, are existing `## ` headings (lines 104, 208, 227).\n- 3.1's `git grep aqxk4q` catches a missing document edit.\n- A column rename shows as a `null` point whose table row has an empty `gap`, which is a visible anomaly.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds or edits no spec sentence, rule, SKILL.md text or ADR. The only repository prose is the owner's *Recorded readings* paragraph in the setup document: about 30 words today, extended by the UID, one sentence and six trend names. It is a document, not a rule, and is checked by 3.1's grep and 4.3's link and header tests.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script, hook or check is added. Verification uses the standard Grafana HTTP API, `grep` or `git grep`, and the declared quality `test`.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
