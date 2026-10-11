@@ -2,7 +2,7 @@
 
 Issue 99 judges a delivered task by five metrics, but they are split today. Dashboard `aqxk4q`
 reads the telemetry metrics live from Loki and Prometheus. The GitHub metrics are read by
-hand ([setup doc](../../../.agent-process/docs/telemetry-measurement-setup.md#per-task-readings)) and are on no
+hand ([setup doc](../../../../.agent-process/docs/telemetry-measurement-setup.md#per-task-readings)) and are on no
 dashboard. Once the raw telemetry expires, a task's telemetry readings are gone. Tracking
 issue 389.
 
