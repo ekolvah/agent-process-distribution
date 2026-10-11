@@ -19,7 +19,7 @@
 
 ## 3. Readings (design D5)
 
-- [ ] 3.1 Change `.agent-process/scripts/task_readings.py` as in D5. Verify with `python -m pytest tests/agent_process/test_task_readings.py`. Commit
+- [x] 3.1 Change `.agent-process/scripts/task_readings.py` as in D5. Verify with `python -m pytest tests/agent_process/test_task_readings.py`. Commit
 
 ## 4. Docs (design D5, D6)
 

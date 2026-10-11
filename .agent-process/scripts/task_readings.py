@@ -2,8 +2,9 @@
 """Record one merged task PR's readings as a row of `task-readings.csv`.
 
 The task is the change archived on `main` under the PR's head branch. Its key is
-`task_id=issue-<N>` from the change's tracking token and the highest `attempt_id` the launcher
-put on the task's token samples. A reading that cannot be taken leaves its cell empty and names
+`task_id=issue-<N>` from the change's tracking token; its telemetry is the events of the
+sessions the change's `sessions` file lists (`archive_change` exports them), from their first
+token sample to the merge. A reading that cannot be taken leaves its cell empty and names
 its cause in `gap`, never a 0; a row with a gap exits 1, so the run shows red. A PR that is not
 a task leaves the file alone and exits 0. Without the task there is no key, so a failure before
 it is known writes nothing and exits 2.
@@ -40,7 +41,6 @@ COLUMNS = (
     "pr",
     "change",
     "task_id",
-    "attempt_id",
     "start",
     "merged_at",
     "hours",
@@ -52,26 +52,24 @@ COLUMNS = (
     "failed",
     "denied",
     "compactions",
-    "unlaunched_events",
     "gap",
 )
 CREDENTIALS = ("GRAFANA_URL", "GRAFANA_SERVICE_ACCOUNT_TOKEN")
 ARCHIVE = Path("openspec") / "changes" / "archive"
 # start_change's token pattern, copied: the hyphenated `skills/agent-process` path is not a package.
 _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
-_LAUNCHED = re.compile(r"issue-[0-9]+")
 _START_QUERY = (
-    "min by (attempt_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total"
-    '{{task_id="{task}",vcs_repository_name="{repo}"}})[30d:1m]))'
+    "min by (session_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total"
+    '{{session_id=~"{sessions}",vcs_repository_name="{repo}"}})[30d:1m]))'
 )
 _SELECTOR = '{{service_name="claude-code"}} | vcs_repository_name="{repo}"'
 _COST_QUERY = (
-    "sum by (task_id, attempt_id) (sum_over_time({selector}"
-    ' | task_id="{task}" | attempt_id="{attempt}" | event_name="api_request"'
+    'sum(sum_over_time({selector} | session_id=~"{sessions}" | event_name="api_request"'
     " | unwrap cost_usd [{window}s]))"
 )
 _COUNTS_QUERY = (
-    "sum by (task_id, attempt_id, event_name, success, decision) (count_over_time({selector}"
+    "sum by (event_name, success, decision) (count_over_time({selector}"
+    ' | session_id=~"{sessions}"'
     ' | event_name=~"api_request|tool_result|tool_decision|compaction" [{window}s]))'
 )
 _COMPACTION_LOOKBACK = 'sum(count_over_time({selector} | event_name="compaction" [30d]))'
@@ -105,6 +103,13 @@ def _issue(tasks_md: Path) -> int:
     if match is None or match.group(1) == "<N>":
         raise RuntimeError(f"{tasks_md}: no numbered tracking issue token")
     return int(match.group(1))
+
+
+def _sessions(change_dir: Path) -> list[str]:
+    """The ids of the change's `sessions` file; none when it is absent."""
+    path = change_dir / "sessions"
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    return sorted({line.strip() for line in text.splitlines() if line.strip()})
 
 
 def _merged(pull: Mapping[str, object], pr: int) -> tuple[str, float]:
@@ -161,14 +166,9 @@ def _iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _count_cells(rows: Sequence[Mapping[str, object]], task: str, attempt: int) -> Cells:
-    """The task's counts, each 0 only where its field is shown to exist; and rule 1."""
-    mine = [
-        (labels, _value(row))
-        for row in rows
-        if (labels := _labels(row)).get("task_id") == task
-        and labels.get("attempt_id") == str(attempt)
-    ]
+def _count_cells(rows: Sequence[Mapping[str, object]]) -> Cells:
+    """The sessions' counts, each 0 only where its field is shown to exist."""
+    mine = [(_labels(row), _value(row)) for row in rows]
 
     def total(event: str, field: str = "", value: str = "") -> int | None:
         found = [(labels, n) for labels, n in mine if labels.get("event_name") == event]
@@ -188,40 +188,34 @@ def _count_cells(rows: Sequence[Mapping[str, object]], task: str, attempt: int) 
     compactions = total("compaction")
     if compactions is not None:
         cells["compactions"] = str(compactions)
-    unlaunched = sum(
-        _value(row) for row in rows if not _LAUNCHED.fullmatch(str(_labels(row).get("task_id", "")))
-    )
-    cells["unlaunched_events"] = str(int(unlaunched))
     return cells, gaps
 
 
-def _telemetry(grafana: Grafana, repo: str, task: str, merged: float) -> Cells:
-    starts: dict[int, float] = {}
-    for sample in grafana.prometheus(_START_QUERY.format(task=task, repo=repo), merged):
-        attempt_label = str(_labels(sample).get("attempt_id", ""))
-        if attempt_label.isdigit():
-            starts[int(attempt_label)] = _value(sample)
-    if not starts:
-        return {}, [f"telemetry: no token sample of {task}"]
-    attempt = max(starts)
-    start = starts[attempt]
+def _telemetry(grafana: Grafana, repo: str, sessions: Sequence[str], merged: float) -> Cells:
+    matcher = "|".join(sessions)
+    starts = {
+        str(_labels(sample).get("session_id", "")): _value(sample)
+        for sample in grafana.prometheus(_START_QUERY.format(sessions=matcher, repo=repo), merged)
+    }
+    gaps = [f"telemetry: no token sample of {s}" for s in sessions if s not in starts]
+    found = [starts[s] for s in sessions if s in starts]
+    if not found:
+        return {}, gaps
+    start = min(found)
     window = max(1, math.ceil(merged - start))
     selector = _SELECTOR.format(repo=repo)
     cost = grafana.loki(
-        _COST_QUERY.format(selector=selector, task=task, attempt=attempt, window=window), merged
+        _COST_QUERY.format(selector=selector, sessions=matcher, window=window), merged
     )
-    counts = grafana.loki(_COUNTS_QUERY.format(selector=selector, window=window), merged)
-    cells = {
-        "attempt_id": str(attempt),
-        "start": _iso(start),
-        "hours": f"{(merged - start) / 3600:.2f}",
-    }
-    gaps: list[str] = []
+    counts = grafana.loki(
+        _COUNTS_QUERY.format(selector=selector, sessions=matcher, window=window), merged
+    )
+    cells = {"start": _iso(start), "hours": f"{(merged - start) / 3600:.2f}"}
     if cost:
         cells["cost_usd"] = f"{sum(_value(sample) for sample in cost):.4f}"
     else:
-        gaps.append(f"cost_usd: no api_request cost of {task} attempt {attempt}")
-    count_cells, count_gaps = _count_cells(counts, task, attempt)
+        gaps.append(f"cost_usd: no api_request cost of {matcher}")
+    count_cells, count_gaps = _count_cells(counts)
     cells.update(count_cells)
     gaps.extend(count_gaps)
     if "compactions" not in cells:
@@ -237,24 +231,27 @@ def _telemetry(grafana: Grafana, repo: str, task: str, merged: float) -> Cells:
 
 
 def _telemetry_or_gap(
-    environ: Mapping[str, str], grafana: Grafana, repo: str, task: str, merged: float
+    environ: Mapping[str, str], grafana: Grafana, repo: str, sessions: Sequence[str], merged: float
 ) -> Cells:
+    if not sessions:
+        return {}, ["telemetry: no bound session"]
     unset = [name for name in CREDENTIALS if not environ.get(name)]
     if unset:
         return {}, [f"telemetry: unset {', '.join(unset)}"]
     try:
-        return _telemetry(grafana, repo, task, merged)
+        return _telemetry(grafana, repo, sessions, merged)
     except (OSError, RuntimeError, ValueError) as exc:
         return {}, [f"telemetry: Grafana query failed: {' '.join(str(exc).split())}"]
 
 
 def upsert(path: Path, row: Mapping[str, str]) -> None:
-    """Replace the row with the same `pr`, or append it; the other rows keep their order."""
+    """Replace the row with the same `pr`, or append it; the other rows keep their order.
+
+    A file with another header is rewritten to `COLUMNS`; a row keeps its shared columns.
+    """
     text = path.read_text(encoding="utf-8")
     reader = csv.DictReader(io.StringIO(text))
-    if tuple(reader.fieldnames or ()) != COLUMNS:
-        raise RuntimeError(f"{path}: header is not {','.join(COLUMNS)}")
-    rows = list(reader)
+    rows = [{c: old.get(c) or "" for c in COLUMNS} for old in reader]
     if any(old["pr"] == row["pr"] for old in rows):
         rows = [dict(row) if old["pr"] == row["pr"] else old for old in rows]
     else:
@@ -293,7 +290,7 @@ def _record(
     for cells, cell_gaps in (
         _plan_rounds(change_dir),
         _github_cells(pull),
-        _telemetry_or_gap(environ, grafana, repo, task, merged),
+        _telemetry_or_gap(environ, grafana, repo, _sessions(change_dir), merged),
     ):
         row.update(cells)
         gaps.extend(cell_gaps)
