@@ -85,9 +85,9 @@ class GitHub(Protocol):
 
 
 class Grafana(Protocol):
-    def prometheus(self, query: str, time: float) -> list[Mapping[str, object]]: ...
+    def prometheus(self, query: str, time: float) -> Sequence[Mapping[str, object]]: ...
 
-    def loki(self, query: str, time: float) -> list[Mapping[str, object]]: ...
+    def loki(self, query: str, time: float) -> Sequence[Mapping[str, object]]: ...
 
 
 Cells = tuple[dict[str, str], list[str]]
@@ -170,7 +170,7 @@ def _iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _count_cells(rows: list[Mapping[str, object]], task: str, attempt: int) -> Cells:
+def _count_cells(rows: Sequence[Mapping[str, object]], task: str, attempt: int) -> Cells:
     """The task's counts, each 0 only where its field is shown to exist; and rule 1."""
     mine = [
         (_labels(row), _value(row))
@@ -341,7 +341,7 @@ class _HttpGrafana:
         self.url = url.rstrip("/")
         self.token = token
 
-    def _result(self, request: urllib.request.Request) -> list[Mapping[str, object]]:
+    def _result(self, request: urllib.request.Request) -> Sequence[Mapping[str, object]]:
         request.add_header("Authorization", f"Bearer {self.token}")
         with urllib.request.urlopen(request, timeout=60) as response:
             payload = json.load(response)
@@ -351,12 +351,12 @@ class _HttpGrafana:
             raise RuntimeError(f"unexpected answer: {str(payload)[:200]}")
         return result
 
-    def prometheus(self, query: str, time: float) -> list[Mapping[str, object]]:
+    def prometheus(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
         body = urllib.parse.urlencode({"query": query, "time": f"{time:.3f}"}).encode()
         url = f"{self.url}/api/datasources/proxy/uid/grafanacloud-prom/api/v1/query"
         return self._result(urllib.request.Request(url, data=body, method="POST"))
 
-    def loki(self, query: str, time: float) -> list[Mapping[str, object]]:
+    def loki(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
         params = urllib.parse.urlencode({"query": query, "time": f"{time:.3f}"})
         url = f"{self.url}/api/datasources/proxy/uid/grafanacloud-logs/loki/api/v1/query?{params}"
         return self._result(urllib.request.Request(url, method="GET"))

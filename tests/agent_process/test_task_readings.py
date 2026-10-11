@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -67,13 +67,14 @@ def _count(task: str, attempt: str, event: str, n: int, **fields: str) -> dict[s
     return _sample({"task_id": task, "attempt_id": attempt, "event_name": event, **fields}, n)
 
 
+_COMPACTION = _count("issue-7", "10", "compaction", 1, success="true")
 _COUNTS = [
     _count("issue-7", "10", "api_request", 20),
     _count("issue-7", "10", "tool_result", 30, success="true"),
     _count("issue-7", "10", "tool_result", 2, success="false"),
     _count("issue-7", "10", "tool_decision", 31, decision="accept"),
     _count("issue-7", "10", "tool_decision", 1, decision="reject"),
-    _count("issue-7", "10", "compaction", 1, success="true"),
+    _COMPACTION,
     _count("issue-7", "9", "api_request", 4),
     _count("issue-8", "1", "api_request", 6),
     _count("", "", "api_request", 3),
@@ -95,13 +96,13 @@ class _Grafana:
         self.error = error
         self.calls: list[tuple[str, str, float]] = []
 
-    def prometheus(self, query: str, time: float) -> list[Mapping[str, object]]:
+    def prometheus(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
         self.calls.append(("prometheus", query, time))
         if self.error is not None:
             raise self.error
         return [_sample({"attempt_id": k}, v) for k, v in self.starts.items()]
 
-    def loki(self, query: str, time: float) -> list[Mapping[str, object]]:
+    def loki(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
         self.calls.append(("loki", query, time))
         if "unwrap cost_usd" in query:
             return [_sample({"task_id": "issue-7", "attempt_id": "10"}, 1.2345678)]
@@ -123,7 +124,7 @@ def _tree(tmp_path: Path, review: dict[str, object] | None = None, name: str = "
     return tmp_path
 
 
-def _csv(tmp_path: Path, rows: list[str] = ()) -> Path:
+def _csv(tmp_path: Path, rows: Sequence[str] = ()) -> Path:
     path = tmp_path / "readings" / "task-readings.csv"
     path.parent.mkdir()
     path.write_bytes(("\n".join([_HEADER, *rows]) + "\n").encode("utf-8"))
@@ -203,7 +204,7 @@ def test_task_pr_merged(tmp_path: Path) -> None:
 def test_rerun_for_a_recorded_pr(tmp_path: Path) -> None:
     old = "12,demo,issue-7,1,,,,,,,,,,,,,telemetry: old"
     path = _csv(_tree(tmp_path), ["5,a,issue-1,1,,,,,,,,,,,,,", old, "13,b,issue-2,1,,,,,,,,,,,,,"])
-    counts = [row for row in _COUNTS if row["metric"]["event_name"] != "compaction"]
+    counts = [row for row in _COUNTS if row is not _COMPACTION]
     code = _run(tmp_path, _GitHub(_pull()), _Grafana(counts=counts, lookback=3))
 
     assert code == 0
@@ -295,7 +296,7 @@ def test_review_without_round_is_gap(tmp_path: Path) -> None:
 
 def test_code_rounds_count_distinct_reviewed_heads(tmp_path: Path) -> None:
     path = _csv(_tree(tmp_path))
-    comments = [
+    comments: list[dict[str, object]] = [
         _comment("github-actions", "a" * 40),
         _comment("github-actions[bot]", "a" * 40),
         _comment("github-actions", "b" * 40),
