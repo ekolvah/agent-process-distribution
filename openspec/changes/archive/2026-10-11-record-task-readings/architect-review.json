@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 5,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The round-4 finding is answered. A review without `round` is now an empty plan_rounds cell with a named gap (D4, test_review_without_round_is_gap, 3.3 checks all three backfill rows), and every other class holds as in round 4.",
+  "classes": {
+    "simpler": {
+      "evidence": "- D1/D2 reject Prometheus remote write, a file on main, JSON and the next-delivery script, each with a stated reason.\n- D2 drops the push retry loop: a rejected push fails the run, and a dispatch re-applies the upsert. That is less shell and stays visible.\n- D3 copies the one-line `start_change._TOKEN` pattern. It states why: `skills/agent-process/scripts` is under a hyphenated path, and `pyproject.toml` ships only `quality` as a module.\n- D4 uses one PromQL query for attempt_id and start (highest attempt compared as an integer), and one `gh pr view` that includes comments. code_rounds reuses `head_review._REVIEWED_HEAD`/`_by_reviewer` (.agent-process/scripts/head_review.py:30,43), which matches the setup document's `author.login==\"github-actions\"` read. unlaunched_events comes from the same counts result.\n- D5 uses one gap entry per cause.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Each of the 5 delta scenarios maps to a named test in tests/agent_process/test_task_readings.py (tasks.md, Scenario → test map). test_grafana_unreachable is now parametrized over an HTTP error and an unset credential. The footer names the 3.3 live check and the 6.4 post-merge check for the workflow wrapper.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.1 lists the 5 scenario tests, 5 decision tests, the header assertion and the no-Grafana-call assertion of the unset case. It runs `agent-process check_red tests/agent_process/test_task_readings.py` and commits RED with the ticks.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "- The free plan and Loki's 31-day retention are observed in proposal Why, as are Infinity reading raw.githubusercontent.com, Loki's GET-only proxy and the ruleset targets.\n- Prometheus by POST through the proxy is observed in openspec/changes/archive/2026-10-10-per-task-delivery-metrics/design.md (cited in D6).\n- The `vcs_repository_name` label on the token series is in the setup document's \"Which labels carry the task\".\n- 3.3 checks the stored token's query rights and 4.1 Infinity's CSV parsing, both before the PR.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. `<N>` still comes from the Group 0 token by start_change's first-match pattern (D3). For a review archived before the `round` field, D4 now leaves plan_rounds empty with `plan_rounds: review without round` in `gap`, as the spec's 'Unreadable reading is a gap' and the setup document's current `gap` for 382 require. test_review_without_round_is_gap (1.1) asserts it, and 3.3 checks it on the 382, 385 and 388 rows. 4.2 drops only the hand-read table and commands that the script now runs and 3.3 backfills.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "- A rejected push fails step 4, so the run is red. A re-dispatch from 6.4's explanation re-applies the upsert.\n- A gap row is pushed, and step 5 then exits 1. A non-task PR exits 0 with the file unchanged, as the spec requires.\n- The guard passes workflow_dispatch.\n- 3.3 checks the script live, including release PR 386 leaving the file unchanged.\n- 6.4 gives the person the row read and the dispatch fallback, and Migration keeps issue 389 open until the row is seen.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "- 'Merged task records its readings' (83 words): the column list is asserted by test_task_pr_merged's header check, task_id by the same test, and replacement by test_rerun_for_a_recorded_pr.\n- 'Non-task PR records nothing' (21 words): test_release_pr_merged.\n- 'Unreadable reading is a gap' (41 words, edited): the cause-per-empty-cell clause is asserted by test_task_without_telemetry and test_grafana_unreachable, empty-not-zero by test_absent_field_is_missing_not_zero, and 'cannot write the row SHALL fail' by test_unknown_task_writes_no_row_and_fails.\n- Scenarios (36/30/18/37/28 words): asserted by their mapped tests.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "One script, .agent-process/scripts/task_readings.py. D2 'Why a script' names the problem (issue 389) and the standards with why each does not fit: the Grafana GitHub datasource is not installed and reads neither telemetry nor `round`, and recording rules keep data only for the plan's retention. The workflow, `gh`, stdlib csv/urllib and Infinity are standard, and the retry loop is gone.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

@@ -3,7 +3,7 @@
 **Question this document answers:** how agent token usage is exported, where it
 lands, which labels identify the project and the task it was spent on, and how one
 task's time to merge, review rounds, cost, failed and denied calls and compactions are
-read.
+recorded.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
 Every claim below was observed, not read out of vendor documentation, and the
@@ -175,29 +175,39 @@ described under [Which labels carry the task](#which-labels-carry-the-task).
 
 ## Per-task readings
 
-One task's delivery reading is four reads, owner-side, by hand. `<change>` is the change
-name, which is also the branch `start_change` creates.
+The `task-readings` workflow records one row per merged task PR in `task-readings.csv` on
+the unprotected branch `task-readings`, read at
+`https://raw.githubusercontent.com/<owner>/<repo>/task-readings/task-readings.csv`. A PR is a
+task when its head branch names a change archived on `main` as `YYYY-MM-DD-<change>`; any
+other PR, a release PR among them, leaves the file unchanged. A row is upserted by `pr`, and
+`gh workflow run task-readings.yml -f pr=<number>` records a PR again. The script is
+`.agent-process/scripts/task_readings.py`; it needs the repository variable `GRAFANA_URL` and
+the secret `GRAFANA_SERVICE_ACCOUNT_TOKEN`.
 
-```
-# Start: the task's first token sample, a PromQL query in Grafana
-min(min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",attempt_id="<K>"})[30d:1m]))
+| Column | Source |
+| --- | --- |
+| `task_id` | `issue-<N>`, the tracking token of the archived `tasks.md` |
+| `attempt_id`, `start` | The task's first token sample per attempt, at merge time: `min by (attempt_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",vcs_repository_name="<owner>/<repo>"})[30d:1m]))`; the highest attempt is the row's |
+| `merged_at`, `lines` | `gh pr view`; lines are additions plus deletions, plan artifacts included |
+| `hours` | `merged_at` minus `start` |
+| `plan_rounds` | `round` of the archived `architect-review.json` |
+| `code_rounds` | Distinct heads in the review job's `Reviewed head SHA:` comments; one round is no rework |
+| `cost_usd`, `api_requests`, `failed`, `denied`, `compactions` | The [Per-task metrics](#per-task-metrics) queries over `start` to `merged_at`, by the zero-versus-missing rules there |
+| `unlaunched_events` | The rule-1 count of the same window |
 
-# Merge time and size (additions plus deletions, plan artifacts included)
-gh pr list --head <change> --state merged --json number,mergedAt,additions,deletions
+A reading that cannot be taken leaves its cell empty and names its cause in `gap`, as
+`<reading>: <cause>` joined by `; `; an empty cell is never 0. A row with a gap is still
+written, and its run ends red. A failure before the task is known, such as `gh` failing,
+writes no row. A task launched without the launcher has no token sample, so all its
+telemetry readings are empty under `telemetry: no token sample of issue-<N>`. A review
+archived before `round` existed leaves `plan_rounds` empty.
 
-# Code rounds: the distinct heads the review job read; one round is no rework
-gh pr view <number> --json comments --jq '[.comments[] | select(.author.login=="github-actions") | .body | split("\n")[0] | capture("^Reviewed head SHA: (?<s>[0-9a-f]+)$").s] | unique | length'
+A re-delivery under the same `attempt_id` sums both deliveries from the first one's start:
+launch it with a new `--attempt`. Grafana keeps about 14 days of samples, so a PR recorded
+later than that has no start.
 
-# Plan rounds: the archived review's round; a review written before the field has none
-grep '"round"' openspec/changes/archive/*-<change>/architect-review.json
-```
-
-Exact matchers keep sessions without the launcher out of the start, so such a session
-leaves it late or empty. Grafana keeps about 14 days of samples: read the start at merge.
-
-| Task | Start | Merged | Hours | Lines | Plan rounds | Code rounds | Note |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `task_id=issue-101`, `attempt_id=1` (baseline) | 2026-10-10T15:02:36Z | 2026-10-10T16:19:44Z | 1.29 | 998 | gap | 3 | First launched for the task-identity gate, after its planning ran without the launcher: the start is late. |
+The dashboard's *Recorded readings* row shows the CSV as a table, `gap` highlighted when it
+is not empty, and `cost_usd`, `hours`, `code_rounds` and `plan_rounds` by merge time.
 
 ## Per-task metrics
 
@@ -259,7 +269,7 @@ The task-identity gate's attempt reads cost 1.1960044 USD, 0 failed, 0 denied an
 session ran without the launcher in the same hour, with 4 `api_request` events and no tool
 call — which is why the counts query matches `api_request`.
 
-Loki keeps about 14 days of events: read a task within that time after its last
+Loki keeps about 31 days of events: read a task within that time after its last
 session.
 
 ## Two failure conditions that are usually silent
