@@ -24,8 +24,8 @@
 ## 4. Verify
 
 - [x] 4.1 Run `/simplify` without an argument and commit its edits
-- [ ] 4.2 Run `openspec validate --strict --all` and verify that every change and spec passes
-- [ ] 4.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 4.2 Run `openspec validate --strict --all` and verify that every change and spec passes
+- [x] 4.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 5. Deliver
 
