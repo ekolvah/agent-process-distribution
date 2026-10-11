@@ -4,7 +4,7 @@
 
 ## 1. RED first
 
-- [ ] 1.1 Add to `tests/publisher/test_planning_workflow.py`, with its `_skill()` and `_section()` helpers:
+- [x] 1.1 Add to `tests/publisher/test_planning_workflow.py`, with its `_skill()` and `_section()` helpers:
   - `test_simplify_precedes_the_architect_review`: in `_section("Architect review")`, `/simplify openspec/changes/<change>/` comes before `architect-reviewer`, with `once` and `what `/simplify` changed`
   - `test_simplify_opens_verify`: in the `## Tasks` slice between ` 4. Verify` and ` 5. `, the literal phrase ``/simplify` without an argument` comes before `openspec validate`
 

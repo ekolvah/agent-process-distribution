@@ -469,6 +469,23 @@ def test_plan_is_explained_for_solution_review() -> None:
         assert part in review[explained:], part
 
 
+def test_simplify_precedes_the_architect_review() -> None:
+    """Scenario: Plan written — `/simplify` runs once on the change directory before the
+    reviewer, and the explanation states what it changed."""
+    review = _section("Architect review")
+    simplify = review.index("`/simplify openspec/changes/<change>/` once")
+    assert simplify < review.index("architect-reviewer")
+    assert "what `/simplify` changed" in review[review.index("plain words") :]
+
+
+def test_simplify_opens_verify() -> None:
+    """Scenario: Implementation done — Verify runs `/simplify` on the branch's commits before
+    `openspec validate` and the quality `test`."""
+    tasks = _section("Tasks")
+    verify = tasks[tasks.index(" 4. Verify") : tasks.index(" 5. ")]
+    assert verify.index("`/simplify` without an argument") < verify.index("openspec validate")
+
+
 def test_delivered_change_is_explained_for_solution_review() -> None:
     """Scenario: Run ends — the delivered change is explained at the stop."""
     deliver = _section("Delivery")
