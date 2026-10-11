@@ -4,8 +4,8 @@
 
 ## 1. RED first
 
-- [ ] 1.1 Add to `tests/publisher/conftest.py` an autouse fixture that deletes `CLAUDE_CODE_SESSION_ID`. Tests run inside a Claude Code session, and without the fixture the existing script tests would bind that real session in the clone's ledger. Verify that `python -m pytest tests/publisher` still passes
-- [ ] 1.2 Write the tests of the scenario map below against a signature stub of `skills/agent-process/scripts/session_binding.py` (`bind(issue, *, environ, ledger)` and `sessions(issue, *, ledger)`, design D2). In `tests/publisher/test_session_binding.py`, also write:
+- [x] 1.1 Add to `tests/publisher/conftest.py` an autouse fixture that deletes `CLAUDE_CODE_SESSION_ID`. Tests run inside a Claude Code session, and without the fixture the existing script tests would bind that real session in the clone's ledger. Verify that `python -m pytest tests/publisher` still passes
+- [x] 1.2 Write the tests of the scenario map below against a signature stub of `skills/agent-process/scripts/session_binding.py` (`bind(issue, *, environ, ledger)` and `sessions(issue, *, ledger)`, design D2). In `tests/publisher/test_session_binding.py`, also write:
   - `test_same_issue_binds_once` (D2): a second `bind` of the same issue leaves one ledger line
   - `test_side_issue_refused_before_create` (D3): `create_tracking_issue` of a change without a number, in a session bound to another issue, exits 2 and makes no `gh issue create` call
   - `test_rerun_after_failed_archive` (D4): after an `openspec archive` failure, a second `archive_change` passes the clean-worktree check and rewrites `sessions`

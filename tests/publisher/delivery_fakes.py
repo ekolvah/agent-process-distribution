@@ -75,7 +75,7 @@ class Gh:
     `root` is the main worktree `git worktree list --porcelain` lists, followed by one
     clean worktree per branch of `extra_worktrees` under its `.claude/worktrees/`, and
     `git -C <root> rev-parse --path-format=absolute --git-path info/exclude` answers
-    `<root>/.git/info/exclude`; `pr_states` answers `gh pr view <branch> --json state` (an absent branch raises as
+    `<root>/.git/info/exclude` and `--git-common-dir` answers `<root>/.git`; `pr_states` answers `gh pr view <branch> --json state` (an absent branch raises as
     `run_gh` does on `no pull requests found`); `git_runner`, when given, runs every `git`
     command and `gh issue develop` pushes the branch through it.
     """
@@ -139,6 +139,13 @@ class Gh:
         ]:
             assert self.root is not None, "the fake resolves `info/exclude` of `root` only"
             return f"{self.root / '.git' / 'info' / 'exclude'}\n"
+        if cmd[:2] == ["git", "-C"] and cmd[3:] == [
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+        ]:
+            assert self.root is not None, "the fake resolves the common dir of `root` only"
+            return f"{self.root / '.git'}\n"
         if cmd[:2] == ["git", "-C"] and cmd[3:] == ["status", "--porcelain"]:
             return ""
         if cmd[:2] == ["git", "-C"] and cmd[3] in ("add", "commit"):
