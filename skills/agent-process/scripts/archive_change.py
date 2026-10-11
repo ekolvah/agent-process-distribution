@@ -93,11 +93,11 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
     # moves `tasks.md`, so no later commit could.
     # A failed `openspec archive` leaves the exported `sessions`; the re-run rewrites it.
     own = f"openspec/changes/{change}/tasks.md"
-    exported = f"?? openspec/changes/{change}/sessions"
+    exported = f"openspec/changes/{change}/sessions"
     dirty = [
         line
         for line in run(["git", "status", "--porcelain"]).splitlines()
-        if not (line[:2] in (" M", "M ", "MM") and line[3:] == own) and line != exported
+        if not (line[:2] in (" M", "M ", "MM") and line[3:] == own) and line[3:] != exported
     ]
     if dirty:
         print(

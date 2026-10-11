@@ -48,11 +48,13 @@ def ledger_path(run: Callable[[list[str]], str], root: Path) -> Path:
     return Path(common.strip()) / "agent-process" / "sessions"
 
 
-def _bindings(ledger: Path) -> dict[str, int]:
-    if not ledger.exists():
-        return {}
+def _read(ledger: Path) -> str:
+    return ledger.read_text(encoding="utf-8") if ledger.exists() else ""
+
+
+def _bindings(text: str) -> dict[str, int]:
     bindings: dict[str, int] = {}
-    for line in ledger.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         session, _, issue = line.partition(" ")
         bindings[session] = int(issue)
     return bindings
@@ -67,10 +69,10 @@ def bind(issue: int | None, *, environ: Mapping[str, str], ledger: Callable[[], 
         return
     path = ledger()
     try:
-        led = _bindings(path).get(session)
+        text = _read(path)
+        led = _bindings(text).get(session)
         if led is None and issue is not None:
             path.parent.mkdir(parents=True, exist_ok=True)
-            text = path.read_text(encoding="utf-8") if path.exists() else ""
             sep = "" if not text or text.endswith("\n") else "\n"
             with path.open("a", encoding="utf-8") as f:
                 f.write(f"{sep}{session} {issue}\n")
@@ -85,4 +87,4 @@ def bind(issue: int | None, *, environ: Mapping[str, str], ledger: Callable[[], 
 
 def sessions(issue: int, *, ledger: Path) -> list[str]:
     """The sessions bound to `issue`, sorted."""
-    return sorted(s for s, i in _bindings(ledger).items() if i == issue)
+    return sorted(s for s, i in _bindings(_read(ledger)).items() if i == issue)

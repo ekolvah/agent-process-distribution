@@ -30,9 +30,9 @@ import sys
 from pathlib import Path
 
 from init import release_drift
-from session_binding import bind, ledger_path
+from session_binding import PLACEHOLDER, bind, ledger_path, tracking_issue
 from set_status import Gh, area_options, check_area, run_gh, set_status
-from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue, verdict
+from start_change import ROOT, SCRIPT_DIR, verdict
 
 
 def _issue_number(create_output: str) -> int:

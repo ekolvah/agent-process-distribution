@@ -13,13 +13,20 @@ from pathlib import Path
 import pytest
 
 from tests.publisher.delivery_fakes import Gh, load_script
-from tests.publisher.test_start_change import _CHANGE, _GROUP0, _START, _change, _creates, _develops
+from tests.publisher.test_start_change import (
+    _CHANGE,
+    _GROUP0,
+    _ISSUE,
+    _PLACEHOLDER,
+    _START,
+    _TOKEN,
+    _change,
+    _creates,
+    _develops,
+)
 
 _VARIABLE = "CLAUDE_CODE_SESSION_ID"
-_ISSUE = 7
 _OTHER = _ISSUE - 2
-_TOKEN = f"tracking issue {_ISSUE}"
-_PLACEHOLDER = "tracking issue <N>"
 _AREA = [_CHANGE, "--area", "Observability"]
 
 

@@ -56,7 +56,7 @@ COLUMNS = (
 )
 CREDENTIALS = ("GRAFANA_URL", "GRAFANA_SERVICE_ACCOUNT_TOKEN")
 ARCHIVE = Path("openspec") / "changes" / "archive"
-# start_change's token pattern, copied: the hyphenated `skills/agent-process` path is not a package.
+# session_binding's token pattern, copied: the hyphenated `skills/agent-process` path is not a package.
 _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
 _START_QUERY = (
     "min by (session_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total"
@@ -109,7 +109,7 @@ def _sessions(change_dir: Path) -> list[str]:
     """The ids of the change's `sessions` file; none when it is absent."""
     path = change_dir / "sessions"
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    return sorted({line.strip() for line in text.splitlines() if line.strip()})
+    return [line.strip() for line in text.splitlines() if line.strip()]
 
 
 def _merged(pull: Mapping[str, object], pr: int) -> tuple[str, float]:
@@ -168,10 +168,10 @@ def _iso(epoch: float) -> str:
 
 def _count_cells(rows: Sequence[Mapping[str, object]]) -> Cells:
     """The sessions' counts, each 0 only where its field is shown to exist."""
-    mine = [(_labels(row), _value(row)) for row in rows]
+    labelled = [(_labels(row), _value(row)) for row in rows]
 
     def total(event: str, field: str = "", value: str = "") -> int | None:
-        found = [(labels, n) for labels, n in mine if labels.get("event_name") == event]
+        found = [(labels, n) for labels, n in labelled if labels.get("event_name") == event]
         if field:
             found = [(labels, n) for labels, n in found if labels.get(field)]
         if not found:
@@ -198,10 +198,9 @@ def _telemetry(grafana: Grafana, repo: str, sessions: Sequence[str], merged: flo
         for sample in grafana.prometheus(_START_QUERY.format(sessions=matcher, repo=repo), merged)
     }
     gaps = [f"telemetry: no token sample of {s}" for s in sessions if s not in starts]
-    found = [starts[s] for s in sessions if s in starts]
-    if not found:
+    if not starts:
         return {}, gaps
-    start = min(found)
+    start = min(starts.values())
     window = max(1, math.ceil(merged - start))
     selector = _SELECTOR.format(repo=repo)
     cost = grafana.loki(
