@@ -13,7 +13,7 @@
 
 ## 3. Document (design D1–D4)
 
-- [ ] 3.1 Edit `.agent-process/docs/telemetry-measurement-setup.md`:
+- [x] 3.1 Edit `.agent-process/docs/telemetry-measurement-setup.md`:
   - Add a "Per-task metrics" section that holds D1, D2 and D4 together with the proposal's observations. It refers to the existing counter-reset paragraph rather than restating it. It carries no issue numbers, session ids, keys or account data, and names the repository only as a placeholder.
   - Rewrite the unlaunched-series sentence of "Which labels carry the task" so it points to rule 1.
   - Extend "Per-session totals" with the task selector (D3).
