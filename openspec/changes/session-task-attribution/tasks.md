@@ -23,8 +23,8 @@
 
 ## 4. Docs (design D5, D6)
 
-- [ ] 4.1 Add `.agent-process/docs/adr/0038-task-telemetry-follows-the-bound-sessions.md` (D1, D2, D5, D6), and point the status line of ADR 0037 to it
-- [ ] 4.2 In `.agent-process/docs/telemetry-measurement-setup.md`, rewrite "Which labels carry the task", the columns of "Per-task readings" and "Per-task metrics" as in D5 and D6. Add the one-session-one-task rule and its message. Verify that `python -m pytest tests/agent_process/test_doc_headers.py tests/agent_process/test_doc_links.py tests/agent_process/test_issue_refs.py` passes. Commit as `docs: task telemetry follows the bound sessions`
+- [x] 4.1 Add `.agent-process/docs/adr/0038-task-telemetry-follows-the-bound-sessions.md` (D1, D2, D5, D6), and point the status line of ADR 0037 to it
+- [x] 4.2 In `.agent-process/docs/telemetry-measurement-setup.md`, rewrite "Which labels carry the task", the columns of "Per-task readings" and "Per-task metrics" as in D5 and D6. Add the one-session-one-task rule and its message. Verify that `python -m pytest tests/agent_process/test_doc_headers.py tests/agent_process/test_doc_links.py tests/agent_process/test_issue_refs.py` passes. Commit as `docs: task telemetry follows the bound sessions`
 
 ## 5. Verify
 

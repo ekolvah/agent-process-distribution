@@ -71,8 +71,27 @@ than being silently folded in.
 
 ## Which labels carry the task
 
-A session launched for a task gets its identity from the owner launcher, the same in
-PowerShell and Git Bash:
+A task's telemetry is that of the Claude Code sessions bound to its issue, found by
+`session_id`. **Observed:** every Loki event carries the structured metadata `session_id`
+and every token series the label `session_id`, equal to the session id that a script reads
+as `CLAUDE_CODE_SESSION_ID`.
+
+`create_tracking_issue`, `start_change` and `archive_change` bind the running session to the
+change's issue in the clone's ledger `<git common dir>/agent-process/sessions`, one line
+`<session-id> <issue>` per binding. One session leads one task: a session bound to another
+issue exits 2 before the script's first side effect, with
+
+```
+session <id> already leads issue-<A>; open a new session for issue-<B>
+```
+
+Open a new session for the new task. Without `CLAUDE_CODE_SESSION_ID` each script prints
+`session not bound: CLAUDE_CODE_SESSION_ID is unset` and goes on. `archive_change` writes
+the issue's sessions into the change's `sessions` file, which the archive carries to the
+[per-task readings](#per-task-readings); a session that starts after the archive is not
+counted.
+
+Traces need the owner launcher, the same in PowerShell and Git Bash:
 
 ```
 python .agent-process/scripts/task_session.py --issue <N> [--attempt <K>] -- claude [args...]
@@ -98,8 +117,7 @@ zero, and `instance` keeps each process on its own series. Without it the reset 
 earlier process's tokens from the per-session query below.
 
 A session started without the launcher sends no trace, and its series and events carry
-`vcs_repository_name` without `task_id`. Rule 1 of [Per-task metrics](#per-task-metrics)
-decides when such a session makes a window not attributable.
+`vcs_repository_name` without `task_id`. The readings do not read `task_id`.
 
 ## Traces through Alloy to Langfuse
 
@@ -157,8 +175,8 @@ unset.
 
 ## Per-session totals
 
-The Grafana total per type for one session, or for one task attempt with
-`task_id="issue-<N>",attempt_id="<K>"` in place of the `session_id` matcher:
+The Grafana total per type for one session, or for one task with
+`session_id=~"<a>|<b>"` of its bound sessions:
 
 ```promql
 sum by (type) (max_over_time(claude_code_token_usage_tokens_total{session_id="<id>"}[<window>]))
@@ -167,8 +185,8 @@ sum by (type) (max_over_time(claude_code_token_usage_tokens_total{session_id="<i
 with a window covering the session or the attempt. The User scope sets cumulative
 temporality, so each series counts from zero for its process. `increase()` is not used: it
 extrapolates and drops a new series' first sample. For the same session, the sum of
-Langfuse usage details over its generations equals this total type by type; for a task
-attempt, the generations are those tagged `task:issue-<N>` and `attempt:<K>`. A window
+Langfuse usage details over its generations equals this total type by type; for a task,
+the generations are those of its bound sessions, when they were launched. A window
 where they differ points at a trace-schema change of the beta. The sum holds only for
 series that carry `instance`; a process without it can lose tokens to the reset
 described under [Which labels carry the task](#which-labels-carry-the-task).
@@ -187,24 +205,24 @@ the secret `GRAFANA_SERVICE_ACCOUNT_TOKEN`.
 | Column | Source |
 | --- | --- |
 | `task_id` | `issue-<N>`, the tracking token of the archived `tasks.md` |
-| `attempt_id`, `start` | The task's first token sample per attempt, at merge time: `min by (attempt_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total{task_id="issue-<N>",vcs_repository_name="<owner>/<repo>"})[30d:1m]))`; the highest attempt is the row's |
+| `start` | The earliest first token sample of the bound sessions, at merge time: `min by (session_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total{session_id=~"<a>\|<b>",vcs_repository_name="<owner>/<repo>"})[30d:1m]))` |
 | `merged_at`, `lines` | `gh pr view`; lines are additions plus deletions, plan artifacts included |
 | `hours` | `merged_at` minus `start` |
 | `plan_rounds` | `round` of the archived `architect-review.json` |
 | `code_rounds` | Distinct heads in the review job's `Reviewed head SHA:` comments; one round is no rework |
 | `cost_usd`, `api_requests`, `failed`, `denied`, `compactions` | The [Per-task metrics](#per-task-metrics) queries over `start` to `merged_at`, by the zero-versus-missing rules there |
-| `unlaunched_events` | The rule-1 count of the same window |
 
 A reading that cannot be taken leaves its cell empty and names its cause in `gap`, as
 `<reading>: <cause>` joined by `; `; an empty cell is never 0. A row with a gap is still
 written, and its run ends red. A failure before the task is known, such as `gh` failing,
-writes no row. A task launched without the launcher has no token sample, so all its
-telemetry readings are empty under `telemetry: no token sample of issue-<N>`. A review
-archived before `round` existed leaves `plan_rounds` empty.
+writes no row. A change without a `sessions` file, or with no id in it, has all its
+telemetry readings empty under `telemetry: no bound session`, and Grafana is not queried.
+A bound session with no token sample is named as `telemetry: no token sample of <id>`. A
+review archived before `round` existed leaves `plan_rounds` empty.
 
-A re-delivery under the same `attempt_id` sums both deliveries from the first one's start:
-launch it with a new `--attempt`. Grafana keeps about 14 days of samples, so a PR recorded
-later than that has no start.
+The first run on a file with an earlier header rewrites the header to the current columns;
+earlier rows keep their shared columns. Grafana keeps about 14 days of samples, so a PR
+recorded later than that has no start.
 
 The dashboard's *Recorded readings* row shows the CSV as a table, `gap` highlighted when it
 is not empty, and `cost_usd`, `hours`, `code_rounds` and `plan_rounds` by merge time.
@@ -218,16 +236,20 @@ parser stage. `<owner>/<repo>` is the measured repository.
 
 ```logql
 # Cost in USD
-sum by (task_id, attempt_id) (sum_over_time(
+sum(sum_over_time(
   {service_name="claude-code"} | vcs_repository_name="<owner>/<repo>"
-  | task_id=~"issue-[0-9]+" | event_name="api_request"
+  | session_id=~"<a>|<b>" | event_name="api_request"
   | unwrap cost_usd [$__range]))
 
-# Counts, also the input of rule 1
-sum by (task_id, attempt_id, event_name, success, decision) (count_over_time(
+# Counts
+sum by (event_name, success, decision) (count_over_time(
   {service_name="claude-code"} | vcs_repository_name="<owner>/<repo>"
+  | session_id=~"<a>|<b>"
   | event_name=~"api_request|tool_result|tool_decision|compaction" [$__range]))
 ```
+
+`<a>|<b>` are the ids of the change's `sessions` file. A parallel session of another task
+is not in it, so it is not counted.
 
 `$__range` is the whole selected range, so run them as instant queries; an hourly range
 query takes `[1h]` instead, or each step counts the whole range again.
@@ -254,20 +276,8 @@ if the counts query over the whole Loki retention returns some `compaction` row 
 repository; otherwise the reading is missing. A task with no cost row exported nothing
 and is recorded as missing, not as zero.
 
-A window is rejected when either rule holds:
-
-1. The counts query returns a row whose `task_id` is not `issue-<N>`: a session of the
-   repository ran without the launcher. An absent `task_id` reads as empty, and the
-   retired collector route's `unassigned` value fails the pattern too. The launcher sets
-   the identity once for events, metrics and traces, so such a session shows in all
-   three. The rejection records which value caused it.
-2. The [Per-session totals](#per-session-totals) comparison with the task selector
-   differs for some type.
-
-The task-identity gate's attempt reads cost 1.1960044 USD, 0 failed, 0 denied and
-0 compactions, with 22 `api_request` events. Rule 1 rejects its window: its planning
-session ran without the launcher in the same hour, with 4 `api_request` events and no tool
-call — which is why the counts query matches `api_request`.
+For launched sessions, a window is rejected when the
+[Per-session totals](#per-session-totals) comparison differs for some type.
 
 Loki keeps about 31 days of events: read a task within that time after its last
 session.

@@ -1,5 +1,5 @@
 ---
-status: "accepted"
+status: "accepted; task attribution superseded by ADR-0038"
 date: 2026-10-10
 decision-makers: ekolvah
 ---
