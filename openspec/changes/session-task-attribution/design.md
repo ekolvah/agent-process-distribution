@@ -25,8 +25,9 @@ extra step, and one session per task enforced by a script.
 
 `create_tracking_issue`, `start_change` and `archive_change` already know the change's issue.
 Each reads `CLAUDE_CODE_SESSION_ID` and calls one shared module, `session_binding.py`.
-`archive_change` takes the issue from `start_change.tracking_issue(tasks_md)`, as
-`create_tracking_issue` does.
+`archive_change` takes the issue from `tracking_issue(tasks_md)`, as `create_tracking_issue`
+does. The function moves from `start_change` to `session_binding`: `start_change` imports
+`archive_change`, so the reverse import would be a cycle.
 
 - **Not a hook:** a `PostToolUse` hook would have to parse the issue out of arbitrary Bash
   command lines. There is no standard tool that links a Claude Code session to a GitHub issue.
@@ -66,7 +67,8 @@ Rejected alternatives:
   session is bound to any issue, the bound issue is necessarily another one, so the script
   refuses before the issue exists. It binds the new number once it is written into `tasks.md`.
 - **`start_change`:** directly after the `Planned` check, before the worktree prune.
-- **`archive_change`:** after the lock check, before the clean-worktree check.
+- **`archive_change`:** after the clean-worktree check, before it ticks its task. Before
+  that check `tasks.md`, which names the issue, may be deleted.
 
 ### D4. The archive exports the bindings
 

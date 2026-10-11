@@ -14,8 +14,8 @@
 
 ## 2. Session binding (design D1–D4)
 
-- [ ] 2.1 Implement `session_binding.py` as in D2. Verify with `python -m pytest tests/publisher/test_session_binding.py`
-- [ ] 2.2 Call `bind` in `create_tracking_issue.py`, `start_change.py` and `archive_change.py` at the points of D3. Make `archive_change` write `openspec/changes/<change>/sessions` as in D4. Add `session_binding.py` to the `MOVED_SCRIPTS` sets of `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`. Verify with `python -m pytest tests/publisher`. Commit
+- [x] 2.1 Implement `session_binding.py` as in D2. Verify with `python -m pytest tests/publisher/test_session_binding.py`
+- [x] 2.2 Call `bind` in `create_tracking_issue.py`, `start_change.py` and `archive_change.py` at the points of D3. Make `archive_change` write `openspec/changes/<change>/sessions` as in D4. Add `session_binding.py` to the `MOVED_SCRIPTS` sets of `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`. Verify with `python -m pytest tests/publisher`. Commit
 
 ## 3. Readings (design D5)
 

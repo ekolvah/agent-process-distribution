@@ -11,15 +11,19 @@ removes the lock a successful archive leaves behind, commits and pushes. The rev
 request and `wait_for_pr` are the PR tasks that follow; they leave no tick in the
 repository (a pushed tick would move the reviewed head) — the PR is their record. The
 change's own `tasks.md`, modified only, is the one uncommitted change it takes: the Verify
-ticks ride in the archive commit. Exit codes: 0 done; 1 when a command fails; 2 when the
+ticks ride in the archive commit. Once the worktree is clean, the session is bound to the
+tracking issue (`session_binding`) and every session bound to it is written, sorted, to the
+change's `sessions`, which the archive carries to the merged task's readings; a `sessions` left
+by a failed archive is rewritten. Exit codes: 0 done; 1 when a command fails; 2 when the
 worktree holds any other change (the archive commit must be the only thing left to push,
-and the offending paths are printed) or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
+and the offending paths are printed), when the session leads another issue, or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
 archive aborted and its state must be inspected before anything is archived on top of it.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -28,6 +32,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from init import OPENSPEC
+from session_binding import bind, ledger_path, sessions, tracking_issue
 
 Run = Callable[[list[str]], str]
 LOCK = Path("openspec", "changes", "archive", ".openspec-archive.lock")
@@ -86,11 +91,13 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
         return 2
     # The Verify ticks are the one change the archive commit carries: `openspec archive`
     # moves `tasks.md`, so no later commit could.
+    # A failed `openspec archive` leaves the exported `sessions`; the re-run rewrites it.
     own = f"openspec/changes/{change}/tasks.md"
+    exported = f"?? openspec/changes/{change}/sessions"
     dirty = [
         line
         for line in run(["git", "status", "--porcelain"]).splitlines()
-        if not (line[:2] in (" M", "M ", "MM") and line[3:] == own)
+        if not (line[:2] in (" M", "M ", "MM") and line[3:] == own) and line != exported
     ]
     if dirty:
         print(
@@ -100,8 +107,12 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
         )
         return 2
     tasks = root / "openspec" / "changes" / change / "tasks.md"
-    if tasks.exists():
-        mark_own_task(tasks, "archive_change", change)
+    issue = tracking_issue(tasks)
+    ledger = ledger_path(run, root)
+    bind(issue, environ=os.environ, ledger=lambda: ledger)
+    ids = sessions(issue, ledger=ledger) if issue is not None else []
+    (tasks.parent / "sessions").write_text("".join(f"{s}\n" for s in ids), encoding="utf-8")
+    mark_own_task(tasks, "archive_change", change)
     run(["npx", "-y", f"@fission-ai/openspec@{OPENSPEC}", "archive", change, "-y"])
     if lock.exists():
         lock.unlink()
@@ -118,7 +129,10 @@ def main(argv: list[str] | None = None) -> None:
     ns = parser.parse_args(argv)
     try:
         sys.exit(archive_change(ns.change))
-    except RuntimeError as exc:
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(2)
+    except (OSError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(1)
 
