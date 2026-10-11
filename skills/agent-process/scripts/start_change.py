@@ -13,7 +13,8 @@ tracking issue — the number in the first `tracking issue <N>` token of `tasks.
 which the propose run replaced — is an item of the repository's linked Project in `Planned`.
 Otherwise exit 2 and nothing is created: on `rework` the verdict is named (apply the findings,
 re-review); when the token still carries the placeholder or the issue is not `Planned`,
-`propose run not finished` names the tail to run (`create_tracking_issue.py`).
+`propose run not finished` names the tail to run (`create_tracking_issue.py`). A session that
+leads another issue exits 2 there too; otherwise it is bound to this one (`session_binding`).
 
 Then `git worktree list --porcelain` names the main worktree (its first entry; a failed
 listing is exit 1 before any branch exists), the line `/.claude/worktrees/` is appended to
@@ -44,23 +45,22 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
+import os
 import shutil
 import sys
 from pathlib import Path
 
 from archive_change import mark_own_task
 from init import release_drift
+from session_binding import PLACEHOLDER, bind, ledger_path, tracking_issue
 from set_status import Gh, _linked_project, _repo, run_gh, set_status
 
 ROOT = Path.cwd()
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCHEMA = SCRIPT_DIR.parent / "architect-review.schema.json"
 CARRIERS = ("Claude",)
-PLACEHOLDER = "tracking issue <N>"
 WORKTREES = Path(".claude") / "worktrees"
 NO_PR = "no pull requests found"
-_TOKEN = re.compile(r"tracking issue (<N>|\d+)")
 NOT_FINISHED = (
     "propose run not finished: run its tail "
     f'(python "{SCRIPT_DIR / "create_tracking_issue.py"}" '
@@ -90,21 +90,6 @@ def verdict(change_dir: Path) -> str:
             "\n".join(f"{review}: {error.json_path}: {error.message}" for error in errors)
         )
     return str(data["verdict"])
-
-
-def tracking_issue(tasks_md: Path) -> int | None:
-    """The `tracking issue <N>` token of tasks.md: `None` while it carries the placeholder, the
-    number once the propose run wrote it. The first token in the file decides — Group 0 is
-    the first group — so the literal `<N>`, the whole token or another `tracking issue <N>` in
-    a later line (a test description, a quoted rule) is text. No token is a ValueError naming
-    the convention."""
-    match = _TOKEN.search(tasks_md.read_text(encoding="utf-8"))
-    if match is None:
-        raise ValueError(
-            f"{tasks_md}: no `{PLACEHOLDER}` token and no `tracking issue <number>` — Group 0 of "
-            "tasks.md carries the token and the propose run replaces it"
-        )
-    return None if match.group(1) == "<N>" else int(match.group(1))
 
 
 def _status(gh: Gh, number: int) -> str:
@@ -249,6 +234,7 @@ def start_change(
     if status != "Planned":
         print(f"{not_finished}; issue #{number} Status: {status}", file=sys.stderr)
         return 2
+    bind(number, environ=os.environ, ledger=lambda: ledger_path(gh, root))
     worktree = main_worktree(root, gh) / WORKTREES / change
     source = root / "openspec" / "changes" / change
     target = worktree / "openspec" / "changes" / change

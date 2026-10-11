@@ -17,18 +17,22 @@ instead of creating a second issue. When the token already carries a number, `--
 refused (the area was set at creation) and the call is `set_status <N> "Planned"` alone
 (Todo → Planned). A `gh` failure is exit 1 with its stderr; an unresolved Project name is exit
 2, as `set_status` maps it; on the create branch both messages end with the resume command.
+A session that leads another issue exits 2 before any create or status move; otherwise it is
+bound to the issue (`session_binding`), a created one once its number is in tasks.md.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
 
 from init import release_drift
+from session_binding import PLACEHOLDER, bind, ledger_path, tracking_issue
 from set_status import Gh, area_options, check_area, run_gh, set_status
-from start_change import PLACEHOLDER, ROOT, SCRIPT_DIR, tracking_issue, verdict
+from start_change import ROOT, SCRIPT_DIR, verdict
 
 
 def _issue_number(create_output: str) -> int:
@@ -55,6 +59,10 @@ def create_tracking_issue(
         return 2
     tasks_md = change_dir / "tasks.md"
     number = tracking_issue(tasks_md)
+
+    def ledger() -> Path:
+        return ledger_path(gh, root)
+
     if number is not None:
         if area is not None:
             print(
@@ -63,6 +71,7 @@ def create_tracking_issue(
                 file=sys.stderr,
             )
             return 2
+        bind(number, environ=os.environ, ledger=ledger)
         set_status(number, "Planned", gh=gh)
         print(f"ok: issue #{number} Planned")
         return 0
@@ -73,6 +82,7 @@ def create_tracking_issue(
             file=sys.stderr,
         )
         return 2
+    bind(None, environ=os.environ, ledger=ledger)
     check_area(area, gh=gh)
     out = gh(
         [
@@ -90,6 +100,7 @@ def create_tracking_issue(
     tasks_md.write_text(
         re.sub(re.escape(PLACEHOLDER), f"tracking issue {number}", text, count=1), encoding="utf-8"
     )
+    bind(number, environ=os.environ, ledger=ledger)
     resume = f'python "{SCRIPT_DIR / "set_status.py"}" {number} Planned --area "{area}"'
     try:
         set_status(number, "Planned", area=area, gh=gh)

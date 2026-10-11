@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,6 +24,10 @@ _MERGED_AT = "2026-10-10T16:00:00Z"
 _MERGED = datetime(2026, 10, 10, 16, tzinfo=UTC).timestamp()
 _START = _MERGED - 5400
 _HEADER = (
+    "pr,change,task_id,start,merged_at,hours,lines,plan_rounds,code_rounds,"
+    "cost_usd,api_requests,failed,denied,compactions,gap"
+)
+_EARLIER_HEADER = (
     "pr,change,task_id,attempt_id,start,merged_at,hours,lines,plan_rounds,code_rounds,"
     "cost_usd,api_requests,failed,denied,compactions,unlaunched_events,gap"
 )
@@ -63,55 +68,80 @@ def _sample(labels: dict[str, str], value: float) -> dict[str, object]:
     return {"metric": labels, "value": [_MERGED, str(value)]}
 
 
-def _count(task: str, attempt: str, event: str, n: int, **fields: str) -> dict[str, object]:
-    return _sample({"task_id": task, "attempt_id": attempt, "event_name": event, **fields}, n)
+# One session's events of one shape: (session_id, event_name, count, fields).
+_Event = tuple[str, str, int, dict[str, str]]
 
 
-_COMPACTION = _count("issue-7", "10", "compaction", 1, success="true")
-_COUNTS = [
-    _count("issue-7", "10", "api_request", 20),
-    _count("issue-7", "10", "tool_result", 30, success="true"),
-    _count("issue-7", "10", "tool_result", 2, success="false"),
-    _count("issue-7", "10", "tool_decision", 31, decision="accept"),
-    _count("issue-7", "10", "tool_decision", 1, decision="reject"),
+def _event(session: str, event: str, n: int, **fields: str) -> _Event:
+    return session, event, n, fields
+
+
+_COMPACTION = _event("s-a", "compaction", 1, success="true")
+_EVENTS = [
+    _event("s-a", "api_request", 12),
+    _event("s-b", "api_request", 8),
+    _event("s-a", "tool_result", 30, success="true"),
+    _event("s-b", "tool_result", 2, success="false"),
+    _event("s-a", "tool_decision", 31, decision="accept"),
+    _event("s-b", "tool_decision", 1, decision="reject"),
     _COMPACTION,
-    _count("issue-7", "9", "api_request", 4),
-    _count("issue-8", "1", "api_request", 6),
-    _count("", "", "api_request", 3),
-    _count("unassigned", "", "tool_result", 2, success="true"),
 ]
+# A parallel session of another task, inside the window.
+_PARALLEL = [_event("s-x", "api_request", 6), _event("s-x", "tool_result", 4, success="false")]
+_COST_PER_REQUEST = 0.0625
 
 
 class _Grafana:
+    """Answers from per-session data, keeping only the sessions the query's
+    `session_id=~"…"` matcher names and grouping by `event_name` and its fields."""
+
     def __init__(
         self,
         starts: dict[str, float] | None = None,
-        counts: list[dict[str, object]] | None = None,
+        events: list[_Event] | None = None,
         lookback: int = 0,
         error: Exception | None = None,
     ) -> None:
-        self.starts = {"9": _START - 86400, "10": _START} if starts is None else starts
-        self.counts = _COUNTS if counts is None else counts
+        self.starts = {"s-a": _START, "s-b": _START + 600} if starts is None else starts
+        self.events = _EVENTS + _PARALLEL if events is None else events
         self.lookback = lookback
         self.error = error
         self.calls: list[tuple[str, str, float]] = []
+
+    @staticmethod
+    def _matches(query: str, session: str) -> bool:
+        matcher = re.search(r'session_id=~"([^"]*)"', query)
+        return matcher is not None and re.fullmatch(matcher.group(1), session) is not None
 
     def prometheus(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
         self.calls.append(("prometheus", query, time))
         if self.error is not None:
             raise self.error
-        return [_sample({"attempt_id": k}, v) for k, v in self.starts.items()]
+        return [
+            _sample({"session_id": s}, v) for s, v in self.starts.items() if self._matches(query, s)
+        ]
 
     def loki(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
         self.calls.append(("loki", query, time))
-        if "unwrap cost_usd" in query:
-            return [_sample({"task_id": "issue-7", "attempt_id": "10"}, 1.2345678)]
         if "[30d]" in query:
             return [_sample({}, self.lookback)] if self.lookback else []
-        return self.counts
+        mine = [e for e in self.events if self._matches(query, e[0])]
+        if "unwrap cost_usd" in query:
+            cost = sum(n * _COST_PER_REQUEST for _, event, n, _ in mine if event == "api_request")
+            return [_sample({}, cost)] if cost else []
+        groups: dict[tuple[tuple[str, str], ...], int] = {}
+        for _, event, n, fields in mine:
+            key = tuple(sorted({"event_name": event, **fields}.items()))
+            groups[key] = groups.get(key, 0) + n
+        return [_sample(dict(key), n) for key, n in groups.items()]
 
 
-def _tree(tmp_path: Path, review: dict[str, object] | None = None, name: str = "demo") -> Path:
+def _tree(
+    tmp_path: Path,
+    review: dict[str, object] | None = None,
+    name: str = "demo",
+    sessions: str | None = "s-a\ns-b\n",
+) -> Path:
     change = tmp_path / "openspec" / "changes" / "archive" / f"2026-10-10-{name}"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text(
@@ -121,6 +151,8 @@ def _tree(tmp_path: Path, review: dict[str, object] | None = None, name: str = "
     )
     payload = {"verdict": "approve", "round": 2} if review is None else review
     (change / "architect-review.json").write_text(json.dumps(payload), encoding="utf-8")
+    if sessions is not None:
+        (change / "sessions").write_text(sessions, encoding="utf-8")
     return tmp_path
 
 
@@ -128,10 +160,10 @@ def _csv_path(tmp_path: Path) -> Path:
     return tmp_path / "readings" / "task-readings.csv"
 
 
-def _csv(tmp_path: Path, rows: Sequence[str] = ()) -> Path:
+def _csv(tmp_path: Path, rows: Sequence[str] = (), header: str = _HEADER) -> Path:
     path = _csv_path(tmp_path)
     path.parent.mkdir()
-    path.write_bytes(("\n".join([_HEADER, *rows]) + "\n").encode("utf-8"))
+    path.write_bytes(("\n".join([header, *rows]) + "\n").encode("utf-8"))
     return path
 
 
@@ -165,7 +197,6 @@ def _row(path: Path, pr: str = "12") -> dict[str, str]:
 
 
 _TELEMETRY = (
-    "attempt_id",
     "start",
     "hours",
     "cost_usd",
@@ -173,13 +204,13 @@ _TELEMETRY = (
     "failed",
     "denied",
     "compactions",
-    "unlaunched_events",
 )
 
 
 def test_task_pr_merged(tmp_path: Path) -> None:
     path = _csv(_tree(tmp_path))
-    code = _run(tmp_path, _GitHub(_pull()), _Grafana())
+    grafana = _Grafana()
+    code = _run(tmp_path, _GitHub(_pull()), grafana)
 
     assert code == 0
     assert path.read_text(encoding="utf-8").splitlines()[0] == _HEADER
@@ -188,35 +219,48 @@ def test_task_pr_merged(tmp_path: Path) -> None:
         "pr": "12",
         "change": "demo",
         "task_id": "issue-7",
-        "attempt_id": "10",
         "start": "2026-10-10T14:30:00Z",
         "merged_at": _MERGED_AT,
         "hours": "1.50",
         "lines": "100",
         "plan_rounds": "2",
         "code_rounds": "2",
-        "cost_usd": "1.2346",
+        "cost_usd": "1.2500",
         "api_requests": "20",
         "failed": "2",
         "denied": "1",
         "compactions": "1",
-        "unlaunched_events": "5",
         "gap": "",
     }
+    queries = [query for kind, query, _ in grafana.calls if kind in ("prometheus", "loki")]
+    assert all('session_id=~"s-a|s-b"' in q for q in queries if "[30d]" not in q)
+    assert not any("task_id" in q for q in queries)
 
 
 def test_rerun_for_a_recorded_pr(tmp_path: Path) -> None:
-    old = "12,demo,issue-7,1,,,,,,,,,,,,,telemetry: old"
-    path = _csv(_tree(tmp_path), ["5,a,issue-1,1,,,,,,,,,,,,,", old, "13,b,issue-2,1,,,,,,,,,,,,,"])
-    counts = [row for row in _COUNTS if row is not _COMPACTION]
-    code = _run(tmp_path, _GitHub(_pull()), _Grafana(counts=counts, lookback=3))
+    old = "12,demo,issue-7,,,,,,,,,,,,telemetry: old"
+    path = _csv(_tree(tmp_path), ["5,a,issue-1,,,,,,,,,,,,", old, "13,b,issue-2,,,,,,,,,,,,"])
+    events = [e for e in _EVENTS if e is not _COMPACTION]
+    code = _run(tmp_path, _GitHub(_pull()), _Grafana(events=events, lookback=3))
 
     assert code == 0
     assert [row["pr"] for row in _rows(path)] == ["5", "12", "13"]
     row = _row(path)
-    assert row["attempt_id"] == "10"
+    assert row["api_requests"] == "20"
     assert row["compactions"] == "0"
     assert row["gap"] == ""
+
+
+def test_file_with_an_earlier_header(tmp_path: Path) -> None:
+    earlier = "5,a,issue-1,2,,,,,,,0.5000,,,,,3,"
+    path = _csv(_tree(tmp_path), [earlier], header=_EARLIER_HEADER)
+    code = _run(tmp_path, _GitHub(_pull()), _Grafana())
+
+    assert code == 0
+    assert path.read_text(encoding="utf-8").splitlines()[0] == _HEADER
+    kept = _row(path, "5")
+    assert (kept["pr"], kept["task_id"], kept["cost_usd"]) == ("5", "issue-1", "0.5000")
+    assert _row(path)["cost_usd"] == "1.2500"
 
 
 def test_release_pr_merged(tmp_path: Path) -> None:
@@ -230,17 +274,31 @@ def test_release_pr_merged(tmp_path: Path) -> None:
     assert grafana.calls == []
 
 
-def test_task_without_telemetry(tmp_path: Path) -> None:
-    path = _csv(_tree(tmp_path))
-    grafana = _Grafana(starts={})
+@pytest.mark.parametrize("sessions", [None, "", "\n"], ids=["absent", "empty", "blank"])
+def test_task_without_telemetry(tmp_path: Path, sessions: str | None) -> None:
+    path = _csv(_tree(tmp_path, sessions=sessions))
+    grafana = _Grafana()
     code = _run(tmp_path, _GitHub(_pull()), grafana)
 
     assert code == 1
     row = _row(path)
     assert all(row[column] == "" for column in _TELEMETRY)
-    assert row["gap"] == "telemetry: no token sample of issue-7"
+    assert row["gap"] == "telemetry: no bound session"
     assert row["lines"] == "100"
-    assert [call[0] for call in grafana.calls] == ["prometheus"]
+    assert grafana.calls == []
+
+
+def test_bound_session_without_telemetry(tmp_path: Path) -> None:
+    path = _csv(_tree(tmp_path))
+    events = [e for e in _EVENTS if e[0] == "s-a"]
+    code = _run(tmp_path, _GitHub(_pull()), _Grafana(starts={"s-a": _START}, events=events))
+
+    assert code == 1
+    row = _row(path)
+    assert row["start"] == "2026-10-10T14:30:00Z"
+    assert row["api_requests"] == "12"
+    assert row["cost_usd"] == "0.7500"
+    assert row["gap"] == "telemetry: no token sample of s-b"
 
 
 @pytest.mark.parametrize(
@@ -268,14 +326,24 @@ def test_grafana_unreachable(
         assert grafana.calls == []
 
 
+def test_parallel_session_of_another_task(tmp_path: Path) -> None:
+    alone = _csv(_tree(tmp_path / "alone"))
+    _run(tmp_path / "alone", _GitHub(_pull()), _Grafana(events=_EVENTS))
+    beside = _csv(_tree(tmp_path / "beside"))
+    _run(tmp_path / "beside", _GitHub(_pull()), _Grafana(events=_EVENTS + _PARALLEL))
+
+    for column in ("cost_usd", "api_requests", "failed"):
+        assert _row(beside)[column] == _row(alone)[column] != ""
+
+
 def test_absent_field_is_missing_not_zero(tmp_path: Path) -> None:
     path = _csv(_tree(tmp_path))
-    counts = [
-        _count("issue-7", "10", "api_request", 20),
-        _count("issue-7", "10", "tool_result", 30, success=""),
-        _count("issue-7", "10", "tool_decision", 31, decision="accept"),
+    events = [
+        _event("s-a", "api_request", 20),
+        _event("s-a", "tool_result", 30, success=""),
+        _event("s-a", "tool_decision", 31, decision="accept"),
     ]
-    code = _run(tmp_path, _GitHub(_pull()), _Grafana(counts=counts))
+    code = _run(tmp_path, _GitHub(_pull()), _Grafana(events=events))
 
     assert code == 1
     row = _row(path)

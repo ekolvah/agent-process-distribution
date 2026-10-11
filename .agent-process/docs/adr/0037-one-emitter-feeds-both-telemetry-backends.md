@@ -6,6 +6,9 @@ decision-makers: ekolvah
 
 # One emitter feeds both telemetry backends
 
+Task attribution of the readings is superseded by
+[ADR 0038](0038-task-telemetry-follows-the-bound-sessions.md); the emitter decision stands.
+
 ## Context and Problem Statement
 
 [ADR 0036](0036-per-task-token-analysis-backend.md) keeps per-task totals on Grafana and

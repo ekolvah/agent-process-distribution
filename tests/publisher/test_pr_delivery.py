@@ -19,6 +19,10 @@ import pytest
 
 from tests.publisher.delivery_fakes import load_script
 
+# Built, so the `no-issue-refs` hook does not read it as a reference.
+_GROUP0 = f"- [x] 0.1 start_change for tracking issue {3 + 4}\n"
+_COMMON_DIR = ["rev-parse", "--path-format=absolute", "--git-common-dir"]
+
 
 def _checks(*checks: tuple[str, str]) -> tuple[int, str, str]:
     """A `gh pr checks --json name,bucket,link` read: exit 0 whatever the buckets are."""
@@ -344,7 +348,7 @@ def test_archive_commit(tmp_path: Path, own_task: str) -> None:
     tasks = change_dir / "tasks.md"
     # The own task's command sits on a continuation line.
     tasks.write_text(
-        "- [x] 1.1 done\n"
+        _GROUP0 + "- [x] 1.1 done\n"
         "- [ ] 4.1 `git status --short` empty;\n"
         f"  `{own_task.format(change=change)}` archives, commits, pushes.\n"
         "- [ ] 4.2 `gh pr create`; the person merges.\n",
@@ -373,6 +377,8 @@ def test_archive_commit(tmp_path: Path, own_task: str) -> None:
             return ""
         if cmd[:2] == ["git", "status"]:
             return status
+        if cmd[-3:] == _COMMON_DIR:
+            return f"{tmp_path / '.git'}\n"
         raise AssertionError(f"unexpected call: {cmd}")
 
     # No review request and no wait: the PR does not exist yet when the archive lands.
@@ -420,14 +426,18 @@ def test_ticks_left_for_the_archive(tmp_path: Path, capsys: pytest.CaptureFixtur
     tasks = tmp_path / rel
     tasks.parent.mkdir(parents=True)
     (tmp_path / "openspec" / "changes" / "archive").mkdir()
-    tasks.write_text("- [ ] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8")
+    tasks.write_text(
+        _GROUP0 + "- [ ] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8"
+    )
     (tmp_path / "other.txt").write_text("a\n", encoding="utf-8")
     git("add", "-A")
     git("commit", "-qm", "plan")
     base = git("rev-parse", "HEAD")
 
     # Another changed file beside the ticks: exit 2, the file named, nothing committed.
-    tasks.write_text("- [x] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8")
+    tasks.write_text(
+        _GROUP0 + "- [x] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8"
+    )
     (tmp_path / "other.txt").write_text("b\n", encoding="utf-8")
     assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
     assert "other.txt" in capsys.readouterr().err
@@ -442,11 +452,14 @@ def test_ticks_left_for_the_archive(tmp_path: Path, capsys: pytest.CaptureFixtur
 
     # Only the ticks: the archive commit carries them and the worktree is clean.
     git("checkout", "-q", "--", ".")
-    tasks.write_text("- [x] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8")
+    tasks.write_text(
+        _GROUP0 + "- [x] 4.1 verify\n- [ ] 5.1 `archive_change.py v2-9-example`\n", "utf-8"
+    )
     assert archive_change.archive_change(change, root=tmp_path, run=run) == 0
     assert git("status", "--porcelain") == ""
     archived = git("show", f"HEAD:openspec/changes/archive/2026-01-01-{change}/tasks.md")
     assert archived.splitlines() == [
+        _GROUP0.rstrip(),
         "- [x] 4.1 verify",
         "- [x] 5.1 `archive_change.py v2-9-example`",
     ]

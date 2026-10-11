@@ -86,3 +86,10 @@ def sandbox(tmp_path: Path, process_repo: Path, monkeypatch: pytest.MonkeyPatch)
     sb = Sandbox(root, home, process_repo, other)
     consumer_repo(sb)
     return sb
+
+
+@pytest.fixture(autouse=True)
+def _no_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tests run inside a Claude Code session: its id would bind that real session in the
+    ledger of every clone a delivery script runs in."""
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)

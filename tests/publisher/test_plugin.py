@@ -44,6 +44,7 @@ MOVED_SCRIPTS = {
     "plugin_env.py",
     "quality.py",
     "resolve_review_thread.py",
+    "session_binding.py",
     "set_status.py",
     "start_change.py",
     "steps.py",
