@@ -12,7 +12,7 @@
 
 ## 2. Skill text (design D2, D3)
 
-- [ ] 2.1 In `skills/agent-process/SKILL.md`, extend the first sentence of `## Architect review`: after `tasks.md`, run `/simplify openspec/changes/<change>/` once, then review. Add to the plain-words explanation in that section: what `/simplify` changed. Open `## Tasks` item 4 Verify with `/simplify` without an argument, its edits committed. Keep the item numbers. Verify with `python -m pytest tests/publisher/test_planning_workflow.py`. Commit
+- [x] 2.1 In `skills/agent-process/SKILL.md`, extend the first sentence of `## Architect review`: after `tasks.md`, run `/simplify openspec/changes/<change>/` once, then review. Add to the plain-words explanation in that section: what `/simplify` changed. Open `## Tasks` item 4 Verify with `/simplify` without an argument, its edits committed. Keep the item numbers. Verify with `python -m pytest tests/publisher/test_planning_workflow.py`. Commit
 
 ## 3. Verify
 
