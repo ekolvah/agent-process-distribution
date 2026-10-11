@@ -16,7 +16,7 @@ consumers through the plugin, so a sentence there is the whole mechanism.
 - No skip of the pass by size or by kind of change. All three observed changes were medium
   to large, and on plans the pass found duplication in prose.
 - No change to the `architect-reviewer`, its schema, the CI review, or
-  `.claude/rules/workflow.md`, which links `SKILL.md#architect-review` and does not restate it.
+  `.claude/rules/workflow.md`, which links the `## Architect review` section and does not restate it.
 
 ## Decisions
 
