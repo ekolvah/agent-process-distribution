@@ -1,0 +1,58 @@
+name: Task readings
+
+# A merged task PR's readings become its row of `task-readings.csv` on the unprotected branch
+# `task-readings`, which the dashboard reads. A dispatch re-records a PR. There is no
+# concurrency group: a cancelled pending run would lose a row with no red run, while a push
+# rejected because another run wrote first fails, and a dispatch re-applies the upsert.
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Merged PR number to record
+        required: true
+        type: number
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  record:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    steps:
+      # Merged code runs, and the archived change it reads is merged too.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: task-readings
+          path: readings
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A gap row is pushed and the run still ends red with the script's exit code.
+      - name: Record and push the row
+        env:
+          PR: ${{ github.event.pull_request.number || inputs.pr }}
+          GH_TOKEN: ${{ github.token }}
+          GRAFANA_URL: ${{ vars.GRAFANA_URL }}
+          GRAFANA_SERVICE_ACCOUNT_TOKEN: ${{ secrets.GRAFANA_SERVICE_ACCOUNT_TOKEN }}
+        run: |
+          set +e
+          python .agent-process/scripts/task_readings.py --pr "$PR" --csv readings/task-readings.csv
+          code=$?
+          set -e
+          if ! git -C readings diff --quiet; then
+            git -C readings config user.name "github-actions[bot]"
+            git -C readings config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C readings commit -qam "readings: PR $PR"
+            git -C readings push origin HEAD:task-readings
+          fi
+          exit "$code"
