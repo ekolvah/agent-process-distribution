@@ -44,7 +44,6 @@ MOVED_SCRIPTS = {
     "check_red.py",
     "create_tracking_issue.py",
     "edit_lint.py",
-    "git_guard.py",
     "init.py",
     "manual.py",
     "memory_checkpoint.py",

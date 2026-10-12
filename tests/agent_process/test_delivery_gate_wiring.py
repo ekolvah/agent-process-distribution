@@ -1,8 +1,7 @@
 """The hook wiring of `.claude/settings.json`.
 
 The turn-boundary `Stop` gate was removed (change v2-4a-review-protection, design D2), so
-no `Stop` event is wired. Local denial of a push to `main`, a force push and `gh pr merge`
-moved from the deny-list to the plugin's git guard (`tests/publisher/test_git_guard.py`).
+no `Stop` event is wired.
 """
 
 from __future__ import annotations

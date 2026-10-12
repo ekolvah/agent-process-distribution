@@ -36,7 +36,6 @@ MOVED_SCRIPTS = {
     "check_red.py",
     "create_tracking_issue.py",
     "edit_lint.py",
-    "git_guard.py",
     "init.py",
     "manual.py",
     "memory_checkpoint.py",
@@ -432,44 +431,6 @@ def _flagged_payloads(project: Path) -> dict[str, dict]:
     return {**_denied_payloads(project), "Edit|Write": _memory_write(project)}
 
 
-GUARDED_PAYLOAD = {"tool_input": {"command": "gh pr merge 5"}}
-
-
-def _bash_hooks(name: str) -> list[tuple[dict, dict]]:
-    """The `(group, hook)` pairs of the `PreToolUse` `Bash` hooks whose command runs `name`."""
-    return [
-        (group, hook)
-        for group in _json(PLUGIN_HOOKS)["hooks"]["PreToolUse"]
-        if group["matcher"] == "Bash"
-        for hook in group["hooks"]
-        if name in hook["command"]
-    ]
-
-
-def test_plugin_hooks_guard_git_in_an_adopted_repository(tmp_path: Path) -> None:
-    """Scenario: Guarded command in an adopted consumer — the plugin's guard denies a merge
-    and names who merges."""
-    (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
-    (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
-    guards = _bash_hooks("git_guard")
-    assert len(guards) == 1, _plugin_hooks()
-    _, hook = guards[0]
-    navigation = [
-        command
-        for event, matcher, command in _plugin_hooks()
-        if event == "PreToolUse" and matcher == "Read" and "navigation_policy" in command
-    ]
-    assert len(navigation) == 1, _plugin_hooks()
-    gate = navigation[0].split("||")[0]
-    assert hook["command"].startswith(gate), hook["command"]
-    assert hook["timeout"] == 10
-    result = _run_plugin_hook(tmp_path, hook["command"], GUARDED_PAYLOAD)
-    assert result.returncode == 0, result.stderr
-    output = json.loads(result.stdout)["hookSpecificOutput"]
-    assert output["permissionDecision"] == "deny"
-    assert "person merges" in output["permissionDecisionReason"]
-
-
 def test_plugin_hooks_remind_on_memory_write_in_an_adopted_repository(tmp_path: Path) -> None:
     """Scenario: Memory write in an adopted consumer — the plugin's PostToolUse hook reminds."""
     (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
@@ -531,8 +492,7 @@ def test_plugin_hooks_allow_shell_navigation_in_an_adopted_repository(tmp_path: 
     """Scenario: Shell navigation — no plugin `Bash` hook denies a shell read of the repository."""
     (tmp_path / ADOPTION_MARKER).parent.mkdir(parents=True)
     (tmp_path / ADOPTION_MARKER).write_text("", encoding="utf-8")
-    hooks = _bash_hooks("")
-    assert hooks, _plugin_hooks()
+    hooks = [c for event, m, c in _plugin_hooks() if event == "PreToolUse" and m == "Bash"]
     for command in (
         "cat README.md",
         "grep -rn foo src/",
@@ -540,9 +500,9 @@ def test_plugin_hooks_allow_shell_navigation_in_an_adopted_repository(tmp_path: 
         "sed -n 1,5p a.py",
     ):
         payload = {"tool_input": {"command": command}}
-        for _, hook in hooks:
-            result = _run_plugin_hook(tmp_path, hook["command"], payload)
-            assert result.returncode == 0, (command, hook["command"], result.stderr)
+        for hook in hooks:
+            result = _run_plugin_hook(tmp_path, hook, payload)
+            assert result.returncode == 0, (command, hook, result.stderr)
             assert "deny" not in result.stdout, (command, result.stdout)
 
 
@@ -551,12 +511,9 @@ def test_plugin_hooks_are_silent_outside_an_adopted_repository(tmp_path: Path) -
     payloads = _flagged_payloads(tmp_path)
     hooks = [hook for hook in _plugin_hooks() if hook[0] in {"PreToolUse", "PostToolUse"}]
     pre_tool_use = sorted(m for event, m, _ in hooks if event == "PreToolUse")
-    assert {"Bash", "Read"} <= set(pre_tool_use), pre_tool_use
+    assert "Read" in pre_tool_use, pre_tool_use
     for event, matcher, command in hooks:
-        payload = (
-            GUARDED_PAYLOAD if "git_guard" in command else payloads.get(matcher, payloads["Bash"])
-        )
-        result = _run_plugin_hook(tmp_path, command, payload)
+        result = _run_plugin_hook(tmp_path, command, payloads.get(matcher, payloads["Bash"]))
         assert (result.returncode, result.stdout) == (0, ""), (event, matcher, result.stderr)
 
 

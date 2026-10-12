@@ -27,7 +27,7 @@
 
 ## 5. Guard removal (design D6)
 
-- [ ] 5.1 Delete `skills/agent-process/scripts/git_guard.py` and `tests/publisher/test_git_guard.py`. Remove the `PreToolUse` `Bash` entry from `hooks/hooks.json`, the guard hook tests from `tests/publisher/test_plugin.py` (`GUARDED_PAYLOAD` and its tests), `git_guard.py` from both `MOVED_SCRIPTS` sets, and the guard sentence of the docstring of `tests/agent_process/test_delivery_gate_wiring.py`. Verify that `git grep -n git_guard -- ':!openspec' ':!tests/publisher/test_close_review.py'` prints nothing and that `python -m pytest tests/publisher tests/agent_process` passes. Commit
+- [x] 5.1 Delete `skills/agent-process/scripts/git_guard.py` and `tests/publisher/test_git_guard.py`. Remove the `PreToolUse` `Bash` entry from `hooks/hooks.json`, the guard hook tests from `tests/publisher/test_plugin.py` (`GUARDED_PAYLOAD` and its tests), `git_guard.py` from both `MOVED_SCRIPTS` sets, and the guard sentence of the docstring of `tests/agent_process/test_delivery_gate_wiring.py`. Verify that `git grep -n git_guard -- ':!openspec' ':!tests/publisher/test_close_review.py'` prints nothing and that `python -m pytest tests/publisher tests/agent_process` passes. Commit
 
 ## 6. Docs (design D1–D6)
 
