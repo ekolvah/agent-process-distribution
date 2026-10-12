@@ -4,7 +4,7 @@
 Usage: python skills/agent-process/scripts/wait_for_pr.py <PR> [--timeout SECONDS]
 
 The implementing run ends only after checks and reviews: a check that has not concluded (the
-`agent-review` check running the Claude review included) is a pending review. The script reads the head (`gh pr view --json headRefOid`)
+`agent-review` check running the Claude review included) is a pending review. The script reads the head (`gh pr view --json headRefOid,state`)
 and its checks (`gh pr checks <PR> --json name,bucket,link`) every 30 s until two reads in a
 row report, on one head, the same non-empty set of checks with none in the `pending` bucket
 and every check the base branch requires among them (the runs of one push attach one at a
@@ -30,7 +30,9 @@ first, separately: a push during the wait changes it and restarts the two-read a
 
 Exit 0: nothing unresolved; 1: failed or cancelled checks or unresolved threads, each printed
 with its location; 2: `gh` itself failed, its stderr printed — never a verdict on the PR;
-3: `--timeout` (default 30 minutes) elapsed, the line names what was still awaited.
+3: `--timeout` (default 30 minutes) elapsed, the line names what was still awaited; 4: the PR
+is no longer open (the head read carries its `state`), the state printed — a push after it is
+not in the PR.
 """
 
 from __future__ import annotations
@@ -93,8 +95,10 @@ def _checks(gh: Gh, pr: int) -> list[dict[str, Any]] | None:
         raise RuntimeError(f"`{' '.join(cmd)}` returned no JSON: {result.stdout!r}") from exc
 
 
-def _head(gh: Gh, pr: int) -> str:
-    return str(_json(gh, ["gh", "pr", "view", str(pr), "--json", "headRefOid"])["headRefOid"])
+def _head(gh: Gh, pr: int) -> tuple[str, str]:
+    """The PR's head and state, in one read."""
+    view = _json(gh, ["gh", "pr", "view", str(pr), "--json", "headRefOid,state"])
+    return str(view["headRefOid"]), str(view["state"])
 
 
 def _unresolved_threads(gh: Gh, pr: int) -> tuple[str, str, list[dict[str, Any]]]:
@@ -173,7 +177,12 @@ def wait_for_pr(
     while True:
         # The head is read before its checks: a push between the two reads then shows as a
         # head the checks do not belong to, and the next read starts the agreement over.
-        head = _head(gh, pr)
+        head, state = _head(gh, pr)
+        if state != "OPEN":
+            # An approval with auto-merge on merges the PR during the review loop; a push
+            # after that recreates the branch with no PR, so the loop stops here.
+            print(f"PR #{pr} is {state}: a push after it is not in the PR; report to the person")
+            return 4
         checks = _checks(gh, pr)
         waiting = _awaited(checks, required)
         if checks and not waiting:
@@ -206,6 +215,11 @@ def wait_for_pr(
             print(f"waiting: {waiting}")
             last = waiting
         sleep(min(POLL_SECONDS, deadline - now))
+    return _report(checks, threads, url)
+
+
+def _report(checks: list[dict[str, Any]], threads: list[dict[str, Any]], url: str) -> int:
+    """Print what the settled head leaves for the author: 1 with each item, 0 when clean."""
     failed = [c for c in checks if c["bucket"] not in {"pass", "skipping"}]
     for check in failed:
         print(f"failed: {check['name']} {check.get('link', '')}".rstrip())

@@ -19,6 +19,8 @@ refusals come before any network call. Then it prints one line per transition, `
                 `gh auth git-credential`
 - ruleset       `agent-process person approves` of `templates/approval_ruleset.json`, planned as
                 `activate_protection.py` plans its ruleset
+- auto-merge    the repository's `allow_auto_merge`, so the person's approval merges the
+                agent's PR (`enable_auto_merge.py`)
 
 `--dry-run` stops there with reads only. `--confirm` performs the planned transitions, plans
 again and exits 1 naming the first transition that is still planned. A `gh` or `git` failure
@@ -213,8 +215,24 @@ def _ruleset(c: Clone) -> Step:
     return Step("ruleset", status, detail, _applied(apply))
 
 
+def _auto_merge(c: Clone) -> Step:
+    if _json(c.gh, ["gh", "api", f"repos/{c.repo}"]).get("allow_auto_merge") is True:
+        return Step("auto-merge", "unchanged", f"{c.repo} allows auto-merge")
+    patch = ["gh", "api", "-X", "PATCH", f"repos/{c.repo}", "-F", "allow_auto_merge=true"]
+    return Step(
+        "auto-merge", "planned", f"{c.repo} allows auto-merge", _applied(lambda: c.gh(patch))
+    )
+
+
 def _plan(c: Clone) -> list[Step]:
-    return [_collaborator(c), _project(c), _settings(c, c.token), _route(c), _ruleset(c)]
+    return [
+        _collaborator(c),
+        _project(c),
+        _settings(c, c.token),
+        _route(c),
+        _ruleset(c),
+        _auto_merge(c),
+    ]
 
 
 def identity(p: Person, make_bot: Callable[[str], Gh], *, confirm: bool) -> None:

@@ -107,7 +107,7 @@ delta scenario to a named test or `n/a: <reason>`.
    `.github/agent-process-quality.json` declares; their ticks ride in the archive commit.
 5. Deliver using the procedure below; the Deliver task titles the PR `<type>: <change>` with
    the Conventional Commit type the planner chose — `feat` or `fix` when behaviour changes,
-   otherwise `docs`, `test`, `refactor` or `chore`. The person merges.
+   otherwise `docs`, `test`, `refactor` or `chore`. The person's approval merges.
 
 ## Architect review
 
@@ -132,12 +132,14 @@ verdict is the gate, and Group 0 reads it.
 Start from a worktree clean but for the change's own `tasks.md`. Run `agent-process archive_change
 <change>` before `gh pr create --title "<type>: <change>" --body-file <report>`. The report names the
 tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
-deferrals. The archive is the head the PR opens on.
+deferrals. The archive is the head the PR opens on. Then run `agent-process enable_auto_merge
+<PR>`, whose outcome the explanation of the delivered change states.
 
 The `agent-review` check reviews every head with the Claude review job. After creating the
 PR and after every corrective push, run `agent-process wait_for_pr <PR>`;
 it waits until two reads 30 seconds apart agree that all checks on one head concluded, every
 check the base branch requires among them, then reads unresolved threads on that head.
+Exit 4 means the PR is no longer open: stop the loop and report its state to the person.
 
 Apply findings and repeat at most three rounds; the fourth leaves the rest to the person with
 a reply. After a push, run `wait_for_pr.py` again. A P0/P1 thread the push addressed may be resolved only after the
@@ -199,7 +201,7 @@ Run from the consumer's root:
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.
-6. Have the person give the agent its own GitHub identity, so the person approves and merges
+6. Have the person give the agent its own GitHub identity, so the person's approval merges
    the agent's PRs: create a bot account, run `gh auth login -s project,workflow` as the bot,
    then `gh auth switch --user <person>`. Run `agent-process agent_identity --bot <login>
    --dry-run` and show its whole output. Ask once; on yes run it with `--confirm`, then have
