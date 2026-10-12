@@ -38,6 +38,7 @@ class World:
         self.writer = False  # the bot's write role on the linked Project
         self.helpers: list[str] = []  # this clone's credential helpers for github.com
         self.ignored = True  # `git check-ignore` of the settings file
+        self.auto_merge = False  # the repository's `allow_auto_merge`, off on GitHub
 
 
 class PersonGh:
@@ -75,6 +76,13 @@ class PersonGh:
             if not self.token:
                 raise RuntimeError(f"`{' '.join(cmd)}` failed (rc=1): no oauth token found")
             return TOKEN + "\n"
+        if cmd == ["gh", "api", f"repos/{REPO}"]:
+            self.calls.append(cmd)
+            return json.dumps({"full_name": REPO, "allow_auto_merge": self.world.auto_merge})
+        if cmd == ["gh", "api", "-X", "PATCH", f"repos/{REPO}", "-F", "allow_auto_merge=true"]:
+            self.calls.append(cmd)
+            self.world.auto_merge = True
+            return json.dumps({"full_name": REPO, "allow_auto_merge": True})
         if cmd[:3] == ["gh", "repo", "view"]:
             self.calls.append(cmd)
             owner, name = REPO.split("/")
@@ -241,14 +249,16 @@ def test_confirmed_run_on_a_fresh_repository(
     run = Run(world, root)
     code, out = run("--confirm", capsys)
     assert code == 0, out
-    assert [line.split(":")[0] for line in run.transitions(out)][:5] == [
+    assert [line.split(":")[0] for line in run.transitions(out)][:6] == [
         "planned collaborator",
         "planned project",
         "planned settings",
         "planned git",
         "planned ruleset",
+        "planned auto-merge",
     ]
     assert (world.role, world.invitation, world.writer) == ("write", None, True)
+    assert world.auto_merge is True
     assert _settings(root) == {**KEPT, "env": {"OTHER": "1", "GH_TOKEN": TOKEN}}
     assert world.helpers == ["", "!gh auth git-credential"]
     (body,) = [b for b in run.gh.rulesets.values() if b["name"] == NAME]
@@ -295,7 +305,7 @@ def test_rerun(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     code, out = again("--confirm", capsys)
     assert code == 0, out
     lines = again.transitions(out)
-    assert len(lines) == 5 and all(line.startswith("unchanged") for line in lines), out
+    assert len(lines) == 6 and all(line.startswith("unchanged") for line in lines), out
     assert again.writes() == []
 
 
@@ -306,7 +316,7 @@ def test_dry_run_issues_only_reads(tmp_path: Path, capsys: pytest.CaptureFixture
     code, out = run("--dry-run", capsys)
     assert code == 0, out
     lines = run.transitions(out)
-    assert len(lines) == 5 and all(line.startswith("planned") for line in lines), out
+    assert len(lines) == 6 and all(line.startswith("planned") for line in lines), out
     assert run.writes() == []
     assert _settings(root) == KEPT
 

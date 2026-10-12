@@ -281,6 +281,7 @@ def test_tasks_of_a_new_change() -> None:
         < text.index("agent-process check_red")
         < text.index("agent-process archive_change")
         < text.index("gh pr create")
+        < text.index("agent-process enable_auto_merge")
         < text.index("agent-process wait_for_pr")
     )
     for part in (
