@@ -13,6 +13,10 @@
   "permissions": {
     "deny": [
       "Bash(sleep:*)"
+    ],
+    "ask": [
+      "Bash(*activate_protection* --confirm*)",
+      "Bash(*agent_identity* --confirm*)"
     ]
   },
   "hooks": {
