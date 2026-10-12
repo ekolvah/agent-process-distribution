@@ -41,6 +41,7 @@ from typing import Any
 import init
 from activate_protection import Refusal, plan, write
 from set_status import Gh, _json, _linked_project, _repo, run_gh
+from steps import Step
 
 Git = Callable[[list[str]], "subprocess.CompletedProcess[str]"]
 
@@ -62,96 +63,95 @@ def bot_gh(token: str) -> Gh:
     return partial(run_gh, env={**os.environ, "GH_TOKEN": token})
 
 
-@dataclass
-class Clone:
+@dataclass(frozen=True)
+class Person:
+    """The run's inputs: the clone, the bot's login, and the person's `gh` and `git`."""
+
     root: Path
     login: str
     gh: Gh
     git: Git
-    make_bot: Callable[[str], Gh]
-    token: str = ""
-    bot: Gh = run_gh
-    repo: str = ""
-    bot_id: str = ""
-    project: dict[str, Any] | None = None
 
 
-@dataclass
-class Transition:
-    name: str
-    lines: list[str]
-    apply: Callable[[], None] | None = None  # `None`: unchanged
+@dataclass(frozen=True)
+class Clone(Person):
+    """The inputs and what the preconditions resolved: the bot's token, `gh` and node id, the
+    repository and its linked Project."""
+
+    token: str
+    bot: Gh
+    bot_id: str
+    repo: str
+    project: dict[str, Any]
 
 
-def _unchanged(name: str, detail: str) -> Transition:
-    return Transition(name, [f"unchanged {name}: {detail}"])
+def _applied(write_: Callable[[], object]) -> Callable[[], bool]:
+    """A `Step.apply` running `write_`."""
+
+    def apply() -> bool:
+        write_()
+        return True
+
+    return apply
 
 
-def _planned(name: str, detail: str, apply: Callable[[], None]) -> Transition:
-    return Transition(name, [f"planned {name}: {detail}"], apply)
-
-
-def _git(c: Clone, *args: str, ok: tuple[int, ...] = (0,)) -> subprocess.CompletedProcess[str]:
-    done = c.git(["git", "-C", str(c.root), *args])
+def _git(p: Person, *args: str, ok: tuple[int, ...] = (0,)) -> subprocess.CompletedProcess[str]:
+    done = p.git(["git", "-C", str(p.root), *args])
     if done.returncode not in ok or done.stdout is None:
         raise RuntimeError(f"`git {' '.join(args)}` exited {done.returncode}: {done.stderr}")
     return done
 
 
-def _token(gh: Gh, login: str) -> str:
+def _token(p: Person) -> str:
     try:
-        token = gh(["gh", "auth", "token", "--user", login]).strip()
+        token = p.gh(["gh", "auth", "token", "--user", p.login]).strip()
     except RuntimeError as exc:
-        raise Refusal(f"refused: no gh token of {login}: {exc}") from None
+        raise Refusal(f"refused: no gh token of {p.login}: {exc}") from None
     if not token:
-        raise Refusal(f"refused: no gh token of {login}")
+        raise Refusal(f"refused: no gh token of {p.login}")
     return token
 
 
-def _settings(c: Clone) -> Transition:
-    path = c.root / SETTINGS
+def _settings(p: Person, token: str) -> Step:
+    path = p.root / SETTINGS
     try:
-        text = init._read(path)
+        text, data = init._json_object(path)
     except init.Conflict as exc:
         raise Refusal(f"refused: {SETTINGS} {exc}") from None
-    try:
-        data = json.loads(text) if text is not None else {}
-    except json.JSONDecodeError as exc:
-        raise Refusal(f"refused: {SETTINGS} is not valid JSON ({exc.msg})") from None
-    env = data.get("env", {}) if isinstance(data, dict) else None
+    env = data.get("env", {})
     if not isinstance(env, dict):
-        raise Refusal(f"refused: {SETTINGS} is not a JSON object with an `env` object")
-    if env.get("GH_TOKEN") == c.token:
-        return _unchanged("settings", f"env.GH_TOKEN of {SETTINGS} is {c.login}'s token")
-    # Re-serialising is lossless only from the form written here; any other form is the person's.
-    if text is not None and text != json.dumps(data, indent=2, ensure_ascii=False) + "\n":
+        raise Refusal(f"refused: {SETTINGS} `env` is not an object")
+    if env.get("GH_TOKEN") == token:
+        return Step("settings", "unchanged", f"env.GH_TOKEN of {SETTINGS} is {p.login}'s token")
+    if text is not None and text != init._json_text(data):
         raise Refusal(
             f"refused: {SETTINGS} is not in the form this script writes; set `env.GH_TOKEN` to"
-            f" the output of `gh auth token --user {c.login}` by hand"
+            f" the output of `gh auth token --user {p.login}` by hand"
         )
-    updated = {**data, "env": {**env, "GH_TOKEN": c.token}}
-    text_out = json.dumps(updated, indent=2, ensure_ascii=False) + "\n"
-    return _planned(
+    text_out = init._json_text({**data, "env": {**env, "GH_TOKEN": token}})
+    return Step(
         "settings",
-        f"env.GH_TOKEN of {SETTINGS} set to {c.login}'s token",
-        lambda: init._write(path, text_out, init._eol(path)),
+        "planned",
+        f"env.GH_TOKEN of {SETTINGS} set to {p.login}'s token",
+        _applied(lambda: init._write(path, text_out, init._eol(path))),
     )
 
 
-def _route(c: Clone) -> Transition:
+def _route(c: Clone) -> Step:
     done = _git(c, "config", "--local", "--get-all", HELPER, ok=(0, 1))
     helpers = done.stdout.splitlines() if done.returncode == 0 else []
     if helpers == ROUTE:
-        return _unchanged("git", f"{HELPER} routes to {ROUTE[1]}")
+        return Step("git", "unchanged", f"{HELPER} routes to {ROUTE[1]}")
 
     def apply() -> None:
         _git(c, "config", "--local", "--replace-all", HELPER, ROUTE[0])
         _git(c, "config", "--local", "--add", HELPER, ROUTE[1])
 
-    return _planned("git", f"{HELPER} {json.dumps(helpers)} -> {json.dumps(ROUTE)}", apply)
+    detail = f"{HELPER} {json.dumps(helpers)} -> {json.dumps(ROUTE)}"
+    return Step("git", "planned", detail, _applied(apply))
 
 
-def _collaborator(c: Clone) -> Transition:
+def _collaborator(c: Clone) -> Step:
     read = _json(c.gh, ["gh", "api", f"repos/{c.repo}/collaborators/{c.login}/permission"])
     if read["permission"] == "admin":
         raise Refusal(
@@ -159,7 +159,7 @@ def _collaborator(c: Clone) -> Transition:
         )
     role = str(read["role_name"])
     if role in WRITE_ROLES:
-        return _unchanged("collaborator", f"{c.login} has {role} on {c.repo}")
+        return Step("collaborator", "unchanged", f"{c.login} has {role} on {c.repo}")
 
     def apply() -> None:
         invitations = _json(c.bot, ["gh", "api", "user/repository_invitations"])
@@ -174,11 +174,11 @@ def _collaborator(c: Clone) -> Transition:
         for invitation in pending:
             c.bot(["gh", "api", "-X", "PATCH", f"user/repository_invitations/{invitation['id']}"])
 
-    return _planned("collaborator", f"{c.login} from {role} to write on {c.repo}", apply)
+    detail = f"{c.login} from {role} to write on {c.repo}"
+    return Step("collaborator", "planned", detail, _applied(apply))
 
 
-def _project(c: Clone) -> Transition:
-    assert c.project is not None
+def _project(c: Clone) -> Step:
     board = f"#{c.project['number']} {c.project['title']}"
     query = ["gh", "api", "graphql", "-f", f"id={c.project['id']}", "-f", f"query={CAN_UPDATE}"]
     try:
@@ -188,64 +188,59 @@ def _project(c: Clone) -> Transition:
             raise
         node = None
     if node and node.get("viewerCanUpdate") is True:
-        return _unchanged("project", f"{c.login} can update {board}")
-    project_id = c.project["id"]
-
-    def apply() -> None:
-        c.gh(
-            ["gh", "api", "graphql", "-f", f"projectId={project_id}", "-f", f"userId={c.bot_id}"]
-            + ["-f", f"query={ADD_WRITER}"]
-        )
-
-    return _planned("project", f"{c.login} writer on {board}", apply)
+        return Step("project", "unchanged", f"{c.login} can update {board}")
+    mutation = ["gh", "api", "graphql", "-f", f"projectId={c.project['id']}"]
+    mutation += ["-f", f"userId={c.bot_id}", "-f", f"query={ADD_WRITER}"]
+    return Step(
+        "project", "planned", f"{c.login} writer on {board}", _applied(lambda: c.gh(mutation))
+    )
 
 
-def _ruleset(c: Clone) -> Transition:
+def _ruleset(c: Clone) -> Step:
     want = json.loads(TEMPLATE.read_text(encoding="utf-8"))
     action, ruleset_id, lines = plan(c.gh, c.repo, want)
-    state, detail = lines[0].split(" ", 1)
-    transition = Transition("ruleset", [f"{state} ruleset: {detail}", *lines[1:]])
-    if action != "unchanged":
+    status = "unchanged" if action == "unchanged" else "planned"
+    detail = "\n".join([lines[0].removeprefix(f"{status} "), *lines[1:]])
+    if action == "unchanged":
+        return Step("ruleset", status, detail)
 
-        def apply() -> None:
-            # Printed at once: a created ruleset's rollback needs this id.
-            print(f"wrote ruleset {write(c.gh, c.repo, ruleset_id, want)}", flush=True)
+    def apply() -> None:
+        # Printed at once: a created ruleset's rollback needs this id.
+        print(f"wrote ruleset {write(c.gh, c.repo, ruleset_id, want)}", flush=True)
 
-        transition.apply = apply
-    return transition
-
-
-def _plan(c: Clone) -> list[Transition]:
-    settings, route = _settings(c), _route(c)
-    return [_collaborator(c), _project(c), settings, route, _ruleset(c)]
+    return Step("ruleset", status, detail, _applied(apply))
 
 
-def identity(c: Clone, *, confirm: bool) -> None:
-    if _git(c, "check-ignore", "-q", SETTINGS, ok=(0, 1)).returncode != 0:
+def _plan(c: Clone) -> list[Step]:
+    return [_collaborator(c), _project(c), _settings(c, c.token), _route(c), _ruleset(c)]
+
+
+def identity(p: Person, make_bot: Callable[[str], Gh], *, confirm: bool) -> None:
+    if _git(p, "check-ignore", "-q", SETTINGS, ok=(0, 1)).returncode != 0:
         raise Refusal(f"refused: {SETTINGS} is not git-ignored in this clone")
-    c.token = _token(c.gh, c.login)
-    _settings(c)  # a local refusal before any network call
-    c.bot = c.make_bot(c.token)
-    user = _json(c.bot, ["gh", "api", "user"])
-    if user["login"] != c.login:
-        raise Refusal(f"refused: the gh token of {c.login} belongs to {user['login']}")
-    c.bot_id = str(user["node_id"])
-    owner, name, projects = _repo(c.gh)
-    c.repo = f"{owner}/{name}"
+    token = _token(p)
+    _settings(p, token)  # a local refusal before any network call
+    bot = make_bot(token)
+    user = _json(bot, ["gh", "api", "user"])
+    if user["login"] != p.login:
+        raise Refusal(f"refused: the gh token of {p.login} belongs to {user['login']}")
+    owner, name, projects = _repo(p.gh)
     try:
-        c.project = _linked_project(owner, name, projects)
+        project = _linked_project(owner, name, projects)
     except ValueError as exc:
         raise Refusal(f"refused: {exc}") from None
-    transitions = _plan(c)
-    print("\n".join(line for t in transitions for line in t.lines))
-    if not confirm or all(t.apply is None for t in transitions):
+    bot_id, repo = str(user["node_id"]), f"{owner}/{name}"
+    c = Clone(p.root, p.login, p.gh, p.git, token, bot, bot_id, repo, project)
+    steps = _plan(c)
+    print("\n".join(f"{s.status} {s.label}: {s.detail}" for s in steps))
+    if not confirm or all(s.apply is None for s in steps):
         return
-    for transition in transitions:
-        if transition.apply is not None:
-            transition.apply()
-    for transition in _plan(c):
-        if transition.apply is not None:
-            raise RuntimeError(f"re-plan: {transition.name} is still planned")
+    for step in steps:
+        if step.apply is not None:
+            step.apply()
+    for step in _plan(c):
+        if step.apply is not None:
+            raise RuntimeError(f"re-plan: {step.label} is still planned")
     print("written; GH_TOKEN reaches the agent after a Claude Code restart")
 
 
@@ -264,7 +259,7 @@ def main(
     mode.add_argument("--confirm", action="store_true", help="write the plan, then plan again")
     ns = parser.parse_args(argv)
     try:
-        identity(Clone(root or Path.cwd(), ns.bot, gh, git, bot), confirm=ns.confirm)
+        identity(Person(root or Path.cwd(), ns.bot, gh, git), bot, confirm=ns.confirm)
     except Refusal as exc:
         print(exc, file=sys.stderr)
         sys.exit(2)

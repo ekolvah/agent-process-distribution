@@ -14,27 +14,15 @@ from typing import Any
 
 import pytest
 
-from tests.publisher.delivery_fakes import load_script
+from tests.publisher.delivery_fakes import PROJECT, ROOT, load_script
 from tests.publisher.test_activate_protection import REPO, FakeGh
 
 BOT = "agent-bot"
 TOKEN = "bot-token"
-PROJECT = {
-    "id": "PVT_1",
-    "number": 4,
-    "title": "board",
-    "resourcePath": "/users/owner/projects/4",
-}
 HELPER = "credential.https://github.com.helper"
 NAME = "agent-process person approves"
 SETTINGS = ".claude/settings.local.json"
-TEMPLATE = (
-    Path(__file__).resolve().parents[2]
-    / "skills"
-    / "agent-process"
-    / "templates"
-    / "approval_ruleset.json"
-)
+TEMPLATE = ROOT / "skills" / "agent-process" / "templates" / "approval_ruleset.json"
 GIT_WRITES = ("--replace-all", "--add", "--unset-all", "--unset")
 
 
@@ -242,10 +230,8 @@ def test_confirmed_run_on_a_fresh_repository(
     assert _settings(root) == {**KEPT, "env": {"OTHER": "1", "GH_TOKEN": TOKEN}}
     assert world.helpers == ["", "!gh auth git-credential"]
     (body,) = [b for b in run.gh.rulesets.values() if b["name"] == NAME]
-    assert body["bypass_actors"] == []
-    (rule,) = body["rules"]
-    assert rule["parameters"]["required_approving_review_count"] == 1
-    assert rule["parameters"]["dismiss_stale_reviews_on_push"] is True
+    template = json.loads(TEMPLATE.read_text(encoding="utf-8"))
+    assert {key: body[key] for key in template} == template
     assert "restart" in out
     assert TOKEN not in out
 

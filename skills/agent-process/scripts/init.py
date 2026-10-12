@@ -505,14 +505,26 @@ def _block_text(ctx: Context, rel: str, rendered: str) -> tuple[str | None, str]
     return text, "\n".join(_replace_block(lines, template[span[0] : span[1] + 1]))
 
 
-def _settings_text(ctx: Context) -> tuple[str | None, str]:
-    text = _read(ctx.root / SETTINGS)
+def _json_object(path: Path) -> tuple[str | None, dict[str, Any]]:
+    """The text of the JSON settings file at `path` (`None` when absent) and its object."""
+    text = _read(path)
     try:
         data = json.loads(text) if text is not None else {}
     except json.JSONDecodeError as exc:
         raise Conflict(f"is not valid JSON ({exc.msg})") from None
     if not isinstance(data, dict):
         raise Conflict("is not a JSON object")
+    return text, data
+
+
+def _json_text(data: dict[str, Any]) -> str:
+    """The form JSON settings are written in. Re-serialising is lossless only from this form; any
+    other form (spacing, key order, escapes, repeated keys) is the person's to edit."""
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+def _settings_text(ctx: Context) -> tuple[str | None, str]:
+    text, data = _json_object(ctx.root / SETTINGS)
     wanted = _render_settings(ctx.version)
     for key in ("extraKnownMarketplaces", "enabledPlugins"):
         if not isinstance(data.get(key, {}), dict):
@@ -532,9 +544,7 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     entry = wanted["extraKnownMarketplaces"][MARKETPLACE]
     if market == entry and PLUGIN not in plugins and starts == new_starts:
         return text, text or ""
-    # Re-serialising is lossless only from the form written here; any other form (spacing,
-    # key order, escapes, repeated keys) is the person's to edit.
-    if text is not None and text != json.dumps(data, indent=2, ensure_ascii=False) + "\n":
+    if text is not None and text != _json_text(data):
         raise Conflict(
             f'is not in the form init writes; add `"extraKnownMarketplaces": {{"{MARKETPLACE}":'
             f" {json.dumps(entry)}}}` and the `hooks.SessionStart` group {json.dumps(group)},"
@@ -543,7 +553,7 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     updated = _without_plugin(data)
     updated["extraKnownMarketplaces"] = {**marketplaces, MARKETPLACE: entry}
     updated["hooks"] = {**hooks, "SessionStart": new_starts}
-    return text, json.dumps(updated, indent=2, ensure_ascii=False) + "\n"
+    return text, _json_text(updated)
 
 
 def _without_plugin(data: dict[str, Any]) -> dict[str, Any]:
