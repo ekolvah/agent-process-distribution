@@ -869,15 +869,16 @@ It SHALL print one line per transition, marked `planned` or `unchanged`. The tra
   `gh auth git-credential`;
 - one repository ruleset named `agent-process person approves` on the default branch, with no
   bypass actor, whose only rule is `pull_request` with one required approving review and stale
-  reviews dismissed on push.
+  reviews dismissed on push;
+- the repository's `allow_auto_merge` setting set to true.
 
 A dry-run SHALL issue only reads. A confirmed run SHALL perform the `planned` transitions, then
 plan again and exit 1 naming the first transition that is not `unchanged`. A rerun after success
 SHALL report every transition `unchanged` and write nothing.
 
 #### Scenario: Confirmed run on a fresh repository
-- **WHEN** a confirmed run meets a bot token of `<login>` without admin permission, no invitation, no Project role, settings with other keys and no `GH_TOKEN`, no credential route, and no ruleset of that name
-- **THEN** `<login>` is a collaborator with write access and a Project writer, the clone's settings carry `GH_TOKEN` with every prior key kept, git routes `https://github.com` credentials to `gh`, and the ruleset exists with its required approval and no bypass
+- **WHEN** a confirmed run meets a bot token of `<login>` without admin permission, no invitation, no Project role, settings with other keys and no `GH_TOKEN`, no credential route, no ruleset of that name, and auto-merge not allowed
+- **THEN** `<login>` is a collaborator with write access and a Project writer, the clone's settings carry `GH_TOKEN` with every prior key kept, git routes `https://github.com` credentials to `gh`, the ruleset exists with its required approval and no bypass, and the repository allows auto-merge
 
 #### Scenario: A precondition fails
 - **WHEN** `.claude/settings.local.json` is not ignored, or `gh` holds no token of `<login>`, or the token's login differs from `--bot`, or `<login>` is a repository admin

@@ -105,9 +105,11 @@ required check the head does not report yet SHALL count as one too; a base branc
 require no check SHALL be reported as such before the wait. The wait for a requested review
 SHALL be the `agent-review` check's own bounded wait, not the script's; a failed or cancelled
 check SHALL count as unresolved; threads SHALL be read only after every check on the head has
-concluded. The end state SHALL never be ambiguous: nothing unresolved (exit 0), unresolved
-items printed (exit 1), a `gh` failure reported with its message (exit 2), or a timeout
-reported with what was still awaited (exit 3).
+concluded. The head read of every poll SHALL read the PR's state too, and a PR that is no longer
+open SHALL end the wait at once. The end state SHALL never be ambiguous: nothing unresolved
+(exit 0), unresolved items printed (exit 1), a `gh` failure reported with its message (exit
+2), a timeout reported with what was still awaited (exit 3), or the PR no longer open, its
+state printed (exit 4).
 
 #### Scenario: Pending review
 - **WHEN** the PR is open and a review is pending
@@ -124,6 +126,10 @@ reported with what was still awaited (exit 3).
 #### Scenario: No required checks on the base branch
 - **WHEN** the rules of the PR's base branch require no status check
 - **THEN** `wait_for_pr` prints a note that it settles on the reported checks only, then waits as for any head
+
+#### Scenario: PR no longer open
+- **WHEN** `wait_for_pr` reads the PR's state as `MERGED` or `CLOSED`
+- **THEN** it prints that state and that a push after it is not in the PR, reads no checks or threads, and exits 4
 
 ### Requirement: Delivery steps are tasks of every change
 The `tasks` rule in `config.yaml` SHALL make every `tasks.md` begin with `start_change

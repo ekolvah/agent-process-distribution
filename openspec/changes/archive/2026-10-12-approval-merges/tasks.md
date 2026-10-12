@@ -21,11 +21,11 @@
 
 - [x] 4.1 Run `/simplify` without an argument, and commit its edits or record `no edits` with the skipped findings in this tick — edits: `_head` renamed `_head_state`; ADR D7 states that a push already made after the merge is reported by the next `wait_for_pr` run, Confirmation rewrapped. Skipped: extracting `_report` (needed for ruff C901), the `--json` field parse of `_Sequence` (architect review: `state` only when asked), docstring length, dropping the `allow_auto_merge` transition (design D3), sharing the repo read with `gh repo view` (one read on a rare command), the private `_json` import (existing pattern)
 - [x] 4.2 Run `openspec validate --strict --all` and verify that every change and spec passes
-- [ ] 4.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 4.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 5. Deliver
 
-- [ ] 5.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change approval-merges`. Verify that it merges the deltas into `openspec/specs/review-and-merge/spec.md`, `openspec/specs/distribution/spec.md` and `openspec/specs/implementation/spec.md`, archives, commits and pushes the branch
+- [x] 5.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change approval-merges`. Verify that it merges the deltas into `openspec/specs/review-and-merge/spec.md`, `openspec/specs/distribution/spec.md` and `openspec/specs/implementation/spec.md`, archives, commits and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "feat: approval-merges" --body-file <report>`. The report references tracking issue #409 plainly, never with `Closes`, and carries the scenario → test map
 - [ ] 5.3 Run `agent-process enable_auto_merge <PR>` (this branch's own script). Verify exit 0 and `gh pr view <PR> --json autoMergeRequest` showing `mergeMethod` `SQUASH`; on exit 1 record the `reviewDecision` it read in the report (design D1)
 - [ ] 5.4 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push; on exit 4 stop and report the PR state to the person. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person with the PR, its head, and each open thread's link and one-line finding
