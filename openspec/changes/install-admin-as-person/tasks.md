@@ -4,7 +4,7 @@
 
 ## 1. RED first
 
-- [ ] 1.1 Add `test_a_clone_with_the_agent_identity` to `tests/publisher/test_agent_identity.py`: with `GH_TOKEN` and `GITHUB_TOKEN` set by `monkeypatch.setenv`, the default `gh` of `main` (`main.__kwdefaults__["gh"]`) of both `activate_protection` and `agent_identity` runs `[sys.executable, "-c", <print both variables>]` and sees neither; `agent_identity.bot_gh("<bot token>")` running the same probe sees `GH_TOKEN` equal to the bot token. Run `agent-process check_red tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity` and commit RED with the Group 1 ticks
+- [x] 1.1 Add `test_a_clone_with_the_agent_identity` to `tests/publisher/test_agent_identity.py`: with `GH_TOKEN` and `GITHUB_TOKEN` set by `monkeypatch.setenv`, the default `gh` of `main` (`main.__kwdefaults__["gh"]`) of both `activate_protection` and `agent_identity` runs `[sys.executable, "-c", <print both variables>]` and sees neither; `agent_identity.bot_gh("<bot token>")` running the same probe sees `GH_TOKEN` equal to the bot token. Run `agent-process check_red tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity` and commit RED with the Group 1 ticks
 
 ## 2. Person runner (design D1, D2)
 
