@@ -23,7 +23,7 @@
 
 ## 4. Release approval (design D5)
 
-- [ ] 4.1 In `.github/workflows/release-please.yml`, add the step "Approve the release PR" of D5 before "Enable auto-merge on the release PR", parsing the PR number in `run` as that step does, and update the header comment. Verify with `python -m pytest tests/publisher/test_reusable_workflows.py`. Commit
+- [x] 4.1 In `.github/workflows/release-please.yml`, add the step "Approve the release PR" of D5 before "Enable auto-merge on the release PR", parsing the PR number in `run` as that step does, and update the header comment. Verify with `python -m pytest tests/publisher/test_reusable_workflows.py`. Commit
 
 ## 5. Guard removal (design D6)
 

@@ -3,7 +3,8 @@ name: Release Please
 # One release PR moves every version place; merging it tags `v<version>` (ADR 0030).
 # The token is the person's fine-grained PAT, so the required contexts run on the
 # release PR; events created with GITHUB_TOKEN start no workflow. The release PR
-# merges itself once its required contexts are green (ADR 0031).
+# merges itself once its required contexts are green and `github-actions` approved it
+# (ADR 0031, ADR 0040).
 # A created release fast-forwards `stable`, the consumers' marketplace channel.
 on:
   push:
@@ -22,6 +23,19 @@ jobs:
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      # The PR's author is the PAT's person, so the approval of `github-actions` counts for
+      # the required approval; the repository allows Actions to approve, or the run fails.
+      # Each update of the PR dismisses the approval, and the run that pushed it approves again.
+      - name: Approve the release PR
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          PR=$(jq -er .number <<< "$PR_JSON")
+          gh pr review --approve "$PR"
 
       # Auto-merge waits for the required contexts; a failure to enable it (the
       # repository disallows auto-merge) fails the run instead of stalling the PR.
