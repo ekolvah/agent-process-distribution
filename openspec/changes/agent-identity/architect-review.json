@@ -1,0 +1,57 @@
+{
+  "verdict": "approve",
+  "round": 5,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every round-4 finding and note is answered in the artifacts. Task 8.4's live check now sends the bot's merge to the server through the REST call and expects the 405 rule violation, and the Risks bullet names that call and gh's client-side refusal. The ruleset (one approval, dismiss stale, no bypass), the release approval, and the scenario map are consistent across proposal, specs, design and tasks.",
+  "classes": {
+    "simpler": {
+      "evidence": "The ruleset is now the platform's plainest gate: one approval and dismiss stale, with no bypass and no last-push rule. D2 gives the reason the last-push rule is dropped: it adds nothing against a bot that is the author, and it would deadlock a PR that the person updates. Rejected with reasons: the `update` rule with a bypass (D2), the GitHub App (D1), the ruleset inside activate_protection (D4), and the wait-and-merge job (D5). The guard is not reduced, per the measurement and the maintainer's decision. The release path is the existing auto-merge step plus one `gh pr review --approve` step.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The delta has 10 scenarios and the map holds 10 rows with exactly those keys:\n- distribution: Confirmed run on a fresh repository, A precondition fails, Rerun, Identity missing, Identity set, Version places agree, Release PR opened or updated, No release PR change, Release PR merged;\n- review-and-merge: Merge from Claude Code.\nThe MODIFIED requirement keeps the four current scenarios. No release PR change now names both the parse test and the approves test, which asserts the `prs_created` guard. The Merge from Claude Code row now says the required approval and no bypass, which matches the reworded requirement.\nNit for the planner: the Merge from Claude Code row still writes \"live: the bot's `gh pr merge` refused\". Task 8.4 now observes the REST `PUT .../merge` 405 together with the REVIEW_REQUIRED / BLOCKED read, so name those in the row.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 writes, against a stub, then runs check_red and commits RED:\n- every map test, including test_approval_ruleset_body, whose body task 2.2 now fixes (`dismiss_stale_reviews_on_push` true, `require_last_push_approval` false);\n- the dry-run test and the re-plan test;\n- the parametrized skill_check tests;\n- the renamed and extended workflow test.\nThe refactor in 2.1 and the deletion in 5.1 need no RED.",
+      "result": "ok"
+    },
+    "platform": {
+      "result": "ok",
+      "evidence": "Observed:\n- the sandbox PR 2 results (BLOCKED / REVIEW_REQUIRED, the `github-actions` approval counted, auto-merge merged), which carry over to the looser chosen ruleset;\n- settings env reaches `Bash` and the SessionStart hook;\n- the git credential route;\n- `gh auth token --user` in gh 2.87.3;\n- the workflow permissions (`read`, `false`).\nCited: the rulesets layering rule (about-rulesets) and the derived \"Update branch\" reasoning of D2.\nUnobserved, each with its check:\n- the user-owned Project mutation, caught by the re-plan's exit 1;\n- the server refusal, now observed after `--confirm` by the person's `gh api -X PUT repos/<repo>/pulls/<N>/merge -f merge_method=squash` with the bot's token, expecting HTTP 405 (task 8.4; design Risks notes that `gh pr merge` refuses a BLOCKED PR on the client)."
+    },
+    "replaced": {
+      "evidence": "D6 pairs each dropped guard rule with its catcher, and the marker's input and failure modes are unchanged from round 3. With the last-push rule removed:\n- The bot's push after the person's approval is still dismissed (dismiss stale), so it cannot sneak a change past an approval.\n- The person's \"Update branch\" dismisses the person's approval, and the person, not being the author, approves again. The deadlock is gone.\n- The release PR: each release-please push dismisses, and the same run re-approves its current head. A race without a concurrency group still ends approved on the latest head.\n- New exposure: the bot can push to a PR the person authored and approve it. It is recorded in Risks as a deliberate act in the Non-Goals class. The review job still runs on such a release PR, because release_pr.py detects a release PR by its content.\nD2 Cost and ADR 0040 (task 6.2) now say that updating a PR dismisses its approval, so the person updates first and approves last.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Traced catchers:\n- A push or force push to main: `agent-process default branch`.\n- `--no-verify`: the required `agent-process / quality`.\n- `gh repo delete`: the non-admin precondition.\n- An unobserved Project mutation: exit 1 from the re-plan.\n- A failed release approval: a red run, with auto-merge skipped.\n- A worktree-started session or a foreign token: the SessionStart marker.\n- An agent-pushed approving workflow, or a bot push plus approval on a PR the person authored: accepted in Risks as deliberate acts.\n- The refusal risk: split as round 3 asked, with the agent's read and the person's own terminal on a PR the person means to merge anyway, so a wrong rule costs nothing. The person's call now reaches the merge endpoint, so a wrong rule shows as a merge of a PR the person meant to merge anyway, not as silence.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Word counts, and what the tests assert:\n- Agent identity converges, 368 words: asserted by the five identity tests and test_approval_ruleset_body; the transition now names one approval and dismiss stale.\n- The session marker, 149 words: asserted by the two skill_check tests.\n- The edited release paragraph, 79 words: asserted by the approves test and the parse test.\n- The person approves, 112 words, down from 134: the refusal until a non-author approves and the dismissal are asserted through the ruleset body (`required_approving_review_count`, `dismiss_stale_reviews_on_push`). The untested claim about the agent is removed, and the refusal itself is in scenario_coverage.\n- REMOVED reasons: not tested.\nD4 \"Why not in activate_protection\" now gives the authored-PR reason. D2 Cost gained 11 words (update first, approve last), which is design prose rather than a spec rule.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "agent_identity.py has D4 \"New script, why\" and reuses activate_protection, init and set_status helpers. templates/approval_ruleset.json is data for the reused plan. The marker is a branch of the existing skill_check. The release approval is one platform `gh pr review` step. No new script or check was added since round 3.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "review-and-merge",
+      "scenario": "Merge from Claude Code",
+      "reason": "GitHub's refusal is platform behaviour. test_approval_ruleset_body asserts the required approval and no bypass. After `--confirm`, the agent reads REVIEW_REQUIRED / BLOCKED, and the person's REST merge with the bot's token returns HTTP 405 (task 8.4)."
+    },
+    {
+      "capability": "distribution",
+      "scenario": "Release PR merged",
+      "reason": "Platform behaviour of release-please-action, observed with `gh release view v<version>` after the first release under the ruleset (task 8.4)."
+    },
+    {
+      "capability": "distribution",
+      "scenario": "Release PR opened or updated",
+      "reason": "test_release_workflow_approves_and_enables_auto_merge asserts only the workflow text. That the `github-actions` approval counts and that auto-merge merges under the ruleset is proved live on the first release PR after the ruleset is applied (task 8.4)."
+    }
+  ]
+}
