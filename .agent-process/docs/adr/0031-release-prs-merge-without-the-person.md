@@ -49,6 +49,11 @@ Chosen: **recognise the release PR by its diff, exempt it, and let auto-merge me
   action created or updated (`prs_created`), with `RELEASE_PLEASE_TOKEN`. The required contexts
   decide the merge. The repository allows auto-merge (`allow_auto_merge=true`, set once by the
   person); without it the step fails red and the person can still merge.
+  Amended by [ADR 0040](0040-the-agent-runs-under-its-own-identity.md): the default branch
+  requires one approval, so the workflow first approves the PR with `GITHUB_TOKEN` (`gh pr
+  review --approve`); the repository allows GitHub Actions to approve pull requests
+  (`can_approve_pull_request_reviews=true`, set once by the person), and without it the step
+  fails red and the PR waits for the person's approval.
 
 ### Consequences
 
@@ -77,5 +82,5 @@ release-please.
 `tests/publisher/test_release_pr.py` holds D1 and the published verdict;
 `tests/publisher/test_reusable_workflows.py::test_quality_skips_the_link_on_a_release_pr`,
 `::test_agent_review_skips_the_review_on_a_release_pr` and
-`::test_release_workflow_enables_auto_merge` hold D2 and D4. The first release after this ADR
+`::test_release_workflow_approves_and_enables_auto_merge` hold D2 and D4. The first release after this ADR
 is the live check of D4.

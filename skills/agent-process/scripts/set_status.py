@@ -23,9 +23,9 @@ from typing import Any
 Gh = Callable[[list[str]], str]
 
 
-def run_gh(cmd: list[str]) -> str:
+def run_gh(cmd: list[str], env: dict[str, str] | None = None) -> str:
     """Run `gh`; a non-zero exit raises with the captured stderr (visible failure)."""
-    result = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8")
+    result = subprocess.run(cmd, text=True, capture_output=True, encoding="utf-8", env=env)
     if result.stdout is None or result.stderr is None:
         raise RuntimeError(f"`{' '.join(cmd)}`: broken capture (stdout or stderr is None)")
     if result.returncode != 0:

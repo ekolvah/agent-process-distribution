@@ -708,20 +708,24 @@ def test_agent_review_skips_the_review_on_a_release_pr() -> None:
     assert steps["Enforce unresolved P0/P1 threads"]["if"] == "always()"
 
 
-def test_release_workflow_enables_auto_merge() -> None:
-    """ADR 0031 D4: the release workflow enables auto-merge on the PR it created or
-    updated, with the PAT that opened it; the required checks decide the merge."""
+def test_release_workflow_approves_and_enables_auto_merge() -> None:
+    """ADR 0031 D4, design D5 of agent-identity: the release workflow approves the PR it
+    created or updated with `GITHUB_TOKEN`, then enables auto-merge on it with the PAT that
+    opened it; the required checks and the approval decide the merge."""
     (job,) = _workflow("release-please.yml")["jobs"].values()
     raw = job["steps"]
     action = next(s for s in raw if s.get("uses", "").startswith("googleapis/release-please"))
     assert action["id"] == "release"
 
-    merge = raw[raw.index(action) + 1]
-    assert merge["if"] == "steps.release.outputs.prs_created == 'true'"
+    approve, merge = raw[raw.index(action) + 1 : raw.index(action) + 3]
+    for step in (approve, merge):
+        assert step["if"] == "steps.release.outputs.prs_created == 'true'"
+        assert step["env"]["PR_JSON"] == "${{ steps.release.outputs.pr }}"
+        assert "PR" not in step["env"]
+        assert "jq -er .number" in step["run"]
+    assert approve["env"]["GH_TOKEN"] == "${{ github.token }}"
+    assert 'gh pr review --approve "$PR"' in approve["run"]
     assert merge["env"]["GH_TOKEN"] == "${{ secrets.RELEASE_PLEASE_TOKEN }}"
-    assert merge["env"]["PR_JSON"] == "${{ steps.release.outputs.pr }}"
-    assert "PR" not in merge["env"]
-    assert "jq -er .number" in merge["run"]
     assert 'gh pr merge --auto --squash "$PR"' in merge["run"]
 
 

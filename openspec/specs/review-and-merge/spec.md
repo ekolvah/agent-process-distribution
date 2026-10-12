@@ -164,16 +164,6 @@ the enforcement of the threads.
 - **WHEN** the job runs on a release PR
 - **THEN** it reads no review, the Claude Code action does not run, and the check passes unless an unresolved `P0`/`P1` thread exists
 
-### Requirement: Local safety in Claude Code
-Push to `main`, force push and `gh pr merge` SHALL be denied locally by the
-plugin's git guard (distribution requirement "The plugin ships the git guard") in a repository
-carrying `.github/workflows/agent-process.yml`. Merging is the person's, except the release PR,
-which the platform's auto-merge merges once its required checks pass.
-
-#### Scenario: Push to main from Claude Code
-- **WHEN** an agent runs `git push origin main`, `git push --force` or `gh pr merge` in Claude Code in an adopted repository
-- **THEN** the plugin's git guard denies it and names the alternative
-
 ### Requirement: Only the fixer resolves a review-job thread
 No workflow step or required check SHALL resolve or classify a review thread. A `P0`/`P1`
 thread the fixer's push addressed is resolved by the fixer from its own session, thread by
@@ -199,3 +189,13 @@ fail and name the missing value. It SHALL NOT check out the PR's ref instead.
 #### Scenario: Called commit unavailable
 - **WHEN** the called workflow's commit is empty in the job
 - **THEN** the job fails before the trusted checkout, and its log names the missing value
+
+### Requirement: The person approves
+Where `agent_identity` has run, GitHub SHALL refuse to merge a PR into the default branch until
+someone other than its author approves it, whatever the command or API and whoever merges. A
+push after the approval SHALL dismiss it. The release PR gets its approval from the release
+workflow ("Releases go through release-please").
+
+#### Scenario: Merge from Claude Code
+- **WHEN** an agent whose session carries the identity's `GH_TOKEN` runs `gh pr merge` or `gh api -X PUT repos/<repo>/pulls/<N>/merge` on its own PR that the person has not approved
+- **THEN** GitHub refuses it with a repository rule violation, and the PR stays open for the person
