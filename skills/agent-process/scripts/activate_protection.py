@@ -41,7 +41,6 @@ CONTEXT = "agent-process / quality"
 REVIEW_CALLER = ".github/workflows/agent-review.yml"
 REVIEW_CONTEXT = "agent-review / agent-review"
 APP = "github-actions"
-NAME = "agent-process default branch"
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "ruleset.json"
 BARRIERS = ("pull_request", "deletion", "non_fast_forward", "required_status_checks")
 QUERY = (
@@ -184,18 +183,19 @@ def _compact(value: Any) -> str:
 
 def plan(gh: Gh, repo: str, want: dict[str, Any]) -> tuple[str, int | None, list[str]]:
     """`create`, `update` or `unchanged`, the ruleset id, and the lines to print."""
+    name = want["name"]
     # Every page: a ruleset of that name past the first page must not look absent (create).
     pages = _json(gh, ["gh", "api", "--paginate", "--slurp", f"repos/{repo}/rulesets"])
-    named = [r for page in pages for r in page if r.get("name") == NAME]
+    named = [r for page in pages for r in page if r.get("name") == name]
     if len(named) > 1 or (named and named[0].get("source_type") != "Repository"):
         listed = ", ".join(f"{r.get('id')} {r.get('source_type')}" for r in named)
-        raise Refusal(f'conflict: rulesets named "{NAME}": {listed}')
+        raise Refusal(f'conflict: rulesets named "{name}": {listed}')
     if not named:
         return (
             "create",
             None,
             [
-                f'planned create "{NAME}"',
+                f'planned create "{name}"',
                 f"rollback: gh api -X DELETE repos/{repo}/rulesets/<id printed by the write>",
             ],
         )

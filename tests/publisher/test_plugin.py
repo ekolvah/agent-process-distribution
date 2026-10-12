@@ -31,6 +31,7 @@ PRINCIPLES = PACKAGE / "principles.md"
 SCRIPTS = PACKAGE / "scripts"
 MOVED_SCRIPTS = {
     "activate_protection.py",
+    "agent_identity.py",
     "archive_change.py",
     "check_red.py",
     "create_tracking_issue.py",
@@ -55,6 +56,7 @@ TEMPLATES = {
     "agent-process-quality.json",
     "agent-process.yml",
     "agent-review.yml",
+    "approval_ruleset.json",
     "config.yaml",
     "dependabot.yml",
     "pre-commit-config.yaml",

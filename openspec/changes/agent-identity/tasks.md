@@ -14,8 +14,8 @@
 
 ## 2. Agent identity (design D1–D4)
 
-- [ ] 2.1 Make `plan` of `skills/agent-process/scripts/activate_protection.py` read the ruleset name from `want["name"]` instead of `NAME` (D4). Verify that `python -m pytest tests/publisher/test_activate_protection.py` passes unchanged
-- [ ] 2.2 Add `skills/agent-process/templates/approval_ruleset.json` (D2: on `~DEFAULT_BRANCH`, no bypass actor, one `pull_request` rule with `required_approving_review_count` 1, `dismiss_stale_reviews_on_push` true, `require_last_push_approval` and the other owned parameters false) and implement `agent_identity.py` as specified in "Agent identity converges", with the helpers that D4 names. After a confirmed run, it prints that `GH_TOKEN` applies after a Claude Code restart. Add the script to the `MOVED_SCRIPTS` sets of `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`. Verify with `python -m pytest tests/publisher/test_agent_identity.py tests/publisher/test_plugin.py`. Commit
+- [x] 2.1 Make `plan` of `skills/agent-process/scripts/activate_protection.py` read the ruleset name from `want["name"]` instead of `NAME` (D4). Verify that `python -m pytest tests/publisher/test_activate_protection.py` passes unchanged
+- [x] 2.2 Add `skills/agent-process/templates/approval_ruleset.json` (D2: on `~DEFAULT_BRANCH`, no bypass actor, one `pull_request` rule with `required_approving_review_count` 1, `dismiss_stale_reviews_on_push` true, `require_last_push_approval` and the other owned parameters false) and implement `agent_identity.py` as specified in "Agent identity converges", with the helpers that D4 names. After a confirmed run, it prints that `GH_TOKEN` applies after a Claude Code restart. Add the script to the `MOVED_SCRIPTS` sets of `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`. Verify with `python -m pytest tests/publisher/test_agent_identity.py tests/publisher/test_plugin.py`. Commit
 
 ## 3. Session marker (design D6)
 
