@@ -67,6 +67,20 @@ class PersonGh:
         self.rulesets[ruleset_id] = served if self.read_back is None else self.read_back(served)
         return json.dumps(served)
 
+    def _repository(self, cmd: list[str]) -> str:
+        """The repository: `gh repo view`, and the read and PATCH of its `allow_auto_merge`."""
+        self.calls.append(cmd)
+        if cmd[:3] == ["gh", "repo", "view"]:
+            owner, name = REPO.split("/")
+            return json.dumps(
+                {"owner": {"login": owner}, "name": name, "projectsV2": {"Nodes": [PROJECT]}}
+            )
+        if cmd == ["gh", "api", "-X", "PATCH", f"repos/{REPO}", "-F", "allow_auto_merge=true"]:
+            self.world.auto_merge = True
+        else:
+            assert cmd == ["gh", "api", f"repos/{REPO}"], cmd
+        return json.dumps({"full_name": REPO, "allow_auto_merge": self.world.auto_merge})
+
     def __call__(self, cmd: list[str]) -> str:
         if any(arg.startswith(f"repos/{REPO}/rulesets") for arg in cmd):
             return self._ruleset(cmd)
@@ -76,19 +90,8 @@ class PersonGh:
             if not self.token:
                 raise RuntimeError(f"`{' '.join(cmd)}` failed (rc=1): no oauth token found")
             return TOKEN + "\n"
-        if cmd == ["gh", "api", f"repos/{REPO}"]:
-            self.calls.append(cmd)
-            return json.dumps({"full_name": REPO, "allow_auto_merge": self.world.auto_merge})
-        if cmd == ["gh", "api", "-X", "PATCH", f"repos/{REPO}", "-F", "allow_auto_merge=true"]:
-            self.calls.append(cmd)
-            self.world.auto_merge = True
-            return json.dumps({"full_name": REPO, "allow_auto_merge": True})
-        if cmd[:3] == ["gh", "repo", "view"]:
-            self.calls.append(cmd)
-            owner, name = REPO.split("/")
-            return json.dumps(
-                {"owner": {"login": owner}, "name": name, "projectsV2": {"Nodes": [PROJECT]}}
-            )
+        if cmd[:3] == ["gh", "repo", "view"] or f"repos/{REPO}" in cmd:
+            return self._repository(cmd)
         if cmd == ["gh", "api", f"repos/{REPO}/collaborators/{BOT}/permission"]:
             self.calls.append(cmd)
             role = self.world.role

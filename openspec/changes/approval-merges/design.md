@@ -1,6 +1,6 @@
 ## Context
 
-The delivery procedure (`skills/agent-process/SKILL.md#delivery`) runs `archive_change`,
+The delivery procedure (the skill's Delivery section) runs `archive_change`,
 `gh pr create`, then the `wait_for_pr` loop. This repository allows only squash merges and
 allows auto-merge (`gh api repos/ekolvah/agent-process-distribution`: `allow_auto_merge: true`,
 `allow_squash_merge: true`, `allow_merge_commit: false`, `allow_rebase_merge: false`), set by
