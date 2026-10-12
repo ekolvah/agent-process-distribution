@@ -15,7 +15,7 @@
 
 ## 3. ADR (design D3)
 
-- [ ] 3.1 Add D6 to `.agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md`: Install's admin steps call `gh` as the person's stored account by dropping `GH_TOKEN` and `GITHUB_TOKEN`, the limit its Consequences accept, used on purpose behind `--dry-run` and the person's yes to `--confirm`; the bot-side calls of `agent_identity` keep the bot's token; in this repository `--confirm` also asks the person (design D4). Name `tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity` under Confirmation. Verify with `git diff --stat` that only the ADR changed. Commit
+- [x] 3.1 Add D6 to `.agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md`: Install's admin steps call `gh` as the person's stored account by dropping `GH_TOKEN` and `GITHUB_TOKEN`, the limit its Consequences accept, used on purpose behind `--dry-run` and the person's yes to `--confirm`; the bot-side calls of `agent_identity` keep the bot's token; in this repository `--confirm` also asks the person (design D4). Name `tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity` under Confirmation. Verify with `git diff --stat` that only the ADR changed. Commit
 
 ## 4. Verify
 

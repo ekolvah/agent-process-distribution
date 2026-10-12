@@ -58,6 +58,13 @@ standard gate, which GitHub's own coding agent relies on.
   agent's own branch, `git reset --hard` and `git branch -D` are no longer caught; the last was
   stopped by Claude Code's permission layer each time it was tried. Each session start whose
   `GH_TOKEN` is not the clone's prints `agent-process agent identity not set`.
+* **D6 — the admin steps run as the person.** `activate_protection` and `agent_identity` read
+  and write rulesets, which the bot cannot see: GitHub returns `bypass_actors: null` to a
+  non-admin. Their `gh` calls drop `GH_TOKEN` and `GITHUB_TOKEN` and run as `gh`'s stored
+  active account, the fallback the Consequences below accept, used on purpose behind
+  `--dry-run` and the person's yes to `--confirm`; the bot-side calls of `agent_identity` keep
+  the bot's token. In this repository the launcher runs the checkout's own scripts, so
+  `.claude/settings.json` makes each `--confirm` run ask the person, auto mode included.
 
 ### Consequences
 
@@ -79,6 +86,7 @@ GitHub credential, as cloud sessions do; the ruleset stays.
 ### Confirmation
 
 `tests/publisher/test_agent_identity.py` holds D1–D3,
+`tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity` D6,
 `tests/publisher/test_skill_check.py::test_identity_missing` the marker of D5, and
 `tests/publisher/test_reusable_workflows.py::test_release_workflow_approves_and_enables_auto_merge`
 D4. Live: after `--confirm`, the agent's green PR reads `REVIEW_REQUIRED`, and the merge API
