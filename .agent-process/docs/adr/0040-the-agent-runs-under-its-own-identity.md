@@ -66,10 +66,10 @@ standard gate, which GitHub's own coding agent relies on.
   the bot's token. In this repository the launcher runs the checkout's own scripts, so
   `.claude/settings.json` makes each `--confirm` run ask the person, auto mode included.
 * **D7 — the approval merges.** Right after `gh pr create` the agent runs
-  `agent-process enable_auto_merge <PR>`, which enables squash auto-merge only while the PR's
-  `reviewDecision` is `REVIEW_REQUIRED`: where no rule holds the PR for an approval, auto-merge
-  would merge it on its checks alone, so the person merges. `agent_identity` sets the
-  repository's `allow_auto_merge`, off by default on GitHub. An approval during the review loop
+  `gh pr merge <PR> --auto --squash`; the approval ruleset holds the PR, so the person's
+  approval merges it. Install has the person run `gh repo edit --enable-auto-merge`, off by
+  default on GitHub. No check of the agent's own guards auto-merge: in a repository without
+  the ruleset it would merge on checks alone, and the ruleset is the barrier. An approval during the review loop
   merges the PR; `wait_for_pr` reads the PR's state with its head and exits 4 on a PR no longer
   open. A merge during the wait stops the loop before the fix; a push already made after the
   merge is reported by the `wait_for_pr` run that follows it. The approval ruleset is unchanged.
@@ -97,7 +97,7 @@ GitHub credential, as cloud sessions do; the ruleset stays.
 `tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity` D6,
 `tests/publisher/test_skill_check.py::test_identity_missing` the marker of D5, and
 `tests/publisher/test_reusable_workflows.py::test_release_workflow_approves_and_enables_auto_merge`
-D4, `tests/publisher/test_enable_auto_merge.py` and
+D4, `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` and
 `tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` D7. Live: after `--confirm`, the
 agent's green PR reads `REVIEW_REQUIRED`, and the merge API
 called with the bot's token is refused.

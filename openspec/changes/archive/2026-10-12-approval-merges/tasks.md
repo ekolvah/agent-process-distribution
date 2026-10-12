@@ -35,11 +35,8 @@
 
 | Scenario | Test |
 |---|---|
-| Approval required (`review-and-merge`) | `tests/publisher/test_enable_auto_merge.py::test_approval_required` |
-| No approval required (`review-and-merge`) | `tests/publisher/test_enable_auto_merge.py::test_no_approval_required` |
-| Auto-merge refused (`review-and-merge`) | `tests/publisher/test_enable_auto_merge.py::test_auto_merge_refused` |
+| Auto-merge after the PR (`review-and-merge`) | `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` |
 | Approval merges (`review-and-merge`) | n/a: platform behaviour; task 5.3 observes its precondition (auto-merge enabled with `SQUASH` on this change's own PR), and the merge on the person's approval happens after the run ends, seen by the person |
-| Confirmed run on a fresh repository (`distribution`) | `tests/publisher/test_agent_identity.py::test_confirmed_run_on_a_fresh_repository` |
-| A precondition fails (`distribution`) | `tests/publisher/test_agent_identity.py::test_a_precondition_fails` (unchanged) |
-| Rerun (`distribution`) | `tests/publisher/test_agent_identity.py::test_rerun` |
 | PR no longer open (`implementation`) | `tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` |
+
+Revised after delivery (design, Revision after delivery): the script of 2.1 and the transition of 2.2 removed; the map above is the revised one.

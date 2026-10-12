@@ -132,8 +132,8 @@ verdict is the gate, and Group 0 reads it.
 Start from a worktree clean but for the change's own `tasks.md`. Run `agent-process archive_change
 <change>` before `gh pr create --title "<type>: <change>" --body-file <report>`. The report names the
 tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
-deferrals. The archive is the head the PR opens on. Then run `agent-process enable_auto_merge
-<PR>`, whose outcome the explanation of the delivered change states.
+deferrals. The archive is the head the PR opens on. Then run `gh pr merge <PR> --auto --squash`:
+the approval ruleset holds the PR, so the person's approval merges it.
 
 The `agent-review` check reviews every head with the Claude review job. After creating the
 PR and after every corrective push, run `agent-process wait_for_pr <PR>`;
@@ -204,8 +204,8 @@ Run from the consumer's root:
 6. Have the person give the agent its own GitHub identity, so the person's approval merges
    the agent's PRs: create a bot account, run `gh auth login -s project,workflow` as the bot,
    then `gh auth switch --user <person>`. Run `agent-process agent_identity --bot <login>
-   --dry-run` and show its whole output. Ask once; on yes run it with `--confirm`, then have
-   the person restart Claude Code. Until then each session start prints `agent-process agent
+   --dry-run` and show its whole output. Ask once; on yes run it with `--confirm` and
+   `gh repo edit --enable-auto-merge`, then have the person restart Claude Code. Until then each session start prints `agent-process agent
    identity not set`.
 
 The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude

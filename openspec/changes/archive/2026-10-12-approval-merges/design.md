@@ -95,3 +95,13 @@ Alternatives:
 Consumers get the script and the procedure with the next plugin release; a consumer that ran
 `agent_identity` before it plans the `auto-merge` transition on its next `--dry-run`. Rollback:
 revert the PR; auto-merge on an open PR is undone with `gh pr merge <PR> --disable-auto`.
+
+## Revision after delivery
+
+On review of the delivered PR the person found D1 and D3 bespoke: `enable_auto_merge.py` and the
+`auto-merge` transition of `agent_identity` re-implement `gh pr merge --auto --squash` and
+`gh repo edit --enable-auto-merge`. Both were removed before merge. The delivery runs
+`gh pr merge <PR> --auto --squash` and Install step 6 runs `gh repo edit --enable-auto-merge`.
+The gate of D1 guarded only a repository without the approval ruleset, which Install step 6
+sets up in the same step; the ruleset is the barrier, as for every other merge
+(CLAUDE.md: branch protection remains the final barrier). D2, D4 and D5 stand.

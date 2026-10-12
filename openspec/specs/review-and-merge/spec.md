@@ -201,22 +201,15 @@ workflow ("Releases go through release-please").
 - **THEN** GitHub refuses it with a repository rule violation, and the PR stays open for the person
 
 ### Requirement: The person's approval merges the agent's PR
-Right after the agent creates its PR, the delivery SHALL run `enable_auto_merge <PR>`, which
-SHALL enable auto-merge with the squash method only when the PR's `reviewDecision` is
-`REVIEW_REQUIRED`. The explanation of the delivered change SHALL state the outcome.
+Right after the agent creates its PR, the delivery SHALL run `gh pr merge <PR> --auto --squash`.
+The approval ruleset SHALL be what holds the PR for the person; the delivery SHALL add no check
+of its own before enabling auto-merge. Install SHALL have the person allow auto-merge on the
+repository with `gh repo edit --enable-auto-merge`.
 
-#### Scenario: Approval required
-- **WHEN** `enable_auto_merge` runs on a PR whose `reviewDecision` is `REVIEW_REQUIRED`
-- **THEN** it runs `gh pr merge <PR> --auto --squash`, prints that the person's approval merges the PR, and exits 0
-
-#### Scenario: No approval required
-- **WHEN** `enable_auto_merge` runs on a PR whose `reviewDecision` is empty or `APPROVED`
-- **THEN** it runs no merge command, prints that the person merges, and exits 1
-
-#### Scenario: Auto-merge refused
-- **WHEN** `gh pr merge --auto --squash` fails, as in a repository that does not allow auto-merge
-- **THEN** `enable_auto_merge` prints gh's message and exits 2
+#### Scenario: Auto-merge after the PR
+- **WHEN** the agent follows the skill's Delivery procedure
+- **THEN** it runs `gh pr merge <PR> --auto --squash` after `gh pr create` and before `agent-process wait_for_pr`
 
 #### Scenario: Approval merges
-- **WHEN** the person approves the agent's PR on which `enable_auto_merge` exited 0
+- **WHEN** the person approves the agent's PR on which auto-merge is enabled
 - **THEN** GitHub merges it with squash once its required checks pass, with no further action by the person
