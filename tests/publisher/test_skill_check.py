@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -67,27 +68,34 @@ def _entry(install_path: str, scope: str = "user", **fields: Any) -> dict[str, A
     }
 
 
+@dataclass(frozen=True)
+class Project:
+    """`config` is the project's `.pre-commit-config.yaml`, `settings` its
+    `.claude/settings.local.json` and `session_token` the session's `GH_TOKEN`; by default the
+    agent identity is set."""
+
+    config: str | None = None
+    session_token: str | None = TOKEN
+    settings: str | None = HELD
+
+
 def _run(
     tmp_path: Path,
     stdout: str | None,
     code: int = 0,
     args: tuple[str, ...] = (URL,),
-    *,
-    config: str | None = None,
-    session_token: str | None = TOKEN,
-    settings: str | None = HELD,
+    given: Project = Project(),
 ) -> subprocess.CompletedProcess[str]:
-    """`config` is the project's `.pre-commit-config.yaml`, `settings` its
-    `.claude/settings.local.json` and `session_token` the session's `GH_TOKEN`; by default the
-    agent identity is set. A project that is a git clone gets the real git on PATH after the fake
-    bin; the profile is empty, so no user git config applies."""
+    """A project that is a git clone gets the real git on PATH after the fake bin; the profile is
+    empty, so no user git config applies."""
     project = tmp_path / "project"
     project.mkdir(exist_ok=True)
-    if config is not None:
-        (project / ".pre-commit-config.yaml").write_text(config, encoding="utf-8")
-    if settings is not None:
+    if given.config is not None:
+        (project / ".pre-commit-config.yaml").write_text(given.config, encoding="utf-8")
+    if given.settings is not None:
         (project / ".claude").mkdir(exist_ok=True)
-        (project / ".claude" / "settings.local.json").write_text(settings, encoding="utf-8")
+        local = project / ".claude" / "settings.local.json"
+        local.write_text(given.settings, encoding="utf-8")
     bin_dir = tmp_path / "bin"
     if stdout is None:
         bin_dir.mkdir()
@@ -109,8 +117,8 @@ def _run(
         "GIT_CONFIG_NOSYSTEM": "1",
     }
     env.pop("GH_TOKEN", None)
-    if session_token is not None:
-        env["GH_TOKEN"] = session_token
+    if given.session_token is not None:
+        env["GH_TOKEN"] = given.session_token
     return subprocess.run(
         [sys.executable, str(CHECK), *args],
         cwd=project,
@@ -275,7 +283,7 @@ def _texts(done: subprocess.CompletedProcess[str]) -> tuple[str, str]:
 def test_pre_push_missing_is_marked(tmp_path: Path, case: str) -> None:
     """Scenario: Hook missing."""
     _clone(tmp_path, hook=case == "hooks-path", hooks_path=case == "hooks-path")
-    done = _run(tmp_path, _loaded(tmp_path), config=BLOCK)
+    done = _run(tmp_path, _loaded(tmp_path), given=Project(config=BLOCK))
     for text in _texts(done):
         assert PRE_PUSH_MARKER in text
         assert MARKER not in text
@@ -290,13 +298,13 @@ def test_pre_push_silent(tmp_path: Path, case: str) -> None:
     """Scenario: Hook installed or not rendered."""
     _clone(tmp_path, hook=case == "installed")
     config = "repos: []\n" if case == "no-block" else BLOCK
-    done = _run(tmp_path, _loaded(tmp_path), config=config)
+    done = _run(tmp_path, _loaded(tmp_path), given=Project(config=config))
     assert (done.returncode, done.stdout) == (0, ""), done.stderr
 
 
 def test_pre_push_undecidable(tmp_path: Path) -> None:
     """Scenario: Hook state unreadable — git is not on PATH."""
-    done = _run(tmp_path, _loaded(tmp_path), config=BLOCK)
+    done = _run(tmp_path, _loaded(tmp_path), given=Project(config=BLOCK))
     for text in _texts(done):
         assert PRE_PUSH_MARKER in text
         assert "cannot check" in text
@@ -305,7 +313,7 @@ def test_pre_push_undecidable(tmp_path: Path) -> None:
 def test_pre_push_and_skill_markers_share_output(tmp_path: Path) -> None:
     """Scenario: Hook missing — beside a skill marker, in one JSON object."""
     _clone(tmp_path)
-    done = _run(tmp_path, "[]", config=BLOCK)
+    done = _run(tmp_path, "[]", given=Project(config=BLOCK))
     for text in _texts(done):
         assert PRE_PUSH_MARKER in text
         assert MARKER in text
@@ -337,7 +345,9 @@ IDENTITY_FIX = "agent-process agent_identity --bot <login> --dry-run"
 )
 def test_identity_missing(tmp_path: Path, session_token: str | None, settings: str) -> None:
     """Scenario: Identity missing — to the person and to the agent, never the token."""
-    done = _run(tmp_path, _loaded(tmp_path), session_token=session_token, settings=settings)
+    done = _run(
+        tmp_path, _loaded(tmp_path), given=Project(session_token=session_token, settings=settings)
+    )
     for text in _texts(done):
         assert IDENTITY_MARKER in text
         assert IDENTITY_FIX in text

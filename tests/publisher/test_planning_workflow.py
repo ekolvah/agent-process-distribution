@@ -118,6 +118,7 @@ def _launcher_commands(text: str) -> list[str]:
         and not span.startswith("agent-process skill not loaded")
         and not span.startswith("agent-process project-scope install applies")
         and not span.startswith("agent-process plugin environment not installed")
+        and not span.startswith("agent-process agent identity not set")
     ]
 
 

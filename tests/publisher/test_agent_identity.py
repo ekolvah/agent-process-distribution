@@ -7,6 +7,7 @@ command shape and record every call; the clone's settings file is a real file.
 
 from __future__ import annotations
 
+import copy
 import json
 import subprocess
 from pathlib import Path
@@ -15,8 +16,8 @@ from typing import Any
 import pytest
 
 from tests.publisher.delivery_fakes import PROJECT, ROOT, load_script
-from tests.publisher.test_activate_protection import REPO, FakeGh
 
+REPO = "owner/repo"
 BOT = "agent-bot"
 TOKEN = "bot-token"
 HELPER = "credential.https://github.com.helper"
@@ -38,15 +39,35 @@ class World:
         self.ignored = True  # `git check-ignore` of the settings file
 
 
-class PersonGh(FakeGh):
+class PersonGh:
     """The person's `gh`: the repository, the Project, the collaborator and the rulesets."""
 
     def __init__(self, world: World, *, token: bool = True) -> None:
-        super().__init__(rulesets=[])
         self.world = world
         self.token = token
+        self.calls: list[list[str]] = []
+        self.rulesets: dict[int, dict[str, Any]] = {}
+        self.read_back: Any = None  # mutates the ruleset the next GET returns after a write
+
+    def _ruleset(self, cmd: list[str]) -> str:
+        self.calls.append(cmd)
+        endpoint = next(arg for arg in cmd[2:] if not arg.startswith("-") and "/" in arg)
+        if "--input" not in cmd:
+            if endpoint == f"repos/{REPO}/rulesets":
+                listed = [
+                    {k: r[k] for k in ("id", "name", "source_type")} for r in self.rulesets.values()
+                ]
+                return json.dumps([listed])  # `--paginate --slurp`: one page
+            return json.dumps(self.rulesets[int(endpoint.rsplit("/", 1)[1])])
+        body = json.loads(Path(cmd[cmd.index("--input") + 1]).read_text(encoding="utf-8"))
+        ruleset_id = 99 if endpoint.endswith("/rulesets") else int(endpoint.rsplit("/", 1)[1])
+        served = copy.deepcopy(body) | {"id": ruleset_id, "source_type": "Repository"}
+        self.rulesets[ruleset_id] = served if self.read_back is None else self.read_back(served)
+        return json.dumps(served)
 
     def __call__(self, cmd: list[str]) -> str:
+        if any(arg.startswith(f"repos/{REPO}/rulesets") for arg in cmd):
+            return self._ruleset(cmd)
         if cmd[:4] == ["gh", "auth", "token", "--user"]:
             self.calls.append(cmd)
             assert cmd[4] == BOT
@@ -76,10 +97,10 @@ class PersonGh(FakeGh):
             return json.dumps(
                 {"data": {"updateProjectV2Collaborators": {"clientMutationId": None}}}
             )
-        return super().__call__(cmd)
+        raise AssertionError(f"unexpected person gh call: {cmd}")
 
     def writes(self) -> list[list[str]]:
-        return super().writes() + [c for c in self.calls if "mutation" in str(c)]
+        return [c for c in self.calls if "-X" in c or "mutation" in str(c)]
 
 
 class BotGh:
