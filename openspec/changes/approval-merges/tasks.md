@@ -15,7 +15,7 @@
 
 ## 3. ADR (design D4)
 
-- [ ] 3.1 Add D7 to `.agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md` per design D4, and name `tests/publisher/test_enable_auto_merge.py` and `tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` under Confirmation. Verify with `git diff --stat` that only the ADR changed. Commit
+- [x] 3.1 Add D7 to `.agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md` per design D4, and name `tests/publisher/test_enable_auto_merge.py` and `tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` under Confirmation. Verify with `git diff --stat` that only the ADR changed. Commit
 
 ## 4. Verify
 
