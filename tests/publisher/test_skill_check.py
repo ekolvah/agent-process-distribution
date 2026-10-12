@@ -26,6 +26,8 @@ MARKER = "agent-process skill not loaded"
 PROJECT_MARKER = "agent-process project-scope install applies"
 INSTALL = f"claude plugin install {PLUGIN}"
 UNINSTALL = f"claude plugin uninstall {PLUGIN} --scope project"
+TOKEN = "bot-token"
+HELD = json.dumps({"permissions": {}, "env": {"GH_TOKEN": TOKEN}})
 
 
 def _fake_claude(bin_dir: Path, stdout: str, code: int) -> None:
@@ -72,13 +74,20 @@ def _run(
     args: tuple[str, ...] = (URL,),
     *,
     config: str | None = None,
+    session_token: str | None = TOKEN,
+    settings: str | None = HELD,
 ) -> subprocess.CompletedProcess[str]:
-    """`config` is the project's `.pre-commit-config.yaml`. A project that is a git clone gets the
-    real git on PATH after the fake bin; the profile is empty, so no user git config applies."""
+    """`config` is the project's `.pre-commit-config.yaml`, `settings` its
+    `.claude/settings.local.json` and `session_token` the session's `GH_TOKEN`; by default the
+    agent identity is set. A project that is a git clone gets the real git on PATH after the fake
+    bin; the profile is empty, so no user git config applies."""
     project = tmp_path / "project"
     project.mkdir(exist_ok=True)
     if config is not None:
         (project / ".pre-commit-config.yaml").write_text(config, encoding="utf-8")
+    if settings is not None:
+        (project / ".claude").mkdir(exist_ok=True)
+        (project / ".claude" / "settings.local.json").write_text(settings, encoding="utf-8")
     bin_dir = tmp_path / "bin"
     if stdout is None:
         bin_dir.mkdir()
@@ -99,6 +108,9 @@ def _run(
         "USERPROFILE": str(home),
         "GIT_CONFIG_NOSYSTEM": "1",
     }
+    env.pop("GH_TOKEN", None)
+    if session_token is not None:
+        env["GH_TOKEN"] = session_token
     return subprocess.run(
         [sys.executable, str(CHECK), *args],
         cwd=project,
@@ -308,3 +320,32 @@ def test_pre_push_id_matches_installer() -> None:
     manual = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(manual)
     assert _check().PRE_COMMIT_ID == manual.PRE_COMMIT_ID
+
+
+IDENTITY_MARKER = "agent-process agent identity not set"
+IDENTITY_FIX = "agent-process agent_identity --bot <login> --dry-run"
+
+
+@pytest.mark.parametrize(
+    ("session_token", "settings"),
+    [
+        (None, HELD),
+        (TOKEN, json.dumps({"env": {"GH_TOKEN": "person-token"}})),
+        (TOKEN, "{not json"),
+    ],
+    ids=["no-token", "not-held", "unreadable"],
+)
+def test_identity_missing(tmp_path: Path, session_token: str | None, settings: str) -> None:
+    """Scenario: Identity missing — to the person and to the agent, never the token."""
+    done = _run(tmp_path, _loaded(tmp_path), session_token=session_token, settings=settings)
+    for text in _texts(done):
+        assert IDENTITY_MARKER in text
+        assert IDENTITY_FIX in text
+        assert MARKER not in text
+        assert TOKEN not in text and "person-token" not in text
+
+
+def test_identity_set(tmp_path: Path) -> None:
+    """Scenario: Identity set."""
+    done = _run(tmp_path, _loaded(tmp_path))
+    assert (done.returncode, done.stdout) == (0, ""), done.stderr

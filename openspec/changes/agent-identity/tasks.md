@@ -4,7 +4,7 @@
 
 ## 1. RED first
 
-- [ ] 1.1 Write the tests of the scenario map below against a signature stub of `skills/agent-process/scripts/agent_identity.py` (`main(argv)` with two fake `gh` runners, the person's and the bot's, as in `tests/publisher/test_activate_protection.py`; D4). In `tests/publisher/test_agent_identity.py`, also write:
+- [x] 1.1 Write the tests of the scenario map below against a signature stub of `skills/agent-process/scripts/agent_identity.py` (`main(argv)` with two fake `gh` runners, the person's and the bot's, as in `tests/publisher/test_activate_protection.py`; D4). In `tests/publisher/test_agent_identity.py`, also write:
   - `test_dry_run_issues_only_reads`: every `gh` and `git config` call of a dry-run on a fresh repository is a read
   - `test_replan_names_the_differing_transition`: a ruleset that still plans after the write exits 1 naming the ruleset
 
