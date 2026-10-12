@@ -199,6 +199,12 @@ Run from the consumer's root:
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.
+6. Have the person give the agent its own GitHub identity, so the person approves and merges
+   the agent's PRs: create a bot account, run `gh auth login -s project,workflow` as the bot,
+   then `gh auth switch --user <person>`. Run `agent-process agent_identity --bot <login>
+   --dry-run` and show its whole output. Ask once; on yes run it with `--confirm`, then have
+   the person restart Claude Code. Until then each session start prints `agent-process agent
+   identity not set`.
 
 The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude
 plugin install agent-process@agent-process-marketplace`), and applies in every project with no
@@ -210,11 +216,8 @@ so a machine that did the `plugin-channel` row gets a release within a session. 
 tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session
 start it installs its own Python dependencies, once per machine and pin set; a failure prints
 `agent-process plugin environment not installed` with the cause. Its read-budget
-hook denies an over-budget whole-file `Read`, naming the cheaper call, and its
-git guard denies `gh pr merge`, `gh repo delete`, a push to `main`, a force push, `--no-verify`,
-`git reset --hard` and `git branch -D`, naming the alternative; a
-`permissions.deny` rule matching the same command blocks first, so their message never reaches
-the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks
+hook denies an over-budget whole-file `Read`, naming the cheaper call; a `permissions.deny`
+rule matching the same call blocks first, so its message never reaches the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks
 whether every session and every person needs the fact, and if so to move it into the
 repository. Its edit-time lint runs the project's `pre-commit`-stage hooks of
 `.pre-commit-config.yaml` on each edited file and shows a failure to the agent; the seeded
