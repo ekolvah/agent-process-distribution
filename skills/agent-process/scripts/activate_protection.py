@@ -20,7 +20,8 @@ written. Several rulesets of that name, or one the repository does not own, are 
 written. `--dry-run` stops there with reads only; `--confirm` writes the one `POST` or
 `PUT`, then reads the ruleset back and exits 1 naming the first field that differs. The
 required contexts are compared sorted by context, whatever order the server returns. A `gh`
-failure is exit 1.
+failure is exit 1. `gh` runs as its stored active account, never with the session's
+`GH_TOKEN` or `GITHUB_TOKEN`.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from set_status import Gh, _json, run_gh
+from set_status import Gh, _json, person_gh
 
 CALLER = ".github/workflows/agent-process.yml"
 CONTEXT = "agent-process / quality"
@@ -292,7 +293,7 @@ def activate(pr: int, *, confirm: bool, gh: Gh) -> None:
     print(f"written: ruleset {written}")
 
 
-def main(argv: list[str] | None = None, *, gh: Gh = run_gh) -> None:
+def main(argv: list[str] | None = None, *, gh: Gh = person_gh) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--pr", type=int, required=True, help="PR whose head reported the check")
     mode = parser.add_mutually_exclusive_group(required=True)

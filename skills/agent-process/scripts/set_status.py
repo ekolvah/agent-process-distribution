@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -32,6 +33,13 @@ def run_gh(cmd: list[str], env: dict[str, str] | None = None) -> str:
         detail = result.stderr.strip() or "no stderr"
         raise RuntimeError(f"`{' '.join(cmd)}` failed (rc={result.returncode}): {detail}")
     return result.stdout
+
+
+def person_gh(cmd: list[str]) -> str:
+    """Run `gh` as its stored active account: without `GH_TOKEN` and `GITHUB_TOKEN`, which
+    take precedence over stored credentials."""
+    env = {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
+    return run_gh(cmd, env)
 
 
 def _json(gh: Gh, cmd: list[str]) -> Any:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -324,3 +325,16 @@ def test_replan_names_the_differing_transition(
     code, out = run("--confirm", capsys)
     assert code == 1, out
     assert "re-plan: ruleset is still planned" in out
+
+
+PROBE = "import os; print(os.environ.get('GH_TOKEN'), os.environ.get('GITHUB_TOKEN'))"
+
+
+def test_a_clone_with_the_agent_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GH_TOKEN", "session-token")
+    monkeypatch.setenv("GITHUB_TOKEN", "actions-token")
+    probe = [sys.executable, "-c", PROBE]
+    for name in ("activate_protection", "agent_identity"):
+        person = load_script(name).main.__kwdefaults__["gh"]
+        assert person(probe).split() == ["None", "None"], name
+    assert load_script("agent_identity").bot_gh(TOKEN)(probe).split()[0] == TOKEN

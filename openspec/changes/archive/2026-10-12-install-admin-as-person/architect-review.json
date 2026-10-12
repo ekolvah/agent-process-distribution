@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 3,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Root cause observed live, the runner swap is minimal with a RED test first, and the added D4 ask guard uses the standard permissions mechanism, its platform claims verified on the docs page and in bin/agent-process.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects `gh auth token` passthrough, an admin bot and running outside Claude Code. The simpler `env -u GH_TOKEN -u GITHUB_TOKEN` prefix in SKILL.md Install steps 5-6 (no code) is not named, but the scenario runs the scripts with `GH_TOKEN` set and Scripts over instructions reject a prose prefix the agent can skip; one runner beside `run_gh` with two default swaps is the minimum code diff. D4 adds two `permissions.ask` entries, the standard guard for a prohibition (Scripts over instructions: deny-list/hook, not prose); no smaller form gives a prompt in auto mode.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "One delta scenario, `A clone with the agent's identity`, maps to `tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity`, covering both `main` defaults and `bot_gh`; proposal.md Impact now lists only that test file, matching task 1.1.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.1 writes the test and runs `check_red`; it fails today because both `main` defaults are `run_gh`, which passes the session's `GH_TOKEN` through (set_status.py:26-28, activate_protection.py:295, agent_identity.py:250). The `bot_gh` assertion already passes and stays as a guard. D4 is this repository's configuration with no delta scenario; its behaviour is Claude Code's, so no RED test is owed, and task 2.3 checks the file's `_json_text` form.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "`GH_TOKEN`/`GITHUB_TOKEN` precedence over stored credentials: `gh help environment` quoted in proposal.md Why (re-read here, matches). Fallback to the stored active account: `env -u GH_TOKEN gh api user` -> `ekolvah` in proposal.md. `bypass_actors: null` to a non-admin vs `[]` to the admin: both rulesets read live in proposal.md. `GH_ENTERPRISE_TOKEN` only for GHES hosts: same `gh help environment` page. `init` out of scope: `gh secret list` as the bot returned 3 names (design.md Non-Goals). D4: `bin/agent-process` lines 3-4 and 24-25 prefer the checkout's `skills/agent-process/scripts/<name>.py` (read here); code.claude.com/docs/en/permissions(.md) line 227: ask rules \"apply when any subcommand matches them … even in auto mode\", and line 187: `*` \"stands in for whatever text is in its place\", so `Bash(*activate_protection* --confirm*)` matches `agent-process activate_protection --pr N --confirm` and the `python skills/...` form (fetched and read here). `init._settings_text` touches only the marketplace, `enabledPlugins` and `SessionStart`, so `permissions` survives while the file keeps `_json_text` form (init.py 520-556).",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "design.md Risks lists the new input (stored active account instead of the session token), its failure modes (bot active: dry-run prints `bypass_actors: null -> []`, `--confirm` 404 exit 1; no stored account: `run_gh` raises, exit 1) and `what stops proving: nothing`. No guard is dropped; the admin-bot refusal in `_collaborator` and `--dry-run`/`--confirm` stay. D4 adds a guard and replaces no input; its accepted gaps (abbreviated flag, copied script) are named beside it.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Bot-active case: Install steps 5-6 show the whole `--dry-run` output to the person before asking (SKILL.md Install), and the planned `bypass_actors` line is in it; `--confirm` then exits 1 via `main`'s RuntimeError handler. No-account case: `run_gh` raises with stderr, `main` exits 1 naming the command. Delivery: task 2.2 runs both dry-runs live from a `GH_TOKEN` session and expects `unchanged`. D4: the ask prompt reaches the person on the `--confirm` Bash call of Install steps 5-6 in this repository, auto mode included (docs line 227); `--dry-run` stays unprompted. Task 4.3's full suite also runs `tests/publisher/test_plugin.py`, which reads this `.claude/settings.json`.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec requirement: 31 words, all asserted by the test (neither variable in the env of either `main` default runner; the bot runner carries the bot token in `GH_TOKEN`). Scenario THEN: 25 words, all asserted. The round-1 rationale clause is removed. ADR D6 and docstrings are not rule text. D4 adds no rule prose to SKILL.md or specs; the ask entries are configuration, and the ADR D6 clause is not rule text.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No script or check is added: `person_gh` is one runner beside `run_gh` used as the default of two existing `main`s (design.md D1 last line, D2); D4 uses Claude Code's standard `permissions.ask`, not a bespoke hook.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

@@ -22,7 +22,9 @@ refusals come before any network call. Then it prints one line per transition, `
 
 `--dry-run` stops there with reads only. `--confirm` performs the planned transitions, plans
 again and exits 1 naming the first transition that is still planned. A `gh` or `git` failure
-is exit 1. The token is never printed.
+is exit 1. The token is never printed. The person-side `gh` calls run as `gh`'s stored active
+account, never with the session's `GH_TOKEN` or `GITHUB_TOKEN`; the bot-side calls carry the
+bot's token.
 """
 
 from __future__ import annotations
@@ -40,7 +42,7 @@ from typing import Any
 
 import init
 from activate_protection import Refusal, plan, write
-from set_status import Gh, _json, _linked_project, _repo, run_gh
+from set_status import Gh, _json, _linked_project, _repo, person_gh, run_gh
 from steps import Step
 
 Git = Callable[[list[str]], "subprocess.CompletedProcess[str]"]
@@ -247,7 +249,7 @@ def identity(p: Person, make_bot: Callable[[str], Gh], *, confirm: bool) -> None
 def main(
     argv: list[str] | None = None,
     *,
-    gh: Gh = run_gh,
+    gh: Gh = person_gh,
     bot: Callable[[str], Gh] = bot_gh,
     git: Git = init.run,
     root: Path | None = None,
