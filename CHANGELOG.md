@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.15.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.14.0...v3.15.0) (2026-10-12)
+
+
+### Features
+
+* agent-identity ([#405](https://github.com/ekolvah/agent-process-distribution/issues/405)) ([df3221c](https://github.com/ekolvah/agent-process-distribution/commit/df3221cfbbe230de1e00b2f5ed8a978ba8be8327))
+
 ## [3.14.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.13.0...v3.14.0) (2026-10-11)
 
 
