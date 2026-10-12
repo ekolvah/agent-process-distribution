@@ -19,8 +19,8 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `/simplify` without an argument, and commit its edits or record `no edits` with the skipped findings in this tick
-- [ ] 4.2 Run `openspec validate --strict --all` and verify that every change and spec passes
+- [x] 4.1 Run `/simplify` without an argument, and commit its edits or record `no edits` with the skipped findings in this tick — edits: `_head` renamed `_head_state`; ADR D7 states that a push already made after the merge is reported by the next `wait_for_pr` run, Confirmation rewrapped. Skipped: extracting `_report` (needed for ruff C901), the `--json` field parse of `_Sequence` (architect review: `state` only when asked), docstring length, dropping the `allow_auto_merge` transition (design D3), sharing the repo read with `gh repo view` (one read on a rare command), the private `_json` import (existing pattern)
+- [x] 4.2 Run `openspec validate --strict --all` and verify that every change and spec passes
 - [ ] 4.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 5. Deliver

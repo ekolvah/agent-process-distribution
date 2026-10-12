@@ -95,7 +95,7 @@ def _checks(gh: Gh, pr: int) -> list[dict[str, Any]] | None:
         raise RuntimeError(f"`{' '.join(cmd)}` returned no JSON: {result.stdout!r}") from exc
 
 
-def _head(gh: Gh, pr: int) -> tuple[str, str]:
+def _head_state(gh: Gh, pr: int) -> tuple[str, str]:
     """The PR's head and state, in one read."""
     view = _json(gh, ["gh", "pr", "view", str(pr), "--json", "headRefOid,state"])
     return str(view["headRefOid"]), str(view["state"])
@@ -177,7 +177,7 @@ def wait_for_pr(
     while True:
         # The head is read before its checks: a push between the two reads then shows as a
         # head the checks do not belong to, and the next read starts the agreement over.
-        head, state = _head(gh, pr)
+        head, state = _head_state(gh, pr)
         if state != "OPEN":
             # An approval with auto-merge on merges the PR during the review loop; a push
             # after that recreates the branch with no PR, so the loop stops here.

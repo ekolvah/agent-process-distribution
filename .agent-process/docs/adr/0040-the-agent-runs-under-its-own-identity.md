@@ -71,7 +71,8 @@ standard gate, which GitHub's own coding agent relies on.
   would merge it on its checks alone, so the person merges. `agent_identity` sets the
   repository's `allow_auto_merge`, off by default on GitHub. An approval during the review loop
   merges the PR; `wait_for_pr` reads the PR's state with its head and exits 4 on a PR no longer
-  open, so a later push does not silently reach no PR. The approval ruleset is unchanged.
+  open. A merge during the wait stops the loop before the fix; a push already made after the
+  merge is reported by the `wait_for_pr` run that follows it. The approval ruleset is unchanged.
 
 ### Consequences
 
@@ -97,7 +98,8 @@ GitHub credential, as cloud sessions do; the ruleset stays.
 `tests/publisher/test_skill_check.py::test_identity_missing` the marker of D5, and
 `tests/publisher/test_reusable_workflows.py::test_release_workflow_approves_and_enables_auto_merge`
 D4, `tests/publisher/test_enable_auto_merge.py` and
-`tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` D7. Live: after `--confirm`, the agent's green PR reads `REVIEW_REQUIRED`, and the merge API
+`tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` D7. Live: after `--confirm`, the
+agent's green PR reads `REVIEW_REQUIRED`, and the merge API
 called with the bot's token is refused.
 
 ## Pros and Cons of the Options
