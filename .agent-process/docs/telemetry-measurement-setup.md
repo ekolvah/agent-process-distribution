@@ -57,7 +57,7 @@ carries one `[3P telemetry] getOtlpReaders: … endpoint=…` line per session a
 `First metrics export: SUCCESS` or `FAILED (<reason>)`.
 
 Dashboards are referred to by UID rather than by URL, for the same reason:
-`agwhkq` and `axwvz9`.
+`aqxk4q`.
 
 The decision and the gate readings are in
 [ADR 0037](adr/0037-one-emitter-feeds-both-telemetry-backends.md).
