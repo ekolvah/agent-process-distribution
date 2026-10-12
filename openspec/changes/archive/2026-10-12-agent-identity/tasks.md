@@ -42,7 +42,7 @@
 
 ## 8. Deliver
 
-- [ ] 8.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change agent-identity`. Verify that the script archives, commits and pushes the branch
+- [x] 8.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change agent-identity`. Verify that the script archives, commits and pushes the branch
 - [ ] 8.2 Run `gh pr create --title "feat: agent-identity" --body-file <report>`. The report references tracking issue #357 plainly, never with `Closes`. It carries the scenario → test map and the steps of design, Migration Plan
 - [ ] 8.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person with the PR, its head, and each open thread's link and one-line finding
 - [ ] 8.4 Once `wait_for_pr` settles a head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change. The explanation gives the person, before the merge, `gh api -X PUT repos/<repo>/actions/permissions/workflow -F can_approve_pull_request_reviews=true -f default_workflow_permissions=read` (D5; `read` is the value it has today), and the post-merge steps:
