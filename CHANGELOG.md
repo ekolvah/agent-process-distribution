@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.15.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.15.0...v3.15.1) (2026-10-12)
+
+
+### Bug Fixes
+
+* install-admin-as-person ([#408](https://github.com/ekolvah/agent-process-distribution/issues/408)) ([8fcf697](https://github.com/ekolvah/agent-process-distribution/commit/8fcf697f8b0708611a5b785b634870a0ea7520b8))
+
 ## [3.15.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.14.0...v3.15.0) (2026-10-12)
 
 
