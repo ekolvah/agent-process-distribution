@@ -19,13 +19,14 @@
 
 ## 4. Verify
 
-- [ ] 4.1 Run `/simplify` without an argument, and commit its edits or record `no edits` with the skipped findings in this tick
-- [ ] 4.2 Run `openspec validate --strict --all` and verify that every change and spec passes
-- [ ] 4.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
+- [x] 4.1 Run `/simplify` without an argument, and commit its edits or record `no edits` with the skipped findings in this tick
+  - no edits. Skipped: reuse, efficiency — none; probe `set_status.person_gh` once and check both defaults by identity — `load_script` loads `set_status` as another module object than the scripts' own import, so `is` fails; drop the person-side sentence from the module docstrings and shorten D6 — task 2.1 and 3.1 ask for them; rename the test — the scenario name is the test name; refuse on `bypass_actors: null` — new behaviour, a design non-goal; move `bot_gh` beside `person_gh` — outside the diff; the ask rule guards one repository's invocation text — the limit D4 and ADR 0040 accept
+- [x] 4.2 Run `openspec validate --strict --all` and verify that every change and spec passes
+- [x] 4.3 Run the `test` that `.github/agent-process-quality.json` declares and verify that it passes
 
 ## 5. Deliver
 
-- [ ] 5.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change install-admin-as-person`. Verify that it merges the delta into `openspec/specs/distribution/spec.md`, archives, commits and pushes the branch
+- [x] 5.1 With a worktree clean but for `tasks.md`, run `agent-process archive_change install-admin-as-person`. Verify that it merges the delta into `openspec/specs/distribution/spec.md`, archives, commits and pushes the branch
 - [ ] 5.2 Run `gh pr create --title "fix: install-admin-as-person" --body-file <report>`. The report references tracking issue #407 plainly, never with `Closes`, and carries the scenario → test map
 - [ ] 5.3 Run `agent-process wait_for_pr <PR>`, and run it again after each corrective push. Resolve only an addressed older-head P0/P1 thread with `agent-process resolve_review_thread`. Answer P2/P3 without resolving. If a P0/P1 thread is still open after the third reviewed head, stop pushing and escalate to the person with the PR, its head, and each open thread's link and one-line finding
 - [ ] 5.4 Once `wait_for_pr` settles a head with no open P0/P1 thread, or at the escalation, report the PR and link the plain-words explanation of the delivered change. The person merges it
