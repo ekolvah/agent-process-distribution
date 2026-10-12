@@ -219,7 +219,10 @@ def wait_for_pr(
 
 
 def _report(checks: list[dict[str, Any]], threads: list[dict[str, Any]], url: str) -> int:
-    """Print what the settled head leaves for the author: 1 with each item, 0 when clean."""
+    """Print what the settled head leaves for the author: 1 with each item, 0 when clean.
+
+    Apart from `wait_for_pr` because the state check of exit 4 took its loop past ruff's
+    complexity limit (C901)."""
     failed = [c for c in checks if c["bucket"] not in {"pass", "skipping"}]
     for check in failed:
         print(f"failed: {check['name']} {check.get('link', '')}".rstrip())

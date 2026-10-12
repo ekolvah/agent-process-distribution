@@ -204,9 +204,9 @@ Run from the consumer's root:
 6. Have the person give the agent its own GitHub identity, so the person's approval merges
    the agent's PRs: create a bot account, run `gh auth login -s project,workflow` as the bot,
    then `gh auth switch --user <person>`. Run `agent-process agent_identity --bot <login>
-   --dry-run` and show its whole output. Ask once; on yes run it with `--confirm` and
-   `gh repo edit --enable-auto-merge`, then have the person restart Claude Code. Until then each session start prints `agent-process agent
-   identity not set`.
+   --dry-run` and show its whole output. Ask once; on yes run it with `--confirm`. Then run
+   `gh repo edit --enable-auto-merge` and have the person restart Claude Code. Until then
+   each session start prints `agent-process agent identity not set`.
 
 The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude
 plugin install agent-process@agent-process-marketplace`), and applies in every project with no
