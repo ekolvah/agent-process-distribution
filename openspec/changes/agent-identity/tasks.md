@@ -19,7 +19,7 @@
 
 ## 3. Session marker (design D6)
 
-- [ ] 3.1 Add the identity check to `skills/agent-process/templates/skill_check.py` next to `_pre_push`: it reads `GH_TOKEN` from its environment, and `_texts` gains the identity fix (D6). Verify with `python -m pytest tests/publisher/test_skill_check.py`. Commit
+- [x] 3.1 Add the identity check to `skills/agent-process/templates/skill_check.py` next to `_pre_push`: it reads `GH_TOKEN` from its environment, and `_texts` gains the identity fix (D6). Verify with `python -m pytest tests/publisher/test_skill_check.py`. Commit
 
 ## 4. Release approval (design D5)
 
