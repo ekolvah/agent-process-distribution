@@ -1,0 +1,94 @@
+name: Reusable task readings
+
+# A merged task PR's readings become its row of the caller's `task-readings.csv` on its
+# unprotected branch `task-readings`, which a dashboard reads; the first run creates the
+# branch. The script comes from this repository at the called commit, the readings from the
+# caller's own Grafana stack (ADR 0041). Neither credential is required: an unset one reaches
+# the script, which writes a gap row and fails the run, instead of the platform refusing the
+# call with no row. There is no concurrency group: a cancelled pending run would lose a row
+# with no red run, while a push rejected because another run wrote first fails, and a
+# dispatch re-applies the upsert.
+on:
+  workflow_call:
+    inputs:
+      pr:
+        type: number
+        required: true
+      grafana_url:
+        type: string
+        required: false
+    secrets:
+      grafana_service_account_token:
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      # Merged code runs, and the archived change it reads is merged too.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Require the called workflow commit
+        env:
+          SHA: ${{ job.workflow_sha }}
+        run: |
+          if test -z "$SHA"; then
+            echo "::error::job.workflow_sha is empty; the trusted checkout would fall back to the caller's ref"
+            exit 1
+          fi
+
+      - name: Checkout trusted process source
+        uses: actions/checkout@v4
+        with:
+          repository: ekolvah/agent-process-distribution
+          ref: ${{ job.workflow_sha }}
+          path: trusted
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # `ls-remote` exits 2 when the branch is absent: the worktree starts it as an orphan.
+      - name: Prepare the readings worktree
+        run: |
+          rc=0
+          git ls-remote --exit-code --heads origin task-readings || rc=$?
+          case "$rc" in
+            0)
+              git fetch -q --depth 1 origin task-readings
+              git worktree add -q --detach readings FETCH_HEAD
+              ;;
+            2)
+              git worktree add -q --detach readings
+              git -C readings switch -q --orphan task-readings
+              ;;
+            *) exit "$rc" ;;
+          esac
+
+      # A gap row is pushed and the run still ends red with the script's exit code. The CSV
+      # is added explicitly: on an orphan it is untracked.
+      - name: Record and push the row
+        env:
+          PR: ${{ inputs.pr }}
+          GH_TOKEN: ${{ github.token }}
+          GRAFANA_URL: ${{ inputs.grafana_url }}
+          GRAFANA_SERVICE_ACCOUNT_TOKEN: ${{ secrets.grafana_service_account_token }}
+        run: |
+          code=0
+          python trusted/.agent-process/scripts/task_readings.py --pr "$PR" --csv readings/task-readings.csv || code=$?
+          if test -f readings/task-readings.csv; then
+            git -C readings add task-readings.csv
+          fi
+          if ! git -C readings diff --cached --quiet; then
+            git -C readings config user.name "github-actions[bot]"
+            git -C readings config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C readings commit -qm "readings: PR $PR"
+            git -C readings push -q origin HEAD:task-readings
+          fi
+          exit "$code"

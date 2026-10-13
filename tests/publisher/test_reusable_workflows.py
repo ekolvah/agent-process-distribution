@@ -155,8 +155,8 @@ from pathlib import Path
 
 args = sys.argv[1:]
 pr, path = args[args.index("--pr") + 1], Path(args[args.index("--csv") + 1])
-text = path.read_text(encoding="utf-8") if path.exists() else "pr\n"
-path.write_text(text + pr + "\n", encoding="utf-8")
+text = path.read_text(encoding="utf-8") if path.exists() else "pr\\n"
+path.write_text(text + pr + "\\n", encoding="utf-8")
 """
 
 
@@ -181,7 +181,9 @@ def _origin(tmp_path: Path) -> Path:
     return origin
 
 
-def _record_run(tmp_path: Path, origin: Path, pr: str, url: str = "") -> subprocess.CompletedProcess[str]:
+def _record_run(
+    tmp_path: Path, origin: Path, pr: str, url: str = ""
+) -> subprocess.CompletedProcess[str]:
     """Run the callee's two steps, as the runner does, in a fresh `--depth 1` clone of
     `origin` whose trusted checkout holds the stub script."""
     work = tmp_path / f"work-{pr}"
@@ -190,12 +192,18 @@ def _record_run(tmp_path: Path, origin: Path, pr: str, url: str = "") -> subproc
         ["git", "clone", "-q", "--depth", "1", origin.as_uri(), str(work)], env=env, check=True
     )
     if url:
-        subprocess.run(["git", "-C", str(work), "remote", "set-url", "origin", url], env=env, check=True)
+        subprocess.run(
+            ["git", "-C", str(work), "remote", "set-url", "origin", url], env=env, check=True
+        )
     script = work / "trusted" / ".agent-process" / "scripts" / "task_readings.py"
     script.parent.mkdir(parents=True)
     script.write_text(_STUB, encoding="utf-8")
     steps = _steps("reusable-task-readings.yml")
-    run = steps["Prepare the readings worktree"]["run"] + "\n" + steps["Record and push the row"]["run"]
+    run = (
+        steps["Prepare the readings worktree"]["run"]
+        + "\n"
+        + steps["Record and push the row"]["run"]
+    )
     python = 'python() { "$PYTHON" "$@"; }\n'
     return subprocess.run(
         [git_bash(), "-eo", "pipefail", "-c", python + run],

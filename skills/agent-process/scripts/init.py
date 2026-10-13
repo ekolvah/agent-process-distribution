@@ -191,6 +191,11 @@ def render_review_workflow(version: str) -> str:
     return _template("agent-review.yml", version=version)
 
 
+def render_task_readings_workflow(version: str) -> str:
+    """The managed task-readings caller; its variable and secret are the consumer's own."""
+    return _template("task-readings.yml", version=version)
+
+
 def render_config_block() -> str:
     return _template("config.yaml", openspec=OPENSPEC, version=VERSION)
 

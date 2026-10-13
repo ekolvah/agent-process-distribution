@@ -13,10 +13,10 @@
 
 ## 2. Recording
 
-- [ ] 2.1 `upsert` in `.agent-process/scripts/task_readings.py` treats an absent CSV as empty (spec: First task of a repository); verify `test_first_task_of_a_repository`
-- [ ] 2.2 Add `.github/workflows/reusable-task-readings.yml` (design D1–D3): `workflow_call` inputs and secret, checkout of the default branch, the workflow-commit guard and `trusted` checkout, Python 3.12, "Prepare the readings worktree", then the record-and-push step running `trusted/.agent-process/scripts/task_readings.py` with the gap-row exit code; verify the 1.2 and 1.3 tests
-- [ ] 2.3 Replace `.github/workflows/task-readings.yml` with the caller at `@main` (design D5); verify `test_task_readings_caller_render` and the pair tests
-- [ ] 2.4 Commit the group with its ticks
+- [x] 2.1 `upsert` in `.agent-process/scripts/task_readings.py` treats an absent CSV as empty (spec: First task of a repository); verify `test_first_task_of_a_repository`
+- [x] 2.2 Add `.github/workflows/reusable-task-readings.yml` (design D1–D3): `workflow_call` inputs and secret, checkout of the default branch, the workflow-commit guard and `trusted` checkout, Python 3.12, "Prepare the readings worktree", then the record-and-push step running `trusted/.agent-process/scripts/task_readings.py` with the gap-row exit code; verify the 1.2 and 1.3 tests
+- [x] 2.3 Replace `.github/workflows/task-readings.yml` with the caller at `@main` (design D5); verify `test_task_readings_caller_render` and the pair tests
+- [x] 2.4 Commit the group with its ticks
 
 ## 3. Installer
 
