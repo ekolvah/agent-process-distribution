@@ -194,16 +194,12 @@ class FakeGitHub:
     def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
             return _done(args, {"name": REPO_NAME, "default_branch": self.default_branch})
-        if args[:2] == ["secret", "list"]:
+        if args[0] in {"secret", "variable"} and args[1] == "list":
             assert args[2:] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json", "name"], args
-            if "secret-list" in self.faults:
-                return _done(args, code=1, err=SECRET_403)
-            return _done(args, [{"name": name} for name in sorted(self.secrets)])
-        if args[:2] == ["variable", "list"]:
-            assert args[2:] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json", "name"], args
-            if "variable-list" in self.faults:
-                return _done(args, code=1, err=VARIABLE_403)
-            return _done(args, [{"name": name} for name in sorted(self.variables)])
+            if f"{args[0]}-list" in self.faults:
+                return _done(args, code=1, err=SECRET_403 if args[0] == "secret" else VARIABLE_403)
+            names = self.secrets if args[0] == "secret" else self.variables
+            return _done(args, [{"name": name} for name in sorted(names)])
         if args[:2] == ["api", "graphql"] and "projectV2(number:" in args[3]:
             return self._project_read(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
@@ -590,6 +586,7 @@ LABELS = [
     "config",
     "workflow",
     "review",
+    "task-readings",
     "dependabot",
     "quality",
     "pre-commit",

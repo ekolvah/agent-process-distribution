@@ -20,9 +20,9 @@
 
 ## 3. Installer
 
-- [ ] 3.1 Add `skills/agent-process/templates/task-readings.yml` and the `task-readings` file step in `init.py` after `review`, rendered as `_review_text` is (`_template`, `_managed_text`), with its docstring line (spec: The task-readings caller runs at the release tag, The installed footprint is closed); verify `test_task_readings_caller_render` and `test_installed_footprint_is_closed`
-- [ ] 3.2 Replace `_secret_set` in `manual.py` with one `_secret_names(t)` read shared by `review-secret` and the new `manual task-readings` row, which also reads `gh variable list`, and name it in `init.py`'s docstring and SKILL.md Install step 4 (design D4; spec: Actions credentials are printed, not set, Manual rows follow observed state); verify the 1.5 tests
-- [ ] 3.3 Commit the group with its ticks
+- [x] 3.1 Add `skills/agent-process/templates/task-readings.yml` and the `task-readings` file step in `init.py` after `review`, rendered as `_review_text` is (`_template`, `_managed_text`), with its docstring line (spec: The task-readings caller runs at the release tag, The installed footprint is closed); verify `test_task_readings_caller_render` and `test_installed_footprint_is_closed`
+- [x] 3.2 Replace `_secret_set` in `manual.py` with one `_secret_names(t)` read shared by `review-secret` and the new `manual task-readings` row, which also reads `gh variable list`, and name it in `init.py`'s docstring and SKILL.md Install step 4 (design D4; spec: Actions credentials are printed, not set, Manual rows follow observed state); verify the 1.5 tests
+- [x] 3.3 Commit the group with its ticks
 
 ## 4. Documents
 

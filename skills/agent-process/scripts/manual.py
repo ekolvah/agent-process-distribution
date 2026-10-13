@@ -31,6 +31,8 @@ QUERY = (
     f"{AREA}}}}}}}}}"
 )
 REVIEW_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
+GRAFANA_URL = "GRAFANA_URL"
+GRAFANA_TOKEN = "GRAFANA_SERVICE_ACCOUNT_TOKEN"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 
@@ -83,13 +85,23 @@ def rows(t: Target) -> list[str]:
             f"manual project-areas: {where}/settings -- replace the Area options and the area "
             f"views with this repository's own{why}"
         )
+    secrets = _Once(lambda: _names(t, "secret"))
     return [
         *found,
         *_outstanding(
-            lambda: _secret_set(t),
+            lambda: REVIEW_TOKEN in secrets(),
             f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- "
             f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
             "token at its prompt; the review caller passes it to the review",
+        ),
+        *_outstanding(
+            # No short circuit: an absent secret still reads the variables, so either read
+            # being unreadable marks the row.
+            lambda: all([GRAFANA_TOKEN in secrets(), GRAFANA_URL in _names(t, "variable")]),
+            f"manual task-readings: https://github.com/{t.repo}/settings/variables/actions -- "
+            f"gh variable set {GRAFANA_URL} -R {t.repo} with this repository's Grafana URL, "
+            f"then gh secret set {GRAFANA_TOKEN} -R {t.repo} with a service account token of "
+            "that stack; the task-readings caller passes them to the recording",
         ),
         *_outstanding(
             lambda: _plugin_channel(t),
@@ -172,12 +184,31 @@ def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str],
     return public, missing, areas is None or areas == template
 
 
-def _secret_set(t: Target) -> bool:
-    data = _gh_read(t, "secret", "list", "--repo", t.repo, "--json", "name")
+class _Once:
+    """One read shared by the rows that need it: its names, or its `Unreadable` again."""
+
+    def __init__(self, read: Callable[[], set[str]]) -> None:
+        self.read = read
+        self.result: set[str] | Unreadable | None = None
+
+    def __call__(self) -> set[str]:
+        if self.result is None:
+            try:
+                self.result = self.read()
+            except Unreadable as exc:
+                self.result = exc
+        if isinstance(self.result, Unreadable):
+            raise self.result
+        return self.result
+
+
+def _names(t: Target, kind: str) -> set[str]:
+    """The repository's Actions `secret` or `variable` names."""
+    data = _gh_read(t, kind, "list", "--repo", t.repo, "--json", "name")
     try:
-        return REVIEW_TOKEN in {str(secret["name"]) for secret in data}
+        return {str(item["name"]) for item in data}
     except (KeyError, TypeError):
-        raise Unreadable(f"`gh secret list` printed an unexpected shape: {data}") from None
+        raise Unreadable(f"`gh {kind} list` printed an unexpected shape: {data}") from None
 
 
 def _plugin_file(path: Path) -> Any:
