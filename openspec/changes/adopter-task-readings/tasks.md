@@ -26,10 +26,10 @@
 
 ## 4. Documents
 
-- [ ] 4.1 Write `.agent-process/docs/adr/0041-adopters-record-task-readings-in-their-own-stack.md` (proposal, Why) and verify `tests/agent_process/test_adr_records.py`
-- [ ] 4.2 In `telemetry-measurement-setup.md` "Per-task readings", name the callee, the default branch and the branch the first run creates; add an "Adopters" section: the user-level `env` exporting to the adopter's own stack, `OTEL_RESOURCE_ATTRIBUTES` set by hand, the `manual task-readings` row, Grafana Cloud datasource UIDs (design, Non-Goals), public repositories for the dashboard; verify `tests/agent_process/test_doc_links.py`
-- [ ] 4.3 In `openspec/specs/measurement/spec.md` change the Purpose from "this repository" to a repository with the process installed (a Purpose is not carried by a delta); verify `openspec validate --strict --all`
-- [ ] 4.4 Commit the group with its ticks
+- [x] 4.1 Write `.agent-process/docs/adr/0041-adopters-record-task-readings-in-their-own-stack.md` (proposal, Why) and verify `tests/agent_process/test_adr_records.py`
+- [x] 4.2 In `telemetry-measurement-setup.md` "Per-task readings", name the callee, the default branch and the branch the first run creates; add an "Adopters" section: the user-level `env` exporting to the adopter's own stack, `OTEL_RESOURCE_ATTRIBUTES` set by hand, the `manual task-readings` row, Grafana Cloud datasource UIDs (design, Non-Goals), public repositories for the dashboard; verify `tests/agent_process/test_doc_links.py`
+- [x] 4.3 In `openspec/specs/measurement/spec.md` change the Purpose from "this repository" to a repository with the process installed (a Purpose is not carried by a delta); verify `openspec validate --strict --all`
+- [x] 4.4 Commit the group with its ticks
 
 ## 5. Verify
 

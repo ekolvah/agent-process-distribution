@@ -228,12 +228,15 @@ trace-schema change of the beta.
 
 The `task-readings` workflow records one row per merged task PR in `task-readings.csv` on
 the unprotected branch `task-readings`, read at
-`https://raw.githubusercontent.com/<owner>/<repo>/task-readings/task-readings.csv`. A PR is a
-task when its head branch names a change archived on `main` as `YYYY-MM-DD-<change>`; any
-other PR, a release PR among them, leaves the file unchanged. A row is upserted by `pr`, and
-`gh workflow run task-readings.yml -f pr=<number>` records a PR again. The script is
-`.agent-process/scripts/task_readings.py`; it needs the repository variable `GRAFANA_URL` and
-the secret `GRAFANA_SERVICE_ACCOUNT_TOKEN`.
+`https://raw.githubusercontent.com/<owner>/<repo>/task-readings/task-readings.csv`. The
+first run of a repository without that branch creates it, holding only the file. A PR is a
+task when its head branch names a change archived on the default branch as
+`YYYY-MM-DD-<change>`; any other PR, a release PR among them, leaves the file unchanged. A row
+is upserted by `pr`, and `gh workflow run task-readings.yml -f pr=<number>` records a PR again.
+The workflow calls `reusable-task-readings.yml`, which runs
+`.agent-process/scripts/task_readings.py` from this repository at the called commit over the
+caller's default branch; the caller passes its repository variable `GRAFANA_URL` and secret
+`GRAFANA_SERVICE_ACCOUNT_TOKEN`.
 
 | Column | Source |
 | --- | --- |
@@ -259,6 +262,25 @@ recorded later than that has no start.
 
 Dashboard `aqxk4q` (*Per-task delivery*) shows these columns per task and by merge time,
 and reads nothing else, so a column change here changes it too.
+
+### Adopters
+
+A repository with the process installed records its own tasks into its own `task-readings`
+branch, from its own Grafana stack; nothing reaches this repository or `aqxk4q`
+([ADR 0041](adr/0041-adopters-record-task-readings-in-their-own-stack.md)). `init` renders
+the caller `.github/workflows/task-readings.yml`, pinned to the release. The person:
+
+- exports the sessions to their own stack from the `env` block of their user-level
+  `~/.claude/settings.json`, as in [What exports what](#what-exports-what);
+- sets `OTEL_RESOURCE_ATTRIBUTES` in the repository's `.claude/settings.json` by hand, as in
+  [Which label carries the project](#which-label-carries-the-project);
+- does the `manual task-readings` row of `init`: the `GRAFANA_URL` variable and the
+  `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret of that stack.
+
+The script queries the datasource UIDs `grafanacloud-prom` and `grafanacloud-logs` of Grafana
+Cloud; another stack gets a `telemetry: Grafana query failed: …` gap. Recording works in a
+private repository; a dashboard reading the CSV over `raw.githubusercontent.com` needs a
+public one.
 
 ## Per-task metrics
 

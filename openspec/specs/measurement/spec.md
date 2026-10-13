@@ -1,8 +1,8 @@
 # measurement Specification
 
 ## Purpose
-How this repository records the readings of its own delivered tasks, so that the readings outlive
-the raw telemetry and can be read on one dashboard.
+How a repository with the process installed records the readings of its own delivered tasks,
+so that the readings outlive the raw telemetry and can be read on one dashboard.
 
 ## Requirements
 
