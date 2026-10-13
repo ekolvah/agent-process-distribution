@@ -103,14 +103,14 @@ TEMPLATE_AREAS = [
     "Process quality",
     "Refactoring",
 ]
-SECRET_403 = (
-    "failed to get secrets: HTTP 403: Resource not accessible by integration "
-    f"(https://api.github.com/repos/{OWNER}/{REPO_NAME}/actions/secrets?per_page=100)\n"
-)
-VARIABLE_403 = (
-    "failed to get variables: HTTP 403: Resource not accessible by integration "
-    f"(https://api.github.com/repos/{OWNER}/{REPO_NAME}/actions/variables?per_page=100)\n"
-)
+
+
+def list_403(kind: str) -> str:
+    """`gh secret list` or `gh variable list` refused, as observed."""
+    return (
+        f"failed to get {kind}s: HTTP 403: Resource not accessible by integration "
+        f"(https://api.github.com/repos/{OWNER}/{REPO_NAME}/actions/{kind}s?per_page=100)\n"
+    )
 
 
 def _copied_workflows() -> dict[str, bool]:
@@ -197,7 +197,7 @@ class FakeGitHub:
         if args[0] in {"secret", "variable"} and args[1] == "list":
             assert args[2:] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json", "name"], args
             if f"{args[0]}-list" in self.faults:
-                return _done(args, code=1, err=SECRET_403 if args[0] == "secret" else VARIABLE_403)
+                return _done(args, code=1, err=list_403(args[0]))
             names = self.secrets if args[0] == "secret" else self.variables
             return _done(args, [{"name": name} for name in sorted(names)])
         if args[:2] == ["api", "graphql"] and "projectV2(number:" in args[3]:

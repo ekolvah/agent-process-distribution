@@ -72,7 +72,7 @@ jobs:
           esac
 
       # A gap row is pushed and the run still ends red with the script's exit code. The CSV
-      # is added explicitly: on an orphan it is untracked.
+      # is staged before the diff: on an orphan it is untracked.
       - name: Record and push the row
         env:
           PR: ${{ inputs.pr }}
@@ -82,9 +82,7 @@ jobs:
         run: |
           code=0
           python trusted/.agent-process/scripts/task_readings.py --pr "$PR" --csv readings/task-readings.csv || code=$?
-          if test -f readings/task-readings.csv; then
-            git -C readings add task-readings.csv
-          fi
+          git -C readings add -A
           if ! git -C readings diff --cached --quiet; then
             git -C readings config user.name "github-actions[bot]"
             git -C readings config user.email "41898282+github-actions[bot]@users.noreply.github.com"

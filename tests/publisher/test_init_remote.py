@@ -93,8 +93,14 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
 
 def _gh_kind(args: list[str]) -> str:
     """`read`, `copy`, `link`, `issue` or `pr`; any other `gh` command fails the test."""
-    reads = (["repo", "view"], ["issue", "list"], ["pr", "list"], ["secret", "list"])
-    if args[:2] in (*reads, ["variable", "list"]):
+    reads = (
+        ["repo", "view"],
+        ["issue", "list"],
+        ["pr", "list"],
+        ["secret", "list"],
+        ["variable", "list"],
+    )
+    if args[:2] in reads:
         return "read"
     if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
         return "read"
@@ -522,9 +528,7 @@ def test_observed_manual_rows_are_omitted(
     assert transitions(out)["pre-push"] == "unchanged", out
 
 
-@pytest.mark.parametrize(
-    "case", ["secret-403", "variable-403", "plugin-malformed", "project-read"]
-)
+@pytest.mark.parametrize("case", ["secret-403", "variable-403", "plugin-malformed", "project-read"])
 def test_unreadable_manual_state_is_printed(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str
 ) -> None:

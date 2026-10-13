@@ -85,11 +85,11 @@ def rows(t: Target) -> list[str]:
             f"manual project-areas: {where}/settings -- replace the Area options and the area "
             f"views with this repository's own{why}"
         )
-    secrets = _Once(lambda: _names(t, "secret"))
+    secrets = _names_or_unreadable(t, "secret")
     return [
         *found,
         *_outstanding(
-            lambda: REVIEW_TOKEN in secrets(),
+            lambda: _has(secrets, REVIEW_TOKEN),
             f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- "
             f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
             "token at its prompt; the review caller passes it to the review",
@@ -97,7 +97,7 @@ def rows(t: Target) -> list[str]:
         *_outstanding(
             # No short circuit: an absent secret still reads the variables, so either read
             # being unreadable marks the row.
-            lambda: all([GRAFANA_TOKEN in secrets(), GRAFANA_URL in _names(t, "variable")]),
+            lambda: all([_has(secrets, GRAFANA_TOKEN), GRAFANA_URL in _names(t, "variable")]),
             f"manual task-readings: https://github.com/{t.repo}/settings/variables/actions -- "
             f"gh variable set {GRAFANA_URL} -R {t.repo} with this repository's Grafana URL, "
             f"then gh secret set {GRAFANA_TOKEN} -R {t.repo} with a service account token of "
@@ -184,22 +184,18 @@ def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str],
     return public, missing, areas is None or areas == template
 
 
-class _Once:
-    """One read shared by the rows that need it: its names, or its `Unreadable` again."""
+def _names_or_unreadable(t: Target, kind: str) -> set[str] | Unreadable:
+    """One read shared by several rows, each of which `_has` marks when it failed."""
+    try:
+        return _names(t, kind)
+    except Unreadable as exc:
+        return exc
 
-    def __init__(self, read: Callable[[], set[str]]) -> None:
-        self.read = read
-        self.result: set[str] | Unreadable | None = None
 
-    def __call__(self) -> set[str]:
-        if self.result is None:
-            try:
-                self.result = self.read()
-            except Unreadable as exc:
-                self.result = exc
-        if isinstance(self.result, Unreadable):
-            raise self.result
-        return self.result
+def _has(names: set[str] | Unreadable, name: str) -> bool:
+    if isinstance(names, Unreadable):
+        raise names
+    return name in names
 
 
 def _names(t: Target, kind: str) -> set[str]:

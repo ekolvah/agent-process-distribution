@@ -57,8 +57,7 @@ The output ends with `manual` rows, read after the run's writes and printed only
 state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
 secret, and the task-readings caller's `GRAFANA_URL` variable and
-`GRAFANA_SERVICE_ACCOUNT_TOKEN` secret (`task-readings`, one read of the secret names shared
-with `review-secret`) — that only a UI can change — the `plugin-channel` row, the once-per-machine step that
+`GRAFANA_SERVICE_ACCOUNT_TOKEN` secret — that only a UI can change — the `plugin-channel` row, the once-per-machine step that
 points the marketplace at `stable` with auto-update and installs the plugin at user scope, and
 the `pre-push` row naming why `init` cannot install this clone's hook (`core.hooksPath` is set,
 or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
