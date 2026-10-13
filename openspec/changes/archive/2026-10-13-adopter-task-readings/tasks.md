@@ -39,7 +39,7 @@
 
 ## 6. Deliver
 
-- [ ] 6.1 Run `agent-process archive_change adopter-task-readings`, then `gh pr create --title "feat: adopter-task-readings" --body-file <report>`; the report names tracking issue 415 as a plain reference, carries the scenario-to-test map, and defers the kinozal confirmation run (design, Confirmation) to after the release
+- [x] 6.1 Run `agent-process archive_change adopter-task-readings`, then `gh pr create --title "feat: adopter-task-readings" --body-file <report>`; the report names tracking issue 415 as a plain reference, carries the scenario-to-test map, and defers the kinozal confirmation run (design, Confirmation) to after the release
 - [ ] 6.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map

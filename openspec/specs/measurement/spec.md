@@ -7,9 +7,11 @@ so that the readings outlive the raw telemetry and can be read on one dashboard.
 ## Requirements
 
 ### Requirement: Merged task records its readings
-When a PR is merged into `main` and its head branch names a change archived on `main`, a
-workflow of this repository SHALL write one row for that PR to `task-readings.csv` on the
-branch `task-readings`. The row SHALL carry `pr`, `change`, `task_id`, `start`, `merged_at`,
+When a PR is merged into the default branch of a repository that carries the `task-readings`
+workflow, and its head branch names a change archived on that branch, the workflow SHALL write
+one row for that PR to `task-readings.csv` on the branch `task-readings` of that repository. A
+repository without that branch SHALL get it, holding only that file, from the first run that
+records a row. The row SHALL carry `pr`, `change`, `task_id`, `start`, `merged_at`,
 `hours`, `lines`, `plan_rounds`, `code_rounds`, `cost_usd`, `api_requests`, `failed`,
 `denied`, `compactions` and `gap`. `task_id` SHALL be `issue-<N>`, where `<N>`
 comes from the change's `tracking issue <N>` token. A second run for the same PR SHALL
@@ -20,6 +22,11 @@ header; a column the two headers share SHALL keep its values.
 - **WHEN** a PR whose head branch is an archived change is merged
 - **THEN** `task-readings.csv` on `task-readings` holds exactly one row with that PR number,
   and its `task_id` is `issue-<N>` of the change's tracking issue
+
+#### Scenario: First task of a repository
+- **WHEN** a task PR is recorded in a repository that has no `task-readings` branch
+- **THEN** the repository has a `task-readings` branch whose `task-readings.csv` holds the
+  column header and that PR's row
 
 #### Scenario: Re-run for a recorded PR
 - **WHEN** the workflow is dispatched for a PR that already has a row
@@ -32,7 +39,7 @@ header; a column the two headers share SHALL keep its values.
   `pr`, `task_id` and `cost_usd`
 
 ### Requirement: Non-task PR records nothing
-A merged PR whose head branch names no change archived on `main` SHALL leave
+A merged PR whose head branch names no change archived on the default branch SHALL leave
 `task-readings.csv` unchanged, and the run SHALL succeed.
 
 #### Scenario: Release PR merged
@@ -97,3 +104,13 @@ change's tracking issue into the change's `sessions` file, one id per line.
 - **WHEN** one session ran `create_tracking_issue` and another ran `start_change` and
   `archive_change` for the same change
 - **THEN** the archived change's `sessions` lists both session ids
+
+### Requirement: Readings come from the repository's own stack
+The telemetry readings of a repository's row SHALL be queried from the Grafana at that
+repository's `GRAFANA_URL` variable with its `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret, and SHALL
+count only events whose `vcs_repository_name` is that repository's `<owner>/<name>`.
+
+#### Scenario: Adopter without its stack credentials
+- **WHEN** a task PR is merged in a repository whose `GRAFANA_URL` variable is unset
+- **THEN** that repository's row has empty telemetry cells, its `gap` names the unset
+  `GRAFANA_URL`, and the run fails
