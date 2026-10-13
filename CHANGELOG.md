@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.16.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.15.1...v3.16.0) (2026-10-13)
+
+
+### Features
+
+* approval-merges ([#411](https://github.com/ekolvah/agent-process-distribution/issues/411)) ([860353a](https://github.com/ekolvah/agent-process-distribution/commit/860353a9c9bf14ed5a6d7519df15c3518097f309))
+
 ## [3.15.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.15.0...v3.15.1) (2026-10-12)
 
 
