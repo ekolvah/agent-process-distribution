@@ -255,7 +255,7 @@ _LEVELS = {"none": 0, "read": 1, "write": 2}
 
 def test_review_caller_render() -> None:
     init = load_init()
-    text = init.render_review_workflow(CURRENT)
+    text = init._template("agent-review.yml", version=CURRENT)
     assert text.splitlines()[0] == "# agent-process:managed"
     assert "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" in text
     workflow = yaml.safe_load(text)
@@ -284,7 +284,7 @@ def test_task_readings_caller_render() -> None:
     """Scenario: Task-readings caller render — the release tag's callee on a merged PR and a
     dispatch; this repository's caller is the same at `@main`."""
     init = load_init()
-    text = init.render_task_readings_workflow(CURRENT)
+    text = init._template("task-readings.yml", version=CURRENT)
     assert text.splitlines()[0] == "# agent-process:managed"
     workflow = yaml.safe_load(text)
     assert workflow.get("on", workflow.get(True)) == {

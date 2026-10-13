@@ -23,8 +23,7 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
              `# agent-process release:` line, which `release_drift` compares
 5. workflow  the managed `.github/workflows/agent-process.yml`
 6. review    the managed `.github/workflows/agent-review.yml`, the review gate
-7. task-readings  the managed `.github/workflows/task-readings.yml`, which records a merged
-                  task's readings from the repository's own Grafana stack
+7. task-readings  the managed `.github/workflows/task-readings.yml`, the per-task readings
 8. dependabot  the marker block of `.github/dependabot.yml`
 9. quality   `.github/agent-process-quality.json`, seeded only beside a created
              `.pre-commit-config.yaml`; an existing declaration is `unchanged`
@@ -57,10 +56,10 @@ The output ends with `manual` rows, read after the run's writes and printed only
 state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
 secret, and the task-readings caller's `GRAFANA_URL` variable and
-`GRAFANA_SERVICE_ACCOUNT_TOKEN` secret — that only a UI can change — the `plugin-channel` row, the once-per-machine step that
-points the marketplace at `stable` with auto-update and installs the plugin at user scope, and
-the `pre-push` row naming why `init` cannot install this clone's hook (`core.hooksPath` is set,
-or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
+`GRAFANA_SERVICE_ACCOUNT_TOKEN` secret — that only a UI can change — the `plugin-channel`
+row, the once-per-machine step that points the marketplace at `stable` with auto-update and
+installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
+this clone's hook (`core.hooksPath` is set, or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
 `(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
 status line before the `manual` rows says so, as a state, not an action: the installer
@@ -188,16 +187,6 @@ def _template(name: str, **values: str) -> str:
 def render_workflow(version: str) -> str:
     """The managed caller; it passes no command — the repository declares them."""
     return _template("agent-process.yml", version=version)
-
-
-def render_review_workflow(version: str) -> str:
-    """The managed review caller; its secret is the consumer's own."""
-    return _template("agent-review.yml", version=version)
-
-
-def render_task_readings_workflow(version: str) -> str:
-    """The managed task-readings caller; its variable and secret are the consumer's own."""
-    return _template("task-readings.yml", version=version)
 
 
 def render_config_block() -> str:
@@ -487,12 +476,10 @@ def _workflow_text(ctx: Context) -> tuple[str | None, str]:
     return text, rendered
 
 
-def _review_text(ctx: Context) -> tuple[str | None, str]:
-    return _managed_text(ctx, REVIEW_WORKFLOW, render_review_workflow(ctx.version))
-
-
-def _readings_text(ctx: Context) -> tuple[str | None, str]:
-    return _managed_text(ctx, READINGS_WORKFLOW, render_task_readings_workflow(ctx.version))
+def _caller_text(rel: str) -> Callable[[Context], tuple[str | None, str]]:
+    """A managed caller with no logic of its own, rendered from the template of its name; its
+    variables and secrets are the consumer's own."""
+    return lambda ctx: _managed_text(ctx, rel, _template(Path(rel).name, version=ctx.version))
 
 
 def _dependabot_text(ctx: Context) -> tuple[str | None, str]:
@@ -669,8 +656,8 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         _openspec(ctx),
         _file_step(ctx, "config", CONFIG, _config_text),
         _file_step(ctx, "workflow", WORKFLOW, _workflow_text),
-        _file_step(ctx, "review", REVIEW_WORKFLOW, _review_text),
-        _file_step(ctx, "task-readings", READINGS_WORKFLOW, _readings_text),
+        _file_step(ctx, "review", REVIEW_WORKFLOW, _caller_text(REVIEW_WORKFLOW)),
+        _file_step(ctx, "task-readings", READINGS_WORKFLOW, _caller_text(READINGS_WORKFLOW)),
         _file_step(ctx, "dependabot", DEPENDABOT, _dependabot_text),
         *([_file_step(ctx, "quality", quality.DECLARATION, _quality_text)] if seed else []),
         _file_step(ctx, "pre-commit", PRE_COMMIT, _pre_commit_text),
