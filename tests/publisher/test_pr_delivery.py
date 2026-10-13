@@ -101,9 +101,10 @@ def _rules(*required: str, extra_rule: bool = False) -> tuple[int, str, str]:
 class _Sequence:
     """Fake `gh` for `wait_for_pr`, a `CompletedProcess` per call: for `gh pr checks … --json`
     the next of the `(rc, stdout, stderr)` reads (the last one repeats), counted in `polls`;
-    for `gh pr view … --json headRefOid` the next of `heads`, for `baseRefName` `main`; for
-    the rules of `main` the `rules` read; for the GraphQL query the next of the threads
-    payloads (the last ones repeat)."""
+    for `gh pr view … --json headRefOid` the next of `heads`, with `state` the next of
+    `states` when the command asks for it, as gh answers only the fields asked; for
+    `baseRefName` `main`; for the rules of `main` the `rules` read; for the GraphQL query the
+    next of the threads payloads (the last ones repeat). Every call is kept in `calls`."""
 
     def __init__(
         self,
@@ -111,29 +112,36 @@ class _Sequence:
         threads: str | list[str],
         heads: list[str] | None = None,
         rules: tuple[int, str, str] = _rules(_QUALITY, _REVIEW),
+        states: list[str] | None = None,
     ) -> None:
         self.reads = list(reads)
         self.threads = [threads] if isinstance(threads, str) else list(threads)
         self.heads = list(heads or ["A"])
+        self.states = list(states or ["OPEN"])
         self.rules = rules
         self.polls = 0
+        self.calls: list[list[str]] = []
 
     @staticmethod
     def _next(items: list[Any]) -> Any:
         return items.pop(0) if len(items) > 1 else items[0]
 
     def __call__(self, cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        self.calls.append(cmd)
         if cmd[:3] == ["gh", "pr", "checks"]:
             assert "--json" in cmd and "--watch" not in cmd, cmd
             self.polls += 1
             rc, out, err = self._next(self.reads)
             return subprocess.CompletedProcess(cmd, rc, out, err)
         if cmd[:3] == ["gh", "pr", "view"]:
-            if "baseRefName" in cmd:
+            fields = cmd[cmd.index("--json") + 1].split(",")
+            if "baseRefName" in fields:
                 view = {"baseRefName": "main"}
             else:
-                assert "headRefOid" in cmd, cmd
+                assert "headRefOid" in fields, cmd
                 view = {"headRefOid": self._next(self.heads)}
+                if "state" in fields:
+                    view["state"] = self._next(self.states)
             return subprocess.CompletedProcess(cmd, 0, json.dumps(view), "")
         if cmd[:3] == ["gh", "repo", "view"]:
             repo = json.dumps({"owner": {"login": "owner"}, "name": "repo"})
@@ -153,7 +161,7 @@ def _wait(
     timeout: int = 1800,
     **fake: Any,
 ) -> tuple[int, str, _Sequence, list[float]]:
-    """Run `wait_for_pr` on the fake `gh` (`fake`: its `heads`, `rules`); the fake `sleep`
+    """Run `wait_for_pr` on the fake `gh` (`fake`: its `heads`, `rules`, `states`); the fake `sleep`
     advances the fake `clock`."""
     wait_for_pr = load_script("wait_for_pr")
     gh = _Sequence(reads, threads, **fake)
@@ -295,6 +303,23 @@ def test_no_required_checks_on_the_base_branch(capsys: pytest.CaptureFixture[str
     code, out, _, _ = _wait(capsys, [_checks(("lint", "pass"))], rules=_rules())
     assert code == 0 and "clean:" in out
     assert out.splitlines()[0].startswith("note: main requires no status check")
+
+
+@pytest.mark.parametrize("state", ["MERGED", "CLOSED"])
+def test_pr_no_longer_open(state: str, capsys: pytest.CaptureFixture[str]) -> None:
+    """Scenario: PR no longer open — the state is read with the head, and a PR that is not
+    `OPEN` ends the wait with exit 4 before its checks or threads are read; an approval that
+    merged the PR during the wait is caught on the next poll."""
+    green, running = (_QUALITY, "pass"), (_REVIEW, "pending")
+    code, out, gh, _ = _wait(capsys, [_checks(green, running)], states=[state])
+    assert code == 4, out
+    assert state in out and "not in the PR" in out
+    assert gh.polls == 0
+    assert not any(cmd[:3] == ["gh", "api", "graphql"] for cmd in gh.calls)
+
+    code, out, gh, _ = _wait(capsys, [_checks(green, running)], states=["OPEN", state])
+    assert code == 4 and gh.polls == 1, out
+    assert not any(cmd[:3] == ["gh", "api", "graphql"] for cmd in gh.calls)
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 4,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The round-3 finding is fixed: the implementation delta's sentence now says the head read of every poll reads the PR's state, as D5 builds and test_pr_no_longer_open asserts. Task 1.1 makes the fake serve `state` only when the command requests it, so the test proves the request. D5 is the right size and fully traced.",
+  "classes": {
+    "simpler": {
+      "evidence": "Round 2 still holds for D1 to D3: the unconditional `gh pr merge --auto --squash` is rejected by `No approval required`, and agent_identity's `_plan` gains one step. For D5, the simplest option is no change, keeping the round-2 Non-Goal and accepting the merge-during-loop case. That option is rejected because a corrective push after the merge recreates the deleted branch with no PR, and the fix silently reaches nothing (§III, §IV). D5 adds `state` to the `gh pr view` that `_head` already makes (wait_for_pr.py:97). That adds no request and no new script. Its alternatives are listed and rejected in D5: a pre-push hook (a network call on every push), a prose rule (§VII, untestable), and disabling auto-merge during the loop (brings back the second action).",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "review-and-merge: Approval required -> test_approval_required; No approval required -> test_no_approval_required; Auto-merge refused -> test_auto_merge_refused; Approval merges -> n/a (5.3 observes the precondition). distribution: Confirmed run on a fresh repository, A precondition fails (unchanged), Rerun -> test_agent_identity. implementation: PR no longer open -> test_pr_delivery.py::test_pr_no_longer_open. The MODIFIED requirement keeps its four existing scenarios word for word against openspec/specs/implementation/spec.md:112-126, and they stay mapped where the spec already maps them. Every delta scenario has a map row.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 adds `tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` to the check_red node ids. Before 2.3 it fails: the current code ignores `state` and goes on to read checks, so it never exits 4. `_Sequence` (test_pr_delivery.py:131-137) has to change anyway, because its `assert \"headRefOid\" in cmd` tests list membership and fails on the argument `headRefOid,state`. The RED commit may break the existing test_pr_delivery tests until 2.3. That is harmless: the branch is first pushed at 5.1, where the pre-push `quality` hook runs. Task 1.1 now has the fake serve `state` only when the command requests it, as gh does, so the test fails on code that reads `state` without asking for it. The Group 1 entries from round 2 are unchanged.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Round 2's items (1) to (7) stand. (8) New for D5: today `gh pr view 408 --json state,headRefOid` returned `{\"headRefOid\":\"134661a…\",\"state\":\"MERGED\"}`, and `gh pr view 410 --json state` returned `MERGED`. A merged PR is still readable by number with its last head and the state `MERGED`. `CLOSED` was not observed, but D5 exits on any state other than `OPEN`, so the exact spelling does not matter. (9) `delete_branch_on_merge` true (design Context, from round 2) is why a later push recreates the branch rather than updating a PR.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced. The dropped guard is still the person's Merge click, as in round 2 (ADR 0040 D2, `self-merge` stays true because the approval is enforced server-side). Since round 2, the old Non-Goal and the Risk that the loop might not have settled before the merge are gone. The new Risk covers only a P2/P3 thread being answered when the approval merges, and that is correct: a failed `agent-review` check is required and blocks the merge, so an open P0/P1 cannot be merged by auto-merge. The approval ruleset does not require thread resolution (`required_review_thread_resolution: false`, templates/approval_ruleset.json), and the Risk states that.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Round 2's catchers stand: exit 1 or 2 of enable_auto_merge at Delivery, and agent_identity's re-plan exit 1. D5 traced: (a) Merge during the wait: the next poll's `_head` reads `MERGED`, exit 4, and task 5.4 / the SKILL.md Delivery sentence (2.4) stop the loop and report to the person. (b) Merge between a poll's head read and its thread read: wait_for_pr returns 0 or 1. On 1 the run pushes a fix, the `wait_for_pr` that follows reads `MERGED` and exits 4, which D5 states. (c) A push already made after the merge is caught by that same following run. Every path ends in a visible exit 4. None is silent.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "review-and-merge and distribution are unchanged since round 2 (about 28 of 38 requirement words asserted). The SKILL.md exit-4 sentence (2.4, about 15 words) is unasserted procedure, like the rest of the loop text. implementation delta: the added sentence 'The head read of every poll SHALL read the PR's state too, and a PR that is no longer open SHALL end the wait at once' has 26 words, and the exit clause has 10. Both now match D5 and task 2.3 (`_head`, wait_for_pr.py:97) and are asserted by test_pr_no_longer_open: exit 4, the state and `not in the PR` printed, no checks or threads read. The scenario has 31 words, all asserted. Round-3 fix: the earlier wording 'Every read of the head' also covered the GraphQL `headRefOid` read, which D5 does not change.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "As in round 2, enable_auto_merge.py has its decision in D1 and the agent_identity `auto-merge` step in D3. D5 adds no script or check mechanism. It extends the existing `wait_for_pr` exit-code contract by one code, and D5 names the problem (a fix pushed after the merge reaches no PR) and why a hook or prose does not fit.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "review-and-merge",
+      "scenario": "Approval merges",
+      "reason": "GitHub merges the PR on the person's approval after the delivery run ends. No test can prove this. Task 5.3 observes only its precondition (auto-merge enabled with SQUASH), and the person sees the merge."
+    }
+  ]
+}
