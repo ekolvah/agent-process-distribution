@@ -59,8 +59,8 @@ secret, and the task-readings caller's `GRAFANA_URL` variable and
 `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret — that only a UI can change — the `plugin-channel`
 row, the once-per-machine step that points the marketplace at `stable` with auto-update and
 installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
-this clone's hook (`core.hooksPath` is set, or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
-`(cannot read: <reason>)` and never changes the exit code. While
+this clone's hook (`core.hooksPath` is set, or `pre-commit` is not on PATH). A state `init`
+cannot read keeps its row with `(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
 status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
