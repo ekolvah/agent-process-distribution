@@ -93,7 +93,8 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
 
 def _gh_kind(args: list[str]) -> str:
     """`read`, `copy`, `link`, `issue` or `pr`; any other `gh` command fails the test."""
-    if args[:2] in (["repo", "view"], ["issue", "list"], ["pr", "list"], ["secret", "list"]):
+    reads = (["repo", "view"], ["issue", "list"], ["pr", "list"], ["secret", "list"])
+    if args[:2] in (*reads, ["variable", "list"]):
         return "read"
     if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
         return "read"
@@ -465,6 +466,23 @@ def test_review_prerequisites_are_printed(
         _gh_kind(args)
 
 
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+def test_readings_prerequisites_are_printed(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
+) -> None:
+    """Scenario: Readings prerequisites."""
+    init = load_init()
+    runner = Runner(init, HOST, sandbox.github)
+    assert install(init, sandbox, mode, runner=runner) == 0
+    row = _row(_manual_rows(capfd.readouterr().out), "task-readings")
+    assert f"https://github.com/{CONSUMER}/settings/variables/actions" in row
+    assert f"gh variable set GRAFANA_URL -R {CONSUMER}" in row
+    assert f"gh secret set GRAFANA_SERVICE_ACCOUNT_TOKEN -R {CONSUMER}" in row
+    # `_gh_kind` fails on any `gh` command but the reads, the copy and the link: no write.
+    for args in runner.gh():
+        _gh_kind(args)
+
+
 def _plugin_files(sb: Sandbox) -> Path:
     """The machine's plugin files in the observed shapes: the marketplace at `stable` with
     auto-update, the plugin installed at user scope."""
@@ -483,7 +501,8 @@ def test_observed_manual_rows_are_omitted(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
 ) -> None:
     """Scenario: Observed done."""
-    sandbox.github.secrets.add("CLAUDE_CODE_OAUTH_TOKEN")
+    sandbox.github.secrets.update({"CLAUDE_CODE_OAUTH_TOKEN", "GRAFANA_SERVICE_ACCOUNT_TOKEN"})
+    sandbox.github.variables.add("GRAFANA_URL")
     project = sandbox.github.add(linked=CONSUMER)
     project.public, project.areas = True, ["Alpha"]
     project.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
@@ -503,14 +522,17 @@ def test_observed_manual_rows_are_omitted(
     assert transitions(out)["pre-push"] == "unchanged", out
 
 
-@pytest.mark.parametrize("case", ["secret-403", "plugin-malformed", "project-read"])
+@pytest.mark.parametrize(
+    "case", ["secret-403", "variable-403", "plugin-malformed", "project-read"]
+)
 def test_unreadable_manual_state_is_printed(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], case: str
 ) -> None:
     """Scenario: Unreadable state — the row stays with its reason and the exit code is the
     run's own."""
     mode, fault, labels = {
-        "secret-403": ("--dry-run", "secret-list", ["review-secret"]),
+        "secret-403": ("--dry-run", "secret-list", ["review-secret", "task-readings"]),
+        "variable-403": ("--dry-run", "variable-list", ["task-readings"]),
         "plugin-malformed": ("--dry-run", "", ["plugin-channel"]),
         "project-read": ("--confirm", "project-read", list(PROJECT_ROWS)),
     }[case]
@@ -525,8 +547,9 @@ def test_unreadable_manual_state_is_printed(
     manual = _manual_rows(capfd.readouterr().out)
     for label in labels:
         assert "(cannot read: " in _row(manual, label), manual
-    if case == "secret-403":
-        assert "HTTP 403" in _row(manual, "review-secret")
+    if case.endswith("-403"):
+        for label in labels:
+            assert "HTTP 403" in _row(manual, label)
 
 
 # --- this clone's pre-push hook (change init-installs-pre-push-hook) ---------------------

@@ -234,7 +234,18 @@ def test_task_pr_merged(tmp_path: Path) -> None:
     }
     queries = [query for kind, query, _ in grafana.calls if kind in ("prometheus", "loki")]
     assert all('session_id=~"s-a|s-b"' in q for q in queries if "[30d]" not in q)
+    assert all('vcs_repository_name="o/r"' in q for q in queries)
     assert not any("task_id" in q for q in queries)
+
+
+def test_first_task_of_a_repository(tmp_path: Path) -> None:
+    path = _csv_path(_tree(tmp_path))
+    path.parent.mkdir()
+    code = _run(tmp_path, _GitHub(_pull()), _Grafana())
+
+    assert code == 0
+    assert path.read_text(encoding="utf-8").splitlines()[0] == _HEADER
+    assert [row["pr"] for row in _rows(path)] == ["12"]
 
 
 def test_rerun_for_a_recorded_pr(tmp_path: Path) -> None:
@@ -306,8 +317,9 @@ def test_bound_session_without_telemetry(tmp_path: Path) -> None:
     [
         (_ENV, RuntimeError("HTTP 502"), "HTTP 502"),
         ({**_ENV, "GRAFANA_SERVICE_ACCOUNT_TOKEN": ""}, None, "GRAFANA_SERVICE_ACCOUNT_TOKEN"),
+        ({**_ENV, "GRAFANA_URL": ""}, None, "GRAFANA_URL"),
     ],
-    ids=["http-error", "unset-credential"],
+    ids=["http-error", "unset-credential", "unset-url"],
 )
 def test_grafana_unreachable(
     tmp_path: Path, environ: Mapping[str, str], error: Exception | None, cause: str

@@ -107,6 +107,10 @@ SECRET_403 = (
     "failed to get secrets: HTTP 403: Resource not accessible by integration "
     f"(https://api.github.com/repos/{OWNER}/{REPO_NAME}/actions/secrets?per_page=100)\n"
 )
+VARIABLE_403 = (
+    "failed to get variables: HTTP 403: Resource not accessible by integration "
+    f"(https://api.github.com/repos/{OWNER}/{REPO_NAME}/actions/variables?per_page=100)\n"
+)
 
 
 def _copied_workflows() -> dict[str, bool]:
@@ -136,8 +140,9 @@ class FakeGitHub:
     one numbering, as on GitHub; `pr create` needs its head and base pushed to `origin`.
     `default_branch` is the settings' name; `empty` makes `repo view` print the empty
     `defaultBranchRef.name` of a repository with no commits (change init-empty-repository).
-    `secrets` are the consumer's secret names; `faults["secret-list"]` and
-    `faults["project-read"]` make those reads exit 1 (change manual-rows-from-state)."""
+    `secrets` and `variables` are the consumer's secret and variable names;
+    `faults["secret-list"]`, `faults["variable-list"]` and `faults["project-read"]` make
+    those reads exit 1 (change manual-rows-from-state)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process", public=True)
@@ -145,6 +150,7 @@ class FakeGitHub:
         template.repositories.add(PUBLISHER)
         self.projects = [template]
         self.secrets: set[str] = set()
+        self.variables: set[str] = set()
         self.faults: dict[str, str] = {}
         self.hidden = 0  # Projects the owner has beyond the first page
         self.issues: list[dict[str, Any]] = []
@@ -193,6 +199,11 @@ class FakeGitHub:
             if "secret-list" in self.faults:
                 return _done(args, code=1, err=SECRET_403)
             return _done(args, [{"name": name} for name in sorted(self.secrets)])
+        if args[:2] == ["variable", "list"]:
+            assert args[2:] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json", "name"], args
+            if "variable-list" in self.faults:
+                return _done(args, code=1, err=VARIABLE_403)
+            return _done(args, [{"name": name} for name in sorted(self.variables)])
         if args[:2] == ["api", "graphql"] and "projectV2(number:" in args[3]:
             return self._project_read(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
@@ -595,6 +606,7 @@ LABELS = [
 CONSUMER_FILES = {
     ".github/workflows/agent-process.yml",
     ".github/workflows/agent-review.yml",
+    ".github/workflows/task-readings.yml",
     ".github/dependabot.yml",
     ".pre-commit-config.yaml",
     ".github/agent-process-quality.json",

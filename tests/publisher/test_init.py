@@ -280,6 +280,48 @@ def test_review_caller_render() -> None:
         assert _LEVELS[granted.get(scope, "none")] >= _LEVELS[level], scope
 
 
+def test_task_readings_caller_render() -> None:
+    """Scenario: Task-readings caller render — the release tag's callee on a merged PR and a
+    dispatch; this repository's caller is the same at `@main`."""
+    init = load_init()
+    text = init.render_task_readings_workflow(CURRENT)
+    assert text.splitlines()[0] == "# agent-process:managed"
+    workflow = yaml.safe_load(text)
+    assert workflow.get("on", workflow.get(True)) == {
+        "pull_request": {"types": ["closed"]},
+        "workflow_dispatch": {
+            "inputs": {
+                "pr": {
+                    "description": "Merged PR number to record",
+                    "required": True,
+                    "type": "number",
+                }
+            }
+        },
+    }
+    assert list(workflow["jobs"]) == ["task-readings"]
+    job = workflow["jobs"]["task-readings"]
+    assert job["if"] == (
+        "github.event_name == 'workflow_dispatch' || github.event.pull_request.merged"
+    )
+    callee = "ekolvah/agent-process-distribution/.github/workflows/reusable-task-readings.yml"
+    assert job["uses"] == f"{callee}@v{CURRENT}"
+    assert job["with"] == {
+        "pr": "${{ github.event.pull_request.number || inputs.pr }}",
+        "grafana_url": "${{ vars.GRAFANA_URL }}",
+    }
+    assert job["secrets"] == {
+        "grafana_service_account_token": "${{ secrets.GRAFANA_SERVICE_ACCOUNT_TOKEN }}"
+    }
+    own = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "task-readings.yml").read_text(encoding="utf-8")
+    )
+    job["uses"] = f"{callee}@main"
+    assert {key: own[key] for key in workflow if key != "name"} == {
+        key: value for key, value in workflow.items() if key != "name"
+    }
+
+
 def test_init_takes_no_quality_command(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
     """Install asks for no quality command: it seeds one only with a config it creates
     (change ship-quality-toolchain, design D4)."""
