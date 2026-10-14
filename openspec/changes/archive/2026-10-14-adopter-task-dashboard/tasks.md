@@ -47,6 +47,7 @@
 | --- | --- |
 | measurement / One repository | `tests/publisher/test_dashboard.py::test_one_repository` |
 | measurement / Several repositories | `tests/publisher/test_dashboard.py::test_several_repositories` |
+| measurement / Repeated repository | `tests/publisher/test_dashboard.py::test_repeated_repository` |
 | measurement / Malformed repository | `tests/publisher/test_dashboard.py::test_malformed_repository` |
 | distribution / Review prerequisites | `tests/publisher/test_init_remote.py::test_review_prerequisites_are_printed` |
 | distribution / Readings prerequisites | `tests/publisher/test_init_remote.py::test_readings_prerequisites_are_printed` |
