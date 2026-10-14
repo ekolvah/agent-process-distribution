@@ -98,7 +98,9 @@ def test_repeated_repository() -> None:
         assert [target["url"] for target in panel["targets"]] == [_url(_OTHER), _url(_KINOZAL)]
 
 
-@pytest.mark.parametrize("args", [["kinozal_scraper"], ["a/b/c"], ["owner/"], ["owner/."], ["owner/.."], []])
+@pytest.mark.parametrize(
+    "args", [["kinozal_scraper"], ["a/b/c"], ["owner/"], ["owner/."], ["owner/.."], []]
+)
 def test_malformed_repository(args: list[str]) -> None:
     """Scenario: Malformed repository."""
     result = _run(args)
