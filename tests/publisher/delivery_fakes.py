@@ -26,12 +26,6 @@ FIELDS = {
             ],
         },
         {
-            "id": "F_PRIO",
-            "name": "Priority",
-            "type": "ProjectV2SingleSelectField",
-            "options": [{"id": "P_HIGH", "name": "High"}, {"id": "P_LOW", "name": "Low"}],
-        },
-        {
             "id": "F_AREA",
             "name": "Area",
             "type": "ProjectV2SingleSelectField",

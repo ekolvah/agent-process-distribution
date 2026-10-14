@@ -4,13 +4,13 @@
 
 ## 1. RED
 
-- [ ] 1.1 no RED: the only delta scenario is a live read of Project 4, which no offline test can prove (task 2.2 reads it); the fake edit of 2.3 changes no test's outcome
+- [x] 1.1 no RED: the only delta scenario is a live read of Project 4, which no offline test can prove (task 2.2 reads it); the fake edit of 2.3 changes no test's outcome
 
 ## 2. Board
 
-- [ ] 2.1 Delete the field (design D1): `gh project field-delete --id PVTSSF_lAHOApeba84Bhf2xzhgbY60` (the `Priority` field of Project 4, read on 2026-10-14)
-- [ ] 2.2 Read the template live: `gh api graphql -f query='{user(login:"ekolvah"){projectV2(number:4){public fields(first:30){nodes{... on ProjectV2FieldCommon{name dataType} ... on ProjectV2SingleSelectField{options{name}}}} workflows(first:20){nodes{name enabled}}}}}'` and verify the `Template read` scenario holds; record the output for the PR report
-- [ ] 2.3 Remove the `Priority` entry from `FIELDS` in `tests/publisher/delivery_fakes.py`; commit the group with its ticks
+- [x] 2.1 Delete the field (design D1): `gh project field-delete --id PVTSSF_lAHOApeba84Bhf2xzhgbY60` (the `Priority` field of Project 4, read on 2026-10-14)
+- [x] 2.2 Read the template live: `gh api graphql -f query='{user(login:"ekolvah"){projectV2(number:4){public fields(first:30){nodes{... on ProjectV2FieldCommon{name dataType} ... on ProjectV2SingleSelectField{options{name}}}} workflows(first:20){nodes{name enabled}}}}}'` and verify the `Template read` scenario holds; record the output for the PR report
+- [x] 2.3 Remove the `Priority` entry from `FIELDS` in `tests/publisher/delivery_fakes.py`; commit the group with its ticks
 
 ## 3. Verify
 
