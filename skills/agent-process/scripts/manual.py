@@ -101,7 +101,10 @@ def rows(t: Target) -> list[str]:
             f"manual task-readings: https://github.com/{t.repo}/settings/variables/actions -- "
             f"gh variable set {GRAFANA_URL} -R {t.repo} with this repository's Grafana URL, "
             f"then gh secret set {GRAFANA_TOKEN} -R {t.repo} with a service account token of "
-            "that stack; the task-readings caller passes them to the recording",
+            "that stack; the task-readings caller passes them to the recording; "
+            f"then agent-process dashboard {t.repo} > per-task.json (list further repositories "
+            "for one combined dashboard) and import it in that stack's Grafana "
+            "(Dashboards → New → Import), choosing its Infinity datasource",
         ),
         *_outstanding(
             lambda: _plugin_channel(t),

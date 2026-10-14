@@ -16,8 +16,8 @@
 
 ## 3. Installer
 
-- [ ] 3.1 Append the D4 text to the `manual task-readings` row in `skills/agent-process/scripts/manual.py` (spec: Actions credentials are printed, not set); verify `test_readings_prerequisites_are_printed` and `test_observed_manual_rows_are_omitted`
-- [ ] 3.2 Commit the group with its ticks
+- [x] 3.1 Append the D4 text to the `manual task-readings` row in `skills/agent-process/scripts/manual.py` (spec: Actions credentials are printed, not set); verify `test_readings_prerequisites_are_printed` and `test_observed_manual_rows_are_omitted`
+- [x] 3.2 Commit the group with its ticks
 
 ## 4. Documents
 

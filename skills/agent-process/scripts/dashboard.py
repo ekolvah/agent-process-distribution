@@ -59,7 +59,7 @@ def main(argv: list[str]) -> int:
         if not REPOSITORY.fullmatch(argument):
             print(f"{argument}: not <owner>/<name>", file=sys.stderr)
             return 2
-    print(json.dumps(render(argv), indent=2, ensure_ascii=False))
+    print(json.dumps(render(argv), indent=2))
     return 0
 
 
