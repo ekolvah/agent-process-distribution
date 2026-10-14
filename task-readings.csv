@@ -10,3 +10,4 @@ pr,change,task_id,start,merged_at,hours,lines,plan_rounds,code_rounds,cost_usd,a
 405,agent-identity,issue-357,2026-10-12T04:19:26Z,2026-10-12T07:28:27Z,3.15,2069,5,1,27.1634,440,6,13,5,
 408,install-admin-as-person,issue-407,2026-10-12T16:48:16Z,2026-10-12T18:33:36Z,1.76,283,3,1,8.7751,163,2,2,1,
 411,approval-merges,issue-409,2026-10-12T18:35:33Z,2026-10-13T03:32:57Z,8.96,409,4,3,13.8320,257,4,1,2,
+417,adopter-task-readings,issue-415,2026-10-13T05:30:24Z,2026-10-14T04:23:20Z,22.88,1100,2,2,19.7554,279,8,7,4,
