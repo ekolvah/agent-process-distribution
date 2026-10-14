@@ -484,6 +484,8 @@ def test_readings_prerequisites_are_printed(
     assert f"https://github.com/{CONSUMER}/settings/variables/actions" in row
     assert f"gh variable set GRAFANA_URL -R {CONSUMER}" in row
     assert f"gh secret set GRAFANA_SERVICE_ACCOUNT_TOKEN -R {CONSUMER}" in row
+    assert f"agent-process dashboard {CONSUMER}" in row
+    assert "Dashboards → New → Import" in row
     # `_gh_kind` fails on any `gh` command but the reads, the copy and the link: no write.
     for args in runner.gh():
         _gh_kind(args)
