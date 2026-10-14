@@ -33,12 +33,12 @@
 
 ## 6. Host state
 
-- [ ] 6.1 Read `aqxk4q`'s version with `get_dashboard_by_uid`, re-import it from `agent-process dashboard ekolvah/agent-process-distribution` (design D5), and read the version again; verify `get_dashboard_panel_queries aqxk4q` lists only this repository's URL on `grafanacloud-infinity`, and record both versions for the PR report
-- [ ] 6.2 Render the table panel and one trend panel of `aqxk4q` with `get_panel_image` and confirm the rows and the trend show as before, with a `repository` column; confirm a `task_id` link opens `https://github.com/ekolvah/agent-process-distribution/issues/<N>`; record the observation for the PR report
+- [x] 6.1 Read `aqxk4q`'s version with `get_dashboard_by_uid`, re-import it from `agent-process dashboard ekolvah/agent-process-distribution` (design D5), and read the version again; verify `get_dashboard_panel_queries aqxk4q` lists only this repository's URL on `grafanacloud-infinity`, and record both versions for the PR report
+- [x] 6.2 Render the table panel and one trend panel of `aqxk4q` with `get_panel_image` and confirm the rows and the trend show as before, with a `repository` column; confirm a `task_id` link opens `https://github.com/ekolvah/agent-process-distribution/issues/<N>`; record the observation for the PR report
 
 ## 7. Deliver
 
-- [ ] 7.1 Open an issue in ekolvah/kinozal_scraper that holds the design's Confirmation steps with its first recorded task; run `agent-process archive_change adopter-task-dashboard`, then `gh pr create --title "feat: adopter-task-dashboard" --body-file <report>`; the report names tracking issue 416 as a plain reference, carries the scenario-to-test map, the 6.1 versions and the 6.2 observation, and names that kinozal issue as the holder of the deferred Confirmation
+- [x] 7.1 Open an issue in ekolvah/kinozal_scraper that holds the design's Confirmation steps with its first recorded task; run `agent-process archive_change adopter-task-dashboard`, then `gh pr create --title "feat: adopter-task-dashboard" --body-file <report>`; the report names tracking issue 416 as a plain reference, carries the scenario-to-test map, the 6.1 versions and the 6.2 observation, and names that kinozal issue as the holder of the deferred Confirmation
 - [ ] 7.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure; after a push that changes the template or `dashboard.py`, repeat 6.1–6.2 before the next `wait_for_pr`
 
 ## Scenario → test map
