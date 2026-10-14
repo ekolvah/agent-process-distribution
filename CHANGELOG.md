@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.17.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.16.0...v3.17.0) (2026-10-14)
+
+
+### Features
+
+* adopter-task-readings ([#417](https://github.com/ekolvah/agent-process-distribution/issues/417)) ([a699906](https://github.com/ekolvah/agent-process-distribution/commit/a6999069697b7f6a4eb7b446393438a77eb79559))
+
 ## [3.16.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.15.1...v3.16.0) (2026-10-13)
 
 
