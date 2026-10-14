@@ -148,7 +148,9 @@ def test_package_paths_resolve_in_a_consumer() -> None:
     for path in _package_text_files():
         text = path.read_text(encoding="utf-8")
         name = path.relative_to(ROOT).as_posix()
-        findings += [f"{name}: {m.group()}" for m in re.finditer(r"\.agent-process/\S*", text)]
+        # A URL into this repository's docs resolves anywhere; a path into `.agent-process/` does not.
+        local = [m for m in re.finditer(r"\S*\.agent-process/\S*", text) if "://" not in m.group()]
+        findings += [f"{name}: {m.group()}" for m in local]
         if path.suffix == ".md" and PACKAGE in path.parents:
             for target in re.findall(r"\]\(([^)#\s]+)", text):
                 if "://" in target:

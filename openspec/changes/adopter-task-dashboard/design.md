@@ -56,6 +56,9 @@ The template is the live JSON of `aqxk4q` version 23, with these changes:
   `url_options` failed in the panel while `/api/ds/query` answered it.
 - Each data panel starts its transformations with `merge`. The table's `organize` places
   `repository` after `task_id`.
+- The description names the listed repositories' CSVs, and its link to the setup document is
+  an absolute URL like the text panel's: an adopter has no `.agent-process/`, so
+  `test_package_paths_resolve_in_a_consumer` flags only paths that are not URLs.
 
 The script replaces each prototype with one copy per repository, with refIds `A`, `B` and so
 on and the token replaced. It sets the title to `Per-task delivery: <a>, <b>`, so two

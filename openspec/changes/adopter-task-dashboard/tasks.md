@@ -10,9 +10,9 @@
 
 ## 2. Render
 
-- [ ] 2.1 Add `skills/agent-process/templates/per-task-dashboard.json` from `get_dashboard_by_uid aqxk4q` version 23 with the D2 edits and the D3 computed columns, override and hidden `issue`
-- [ ] 2.2 Add `skills/agent-process/scripts/dashboard.py` (design D1, D2; spec: The dashboard renders for a list of repositories) with a module docstring giving usage and exit codes as the other scripts do; verify the 1.1 tests and `test_package_contents_are_closed`
-- [ ] 2.3 Commit the group with its ticks
+- [x] 2.1 Add `skills/agent-process/templates/per-task-dashboard.json` from `get_dashboard_by_uid aqxk4q` version 23 with the D2 edits and the D3 computed columns, override and hidden `issue`
+- [x] 2.2 Add `skills/agent-process/scripts/dashboard.py` (design D1, D2; spec: The dashboard renders for a list of repositories) with a module docstring giving usage and exit codes as the other scripts do; verify the 1.1 tests and `test_package_contents_are_closed`
+- [x] 2.3 Commit the group with its ticks
 
 ## 3. Installer
 
