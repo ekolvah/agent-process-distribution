@@ -123,8 +123,8 @@ repository, which reads
 every row a `repository` column holding `<owner/name>`, and SHALL merge its queries.
 In the table, `task_id` SHALL link to `https://github.com/<repository>/issues/<N>` for the
 `<N>` of its `issue-<N>`. An argument that is not `<owner>/<name>` (a name of `.` or `..`
-included), or no argument, SHALL exit 2 and print nothing on stdout. A repository listed twice
-SHALL render once.
+included), or no argument, SHALL exit 2 and print nothing on stdout. A repository listed twice,
+in any letter case, SHALL render once, as first spelled.
 
 #### Scenario: One repository
 - **WHEN** the dashboard is rendered for `ekolvah/kinozal_scraper`
@@ -137,7 +137,7 @@ SHALL render once.
   `repository` value, and merges them into one result
 
 #### Scenario: Repeated repository
-- **WHEN** the dashboard is rendered for a repository, another, and the first again
+- **WHEN** the dashboard is rendered for a repository, another, and the first again in upper case
 - **THEN** every data panel has two queries, in first-listed order
 
 #### Scenario: Malformed repository

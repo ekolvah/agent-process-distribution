@@ -93,7 +93,7 @@ def test_several_repositories() -> None:
 
 def test_repeated_repository() -> None:
     """Scenario: Repeated repository."""
-    _, dashboard = _render(_OTHER, _KINOZAL, _OTHER)
+    _, dashboard = _render(_OTHER, _KINOZAL, _OTHER.upper())
     for panel in _data_panels(dashboard):
         assert [target["url"] for target in panel["targets"]] == [_url(_OTHER), _url(_KINOZAL)]
 

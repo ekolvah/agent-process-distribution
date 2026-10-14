@@ -11,7 +11,7 @@ per-project dashboard; several are one dashboard holding all their tasks. The In
 datasource stays the import input `DS_INFINITY`, chosen on Grafana's Import page.
 
 Exit 2, with nothing on stdout, when no repository is given or an argument is not
-`<owner>/<name>`. A repository listed twice renders once.
+`<owner>/<name>`. A repository listed twice, in any letter case, renders once.
 """
 
 from __future__ import annotations
@@ -60,7 +60,11 @@ def main(argv: list[str]) -> int:
         if not REPOSITORY.fullmatch(argument):
             print(f"{argument}: not <owner>/<name>", file=sys.stderr)
             return 2
-    print(json.dumps(render(list(dict.fromkeys(argv))), indent=2))
+    # GitHub names are case-insensitive: the first spelling of a repository is kept.
+    unique: dict[str, str] = {}
+    for argument in argv:
+        unique.setdefault(argument.casefold(), argument)
+    print(json.dumps(render(list(unique.values())), indent=2))
     return 0
 
 
