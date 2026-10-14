@@ -21,9 +21,9 @@
 
 ## 4. Documents
 
-- [ ] 4.1 Write `.agent-process/docs/adr/0042-the-per-task-dashboard-renders-for-a-list-of-repositories.md` (design D1, alternatives, deletion condition: Infinity or Grafana gains a query over several URLs), and verify `tests/agent_process/test_adr_records.py`
-- [ ] 4.2 In `.agent-process/docs/telemetry-measurement-setup.md`, have the `aqxk4q` paragraph say it is the render of the template for this repository, and that an edit goes into the template and is re-imported; in *Adopters* add the render command for one or several repositories, the import with its Infinity datasource, and the public-repository limit; verify `tests/agent_process/test_doc_links.py`
-- [ ] 4.3 Commit the group with its ticks
+- [x] 4.1 Write `.agent-process/docs/adr/0042-the-per-task-dashboard-renders-for-a-list-of-repositories.md` (design D1, alternatives, deletion condition: Infinity or Grafana gains a query over several URLs), and verify `tests/agent_process/test_adr_records.py`
+- [x] 4.2 In `.agent-process/docs/telemetry-measurement-setup.md`, have the `aqxk4q` paragraph say it is the render of the template for this repository, and that an edit goes into the template and is re-imported; in *Adopters* add the render command for one or several repositories, the import with its Infinity datasource, and the public-repository limit; verify `tests/agent_process/test_doc_links.py`
+- [x] 4.3 Commit the group with its ticks
 
 ## 5. Verify
 
