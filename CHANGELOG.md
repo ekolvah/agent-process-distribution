@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.18.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.17.0...v3.18.0) (2026-10-14)
+
+
+### Features
+
+* adopter-task-dashboard ([#419](https://github.com/ekolvah/agent-process-distribution/issues/419)) ([d2bee28](https://github.com/ekolvah/agent-process-distribution/commit/d2bee28cdcb516af402a1366948ea2dfc843ddff))
+
 ## [3.17.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.16.0...v3.17.0) (2026-10-14)
 
 
