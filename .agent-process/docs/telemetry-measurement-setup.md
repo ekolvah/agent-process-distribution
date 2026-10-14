@@ -261,7 +261,12 @@ earlier rows keep their shared columns. Grafana keeps about 14 days of samples, 
 recorded later than that has no start.
 
 Dashboard `aqxk4q` (*Per-task delivery*) shows these columns per task and by merge time,
-and reads nothing else, so a column change here changes it too.
+and reads nothing else, so a column change here changes it too. It is the render of the
+plugin's `templates/per-task-dashboard.json` for this repository
+([ADR 0042](adr/0042-the-per-task-dashboard-renders-for-a-list-of-repositories.md)): an edit
+goes into the template, and `aqxk4q` is re-imported from
+`agent-process dashboard ekolvah/agent-process-distribution` over its UID, or the next
+import drops the edit. In the table, `task_id` links to the task's issue.
 
 ### Adopters
 
@@ -275,12 +280,16 @@ the caller `.github/workflows/task-readings.yml`, pinned to the release. The per
 - sets `OTEL_RESOURCE_ATTRIBUTES` in the repository's `.claude/settings.json` by hand, as in
   [Which label carries the project](#which-label-carries-the-project);
 - does the `manual task-readings` row of `init`: the `GRAFANA_URL` variable and the
-  `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret of that stack.
+  `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret of that stack;
+- runs `agent-process dashboard <owner/repo> > per-task.json` for a per-project dashboard,
+  or lists several repositories for one dashboard holding all their tasks, and imports the
+  file in that stack's Grafana (Dashboards → New → Import), choosing its Infinity datasource.
+  Every panel gets one query per listed repository and a `repository` column.
 
 The script queries the datasource UIDs `grafanacloud-prom` and `grafanacloud-logs` of Grafana
 Cloud; another stack gets a `telemetry: Grafana query failed: …` gap. Recording works in a
-private repository; a dashboard reading the CSV over `raw.githubusercontent.com` needs a
-public one.
+private repository; the dashboard reads the CSV over `raw.githubusercontent.com` without a
+token, so a private repository's query fails with 404 beside the other repositories' rows.
 
 ## Per-task metrics
 
