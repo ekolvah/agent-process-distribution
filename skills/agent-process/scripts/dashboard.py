@@ -11,7 +11,7 @@ per-project dashboard; several are one dashboard holding all their tasks. The In
 datasource stays the import input `DS_INFINITY`, chosen on Grafana's Import page.
 
 Exit 2, with nothing on stdout, when no repository is given or an argument is not
-`<owner>/<name>`.
+`<owner>/<name>`. A repository listed twice renders once.
 """
 
 from __future__ import annotations
@@ -23,7 +23,8 @@ from pathlib import Path
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "per-task-dashboard.json"
 TOKEN = "__REPOSITORY__"
-REPOSITORY = re.compile(r"[A-Za-z0-9-]+/[A-Za-z0-9._-]+")
+# GitHub rejects `.` and `..` as a repository name.
+REPOSITORY = re.compile(r"[A-Za-z0-9-]+/(?!\.\.?$)[A-Za-z0-9._-]+")
 
 
 def _ref_id(index: int) -> str:
@@ -59,7 +60,7 @@ def main(argv: list[str]) -> int:
         if not REPOSITORY.fullmatch(argument):
             print(f"{argument}: not <owner>/<name>", file=sys.stderr)
             return 2
-    print(json.dumps(render(argv), indent=2))
+    print(json.dumps(render(list(dict.fromkeys(argv))), indent=2))
     return 0
 
 

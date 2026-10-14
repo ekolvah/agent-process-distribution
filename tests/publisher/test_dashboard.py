@@ -91,7 +91,14 @@ def test_several_repositories() -> None:
     assert dashboard["title"] == f"Per-task delivery: {_OTHER}, {_KINOZAL}"
 
 
-@pytest.mark.parametrize("args", [["kinozal_scraper"], ["a/b/c"], ["owner/"], []])
+def test_repeated_repository() -> None:
+    """A repository listed twice renders one query per panel."""
+    _, dashboard = _render(_OTHER, _KINOZAL, _OTHER)
+    for panel in _data_panels(dashboard):
+        assert [target["url"] for target in panel["targets"]] == [_url(_OTHER), _url(_KINOZAL)]
+
+
+@pytest.mark.parametrize("args", [["kinozal_scraper"], ["a/b/c"], ["owner/"], ["owner/.."], []])
 def test_malformed_repository(args: list[str]) -> None:
     """Scenario: Malformed repository."""
     result = _run(args)
