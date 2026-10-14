@@ -31,16 +31,15 @@ the branch without a status.
 
 ### Requirement: The board is a copy of the template Project
 Project 4 of this repository SHALL be the template a consumer's board is copied from: it
-is public; its `Status` field has the options `Todo`, `Planned`, `In Progress`, `Done` and
-nothing else; its `Priority` field has `High`, `Medium`, `Low`; it has a single-select
-`Area` field whose options are this repository's areas; and its built-in workflows
-*Auto-add to project* (open issues and pull requests of the repository), *Item added →
-Todo*, *Item reopened → Todo*, *Item closed → Done* and *Pull request merged → Done* are
-enabled.
+is public; its single-select fields are `Status` and `Area` and nothing else; `Status` has
+the options `Todo`, `Planned`, `In Progress`, `Done` and nothing else; `Area`'s options are
+this repository's areas; and its built-in workflows *Auto-add to project* (open issues and
+pull requests of the repository), *Item added → Todo*, *Item reopened → Todo*, *Item closed →
+Done* and *Pull request merged → Done* are enabled.
 
 #### Scenario: Template read
 - **WHEN** the template Project is read through the GitHub API
-- **THEN** it is public, its `Status` options are exactly `Todo`, `Planned`, `In Progress`, `Done`, its `Priority` options are `High`, `Medium`, `Low`, it has a single-select `Area` field with at least one option, and the five workflows are enabled
+- **THEN** it is public, its single-select fields are exactly `Status` and `Area`, its `Status` options are exactly `Todo`, `Planned`, `In Progress`, `Done`, `Area` has at least one option, and the five workflows are enabled
 
 ### Requirement: Area is chosen at creation
 Area SHALL be a Project field set by name in the same call as the first status the process

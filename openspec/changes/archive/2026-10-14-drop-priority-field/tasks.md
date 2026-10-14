@@ -20,7 +20,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Deliver per the skill's Delivery procedure: `agent-process archive_change drop-priority-field`, then `gh pr create --title "feat: drop-priority-field" --body-file <report>` with tracking issue 421, the scenario-to-test map and the 2.2 output in the report
+- [x] 4.1 Deliver per the skill's Delivery procedure: `agent-process archive_change drop-priority-field`, then `gh pr create --title "feat: drop-priority-field" --body-file <report>` with tracking issue 421, the scenario-to-test map and the 2.2 output in the report
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
