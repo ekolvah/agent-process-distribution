@@ -23,27 +23,28 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
              `# agent-process release:` line, which `release_drift` compares
 5. workflow  the managed `.github/workflows/agent-process.yml`
 6. review    the managed `.github/workflows/agent-review.yml`, the review gate
-7. dependabot  the marker block of `.github/dependabot.yml`
-8. quality   `.github/agent-process-quality.json`, seeded only beside a created
+7. task-readings  the managed `.github/workflows/task-readings.yml`, the per-task readings
+8. dependabot  the marker block of `.github/dependabot.yml`
+9. quality   `.github/agent-process-quality.json`, seeded only beside a created
              `.pre-commit-config.yaml`; an existing declaration is `unchanged`
-9. pre-commit  the marker block of `.pre-commit-config.yaml`: the `pre-push` hook that runs
-               the declared test; a created file also carries the baseline toolchain
-10. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
+10. pre-commit  the marker block of `.pre-commit-config.yaml`: the `pre-push` hook that runs
+                the declared test; a created file also carries the baseline toolchain
+11. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
               removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
-11. check     the managed `.claude/agent-process-check.py` that hook runs
-12. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+12. check     the managed `.claude/agent-process-check.py` that hook runs
+13. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
-13. project-link `gh project link` of that one unlinked copy to the repository
-14. onboarding-commit  `git add -A` and `git commit` on the installation branch
-15. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
-16. onboarding-push    `git push -u origin` of the installation branch
-17. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
+14. project-link `gh project link` of that one unlinked copy to the repository
+15. onboarding-commit  `git add -A` and `git commit` on the installation branch
+16. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
+17. onboarding-push    `git push -u origin` of the installation branch
+18. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
                        written line names the PR's URL
-18. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
+19. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
 
-Steps 12-13 are classified from `gh` reads of the repository's linked Projects and its
+Steps 13-14 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The onboarding steps exist only when a file step is planned or the checkout is on the
 installation branch, and are classified from git and `gh` reads the same way; a merged
@@ -53,12 +54,13 @@ repository with none, a checkout with none of a repository with commits — is a
 `onboarding-branch` conflict naming the command that resolves it.
 The output ends with `manual` rows, read after the run's writes and printed only while their
 state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
-options and views copied from the template, and the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
-secret — that only a UI can change — the `plugin-channel` row, the once-per-machine step that
-points the marketplace at `stable` with auto-update and installs the plugin at user scope, and
-the `pre-push` row naming why `init` cannot install this clone's hook (`core.hooksPath` is set,
-or `pre-commit` is not on PATH). A state `init` cannot read keeps its row with
-`(cannot read: <reason>)` and never changes the exit code. While
+options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
+secret, and the task-readings caller's `GRAFANA_URL` variable and
+`GRAFANA_SERVICE_ACCOUNT_TOKEN` secret — that only a UI can change — the `plugin-channel`
+row, the once-per-machine step that points the marketplace at `stable` with auto-update and
+installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
+this clone's hook (`core.hooksPath` is set, or `pre-commit` is not on PATH). A state `init`
+cannot read keeps its row with `(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
 status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
@@ -132,6 +134,7 @@ TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 CONFIG = "openspec/config.yaml"
 WORKFLOW = ".github/workflows/agent-process.yml"
 REVIEW_WORKFLOW = ".github/workflows/agent-review.yml"
+READINGS_WORKFLOW = ".github/workflows/task-readings.yml"
 DEPENDABOT = ".github/dependabot.yml"
 PRE_COMMIT = ".pre-commit-config.yaml"
 SETTINGS = ".claude/settings.json"
@@ -184,11 +187,6 @@ def _template(name: str, **values: str) -> str:
 def render_workflow(version: str) -> str:
     """The managed caller; it passes no command — the repository declares them."""
     return _template("agent-process.yml", version=version)
-
-
-def render_review_workflow(version: str) -> str:
-    """The managed review caller; its secret is the consumer's own."""
-    return _template("agent-review.yml", version=version)
 
 
 def render_config_block() -> str:
@@ -478,8 +476,10 @@ def _workflow_text(ctx: Context) -> tuple[str | None, str]:
     return text, rendered
 
 
-def _review_text(ctx: Context) -> tuple[str | None, str]:
-    return _managed_text(ctx, REVIEW_WORKFLOW, render_review_workflow(ctx.version))
+def _caller_text(rel: str) -> Callable[[Context], tuple[str | None, str]]:
+    """A managed caller with no logic of its own, rendered from the template of its name; its
+    variables and secrets are the consumer's own."""
+    return lambda ctx: _managed_text(ctx, rel, _template(Path(rel).name, version=ctx.version))
 
 
 def _dependabot_text(ctx: Context) -> tuple[str | None, str]:
@@ -656,7 +656,8 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         _openspec(ctx),
         _file_step(ctx, "config", CONFIG, _config_text),
         _file_step(ctx, "workflow", WORKFLOW, _workflow_text),
-        _file_step(ctx, "review", REVIEW_WORKFLOW, _review_text),
+        _file_step(ctx, "review", REVIEW_WORKFLOW, _caller_text(REVIEW_WORKFLOW)),
+        _file_step(ctx, "task-readings", READINGS_WORKFLOW, _caller_text(READINGS_WORKFLOW)),
         _file_step(ctx, "dependabot", DEPENDABOT, _dependabot_text),
         *([_file_step(ctx, "quality", quality.DECLARATION, _quality_text)] if seed else []),
         _file_step(ctx, "pre-commit", PRE_COMMIT, _pre_commit_text),

@@ -62,6 +62,7 @@ TEMPLATES = {
     "ruleset.json",
     "settings.json",
     "skill_check.py",
+    "task-readings.yml",
 }
 
 

@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,7 @@ def test_callees_declare_workflow_call_without_pull_request_trigger() -> None:
     for name in (
         "reusable-agent-review.yml",
         "quality.yml",
+        "reusable-task-readings.yml",
     ):
         trigger = _trigger(_workflow(name))
         assert "workflow_call" in trigger
@@ -47,6 +49,7 @@ def test_callee_schema_matches_local_callers_in_both_directions() -> None:
             "agent-review",
         ),
         ("agent-process.yml", "agent-process", "quality.yml", "quality"),
+        ("task-readings.yml", "task-readings", "reusable-task-readings.yml", "record"),
     )
     for caller_file, caller_job, callee_file, callee_job in pairs:
         caller = _workflow(caller_file)["jobs"][caller_job]
@@ -78,6 +81,7 @@ def test_caller_permissions_are_a_superset_of_callee_permissions() -> None:
     for caller_file, caller_job, callee_file in (
         ("agent-review.yml", "agent-review", "reusable-agent-review.yml"),
         ("agent-process.yml", "agent-process", "quality.yml"),
+        ("task-readings.yml", "task-readings", "reusable-task-readings.yml"),
     ):
         caller_permissions = _workflow(caller_file)["permissions"]
         callee_permissions = _workflow(callee_file)["permissions"]
@@ -109,7 +113,7 @@ def test_trusted_checkout_is_the_called_commit() -> None:
     """A `github` context property that does not exist is empty and makes `actions/checkout`
     fall back to the PR's merge ref. The checkout takes the called
     workflow's commit, and an empty one fails the job before the checkout."""
-    for name in ("reusable-agent-review.yml", "quality.yml"):
+    for name in ("reusable-agent-review.yml", "quality.yml", "reusable-task-readings.yml"):
         for job in _workflow(name)["jobs"].values():
             steps = job["steps"]
             for index, step in enumerate(steps):
@@ -123,6 +127,127 @@ def test_trusted_checkout_is_the_called_commit() -> None:
                 assert empty.returncode != 0
                 assert "job.workflow_sha is empty" in empty.stdout
                 assert _run_guard(guard["run"], "a" * 40).returncode == 0
+
+
+def test_callee_reads_the_callers_stack() -> None:
+    """Scenario: Adopter without its stack credentials — an unset variable or secret reaches
+    the script, which writes the gap row, instead of the platform refusing the call."""
+    schema = _trigger(_workflow("reusable-task-readings.yml"))["workflow_call"]
+    assert {key: bool(spec.get("required")) for key, spec in schema["inputs"].items()} == {
+        "pr": True,
+        "grafana_url": False,
+    }
+    assert {key: bool(spec.get("required")) for key, spec in schema["secrets"].items()} == {
+        "grafana_service_account_token": False
+    }
+    (job,) = _workflow("reusable-task-readings.yml")["jobs"].values()
+    assert job["steps"][0]["with"] == {"ref": "${{ github.event.repository.default_branch }}"}
+    record = _steps("reusable-task-readings.yml")["Record and push the row"]
+    assert record["env"]["GRAFANA_URL"] == "${{ inputs.grafana_url }}"
+    assert record["env"]["GRAFANA_SERVICE_ACCOUNT_TOKEN"] == (
+        "${{ secrets.grafana_service_account_token }}"
+    )
+    assert "python trusted/.agent-process/scripts/task_readings.py" in record["run"]
+
+
+_STUB = """import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+pr, path = args[args.index("--pr") + 1], Path(args[args.index("--csv") + 1])
+text = path.read_text(encoding="utf-8") if path.exists() else "pr\\n"
+path.write_text(text + pr + "\\n", encoding="utf-8")
+"""
+
+
+def _isolated_git_env() -> dict[str, str]:
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    return {**env, "GIT_CONFIG_NOSYSTEM": "1"}
+
+
+def _origin(tmp_path: Path) -> Path:
+    origin = tmp_path / "origin.git"
+    env = _isolated_git_env()
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], env=env, check=True)
+    seed = tmp_path / "seed"
+    subprocess.run(["git", "init", "-q", "-b", "main", str(seed)], env=env, check=True)
+    (seed / "README.md").write_text("seed\n", encoding="utf-8")
+    for args in (
+        ["add", "README.md"],
+        ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "seed"],
+        ["push", "-q", str(origin), "main"],
+    ):
+        subprocess.run(["git", "-C", str(seed), *args], env=env, check=True)
+    return origin
+
+
+def _record_run(
+    tmp_path: Path, origin: Path, pr: str, url: str = ""
+) -> subprocess.CompletedProcess[str]:
+    """Run the callee's two steps, as the runner does, in a fresh `--depth 1` clone of
+    `origin` whose trusted checkout holds the stub script."""
+    work = tmp_path / f"work-{pr}"
+    env = _isolated_git_env()
+    subprocess.run(
+        ["git", "clone", "-q", "--depth", "1", origin.as_uri(), str(work)], env=env, check=True
+    )
+    if url:
+        subprocess.run(
+            ["git", "-C", str(work), "remote", "set-url", "origin", url], env=env, check=True
+        )
+    script = work / "trusted" / ".agent-process" / "scripts" / "task_readings.py"
+    script.parent.mkdir(parents=True)
+    script.write_text(_STUB, encoding="utf-8")
+    steps = _steps("reusable-task-readings.yml")
+    run = (
+        steps["Prepare the readings worktree"]["run"]
+        + "\n"
+        + steps["Record and push the row"]["run"]
+    )
+    python = 'python() { "$PYTHON" "$@"; }\n'
+    return subprocess.run(
+        [git_bash(), "-eo", "pipefail", "-c", python + run],
+        cwd=work,
+        env={**env, "PYTHON": Path(sys.executable).as_posix(), "PR": pr},
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
+def _origin_git(origin: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "--git-dir", str(origin), *args],
+        env=_isolated_git_env(),
+        capture_output=True,
+        encoding="utf-8",
+        check=True,
+    ).stdout
+
+
+def test_first_record_creates_the_branch(tmp_path: Path) -> None:
+    """Scenario: First task of a repository — the first run creates `task-readings` holding
+    only the CSV; the next run commits onto it."""
+    origin = _origin(tmp_path)
+
+    first = _record_run(tmp_path, origin, "12")
+
+    assert first.returncode == 0, first.stdout + first.stderr
+    assert _origin_git(origin, "ls-tree", "--name-only", "task-readings").split() == [
+        "task-readings.csv"
+    ]
+    assert _origin_git(origin, "rev-list", "--count", "task-readings").strip() == "1"
+    assert _origin_git(origin, "show", "task-readings:task-readings.csv") == "pr\n12\n"
+
+    second = _record_run(tmp_path, origin, "13")
+
+    assert second.returncode == 0, second.stdout + second.stderr
+    assert _origin_git(origin, "rev-list", "--count", "task-readings").strip() == "2"
+    assert _origin_git(origin, "show", "task-readings:task-readings.csv") == "pr\n12\n13\n"
+
+    missing = _record_run(tmp_path, origin, "14", url=(tmp_path / "absent.git").as_posix())
+
+    assert missing.returncode != 0
 
 
 def _assert_detects_a_release_pr(raw: list[dict[str, Any]]) -> None:

@@ -246,9 +246,10 @@ def _telemetry_or_gap(
 def upsert(path: Path, row: Mapping[str, str]) -> None:
     """Replace the row with the same `pr`, or append it; the other rows keep their order.
 
-    A file with another header is rewritten to `COLUMNS`; a row keeps its shared columns.
+    A file with another header is rewritten to `COLUMNS`; a row keeps its shared columns. An
+    absent file is empty: the first run of a repository writes the header.
     """
-    text = path.read_text(encoding="utf-8")
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
     reader = csv.DictReader(io.StringIO(text))
     rows = [{c: old.get(c) or "" for c in COLUMNS} for old in reader]
     if any(old["pr"] == row["pr"] for old in rows):

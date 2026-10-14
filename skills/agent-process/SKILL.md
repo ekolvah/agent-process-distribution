@@ -189,10 +189,11 @@ Run from the consumer's root:
    installation PR, linked to its issue; it prints the PR and leaves the checkout on that
    branch. Its output ends with the `manual` rows still outstanding; a row with
    `(cannot read: <reason>)` is one `init` could not check. Tell the person to do those rows —
-   the `project-*` rows in the Project's UI, the `plugin-channel` row, once per machine and
-   outside any project, and the `pre-push` row, printed only when `init` could not install the
-   hook in this clone and naming why — then
-   to review and merge the PR, switch to the default branch and pull. In another clone, each
+   the `project-*` rows in the Project's UI, the `task-readings` row with the URL and a
+   service account token of the repository's own Grafana stack, the `plugin-channel` row, once
+   per machine and outside any project, and the `pre-push` row, printed only when `init` could
+   not install the hook in this clone and naming why — then to review and merge the PR, switch
+   to the default branch and pull. In another clone, each
    Claude session start reports the missing pre-push hook until its person runs the two
    commands it names.
 5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and
