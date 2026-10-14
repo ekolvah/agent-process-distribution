@@ -66,9 +66,10 @@ def test_one_repository() -> None:
         assert target["datasource"]["uid"] == "${DS_INFINITY}"
         assert target["url"] == _url(_KINOZAL)
         assert _computed(target)["repository"] == f"'{_KINOZAL}'"
-    (target,) = _table(dashboard)["targets"]
+    table = _table(dashboard)
+    (target,) = table["targets"]
     assert _computed(target)["issue"] == "replace(task_id, 'issue-', '')"
-    overrides = _table(dashboard)["fieldConfig"]["overrides"]
+    overrides = table["fieldConfig"]["overrides"]
     by_name = {override["matcher"]["options"]: override["properties"] for override in overrides}
     links = next(prop["value"] for prop in by_name["task_id"] if prop["id"] == "links")
     assert [link["url"] for link in links] == [_LINK]
