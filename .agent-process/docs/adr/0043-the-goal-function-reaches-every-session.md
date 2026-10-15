@@ -18,13 +18,16 @@ when invoked. The documented always-on carriers are the repository's `CLAUDE.md`
 ## Considered Options
 
 * `init` copies one package file, `always-on.md`, into the managed `.claude/rules/agent-process.md`
-* A plugin `SessionStart` hook prints the sections
-* An output style with `force-for-plugin`
-* `AGENTS.md`
-* `init` extracts the sections from `principles.md` and `SKILL.md`
-* The consumer's `CLAUDE.md` imports `principles.md` whole
-* `additionalContext` from the skill check
-* A managed-policy `CLAUDE.md`
+* A plugin `SessionStart` hook prints the sections: a workaround for a missing native channel,
+  invisible in `/context` Memory files, and it needs a heading parser
+* An output style with `force-for-plugin`: overrides the person's own style and shapes replies
+* `AGENTS.md`: the roles spec keeps instructions in `CLAUDE.md` and `.claude/rules/`
+* `init` extracts the sections from `principles.md` and `SKILL.md`: a heading parser for text a
+  moved file avoids
+* The consumer's `CLAUDE.md` imports `principles.md` whole: about 3,400 tokens per session and
+  an owned block in a consumer-owned file
+* `additionalContext` from the skill check: its contract is silence when nothing needs action
+* A managed-policy `CLAUDE.md`: needs administrator rights on each machine
 
 ## Decision Outcome
 
@@ -43,18 +46,6 @@ The three rules a person's global `CLAUDE.md` carried land as follows:
 * A standard, maintained tool over a script of our own, and on friction look first for the
   architectural cause: added to *Scripts over instructions*, a MINOR amendment of the goal
   function. Placed in §VII it would contradict that section.
-
-Rejected:
-
-* The `SessionStart` hook is a workaround for a missing native channel; its output is invisible
-  in `/context` Memory files, and it needs a heading parser.
-* An output style overrides the person's own style and shapes the reply format.
-* `AGENTS.md`: the roles spec keeps instructions in `CLAUDE.md` and `.claude/rules/`.
-* Extraction puts a heading parser in `init` for text a moved file avoids.
-* `principles.md` whole costs about 3,400 tokens per session and an owned block in a
-  consumer-owned file.
-* The skill check's contract is to stay silent when nothing needs action.
-* A managed-policy file needs administrator rights on each machine.
 
 ### Consequences
 

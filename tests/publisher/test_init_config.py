@@ -167,7 +167,7 @@ def test_rules_carry_the_always_on_file(sandbox: Sandbox) -> None:
     """Scenario: Rules file written — a fresh install and an install over another release's
     rules file both leave the marker line, a blank line and the release's `always-on.md`."""
     init = load_init()
-    source = (ROOT / "skills" / "agent-process" / "always-on.md").read_text(encoding="utf-8")
+    source = (init.PACKAGE / "always-on.md").read_text(encoding="utf-8")
     assert not source.startswith("---")
     assert "\n## Goal function\n" in source and "\n## Claude harness\n" in source
     assert not re.search(r"\]\((?!http)", source)
