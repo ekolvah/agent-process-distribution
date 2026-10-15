@@ -9,8 +9,8 @@
 
 ## 2. Contract
 
-- [ ] 2.1 In `.agent-process/REVIEW_CONTRACT.md`, add to the `Policy source` bullet a clause of its own, outside its default-branch list: principles §I–VII of `trusted/skills/agent-process/principles.md` bind the diff. In the `P0`/`P1` sentence, tag "a failing or missing behavioural test" `(§I)` and extend "a convention violation" with the breaches a diff shows: §II a test mocking the repository's own logic or an external client not behind an injected Protocol, §III user-visible data lost without a red run, §IV a swallowed error or fail-open branch, §V a retry, shim or broadened `except` whose cause the worktree does not name, §VI configuration checked after load; the signal labels the finding and names the section, and the full text settles a borderline case. Verify `tests/publisher/test_reusable_workflows.py`
-- [ ] 2.2 Commit the group with its ticks
+- [x] 2.1 In `.agent-process/REVIEW_CONTRACT.md`, add to the `Policy source` bullet a clause of its own, outside its default-branch list: principles §I–VII of `trusted/skills/agent-process/principles.md` bind the diff. In the `P0`/`P1` sentence, tag "a failing or missing behavioural test" `(§I)` and extend "a convention violation" with the breaches a diff shows: §II a test mocking the repository's own logic or an external client not behind an injected Protocol, §III user-visible data lost without a red run, §IV a swallowed error or fail-open branch, §V a retry, shim or broadened `except` whose cause the worktree does not name, §VI configuration checked after load; the signal labels the finding and names the section, and the full text settles a borderline case. Verify `tests/publisher/test_reusable_workflows.py`
+- [x] 2.2 Commit the group with its ticks
 
 ## 3. Verify
 
