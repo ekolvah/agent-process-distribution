@@ -4,11 +4,11 @@
 
 ## 1. RED first
 
-- [ ] 1.1 no RED: docs-only (`skip_specs`), principle prose under the `principles.md` §I documentation exception
+- [x] 1.1 no RED: docs-only (`skip_specs`), principle prose under the `principles.md` §I documentation exception
 
 ## 2. Consumer-neutral principles
 
-- [ ] 2.1 In `skills/agent-process/principles.md`, apply the design's planned wording to §III, §IV and §VI, keeping their headings. Verify that `grep -nE "ruff|selector|macro|scheduled production|news" skills/agent-process/principles.md` prints nothing. Commit as `docs(principles): state §III, §IV and §VI for any consumer`
+- [x] 2.1 In `skills/agent-process/principles.md`, apply the design's planned wording to §III, §IV and §VI, keeping their headings. Verify that `grep -nE "ruff|selector|macro|scheduled production|news" skills/agent-process/principles.md` prints nothing. Commit as `docs(principles): state §III, §IV and §VI for any consumer`
 
 ## 3. Verify
 

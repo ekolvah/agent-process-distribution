@@ -57,43 +57,36 @@ doubles exercise the real code path with deterministic external state.
 
 ### III. Delivery Truthfulness
 
-The system MUST NOT silently lose user-visible data. If a pipeline finds new
-items but cannot deliver the corresponding notification, the run MUST surface
-that as an explicit operational failure: log ERROR, mark the result not-ok
-where that type is used, and exit non-zero from the run-script step. A
-best-effort technical alert should be sent when the failure is not the
-delivery transport itself.
+The system MUST NOT silently lose output a user relies on. When a run cannot
+deliver an item it owes a user, it MUST surface an explicit operational
+failure: log ERROR naming the missed items, mark the result not-ok where the
+code has such a type, and exit non-zero. A best-effort technical alert should
+be sent when the failure is not the delivery channel itself.
 
-Persisted dedupe state MUST reflect confirmed delivery. If the delivery channel
-is unavailable, the run is red with enough logs to identify missed items.
-Pipelines that can partition send results must store only successfully delivered
-items. Persisting before notification is allowed only when a delivery failure is
-still an explicit operational failure.
+State that records what was delivered MUST reflect confirmed delivery. A run
+that can tell which items were delivered records only those. Recording before
+delivery is allowed only when a delivery failure is still an explicit
+operational failure.
 
-**Rationale:** users must be able to distinguish "there was no news" from "the
-system failed to deliver news" — a silent green run that does neither destroys
-trust.
+**Rationale:** users must be able to distinguish "there was nothing to
+deliver" from "the system failed to deliver" — a silent green run that does
+neither destroys trust.
 
 ### IV. Visibility Over Silence
 
 A degraded item reaches the user as a **visible anomaly**, not a silent skip.
-If the pipeline extracted a row but a field is unusable (empty URL, missing
-image, broken asset), the item is still emitted with a clear gap marker AND a
+If an item is usable but one of its fields is not (an empty URL, a missing
+image, a broken asset), the item is still emitted with a clear gap marker AND a
 WARNING log line.
 
-Conversely, fatal extraction errors (zero rows, malformed source) MUST log
-ERROR and the relevant run-script step MUST exit non-zero so CI surfaces the
-failure.
+Conversely, fatal input errors (no records, a malformed source) MUST log ERROR
+and exit non-zero, so CI or the operator sees the failure.
 
-The same rule applies after extraction: failed notification delivery,
-summarization failures, and failed technical alerts MUST NOT be collapsed into
-"no new items/messages."
+The same holds for each later step: a failed transformation or technical alert
+MUST NOT be collapsed into "nothing to report"; a failed delivery is §III.
 
-Forbid swallowed parse errors and fail-open branches. CI enforces ruff `BLE001`
-(no blind `except`) and `TRY400` (`logger.exception` in handlers); an
-already-visible broad catch needs an inline `# noqa: BLE001` rationale.
-Configuration-level disabling through `select`, `ignore`, or
-`per-file-ignores` is blocked by `tests/test_ruff_silence_rules.py`.
+Forbid swallowed errors and fail-open branches. An intentional broad catch
+that keeps the failure visible carries its reason inline.
 
 **Rationale:** silent degradation is the worst kind of bug — a visible gap or a
 red CI badge is a forcing function for someone to look.
@@ -132,17 +125,16 @@ cheap-now is expensive-later.
 ### VI. Fail-Fast Configuration
 
 Declarative config is validated at load time. Errors that can be caught at
-startup MUST NOT surface mid-run: bad selectors, unresolved macro
-placeholders, non-positive limits, missing required fields, mismatched
+startup MUST NOT surface mid-run: missing required fields, out-of-range values
+such as non-positive limits, references that do not resolve, mismatched
 schemas.
 
-A central validator function is the gate. When a new class of config error
-becomes possible, the validator MUST grow a check for it in the same PR; it
-must run at load time rather than defer a known invalid configuration to a
-scheduled production run.
+One load-time validation step is the gate. When a new class of config error
+becomes possible, that step MUST grow a check for it in the same PR, rather
+than defer a known invalid configuration to the run that first uses it.
 
-**Rationale:** a config-validation gap otherwise surfaces in the next
-scheduled run, days after the typo was introduced.
+**Rationale:** a config-validation gap otherwise surfaces at first use, far
+from the edit that introduced it.
 
 ### VII. Simplicity First
 
