@@ -12,3 +12,4 @@ pr,change,task_id,start,merged_at,hours,lines,plan_rounds,code_rounds,cost_usd,a
 411,approval-merges,issue-409,2026-10-12T18:35:33Z,2026-10-13T03:32:57Z,8.96,409,4,3,13.8320,257,4,1,2,
 417,adopter-task-readings,issue-415,2026-10-13T05:30:24Z,2026-10-14T04:23:20Z,22.88,1100,2,2,19.7554,279,8,7,4,
 419,adopter-task-dashboard,issue-416,2026-10-14T04:25:35Z,2026-10-14T06:19:32Z,1.90,2308,2,4,15.8859,264,3,3,3,
+422,drop-priority-field,issue-421,2026-10-14T06:20:52Z,2026-10-15T04:13:59Z,21.89,180,2,1,6.7528,123,1,1,1,
