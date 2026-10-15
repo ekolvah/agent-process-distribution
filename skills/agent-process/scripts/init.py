@@ -32,8 +32,7 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 11. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
               removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
 12. check     the managed `.claude/agent-process-check.py` that hook runs
-13. rules     the managed `.claude/rules/agent-process.md`: the package's `always-on.md`, the
-              goal function and Claude harness that every session of the repository loads
+13. rules     the managed `.claude/rules/agent-process.md`: the package's `always-on.md`
 14. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
 15. project-link `gh project link` of that one unlinked copy to the repository
@@ -132,8 +131,7 @@ TOP_LEVEL_RULES = re.compile(
 )
 MARKETPLACE = "agent-process-marketplace"
 PLUGIN = "agent-process@agent-process-marketplace"
-PACKAGE = Path(__file__).resolve().parent.parent
-TEMPLATES = PACKAGE / "templates"
+TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 CONFIG = "openspec/config.yaml"
 WORKFLOW = ".github/workflows/agent-process.yml"
 REVIEW_WORKFLOW = ".github/workflows/agent-review.yml"
@@ -143,6 +141,8 @@ PRE_COMMIT = ".pre-commit-config.yaml"
 SETTINGS = ".claude/settings.json"
 CHECK = ".claude/agent-process-check.py"
 RULES = ".claude/rules/agent-process.md"
+ALWAYS_ON = TEMPLATES.parent / "always-on.md"
+Render = Callable[["Context"], tuple[str | None, str]]
 TEMPLATE_OWNER = "ekolvah"
 TEMPLATE_PROJECT = "4"
 # The owner's Projects with what tells a reusable copy from one linked elsewhere; `gh project
@@ -480,7 +480,7 @@ def _workflow_text(ctx: Context) -> tuple[str | None, str]:
     return text, rendered
 
 
-def _caller_text(rel: str) -> Callable[[Context], tuple[str | None, str]]:
+def _caller_text(rel: str) -> Render:
     """A managed caller with no logic of its own, rendered from the template of its name; its
     variables and secrets are the consumer's own."""
     return lambda ctx: _managed_text(ctx, rel, _template(Path(rel).name, version=ctx.version))
@@ -607,22 +607,12 @@ def _is_owned_start(start: Any, group: dict[str, Any]) -> bool:
     )
 
 
-def _check_text(ctx: Context) -> tuple[str | None, str]:
-    text = _read(ctx.root / CHECK)
-    if text is not None and text.split("\n", 1)[0].strip() != MANAGED:
-        raise Conflict(f"exists without its first line `{MANAGED}`")
-    return text, (TEMPLATES / "skill_check.py").read_text(encoding="utf-8")
+def _copied_text(rel: str, source: Path, head: str = "") -> Render:
+    """A managed copy of a package file, read raw: `_template` takes `$` for a placeholder."""
+    return lambda ctx: _managed_text(ctx, rel, head + source.read_text(encoding="utf-8"))
 
 
-def _rules_text(ctx: Context) -> tuple[str | None, str]:
-    """Read directly: `_template`'s `string.Template` would take a `$` for a placeholder."""
-    always_on = (PACKAGE / "always-on.md").read_text(encoding="utf-8")
-    return _managed_text(ctx, RULES, f"{MANAGED}\n\n{always_on}")
-
-
-def _file_step(
-    ctx: Context, label: str, rel: str, render: Callable[[Context], tuple[str | None, str]]
-) -> Step:
+def _file_step(ctx: Context, label: str, rel: str, render: Render) -> Step:
     path = ctx.root / rel
 
     def apply() -> bool:
@@ -672,8 +662,8 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         *([_file_step(ctx, "quality", quality.DECLARATION, _quality_text)] if seed else []),
         _file_step(ctx, "pre-commit", PRE_COMMIT, _pre_commit_text),
         _file_step(ctx, "settings", SETTINGS, _settings_text),
-        _file_step(ctx, "check", CHECK, _check_text),
-        _file_step(ctx, "rules", RULES, _rules_text),
+        _file_step(ctx, "check", CHECK, _copied_text(CHECK, TEMPLATES / "skill_check.py")),
+        _file_step(ctx, "rules", RULES, _copied_text(RULES, ALWAYS_ON, f"{MANAGED}\n\n")),
     ]
 
 
