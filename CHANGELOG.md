@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.21.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.20.0...v3.21.0) (2026-10-15)
+
+
+### Features
+
+* goal-function-every-session ([#426](https://github.com/ekolvah/agent-process-distribution/issues/426)) ([d4241de](https://github.com/ekolvah/agent-process-distribution/commit/d4241de1b8e0eb65c857c485497188156099e18b))
+
 ## [3.20.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.19.0...v3.20.0) (2026-10-15)
 
 
