@@ -51,6 +51,15 @@ def _table(dashboard: dict) -> dict:
     return next(panel for panel in _data_panels(dashboard) if panel["type"] == "table")
 
 
+def _selectors(panel: dict) -> list[str]:
+    return [column["selector"] for column in panel["targets"][0]["columns"]]
+
+
+def _overrides(panel: dict) -> dict[str, list[dict]]:
+    overrides = panel["fieldConfig"]["overrides"]
+    return {override["matcher"]["options"]: override["properties"] for override in overrides}
+
+
 def test_one_repository() -> None:
     """Scenario: One repository."""
     text, dashboard = _render(_KINOZAL)
@@ -69,11 +78,26 @@ def test_one_repository() -> None:
     table = _table(dashboard)
     (target,) = table["targets"]
     assert _computed(target)["issue"] == "replace(task_id, 'issue-', '')"
-    overrides = table["fieldConfig"]["overrides"]
-    by_name = {override["matcher"]["options"]: override["properties"] for override in overrides}
+    by_name = _overrides(table)
     links = next(prop["value"] for prop in by_name["task_id"] if prop["id"] == "links")
     assert [link["url"] for link in links] == [_LINK]
     assert {"id": "custom.hidden", "value": True} in by_name["issue"]
+
+
+def test_hours_panel() -> None:
+    """Scenario: Hours panel."""
+    _, dashboard = _render(_KINOZAL)
+    (panel,) = [panel for panel in _data_panels(dashboard) if "hours" in _selectors(panel)]
+    assert "agent_hours" in _selectors(panel)
+    by_name = _overrides(panel)
+    names = {
+        field: next(prop["value"] for prop in by_name[field] if prop["id"] == "displayName")
+        for field in ("hours", "agent_hours")
+    }
+    assert names["hours"] != names["agent_hours"]
+    organize = next(t for t in _table(dashboard)["transformations"] if t["id"] == "organize")
+    index = organize["options"]["indexByName"]
+    assert index["agent_hours"] == index["hours"] + 1
 
 
 def test_several_repositories() -> None:

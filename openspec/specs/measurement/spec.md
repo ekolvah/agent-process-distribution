@@ -12,8 +12,8 @@ workflow, and its head branch names a change archived on that branch, the workfl
 one row for that PR to `task-readings.csv` on the branch `task-readings` of that repository. A
 repository without that branch SHALL get it, holding only that file, from the first run that
 records a row. The row SHALL carry `pr`, `change`, `task_id`, `start`, `merged_at`,
-`hours`, `lines`, `plan_rounds`, `code_rounds`, `cost_usd`, `api_requests`, `failed`,
-`denied`, `compactions` and `gap`. `task_id` SHALL be `issue-<N>`, where `<N>`
+`hours`, `agent_hours`, `lines`, `plan_rounds`, `code_rounds`, `cost_usd`, `api_requests`,
+`failed`, `denied`, `compactions` and `gap`. `task_id` SHALL be `issue-<N>`, where `<N>`
 comes from the change's `tracking issue <N>` token. A second run for the same PR SHALL
 replace that PR's row. A file whose header names other columns SHALL be rewritten with this
 header; a column the two headers share SHALL keep its values.
@@ -143,3 +143,27 @@ in any letter case, SHALL render once, as first spelled.
 #### Scenario: Malformed repository
 - **WHEN** the dashboard is rendered for `kinozal_scraper`
 - **THEN** the command exits 2, names the argument, and prints nothing on stdout
+
+### Requirement: Agent time is the sessions' CLI active time
+`agent_hours` SHALL be the sum, over the task's bound sessions, of the Claude Code active time
+with `type="cli"` over the telemetry window, in hours. A bound session with a token sample
+whose active-time counter resets inside that window, or that has no active-time sample, makes
+`agent_hours` a reading that cannot be taken.
+
+#### Scenario: Agent time recorded
+- **WHEN** a task's two bound sessions report 1800 and 900 seconds of `cli` active time
+- **THEN** the row's `agent_hours` is `0.75` and its `hours` is unchanged
+
+#### Scenario: Counter reset
+- **WHEN** the active-time counter of one bound session resets inside the task's window
+- **THEN** the row's `agent_hours` is empty, its other telemetry cells are written, and `gap`
+  names that session
+
+### Requirement: The dashboard shows agent time beside hours
+The rendered dashboard's hours panel SHALL draw `hours` and `agent_hours` per task. The table
+SHALL show `agent_hours` next to `hours`.
+
+#### Scenario: Hours panel
+- **WHEN** the dashboard is rendered for one repository
+- **THEN** its hours panel reads both `hours` and `agent_hours` under distinct display names,
+  and the table orders `agent_hours` right after `hours`

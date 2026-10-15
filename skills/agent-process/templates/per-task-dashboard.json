@@ -382,12 +382,31 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "per task"
+                "value": "to merge"
               },
               {
                 "id": "color",
                 "value": {
                   "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "agent_hours"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "agent working"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
                   "mode": "fixed"
                 }
               }
@@ -428,6 +447,11 @@
               "selector": "hours",
               "text": "hours",
               "type": "number"
+            },
+            {
+              "selector": "agent_hours",
+              "text": "agent_hours",
+              "type": "number"
             }
           ],
           "datasource": {
@@ -455,7 +479,7 @@
           ]
         }
       ],
-      "title": "hours to merge",
+      "title": "hours: to merge and agent working",
       "transformations": [
         {
           "id": "merge",
@@ -1598,20 +1622,21 @@
             "excludeByName": {},
             "includeByName": {},
             "indexByName": {
+              "agent_hours": 10,
               "api_requests": 3,
-              "change": 11,
+              "change": 12,
               "code_rounds": 5,
               "compactions": 6,
               "cost_usd": 2,
               "denied": 7,
               "failed": 8,
-              "gap": 12,
+              "gap": 13,
               "hours": 9,
-              "lines": 10,
-              "merged_at": 13,
+              "lines": 11,
+              "merged_at": 14,
               "plan_rounds": 4,
-              "pr": 15,
-              "start": 14,
+              "pr": 16,
+              "start": 15,
               "task_id": 0,
               "repository": 1
             },
