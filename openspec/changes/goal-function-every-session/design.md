@@ -16,7 +16,7 @@ prompt of every session in an installed repository, and again after compaction.
 
 - Repositories that have not run Install. Their sessions get the harness when the skill's
   link to `always-on.md` is followed.
-- §I–VII in every session. Their summary stays in `SKILL.md#principles`, read with the
+- §I–VII in every session. Their summary stays in the `#principles` anchor of `SKILL.md`, read with the
   skill by the roles that apply them; the full `principles.md` costs about 3,400 tokens.
 
 ## Decisions
@@ -30,14 +30,14 @@ D3. About 2,200 characters, roughly 600 tokens. It holds no relative link: its o
 the consumer's copy sits in `.claude/rules/`, where a relative link would resolve to nothing.
 
 - `principles.md` keeps a `## Goal function` heading whose body is one line linking
-  `always-on.md#goal-function`, so the existing `#goal-function` anchors still resolve.
+  the `#goal-function` anchor of `always-on.md`, so the existing `#goal-function` anchors still resolve.
   Governance names `always-on.md` as the file that holds the canon's goal function. That edit
   moves no rule between canon and delegation, so it is not a change of the delegation itself.
 - `SKILL.md` keeps its goals list under `## Principles`; line 17 links
-  `always-on.md#goal-function`. Its `## Claude harness` section becomes one line linking
-  `always-on.md#claude-harness`.
+  the `#goal-function` anchor of `always-on.md`. Its `## Claude harness` section becomes one line linking
+  the `#claude-harness` anchor of `always-on.md`.
 - Links to the old anchors are repointed: `principles.md` §VII ("whose reviewer reads the
-  goal function") to `always-on.md#goal-function`, ADR 0021 (`#scripts-over-instructions`),
+  goal function") to the `#goal-function` anchor of `always-on.md`, ADR 0021 (`#scripts-over-instructions`),
   `CLAUDE.md` (`#claude-harness`).
 - `agents/architect-reviewer.md` step 2 reads `principles.md` because "as a subagent you do not
   load the always-load rules". Custom subagents do load the project's `CLAUDE.md` and rules
@@ -124,7 +124,7 @@ gets the line `@skills/agent-process/always-on.md`.
   `.claude/rules/agent-process.md` with `mine\n` and expects a `rules` conflict.
 - `tests/publisher/test_plugin.py`: `test_package_contents_are_closed` gains `always-on.md`;
   `test_skill_carries_principles_core_and_harness_tactics` reads the harness and the three
-  goals from `always-on.md` and asserts the skill body links `always-on.md#claude-harness`;
+  goals from `always-on.md` and asserts the skill body links the `#claude-harness` anchor of `always-on.md`;
   `test_publisher_dogfoods_process` asserts the `CLAUDE.md` import line.
 
 ## Risks / Trade-offs

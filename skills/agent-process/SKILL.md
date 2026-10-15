@@ -14,7 +14,7 @@ enabled.
 
 ## Principles
 
-[`principles.md`](principles.md#goal-function) binds every role. Its goals, in strict order:
+[`principles.md`](principles.md) binds every role. Its [goals](always-on.md#goal-function), in strict order:
 
 1. Minimize future bug-fixing and support.
 2. Optimize token spend, in development and at runtime.
@@ -32,16 +32,7 @@ On any conflict, the full text of `principles.md` decides.
 
 ## Claude harness
 
-- Read narrowly: a search or an `offset`/`limit` read before a whole file. When the read-budget
-  hook denies a `Read`, take the call it names; never route around it.
-- Spawn a subagent only for independent work, or for research that needs more than three
-  round trips.
-- Be concise by default, in replies and in files.
-- Wait for a long command with one foreground call and a raised `timeout`, never a `sleep` or
-  re-read loop.
-- After a compaction between the RED commit and GREEN, recover from the branch
-  (`git branch --show-current`), the RED commit and one `gh issue view <N>`; do not re-read
-  what the RED commit records.
+The token tactics are in [`always-on.md`](always-on.md#claude-harness).
 
 ## Proposal
 

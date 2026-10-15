@@ -14,32 +14,8 @@ this project's own docs to author.
 
 ## Goal function
 
-Every agent working in this repository optimises the same three goals, in this
-strict order. They are the *why* behind §I–§VII: when two principles pull in
-different directions, the higher goal decides.
-
-1. **Minimize future bug-fixing and support.** Root cause before fix — no
-   workaround or shim until the cause is named (§V). A visible anomaly beats a
-   silent skip: degradation reaches the operator as a marker, not as silence
-   (§IV). Bug fixes are test-first: failing test → code → green (§I).
-2. **Optimize token spend**, both development and runtime. Do not produce
-   artefacts, scripts, or infrastructure a task does not need (§VII); before an
-   expensive step — a subagent, a web search, a wide grep — weigh whether it
-   pays for itself. Watch for work for work.
-3. **Preserve predictability and user control.** One PR is one logical unit;
-   risky or shared-state actions are confirmed with the user even when they are
-   technically permitted. The procedural half of this goal lives in
-   [the agent process](SKILL.md).
-
-### Scripts over instructions
-
-A deterministic step of any multi-step workflow ("check X", "make sure Y",
-"extract Z") becomes **a script with an exit code and unit tests** on its pure
-functions, not a line of prose. Prohibitions become a deny-list, a hook, or
-branch protection — never "remember not to do X". Trigger heuristic: the moment
-a rule is phrased as "must not forget about X", X belongs in a script or a gate.
-
-**Rationale:** an agent skips prose items in a long pipeline; `exit 0/1` always runs.
+The goal function and *Scripts over instructions* are in
+[`always-on.md`](always-on.md#goal-function).
 
 ## Core Principles
 
@@ -184,7 +160,7 @@ and existing repo packages.
 
 Mostly not machine-gated: "over-complicated" is a semantic judgement, enforced at
 **plan stage** by the [architect review](SKILL.md#architect-review),
-whose reviewer reads the [goal function](#goal-function) above. The diff-stage
+whose reviewer reads the [goal function](always-on.md#goal-function). The diff-stage
 automated review blocks only two
 narrow, worktree-verifiable triggers as a second pass: an added indirection with a
 single call site and no stated reason, and duplicated logic whose finding
@@ -229,9 +205,9 @@ implementation-detail references — kept short, kept linked, never the source
 of truth on principles.
 
 **Delegation of operational procedures.** This constitution retains the
-**goal function**, the **principles §I–VII**, the **Quality Gates**, and this
-**Governance** section as its canon. The *operational procedural rules* (the
-former §Development Workflow) are delegated to
+**goal function** (held in [`always-on.md`](always-on.md)), the **principles §I–VII**,
+the **Quality Gates**, and this **Governance** section as its canon. The *operational
+procedural rules* (the former §Development Workflow) are delegated to
 [the agent process](SKILL.md). Delegation does **not** weaken their
 authority: those rules bind equally; the skill, with `openspec/specs/`, is their
 single source of truth (other mentions are links only). Amending them happens

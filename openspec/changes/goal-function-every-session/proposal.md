@@ -34,7 +34,7 @@ look first for a wrong architectural choice.
 - This repository's `CLAUDE.md` imports `@skills/agent-process/always-on.md`.
 - Rule 1: no edit (already in the harness). Rule 2: the harness subagent bullet. Rule 3:
   *Scripts over instructions*. See design D3.
-- `SKILL.md#install` says what the rules file puts into each session.
+- The `#install` section of `SKILL.md` says what the rules file puts into each session.
 - ADR 0043 records the carrier.
 
 ## Capabilities

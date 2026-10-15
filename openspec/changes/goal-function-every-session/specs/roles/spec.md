@@ -10,4 +10,4 @@ between the RED commit and GREEN SHALL recover state from the branch, the RED co
 
 #### Scenario: A consumer reads principles and tactics from the skill
 - **WHEN** a consumer session invokes the `agent-process` skill
-- **THEN** the skill body names the three goals, each of §I–VII with a link to `principles.md`, and links `always-on.md#claude-harness`, whose harness tactics carry the `gh issue view` recovery and no `/compact` request
+- **THEN** the skill body names the three goals, each of §I–VII with a link to `principles.md`, and links the `#claude-harness` anchor of `always-on.md`, whose harness tactics carry the `gh issue view` recovery and no `/compact` request
