@@ -10,8 +10,8 @@
 
 ## 2. Readings
 
-- [ ] 2.1 In `.agent-process/scripts/task_readings.py`, add `agent_hours` after `hours` in `COLUMNS`, and add the D2 query over `_telemetry`'s window with its gap (spec: Agent time is the sessions' CLI active time; Merged task records its readings). Verify `tests/agent_process/test_task_readings.py`
-- [ ] 2.2 Commit the group with its ticks
+- [x] 2.1 In `.agent-process/scripts/task_readings.py`, add `agent_hours` after `hours` in `COLUMNS`, and add the D2 query over `_telemetry`'s window with its gap (spec: Agent time is the sessions' CLI active time; Merged task records its readings). Verify `tests/agent_process/test_task_readings.py`
+- [x] 2.2 Commit the group with its ticks
 
 ## 3. Dashboard
 

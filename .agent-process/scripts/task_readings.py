@@ -44,6 +44,7 @@ COLUMNS = (
     "start",
     "merged_at",
     "hours",
+    "agent_hours",
     "lines",
     "plan_rounds",
     "code_rounds",
@@ -61,6 +62,15 @@ _TOKEN = re.compile(r"tracking issue (<N>|\d+)")
 _START_QUERY = (
     "min by (session_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total"
     '{{session_id=~"{sessions}",vcs_repository_name="{repo}"}})[30d:1m]))'
+)
+# A counter's maximum is its total while it does not reset; a session that reset is dropped.
+_ACTIVE_SERIES = (
+    'claude_code_active_time_seconds_total{{session_id=~"{sessions}",'
+    'vcs_repository_name="{repo}",type="cli"}}[{window}s]'
+)
+_ACTIVE_QUERY = (
+    "sum by (session_id) (max_over_time({series}))"
+    " and on (session_id) (sum by (session_id) (resets({series})) == 0)"
 )
 _SELECTOR = '{{service_name="claude-code"}} | vcs_repository_name="{repo}"'
 _COST_QUERY = (
@@ -210,6 +220,16 @@ def _telemetry(grafana: Grafana, repo: str, sessions: Sequence[str], merged: flo
         _COUNTS_QUERY.format(selector=selector, sessions=matcher, window=window), merged
     )
     cells = {"start": _iso(start), "hours": f"{(merged - start) / 3600:.2f}"}
+    series = _ACTIVE_SERIES.format(sessions=matcher, repo=repo, window=window)
+    active = {
+        str(_labels(sample).get("session_id", "")): _value(sample)
+        for sample in grafana.prometheus(_ACTIVE_QUERY.format(series=series), merged)
+    }
+    missing = [s for s in starts if s not in active]
+    if missing:
+        gaps.extend(f"agent_hours: no reset-free active time of {s}" for s in missing)
+    else:
+        cells["agent_hours"] = f"{sum(active[s] for s in starts) / 3600:.2f}"
     if cost:
         cells["cost_usd"] = f"{sum(_value(sample) for sample in cost):.4f}"
     else:
