@@ -780,9 +780,8 @@ def test_review_contract_labels_each_principle() -> None:
     severity = _bullet_containing(contract, "`P0`/`P1` mean")
 
     assert "trusted/skills/agent-process/principles.md" in policy
-    named = set(re.findall(r"§(I|II|III|IV|V|VI|VII)(?![IVX])", severity))
-    for section in ("I", "II", "III", "IV", "V", "VI"):
-        assert section in named, f"P0/P1 clause names no breach of §{section}"
+    missing = {"I", "II", "III", "IV", "V", "VI"} - set(re.findall(r"§([IVX]+)", severity))
+    assert not missing, f"P0/P1 clause names no breach of §{sorted(missing)}"
 
 
 def test_no_workflow_step_resolves_a_review_thread() -> None:
