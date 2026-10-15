@@ -213,3 +213,11 @@ repository with `gh repo edit --enable-auto-merge`.
 #### Scenario: Approval merges
 - **WHEN** the person approves the agent's PR on which auto-merge is enabled
 - **THEN** GitHub merges it with squash once its required checks pass, with no further action by the person
+
+### Requirement: The review contract labels each principle
+The review contract SHALL name the trusted checkout's `principles.md` (`trusted/skills/agent-process/principles.md`)
+as review policy and SHALL label a diff's breach of each of §I–VI `P0` or `P1`.
+
+#### Scenario: Each principle has a severity
+- **WHEN** the review contract is read
+- **THEN** its policy source names `trusted/skills/agent-process/principles.md` and its `P0`/`P1` class names a breach of each of §I–VI
