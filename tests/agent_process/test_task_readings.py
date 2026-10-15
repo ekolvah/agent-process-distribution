@@ -119,7 +119,9 @@ class _Grafana:
         self.calls.append(("prometheus", query, time))
         if self.error is not None:
             raise self.error
-        per_session = self.active if "claude_code_active_time_seconds_total" in query else self.starts
+        per_session = (
+            self.active if "claude_code_active_time_seconds_total" in query else self.starts
+        )
         return [
             _sample({"session_id": s}, v) for s, v in per_session.items() if self._matches(query, s)
         ]
