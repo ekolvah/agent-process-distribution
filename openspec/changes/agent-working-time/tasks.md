@@ -27,12 +27,12 @@
 
 - [x] 5.1 Run `/simplify` without an argument and commit its edits
 - [x] 5.2 Run `openspec validate --strict --all`
-- [ ] 5.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 5.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 6. Host state
 
-- [ ] 6.1 Run `.agent-process/scripts/task_readings.py --pr 419 --csv <scratch>` and then `--pr 422`, with `GITHUB_REPOSITORY`, `GRAFANA_URL` and the token from the owner's environment. Verify each scratch row's `agent_hours` equals the D2 query run by hand over its window, and record both for the PR report
-- [ ] 6.2 Read `aqxk4q`'s version with `get_dashboard_by_uid`, re-import it from `agent-process dashboard ekolvah/agent-process-distribution`, and read the version again. Render the hours panel with `get_panel_image` and confirm that the `to merge` series and its trend show as before. Record the versions and the observation for the PR report
+- [x] 6.1 Run `.agent-process/scripts/task_readings.py --pr 419 --csv <scratch>` and then `--pr 422`, with `GITHUB_REPOSITORY`, `GRAFANA_URL` and the token from the owner's environment. Verify each scratch row's `agent_hours` equals the D2 query run by hand over its window, and record both for the PR report
+- [x] 6.2 Read `aqxk4q`'s version with `get_dashboard_by_uid`, re-import it from `agent-process dashboard ekolvah/agent-process-distribution`, and read the version again. Render the hours panel with `get_panel_image` and confirm that the `to merge` series and its trend show as before. Record the versions and the observation for the PR report
 
 ## 7. Deliver
 
