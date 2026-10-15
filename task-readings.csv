@@ -1,15 +1,16 @@
-pr,change,task_id,start,merged_at,hours,lines,plan_rounds,code_rounds,cost_usd,api_requests,failed,denied,compactions,gap
-382,one-emitter-task-telemetry,issue-101,2026-10-10T15:02:36Z,2026-10-10T16:19:44Z,1.29,998,,3,0.9549,18,0,0,0,plan_rounds: review without round
-385,per-task-delivery-metrics,issue-383,,2026-10-10T20:38:48Z,,439,,2,,,,,,plan_rounds: review without round; telemetry: no token sample of issue-383
-388,per-task-telemetry-readings,issue-384,,2026-10-11T06:43:25Z,,350,,2,,,,,,plan_rounds: review without round; telemetry: no token sample of issue-384
-390,record-task-readings,issue-389,,2026-10-11T10:48:17Z,,1301,5,2,,,,,,telemetry: no token sample of issue-389
-392,simplify-before-review,issue-387,,2026-10-11T11:50:41Z,,300,3,1,,,,,,telemetry: no token sample of issue-387
-397,session-task-attribution,issue-395,,2026-10-11T17:08:44Z,,1720,2,1,,,,,,telemetry: no token sample of a5a09290-c4c4-4877-81de-8d5946461354
-401,traces-from-every-session,issue-396,2026-10-11T17:54:37Z,2026-10-11T19:58:43Z,2.07,824,4,1,16.7782,274,18,0,4,
-403,dashboard-per-task-trends,issue-402,2026-10-11T20:02:49Z,2026-10-11T20:47:03Z,0.74,204,2,1,8.0442,142,5,1,1,
-405,agent-identity,issue-357,2026-10-12T04:19:26Z,2026-10-12T07:28:27Z,3.15,2069,5,1,27.1634,440,6,13,5,
-408,install-admin-as-person,issue-407,2026-10-12T16:48:16Z,2026-10-12T18:33:36Z,1.76,283,3,1,8.7751,163,2,2,1,
-411,approval-merges,issue-409,2026-10-12T18:35:33Z,2026-10-13T03:32:57Z,8.96,409,4,3,13.8320,257,4,1,2,
-417,adopter-task-readings,issue-415,2026-10-13T05:30:24Z,2026-10-14T04:23:20Z,22.88,1100,2,2,19.7554,279,8,7,4,
-419,adopter-task-dashboard,issue-416,2026-10-14T04:25:35Z,2026-10-14T06:19:32Z,1.90,2308,2,4,15.8859,264,3,3,3,
-422,drop-priority-field,issue-421,2026-10-14T06:20:52Z,2026-10-15T04:13:59Z,21.89,180,2,1,6.7528,123,1,1,1,
+pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_rounds,cost_usd,api_requests,failed,denied,compactions,gap
+382,one-emitter-task-telemetry,issue-101,2026-10-10T15:02:36Z,2026-10-10T16:19:44Z,1.29,,998,,3,0.9549,18,0,0,0,plan_rounds: review without round
+385,per-task-delivery-metrics,issue-383,,2026-10-10T20:38:48Z,,,439,,2,,,,,,plan_rounds: review without round; telemetry: no token sample of issue-383
+388,per-task-telemetry-readings,issue-384,,2026-10-11T06:43:25Z,,,350,,2,,,,,,plan_rounds: review without round; telemetry: no token sample of issue-384
+390,record-task-readings,issue-389,,2026-10-11T10:48:17Z,,,1301,5,2,,,,,,telemetry: no token sample of issue-389
+392,simplify-before-review,issue-387,,2026-10-11T11:50:41Z,,,300,3,1,,,,,,telemetry: no token sample of issue-387
+397,session-task-attribution,issue-395,,2026-10-11T17:08:44Z,,,1720,2,1,,,,,,telemetry: no token sample of a5a09290-c4c4-4877-81de-8d5946461354
+401,traces-from-every-session,issue-396,2026-10-11T17:54:37Z,2026-10-11T19:58:43Z,2.07,,824,4,1,16.7782,274,18,0,4,
+403,dashboard-per-task-trends,issue-402,2026-10-11T20:02:49Z,2026-10-11T20:47:03Z,0.74,,204,2,1,8.0442,142,5,1,1,
+405,agent-identity,issue-357,2026-10-12T04:19:26Z,2026-10-12T07:28:27Z,3.15,,2069,5,1,27.1634,440,6,13,5,
+408,install-admin-as-person,issue-407,2026-10-12T16:48:16Z,2026-10-12T18:33:36Z,1.76,,283,3,1,8.7751,163,2,2,1,
+411,approval-merges,issue-409,2026-10-12T18:35:33Z,2026-10-13T03:32:57Z,8.96,,409,4,3,13.8320,257,4,1,2,
+417,adopter-task-readings,issue-415,2026-10-13T05:30:24Z,2026-10-14T04:23:20Z,22.88,,1100,2,2,19.7554,279,8,7,4,
+419,adopter-task-dashboard,issue-416,2026-10-14T04:25:35Z,2026-10-14T06:19:32Z,1.90,,2308,2,4,15.8859,264,3,3,3,
+422,drop-priority-field,issue-421,2026-10-14T06:20:52Z,2026-10-15T04:13:59Z,21.89,,180,2,1,6.7528,123,1,1,1,
+427,agent-working-time,issue-425,2026-10-15T05:03:02Z,2026-10-15T06:18:23Z,1.26,0.76,477,2,1,13.1986,212,5,1,2,
