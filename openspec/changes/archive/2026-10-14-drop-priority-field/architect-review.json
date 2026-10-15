@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The round-1 platform finding is answered: design.md now records the --help observation beside D1's delete and beside the rollback, and every other class held unchanged; the plan is the minimum diff with a traced live proof.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simpler designs considered: (a) leave the field and change nothing - rejected by the proposal's Why (the Priority values on three open issues contradicted the board order of the `Open` view on 2026-10-14, so the field is wrong data, not just unused); (b) delete the field without the spec delta - the current `Template read` THEN (openspec/specs/state/spec.md:43) would then fail on Project 4; (c) spec only, keep the field - the template would contradict the closed field set; (d) skip the tests/publisher/delivery_fakes.py edit - acceptable either way, since set_status.py:103 keys fields by name and NO_AREA filters by name, so the F_PRIO entry is test data no test depends on; the proposal declares the edit in What Changes and Impact, so it is not silent scope. D2 (close the field set rather than name the removed field) is the shorter and stronger spec sentence. No script, abstraction or view change is added.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The delta has one scenario, `state / Template read`; tasks.md `## Scenario -> test map` maps it to `n/a: task 2.2`, and task 1.1 gives the reason (a live read of Project 4 no offline test can prove). No repository test referenced the scenario before this change either (`git grep \"Template read\"` finds only the spec).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 records `no RED: the only delta scenario is a live read of Project 4 ... the fake edit of 2.3 changes no test's outcome`. No code path changes behaviour: the change is a spec delta, a live field delete and dead test data; consistent with SKILL Tasks group 2 (the map names no test).",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Each platform behaviour has its observation beside it: the field id PVTSSF_lAHOApeba84Bhf2xzhgbY60 and options High/Medium/Low (task 2.1, read 2026-10-14; re-read by this review with the task 2.2 query: Priority is the only single-select besides Status and Area, the project is public, the required workflows are enabled); no view uses the field (proposal Why, dated; re-read by this review: the 8 views filter only on status, area and label:bug and none sorts or groups by a field); `gh project field-delete --id` (design D1 quotes `gh project field-delete --help`, 2026-10-14: `--id string  ID of the field to delete`); the rollback `gh project field-create ... --data-type SINGLE_SELECT --single-select-options High,Medium,Low` (design Risks quotes `gh project field-create --help`, 2026-10-14: `--data-type ... {TEXT|SINGLE_SELECT|DATE|NUMBER}`, `--single-select-options strings`), both matching this review's own round-1 run of the same help output. Consumer boards already installed are untouched because the delete targets the node id of Project 4's own field, recorded by the 2.2 read.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. The removed F_PRIO fake entry is not a guard: set_status.py:103 builds `{name: field}` and looks fields up by name, so the entry proved nothing about field selection; NO_AREA (delivery_fakes.py:46) filters by name and is unaffected. The spec loses the `Priority` options clause, which no script or test read (`git grep -i priority` outside ADRs/CHANGELOG/archive: only the spec and the fake; the other hits are the unrelated P0-P3 review-thread priority).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The one catcher the plan names is task 2.2: the implementer's live GraphQL read of Project 4 after the delete of 2.1, before the archive (task 4.1), so it runs on the branch whose archive is the head the PR opens on; its output rides in the PR report (4.1) where the person reads it before approving. D1 rests on exactly this ordering, and SKILL Delivery confirms tasks after the archive leave no tick, which is why a post-merge delete would have no record. A field later re-added to the template has no catcher, as before this change; the scenario is a live read by construction (see scenario_coverage).",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Requirement body: 87 words before, 81 after (the delta replaces the `Priority` clause and the `Area` existence clause with one closed-set clause). Scenario THEN: 39 words before, 35 after. Words asserted by tests: 0 by automated tests; the THEN's 35 words are asserted by the live read of task 2.2, whose query returns every clause (public, fields with dataType and options, workflows with enabled). The sentence is shorter than the one it replaces and every clause is checkable in the 2.2 output.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script, check, hook or test helper; the live delete and read use stock `gh` commands.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "state",
+      "scenario": "Template read",
+      "reason": "A live read of Project 4 through the GitHub API, which no offline test can prove; task 2.2 performs it and the PR report carries its output (tasks.md task 1.1 and the scenario map)."
+    }
+  ]
+}
