@@ -21,9 +21,9 @@
 
 ## 4. Dogfood and record
 
-- [ ] 4.1 In `CLAUDE.md`, replace the Claude harness link with the line `@skills/agent-process/always-on.md` (spec distribution: This repository dogfoods its own process); verify `test_publisher_dogfoods_process`
-- [ ] 4.2 Write `.agent-process/docs/adr/0043-the-goal-function-reaches-every-session.md` (design D1, D2 with its alternatives, D3; deletion condition: Claude Code loads a plugin's instructions into every session natively); verify `tests/agent_process/test_adr_records.py`
-- [ ] 4.3 Commit the group with its ticks
+- [x] 4.1 In `CLAUDE.md`, replace the Claude harness link with the line `@skills/agent-process/always-on.md` (spec distribution: This repository dogfoods its own process); verify `test_publisher_dogfoods_process`
+- [x] 4.2 Write `.agent-process/docs/adr/0043-the-goal-function-reaches-every-session.md` (design D1, D2 with its alternatives, D3; deletion condition: Claude Code loads a plugin's instructions into every session natively); verify `tests/agent_process/test_adr_records.py`
+- [x] 4.3 Commit the group with its ticks
 
 ## 5. Verify
 
