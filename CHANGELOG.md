@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.19.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.18.0...v3.19.0) (2026-10-15)
+
+
+### Features
+
+* drop-priority-field ([#422](https://github.com/ekolvah/agent-process-distribution/issues/422)) ([50794db](https://github.com/ekolvah/agent-process-distribution/commit/50794dbbce9cab567bf8c8a78d1d0c7cc6524579))
+
 ## [3.18.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.17.0...v3.18.0) (2026-10-14)
 
 
