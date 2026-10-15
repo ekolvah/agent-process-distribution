@@ -2,7 +2,7 @@
 
 **Question this document answers:** how agent token usage is exported, where it
 lands, which labels identify the project and the task it was spent on, and how one
-task's time to merge, review rounds, cost, failed and denied calls and compactions are
+task's time to merge, agent working time, review rounds, cost, failed and denied calls and compactions are
 recorded.
 
 This is the owner-side setup that the token-efficiency measurement depends on.
@@ -244,6 +244,7 @@ caller's default branch; the caller passes its repository variable `GRAFANA_URL`
 | `start` | The earliest first token sample of the bound sessions, at merge time: `min by (session_id) (min_over_time(timestamp(claude_code_token_usage_tokens_total{session_id=~"<a>\|<b>",vcs_repository_name="<owner>/<repo>"})[30d:1m]))` |
 | `merged_at`, `lines` | `gh pr view`; lines are additions plus deletions, plan artifacts included |
 | `hours` | `merged_at` minus `start` |
+| `agent_hours` | The bound sessions' `type="cli"` (tool execution and AI responses) active time over `start` to `merged_at`, at merge time: with `S` = `claude_code_active_time_seconds_total{session_id=~"<a>\|<b>",vcs_repository_name="<owner>/<repo>",type="cli"}[<window>s]`, `sum by (session_id) (max_over_time(S)) and on (session_id) (sum by (session_id) (resets(S)) == 0)`, summed. A session with a token sample that is missing from the answer (its counter reset, or it has no active-time sample) leaves the cell empty under `agent_hours: no reset-free active time of <id>` |
 | `plan_rounds` | `round` of the archived `architect-review.json` |
 | `code_rounds` | Distinct heads in the review job's `Reviewed head SHA:` comments; one round is no rework |
 | `cost_usd`, `api_requests`, `failed`, `denied`, `compactions` | The [Per-task metrics](#per-task-metrics) queries over `start` to `merged_at`, by the zero-versus-missing rules there |

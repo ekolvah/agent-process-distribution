@@ -20,8 +20,8 @@
 
 ## 4. Documents
 
-- [ ] 4.1 In `.agent-process/docs/telemetry-measurement-setup.md` *Per-task readings*, add the `agent_hours` row (the D2 query and its gap). In the opening question, add agent time beside time to merge. Verify `tests/agent_process/test_doc_links.py`
-- [ ] 4.2 Commit the group with its ticks
+- [x] 4.1 In `.agent-process/docs/telemetry-measurement-setup.md` *Per-task readings*, add the `agent_hours` row (the D2 query and its gap). In the opening question, add agent time beside time to merge. Verify `tests/agent_process/test_doc_links.py`
+- [x] 4.2 Commit the group with its ticks
 
 ## 5. Verify
 
