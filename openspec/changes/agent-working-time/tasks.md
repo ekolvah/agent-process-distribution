@@ -15,8 +15,8 @@
 
 ## 3. Dashboard
 
-- [ ] 3.1 In `skills/agent-process/templates/per-task-dashboard.json`, apply D3 to the hours panel (id 19) and to the table's `indexByName` (spec: The dashboard shows agent time beside hours). Verify `tests/publisher/test_dashboard.py`
-- [ ] 3.2 Commit the group with its ticks
+- [x] 3.1 In `skills/agent-process/templates/per-task-dashboard.json`, apply D3 to the hours panel (id 19) and to the table's `indexByName` (spec: The dashboard shows agent time beside hours). Verify `tests/publisher/test_dashboard.py`
+- [x] 3.2 Commit the group with its ticks
 
 ## 4. Documents
 
