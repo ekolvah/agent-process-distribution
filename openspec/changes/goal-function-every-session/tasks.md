@@ -15,9 +15,9 @@
 
 ## 3. Installer
 
-- [ ] 3.1 Add the `rules` step of design D2 to `init.py`, with its docstring entry and the renumbered steps (spec distribution: An installed repository's sessions carry the goal function; The installed footprint is closed); verify `tests/publisher/test_init_config.py`, `test_init_conflicts.py` and `test_init_remote.py`
-- [ ] 3.2 In the `#install` section of `SKILL.md`, after the session-start environment sentence, say that Install's `.claude/rules/agent-process.md` puts the goal function and the Claude harness into every session of the repository, compaction included; verify `tests/agent_process/test_doc_links.py`
-- [ ] 3.3 Commit the group with its ticks
+- [x] 3.1 Add the `rules` step of design D2 to `init.py`, with its docstring entry and the renumbered steps (spec distribution: An installed repository's sessions carry the goal function; The installed footprint is closed); verify `tests/publisher/test_init_config.py`, `test_init_conflicts.py` and `test_init_remote.py`
+- [x] 3.2 In the `#install` section of `SKILL.md`, after the session-start environment sentence, say that Install's `.claude/rules/agent-process.md` puts the goal function and the Claude harness into every session of the repository, compaction included; verify `tests/agent_process/test_doc_links.py`
+- [x] 3.3 Commit the group with its ticks
 
 ## 4. Dogfood and record
 
