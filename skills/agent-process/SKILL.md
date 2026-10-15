@@ -14,7 +14,7 @@ enabled.
 
 ## Principles
 
-[`principles.md`](principles.md#goal-function) binds every role. Its goals, in strict order:
+[`principles.md`](principles.md) binds every role. Its [goals](always-on.md#goal-function), in strict order:
 
 1. Minimize future bug-fixing and support.
 2. Optimize token spend, in development and at runtime.
@@ -32,16 +32,7 @@ On any conflict, the full text of `principles.md` decides.
 
 ## Claude harness
 
-- Read narrowly: a search or an `offset`/`limit` read before a whole file. When the read-budget
-  hook denies a `Read`, take the call it names; never route around it.
-- Spawn a subagent only for independent work, or for research that needs more than three
-  round trips.
-- Be concise by default, in replies and in files.
-- Wait for a long command with one foreground call and a raised `timeout`, never a `sleep` or
-  re-read loop.
-- After a compaction between the RED commit and GREEN, recover from the branch
-  (`git branch --show-current`), the RED commit and one `gh issue view <N>`; do not re-read
-  what the RED commit records.
+The token tactics are in [`always-on.md`](always-on.md#claude-harness).
 
 ## Proposal
 
@@ -218,7 +209,9 @@ marketplace follows the branch `stable`, which each release fast-forwards, with 
 so a machine that did the `plugin-channel` row gets a release within a session. The plugin's
 tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session
 start it installs its own Python dependencies, once per machine and pin set; a failure prints
-`agent-process plugin environment not installed` with the cause. Its read-budget
+`agent-process plugin environment not installed` with the cause. Install's
+`.claude/rules/agent-process.md` puts the goal function and the Claude harness into every
+session of the repository, compaction included. The plugin's read-budget
 hook denies an over-budget whole-file `Read`, naming the cheaper call; a `permissions.deny`
 rule matching the same call blocks first, so its message never reaches the agent. Its memory checkpoint, after an edit under the agent's auto-memory directory, asks
 whether every session and every person needs the fact, and if so to move it into the

@@ -32,19 +32,20 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 11. settings  the owned marketplace entry and `SessionStart` hook group of `.claude/settings.json`,
               removing the plugin's `enabledPlugins` entry: the plugin is installed at user scope
 12. check     the managed `.claude/agent-process-check.py` that hook runs
-13. project-copy `gh project copy` of the template Project as `<repository> agent process`,
+13. rules     the managed `.claude/rules/agent-process.md`: the package's `always-on.md`
+14. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
-14. project-link `gh project link` of that one unlinked copy to the repository
-15. onboarding-commit  `git add -A` and `git commit` on the installation branch
-16. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
-17. onboarding-push    `git push -u origin` of the installation branch
-18. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
+15. project-link `gh project link` of that one unlinked copy to the repository
+16. onboarding-commit  `git add -A` and `git commit` on the installation branch
+17. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
+18. onboarding-push    `git push -u origin` of the installation branch
+19. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
                        written line names the PR's URL
-19. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
+20. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
 
-Steps 13-14 are classified from `gh` reads of the repository's linked Projects and its
+Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
 The onboarding steps exist only when a file step is planned or the checkout is on the
 installation branch, and are classified from git and `gh` reads the same way; a merged
@@ -139,6 +140,9 @@ DEPENDABOT = ".github/dependabot.yml"
 PRE_COMMIT = ".pre-commit-config.yaml"
 SETTINGS = ".claude/settings.json"
 CHECK = ".claude/agent-process-check.py"
+RULES = ".claude/rules/agent-process.md"
+ALWAYS_ON = TEMPLATES.parent / "always-on.md"
+Render = Callable[["Context"], tuple[str | None, str]]
 TEMPLATE_OWNER = "ekolvah"
 TEMPLATE_PROJECT = "4"
 # The owner's Projects with what tells a reusable copy from one linked elsewhere; `gh project
@@ -476,7 +480,7 @@ def _workflow_text(ctx: Context) -> tuple[str | None, str]:
     return text, rendered
 
 
-def _caller_text(rel: str) -> Callable[[Context], tuple[str | None, str]]:
+def _caller_text(rel: str) -> Render:
     """A managed caller with no logic of its own, rendered from the template of its name; its
     variables and secrets are the consumer's own."""
     return lambda ctx: _managed_text(ctx, rel, _template(Path(rel).name, version=ctx.version))
@@ -603,16 +607,12 @@ def _is_owned_start(start: Any, group: dict[str, Any]) -> bool:
     )
 
 
-def _check_text(ctx: Context) -> tuple[str | None, str]:
-    text = _read(ctx.root / CHECK)
-    if text is not None and text.split("\n", 1)[0].strip() != MANAGED:
-        raise Conflict(f"exists without its first line `{MANAGED}`")
-    return text, (TEMPLATES / "skill_check.py").read_text(encoding="utf-8")
+def _copied_text(rel: str, source: Path, head: str = "") -> Render:
+    """A managed copy of a package file, read raw: `_template` takes `$` for a placeholder."""
+    return lambda ctx: _managed_text(ctx, rel, head + source.read_text(encoding="utf-8"))
 
 
-def _file_step(
-    ctx: Context, label: str, rel: str, render: Callable[[Context], tuple[str | None, str]]
-) -> Step:
+def _file_step(ctx: Context, label: str, rel: str, render: Render) -> Step:
     path = ctx.root / rel
 
     def apply() -> bool:
@@ -662,7 +662,8 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         *([_file_step(ctx, "quality", quality.DECLARATION, _quality_text)] if seed else []),
         _file_step(ctx, "pre-commit", PRE_COMMIT, _pre_commit_text),
         _file_step(ctx, "settings", SETTINGS, _settings_text),
-        _file_step(ctx, "check", CHECK, _check_text),
+        _file_step(ctx, "check", CHECK, _copied_text(CHECK, TEMPLATES / "skill_check.py")),
+        _file_step(ctx, "rules", RULES, _copied_text(RULES, ALWAYS_ON, f"{MANAGED}\n\n")),
     ]
 
 

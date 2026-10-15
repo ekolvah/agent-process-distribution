@@ -16,8 +16,8 @@ Procedure:
    structure of the file you write. These paths are from the repository root; where it has
    no `skills/agent-process/`, read them under `${CLAUDE_PLUGIN_ROOT}/skills/agent-process/`.
    Read repository-specific context from `openspec/config.yaml`.
-2. Read `skills/agent-process/principles.md` from the same directory in full (§I–VII, not
-   from memory): as a subagent you do not load the always-load rules.
+2. Read `skills/agent-process/principles.md` and `skills/agent-process/always-on.md` from
+   the same directory in full (§I–VII and the goal function, not from memory).
 3. Read the four artifacts of `openspec/changes/<change>/` in full (proposal, `specs/**`,
    design, tasks), then the code they touch as far as a finding needs.
 4. Write the file. Point at the artifacts; do not restate them.

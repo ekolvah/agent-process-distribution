@@ -205,6 +205,10 @@ CONFLICTS: dict[str, tuple[str, Callable[[ModuleType, Sandbox], None]]] = {
         "check",
         lambda init, sb: _write(sb, ".claude/agent-process-check.py", "print('mine')\n"),
     ),
+    "rules-unmanaged": (
+        "rules",
+        lambda init, sb: _write(sb, ".claude/rules/agent-process.md", "mine\n"),
+    ),
     # A caller of the previous release passes the command this repository ran; the new
     # caller passes none, so the rewrite would drop it silently (declare-quality D5).
     "workflow-passes-test": ("workflow", lambda init, sb: _passed_test(sb)),

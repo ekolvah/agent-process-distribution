@@ -163,6 +163,22 @@ def test_config_block_records_release(sandbox: Sandbox) -> None:
     assert line in block and old not in block
 
 
+def test_rules_carry_the_always_on_file(sandbox: Sandbox) -> None:
+    """Scenario: Rules file written — a fresh install and an install over another release's
+    rules file both leave the marker line, a blank line and the release's `always-on.md`."""
+    init = load_init()
+    source = init.ALWAYS_ON.read_text(encoding="utf-8")
+    assert not source.startswith("---")
+    assert "\n## Goal function\n" in source and "\n## Claude harness\n" in source
+    assert not re.search(r"\]\((?!http)", source)
+    rules = sandbox.root / ".claude" / "rules" / "agent-process.md"
+    _installed(init, sandbox)
+    assert rules.read_text(encoding="utf-8") == f"{init.MANAGED}\n\n{source}"
+    rules.write_text(f"{init.MANAGED}\n\nAn earlier release's text.\n", encoding="utf-8")
+    _installed(init, sandbox)
+    assert rules.read_text(encoding="utf-8") == f"{init.MANAGED}\n\n{source}"
+
+
 def test_dependabot_leaves_process_refs_to_install(sandbox: Sandbox) -> None:
     """Scenario: Dependabot render — the process refs are ignored; Install moves them."""
     init = load_init()

@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 4,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All four round-3 findings are closed. The map names a test or n/a for every delta scenario, and D4 quotes the import docs and records a live compaction run. D1 gives the architect reviewer an explicit always-on.md read with Impact and task 2.2 carrying it, and always-on.md holds no relative link, which D5 asserts.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D2 rejects seven alternatives: a plugin SessionStart hook, an output style, AGENTS.md, init extracting headings, importing principles.md whole, skill_check additionalContext, and managed-policy CLAUDE.md. Duplicating the sections into a third file without moving them would leave two copies to drift. A consumer CLAUDE.md importing the plugin-cache path depends on the version and is an external import. Moving the sections into one file that init copies through the existing _managed_text/_file_step path adds no script and no parser, and it is the smallest design that meets 'Rules file written'.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md maps every delta scenario. Rules file written: test_init_config.py::test_rules_carry_the_always_on_file. Unmanaged rules file: test_init_conflicts.py case rules-unmanaged. Repository instructions and Repository settings: test_plugin.py::test_publisher_dogfoods_process (test_plugin.py:197, which asserts the marketplace, the skill-check SessionStart command and the absent enabledPlugins). Fresh repository: test_init_remote.py::test_installed_footprint_is_closed. Installation of another release: test_init_config.py::test_rerender_replaces_only_owned_content. The roles scenario: test_skill_carries_principles_core_and_harness_tactics. Process change: `n/a: the scenario's text is unchanged by this change`.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 applies D5: CONSUMER_FILES and LABELS in init_harness.py; test_rules_carry_the_always_on_file, including the no-relative-link assertion; the rules-unmanaged conflict case; and the test_plugin.py edits. Task 1.2 runs check_red on those node ids and commits RED. Before Group 2 each fails: no rules step, no rules file, no always-on.md, no import line in CLAUDE.md.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The rules file rests on the sources cited in proposal.md Why: memory ('Rules without a `paths` field are loaded unconditionally'), context-window ('Project-root CLAUDE.md and unscoped rules — Re-injected from disk') and plugins-reference (a plugin-root CLAUDE.md is not loaded). D4 rests on the memory page's 'Imported files are expanded and loaded into context at launch alongside the CLAUDE.md that references them', on 'Relative paths resolve relative to the file containing the import', and on the dialog being for imports that resolve outside the working directory. D4 also rests on a 2026-10-15 Claude Code 2.1.296 run: one stream-json process got 'ok', then `/compact` (compact_result success, compact_boundary), then quoted the imported line verbatim without tools. D1's subagent-memory claim cites the sub-agents page. This review session matches it: the reviewer subagent started with CLAUDE.md and the unscoped .claude/rules/workflow.md in context.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D1 moves the goal function out of principles.md, which keeps a one-line link at #goal-function. The input it dropped, the architect reviewer's explicit read of the goal function, is now listed. agents/architect-reviewer.md step 2 becomes 'read principles.md and always-on.md in full', which drops the false subagent clause and does not depend on how subagents expand imports. §VII's reviewer sentence is repointed to always-on.md#goal-function. Impact lists agents/architect-reviewer.md, and task 2.2 carries both edits. D5 lists the moved assertions: harness and goals are now read from always-on.md, and the skill body links always-on.md#claude-harness. No project-declared input is replaced by a caller-supplied one.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "All five catchers are reached:\n- Release drift: the drift exit of create_tracking_issue.py and start_change.py (both hold the check) forces Install, reached in Group 0 of the next change.\n- A renamed heading: test_rules_carry_the_always_on_file and test_skill_carries_principles_core_and_harness_tactics in the agent-process / quality run on the PR head.\n- A consumer file without the marker: the rules-unmanaged conflict case, same run.\n- A relative link that would dangle in the consumer copy: D5's no-relative-link assertion on always-on.md, same run.\n- Package-side links and anchors: test_doc_links, same run.\nTask 2.1's wording 'with their links rewritten for its location' is left over from round 3; D1 and the D5 assertion govern, so a stale link would turn the run red.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "ADDED requirement, about 55 words. All of it is asserted by test_rules_carry_the_always_on_file and the rules-unmanaged case: marker line, blank line, release text, no frontmatter, both headings, conflict. Dogfood MODIFIED, +17 words: the import line is asserted, and the 8-word clause 'the source of the rules file a consumer gets' is descriptive. Footprint MODIFIED, +5 words: asserted through CONSUMER_FILES; 'ten' matches the count of named files. Roles MODIFIED, about 20 changed words: asserted. D3 adds about 7 words to the harness subagent bullet and about 45 words to Scripts over instructions; task 3.2 adds about 30 words to Install; the agent step-2 rewrite changes about 10 words. None of these words is asserted. Each is an agent-judgement or procedure line that comes from the issue's three rules or the install contract, and none could be half its length without losing a clause.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "No new script or check is added. The new init step `rules` reuses _managed_text and _file_step. The new test assertion (no relative link) extends an existing test. D2 names the problem, the 2026-10-15 propose session with no goal function (proposal.md Why), and the standard, Claude Code's native unscoped `.claude/rules/*.md` memory and the CLAUDE.md `@` import. Its rejected alternatives cover the non-native channels.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "distribution",
+      "scenario": "Process change",
+      "reason": "n/a: the scenario's text is unchanged by this change"
+    }
+  ]
+}
