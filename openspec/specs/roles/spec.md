@@ -46,15 +46,16 @@ keep no `AGENTS.md`, and the review contract's policy source SHALL name `CLAUDE.
 - **THEN** no `AGENTS.md` exists, `CLAUDE.md` links the review contract, and the contract and the prompt each name `CLAUDE.md` and `.claude/rules/` and neither names `AGENTS.md`
 
 ### Requirement: The skill carries the principles core and harness tactics
-The `agent-process` skill SHALL state the goal function and one line per principle §I–VII,
-linking `principles.md` for the full text. It SHALL carry the Claude-harness token tactics.
+The `agent-process` skill SHALL state the three goals and one line per principle §I–VII,
+linking `principles.md` for the full text, and SHALL link the package's `always-on.md`, which
+holds the full goal function and the Claude-harness token tactics.
 Its tactic for a compaction
 between the RED commit and GREEN SHALL recover state from the branch, the RED commit and one
 `gh issue view`, and SHALL NOT ask the person to compact.
 
 #### Scenario: A consumer reads principles and tactics from the skill
 - **WHEN** a consumer session invokes the `agent-process` skill
-- **THEN** the skill body names the goal function, each of §I–VII with a link to `principles.md`, and the harness tactics with the `gh issue view` recovery and no `/compact` request
+- **THEN** the skill body names the three goals, each of §I–VII with a link to `principles.md`, and links the `#claude-harness` anchor of `always-on.md`, whose harness tactics carry the `gh issue view` recovery and no `/compact` request
 
 ### Requirement: Plugin agents inherit the session model
 Every plugin agent SHALL declare `model: inherit` and no `effort` in its frontmatter.

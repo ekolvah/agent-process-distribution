@@ -27,14 +27,14 @@
 
 ## 5. Verify
 
-- [ ] 5.1 Run `/simplify` without an argument and commit its edits
-- [ ] 5.2 Run `openspec validate --strict --all`
-- [ ] 5.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 5.1 Run `/simplify` without an argument and commit its edits
+- [x] 5.2 Run `openspec validate --strict --all`
+- [x] 5.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 6. Deliver
 
-- [ ] 6.1 Comment on issue 414 with the scope-1 observation (proposal.md, Why) and the outcome of each rule with its reason (design D3)
-- [ ] 6.2 Run `agent-process archive_change goal-function-every-session`, then `gh pr create --title "feat: goal-function-every-session" --body-file <report>`; the report names tracking issue 414 as a plain reference, carries the scenario-to-test map, and states the MINOR amendment of the goal function and the principles it interacts with (goal 2, §VII)
+- [x] 6.1 Comment on issue 414 with the scope-1 observation (proposal.md, Why) and the outcome of each rule with its reason (design D3)
+- [x] 6.2 Run `agent-process archive_change goal-function-every-session`, then `gh pr create --title "feat: goal-function-every-session" --body-file <report>`; the report names tracking issue 414 as a plain reference, carries the scenario-to-test map, and states the MINOR amendment of the goal function and the principles it interacts with (goal 2, §VII)
 - [ ] 6.3 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
