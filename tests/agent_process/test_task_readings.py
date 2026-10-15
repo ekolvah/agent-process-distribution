@@ -24,7 +24,7 @@ _MERGED_AT = "2026-10-10T16:00:00Z"
 _MERGED = datetime(2026, 10, 10, 16, tzinfo=UTC).timestamp()
 _START = _MERGED - 5400
 _HEADER = (
-    "pr,change,task_id,start,merged_at,hours,lines,plan_rounds,code_rounds,"
+    "pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_rounds,"
     "cost_usd,api_requests,failed,denied,compactions,gap"
 )
 _EARLIER_HEADER = (
@@ -98,11 +98,13 @@ class _Grafana:
     def __init__(
         self,
         starts: dict[str, float] | None = None,
+        active: dict[str, float] | None = None,
         events: list[_Event] | None = None,
         lookback: int = 0,
         error: Exception | None = None,
     ) -> None:
         self.starts = {"s-a": _START, "s-b": _START + 600} if starts is None else starts
+        self.active = {"s-a": 1800, "s-b": 900} if active is None else active
         self.events = _EVENTS + _PARALLEL if events is None else events
         self.lookback = lookback
         self.error = error
@@ -117,8 +119,9 @@ class _Grafana:
         self.calls.append(("prometheus", query, time))
         if self.error is not None:
             raise self.error
+        per_session = self.active if "claude_code_active_time_seconds_total" in query else self.starts
         return [
-            _sample({"session_id": s}, v) for s, v in self.starts.items() if self._matches(query, s)
+            _sample({"session_id": s}, v) for s, v in per_session.items() if self._matches(query, s)
         ]
 
     def loki(self, query: str, time: float) -> Sequence[Mapping[str, object]]:
@@ -199,6 +202,7 @@ def _row(path: Path, pr: str = "12") -> dict[str, str]:
 _TELEMETRY = (
     "start",
     "hours",
+    "agent_hours",
     "cost_usd",
     "api_requests",
     "failed",
@@ -222,6 +226,7 @@ def test_task_pr_merged(tmp_path: Path) -> None:
         "start": "2026-10-10T14:30:00Z",
         "merged_at": _MERGED_AT,
         "hours": "1.50",
+        "agent_hours": "0.75",
         "lines": "100",
         "plan_rounds": "2",
         "code_rounds": "2",
@@ -249,8 +254,8 @@ def test_first_task_of_a_repository(tmp_path: Path) -> None:
 
 
 def test_rerun_for_a_recorded_pr(tmp_path: Path) -> None:
-    old = "12,demo,issue-7,,,,,,,,,,,,telemetry: old"
-    path = _csv(_tree(tmp_path), ["5,a,issue-1,,,,,,,,,,,,", old, "13,b,issue-2,,,,,,,,,,,,"])
+    old = "12,demo,issue-7,,,,,,,,,,,,,telemetry: old"
+    path = _csv(_tree(tmp_path), ["5,a,issue-1,,,,,,,,,,,,,", old, "13,b,issue-2,,,,,,,,,,,,,"])
     events = [e for e in _EVENTS if e is not _COMPACTION]
     code = _run(tmp_path, _GitHub(_pull()), _Grafana(events=events, lookback=3))
 
@@ -302,14 +307,52 @@ def test_task_without_telemetry(tmp_path: Path, sessions: str | None) -> None:
 def test_bound_session_without_telemetry(tmp_path: Path) -> None:
     path = _csv(_tree(tmp_path))
     events = [e for e in _EVENTS if e[0] == "s-a"]
-    code = _run(tmp_path, _GitHub(_pull()), _Grafana(starts={"s-a": _START}, events=events))
+    grafana = _Grafana(starts={"s-a": _START}, active={"s-a": 1800}, events=events)
+    code = _run(tmp_path, _GitHub(_pull()), grafana)
 
     assert code == 1
     row = _row(path)
     assert row["start"] == "2026-10-10T14:30:00Z"
     assert row["api_requests"] == "12"
     assert row["cost_usd"] == "0.7500"
+    assert row["agent_hours"] == "0.50"
     assert row["gap"] == "telemetry: no token sample of s-b"
+
+
+def test_agent_time_recorded(tmp_path: Path) -> None:
+    path = _csv(_tree(tmp_path))
+    grafana = _Grafana()
+    code = _run(tmp_path, _GitHub(_pull()), grafana)
+
+    assert code == 0
+    active = [
+        (query, time)
+        for kind, query, time in grafana.calls
+        if kind == "prometheus" and "claude_code_active_time_seconds_total" in query
+    ]
+    assert len(active) == 1
+    query, time = active[0]
+    assert time == _MERGED
+    for token in (
+        'type="cli"',
+        "resets(",
+        'session_id=~"s-a|s-b"',
+        'vcs_repository_name="o/r"',
+        "[5400s]",
+    ):
+        assert token in query
+    assert _row(path)["agent_hours"] == "0.75"
+
+
+def test_active_time_counter_reset(tmp_path: Path) -> None:
+    path = _csv(_tree(tmp_path))
+    code = _run(tmp_path, _GitHub(_pull()), _Grafana(active={"s-a": 1800}))
+
+    assert code == 1
+    row = _row(path)
+    assert row["agent_hours"] == ""
+    assert row["cost_usd"] == "1.2500"
+    assert "agent_hours: no reset-free active time of s-b" in row["gap"].split("; ")
 
 
 @pytest.mark.parametrize(
