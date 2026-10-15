@@ -1,6 +1,6 @@
 ## Why
 
-[`REVIEW_CONTRACT.md`](../../../.agent-process/REVIEW_CONTRACT.md) does not name `principles.md`,
+[`REVIEW_CONTRACT.md`](../../../../.agent-process/REVIEW_CONTRACT.md) does not name `principles.md`,
 so a diff that breaks §II–VI passes unless "convention violation" happens to catch it.
 Observed: the review of PR #426 (run 38692248603) lists what it read — the trusted contract,
 `CLAUDE.md` and `.claude/rules/workflow.md` — and not `principles.md`, although the trusted
