@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.20.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.19.0...v3.20.0) (2026-10-15)
+
+
+### Features
+
+* agent-working-time ([#427](https://github.com/ekolvah/agent-process-distribution/issues/427)) ([d846ec0](https://github.com/ekolvah/agent-process-distribution/commit/d846ec0606f19d4dcd9df7a00847ce761acb6cd8))
+
 ## [3.19.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.18.0...v3.19.0) (2026-10-15)
 
 
