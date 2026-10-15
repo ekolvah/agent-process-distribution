@@ -14,3 +14,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 419,adopter-task-dashboard,issue-416,2026-10-14T04:25:35Z,2026-10-14T06:19:32Z,1.90,,2308,2,4,15.8859,264,3,3,3,
 422,drop-priority-field,issue-421,2026-10-14T06:20:52Z,2026-10-15T04:13:59Z,21.89,,180,2,1,6.7528,123,1,1,1,
 427,agent-working-time,issue-425,2026-10-15T05:03:02Z,2026-10-15T06:18:23Z,1.26,0.76,477,2,1,13.1986,212,5,1,2,
+426,goal-function-every-session,issue-414,2026-10-15T04:22:19Z,2026-10-15T06:27:23Z,2.08,1.15,680,4,2,16.7295,282,2,1,3,
