@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Both round-1 findings are closed. The reset rate (2 of 99 sessions over [14d]) is on record beside D2's acceptance. The narrowed spec sentence now agrees with the 'Bound session without telemetry' scenario, and a changed test pins it. Every phrase of the new requirements has an assertion, and test_agent_time_recorded no longer copies the row check.",
+  "classes": {
+    "simpler": {
+      "evidence": "Unchanged from round 1. increase() under-reports without a gap. max_over_time without the resets() filter silently loses the value from before a reset. A table-only column fails the Why. D1 rejects the PR timeline and the Loki duration_ms sum. The diff stays at one query plus one gap cause in `_telemetry`, one column and one override on panel 19, and one indexByName entry.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "All 7 delta scenarios map to a named test in tasks.md 'Scenario → test map'. The 4 header scenarios map to existing tests, which gain the column through _HEADER. Agent time recorded maps to test_agent_time_recorded (agent_hours 0.75). Counter reset maps to test_active_time_counter_reset (empty cell, cost_usd written, gap, exit 1). Hours panel maps to test_hours_panel. The 'its hours is unchanged' half of Agent time recorded is pinned on the same fixture by test_task_pr_merged's existing \"hours\": \"1.50\". The planner may add that test to the map entry, but no coverage is missing.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "1.3 runs check_red over the node ids of 1.1–1.2 before Group 2. Each test fails in its body before the change. The changed test_bound_session_without_telemetry reads row['agent_hours'], which is absent until COLUMNS gains it. test_agent_time_recorded finds no active-time query. test_active_time_counter_reset finds no agent_hours cell or gap. test_hours_panel finds no agent_hours on panel 19.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The round-1 finding is closed. proposal.md Platform facts, third bullet: over [14d] with the repository and type=\"cli\" matchers, count(count by (session_id)(…)) = 99 and resets(…) > 0 for 2 sessions, with both ids named. These match this reviewer's own round-1 read. design.md D2 cites that rate beside the acceptance. The other behaviours were already on record in round 1: the metric definition, its labels, the combined query's live answer over [10d], cumulative temporality, about 14 days of retention, and the job.workflow_sha checkout. D3's claim that an empty agent_hours cell draws no point rests on the Infinity backend parser returning null for empty number cells. That was observed via POST /api/ds/query in openspec/changes/archive/2026-10-11-dashboard-per-task-trends/design.md (Context). The existing isNull filter on `hours` depends on the same behaviour. The planner may cite that observation in D3.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. Panel 19 keeps `hours`, its isNull filter and the trend on `hours` (D3, Non-Goals). upsert's header rewrite (`old.get(c) or \"\"`, task_readings.py:254) gives the earlier rows and the short positional fixture rows in test_rerun_for_a_recorded_pr an empty agent_hours, which is existing behaviour.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Unchanged from round 1. A renamed `type` or a reset leads to the 'agent_hours: no reset-free active time of <id>' gap. `_record` then returns 1, and reusable-task-readings.yml pushes the row and exits with that code, so the post-merge run on main is red. A PR recorded after retention gets 'telemetry: no token sample' gaps through the same run. A template push during review triggers 7.2, which repeats 6.2. The backfill of PR 401–422 is a step for the person, named in the 7.1 report.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The round-1 finding is closed. The modified requirement adds 1 word (`agent_hours`), asserted by the _HEADER equality (1/1). New requirement, sentence 1 (25 words): the 0.75 sum over two bound sessions, the metric the double routes on, type=\"cli\", the session matcher, the repository, the window [5400s] (=_MERGED-_START) and the evaluation at merged_at are all asserted by test_agent_time_recorded (25/25). Sentence 2 (29 words): 'with a token sample' is asserted by test_bound_session_without_telemetry. In that test s-b has neither a start nor an active value, and it asserts agent_hours 0.50 with the gap unchanged, so a check over every bound session would fail it. 'resets' is asserted by `resets(` in the query string. 'no active-time sample … cannot be taken' is asserted by test_active_time_counter_reset (29/29). Dashboard requirement, sentence 1 (12 words): both fields read under distinct display names (12/12). Sentence 2 (8 words): the indexByName order (8/8). 'by merged_at on one axis in hours' was dropped, and test_agent_time_recorded now asserts the query shape instead of repeating test_task_pr_merged's row.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check. It adds one PromQL query and one gap cause to the existing `_telemetry`, reuses the gap and exit-1 mechanism, and reads the vendor's standard claude_code_active_time_seconds_total (D1).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
