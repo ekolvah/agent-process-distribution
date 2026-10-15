@@ -36,7 +36,7 @@
 
 ## 7. Deliver
 
-- [ ] 7.1 Run `agent-process archive_change agent-working-time`, then `gh pr create --title "feat: agent-working-time" --body-file <report>`. The report names tracking issue 425 as a plain reference and carries the scenario-to-test map, the 6.1–6.2 records and the design's post-merge dispatch for PR 401–422 as the person's step
+- [x] 7.1 Run `agent-process archive_change agent-working-time`, then `gh pr create --title "feat: agent-working-time" --body-file <report>`. The report names tracking issue 425 as a plain reference and carries the scenario-to-test map, the 6.1–6.2 records and the design's post-merge dispatch for PR 401–422 as the person's step
 - [ ] 7.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure; if a push changed the template, repeat 6.2 once before the last `wait_for_pr`
 
 ## Scenario → test map
