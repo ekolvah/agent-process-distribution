@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_reusable_workflows.py`, move `bullet_containing` out of `test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers` to a module-level `_bullet_containing` that both tests call. Add `test_review_contract_labels_each_principle`: the `Policy source` bullet names `trusted/skills/agent-process/principles.md`, and the bullet containing `` `P0`/`P1` mean `` names each of §I–VI (a regex so no section matches inside a longer one: `§I` in `§II`, `§V` or `§VI` in `§VII`)
-- [ ] 1.2 Run `agent-process check_red` with the node id of 1.1 and commit RED with these ticks
+- [x] 1.1 In `tests/publisher/test_reusable_workflows.py`, move `bullet_containing` out of `test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers` to a module-level `_bullet_containing` that both tests call. Add `test_review_contract_labels_each_principle`: the `Policy source` bullet names `trusted/skills/agent-process/principles.md`, and the bullet containing `` `P0`/`P1` mean `` names each of §I–VI (a regex so no section matches inside a longer one: `§I` in `§II`, `§V` or `§VI` in `§VII`)
+- [x] 1.2 Run `agent-process check_red` with the node id of 1.1 and commit RED with these ticks
 
 ## 2. Contract
 
