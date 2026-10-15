@@ -28,6 +28,7 @@ SETTINGS = ROOT / ".claude" / "settings.json"
 SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 PACKAGE = SKILL.parent
 PRINCIPLES = PACKAGE / "principles.md"
+ALWAYS_ON = PACKAGE / "always-on.md"
 SCRIPTS = PACKAGE / "scripts"
 MOVED_SCRIPTS = {
     "activate_protection.py",
@@ -99,7 +100,7 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
     """Scenario: A consumer reads principles and tactics from the skill."""
     text = SKILL.read_text(encoding="utf-8").split("\n## Proposal")[0]
     assert "\n## Principles\n" in text
-    assert "\n## Claude harness\n" in text
+    assert "](always-on.md#claude-harness)" in text
     core = _section(text, "\n## Principles\n")
     for goal in ("bug-fixing", "token spend", "user control"):
         assert goal in core
@@ -111,7 +112,10 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
         # GitHub's heading anchor: lower case, punctuation dropped, spaces to hyphens.
         anchor = re.sub(r"[^\w\s-]", "", f"{numeral}. {title}".lower()).replace(" ", "-")
         assert f"](principles.md#{anchor})" in core
-    harness = _section(text, "\n## Claude harness\n")
+    always_on = ALWAYS_ON.read_text(encoding="utf-8")
+    for goal in ("bug-fixing", "token spend", "user control"):
+        assert goal in _section(always_on, "\n## Goal function\n")
+    harness = _section(always_on, "\n## Claude harness\n")
     assert "gh issue view" in harness
     assert "git branch --show-current" in harness
     assert "/compact" not in harness
@@ -124,7 +128,7 @@ def test_package_contents_are_closed() -> None:
         if path.is_file() and "__pycache__" not in path.parts
     }
     assert relative_files == (
-        {"SKILL.md", "architect-review.schema.json", "principles.md"}
+        {"SKILL.md", "always-on.md", "architect-review.schema.json", "principles.md"}
         | {f"scripts/{name}" for name in MOVED_SCRIPTS}
         | {f"templates/{name}" for name in TEMPLATES}
     )
@@ -213,6 +217,8 @@ def test_publisher_dogfoods_process() -> None:
     assert all(
         "skills/agent-process/SKILL.md" in " ".join(rule) for rule in config["rules"].values()
     )
+    instructions = (ROOT / "CLAUDE.md").read_text(encoding="utf-8").splitlines()
+    assert "@skills/agent-process/always-on.md" in instructions
 
 
 COMPONENT_ROOTS = [".claude-plugin", "agents", "bin", "commands", "hooks", "skills/agent-process"]

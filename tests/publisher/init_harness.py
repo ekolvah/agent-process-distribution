@@ -592,6 +592,7 @@ LABELS = [
     "pre-commit",
     "settings",
     "check",
+    "rules",
     "project-copy",
     "project-link",
     "onboarding-commit",
@@ -609,6 +610,7 @@ CONSUMER_FILES = {
     ".github/agent-process-quality.json",
     ".claude/settings.json",
     ".claude/agent-process-check.py",
+    ".claude/rules/agent-process.md",
 }
 MARKETPLACE = "agent-process-marketplace"
 PLUGIN = "agent-process@agent-process-marketplace"

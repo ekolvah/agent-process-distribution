@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 Apply the test edits of design D5 to `tests/publisher/init_harness.py`, `test_init_config.py`, `test_init_conflicts.py` and `test_plugin.py`
-- [ ] 1.2 Run `agent-process check_red` with the node ids of 1.1 and commit RED with these ticks
+- [x] 1.1 Apply the test edits of design D5 to `tests/publisher/init_harness.py`, `test_init_config.py`, `test_init_conflicts.py` and `test_plugin.py`
+- [x] 1.2 Run `agent-process check_red` with the node ids of 1.1 and commit RED with these ticks
 
 ## 2. Canonical file
 
