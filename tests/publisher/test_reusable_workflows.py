@@ -747,6 +747,14 @@ def test_agent_instructions_live_in_claude_code_channels() -> None:
         assert "AGENTS.md" not in text
 
 
+def _bullet_containing(text: str, anchor: str) -> str:
+    assert anchor in text, f"REVIEW_CONTRACT.md is missing the {anchor!r} clause"
+    anchor_index = text.index(anchor)
+    bullet_start = text.rindex("\n- ", 0, anchor_index) + 1
+    next_bullet = text.find("\n- ", anchor_index)
+    return text[bullet_start : next_bullet if next_bullet != -1 else len(text)]
+
+
 def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers() -> None:
     contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
     principles = (ROOT / "skills" / "agent-process" / "principles.md").read_text(encoding="utf-8")
@@ -754,21 +762,26 @@ def test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_trigge
     indirection_marker = "single call site and no stated reason"
     duplication_marker = "names an existing symbol and its repository-relative path"
 
-    def bullet_containing(text: str, anchor: str) -> str:
-        assert anchor in text, f"REVIEW_CONTRACT.md is missing the {anchor!r} clause"
-        anchor_index = text.index(anchor)
-        bullet_start = text.rindex("\n- ", 0, anchor_index) + 1
-        next_bullet = text.find("\n- ", anchor_index)
-        return text[bullet_start : next_bullet if next_bullet != -1 else len(text)]
-
     # One reviewer clause for both apps (v2-2b): the contract is the prompt each reads.
-    clause = bullet_containing(contract, "Assign **P0 or P1**")
+    clause = _bullet_containing(contract, "Assign **P0 or P1**")
 
     for marker in (indirection_marker, duplication_marker):
         assert marker in clause, f"priority-assignment clause is missing the {marker!r} trigger"
         assert marker in principles, f"principles.md §VII is missing the {marker!r} trigger"
     assert "BLOCKING" not in contract
     assert "deferred-scope" not in contract
+
+
+def test_review_contract_labels_each_principle() -> None:
+    """Scenario: Each principle has a severity."""
+    contract = (ROOT / ".agent-process" / "REVIEW_CONTRACT.md").read_text(encoding="utf-8")
+
+    policy = _bullet_containing(contract, "Policy source")
+    severity = _bullet_containing(contract, "`P0`/`P1` mean")
+
+    assert "trusted/skills/agent-process/principles.md" in policy
+    missing = {"I", "II", "III", "IV", "V", "VI"} - set(re.findall(r"§([IVX]+)", severity))
+    assert not missing, f"P0/P1 clause names no breach of §{sorted(missing)}"
 
 
 def test_no_workflow_step_resolves_a_review_thread() -> None:
