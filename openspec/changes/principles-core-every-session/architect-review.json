@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 9,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every finding is closed. Each of the seven rules has one wording, in always-on.md, at the issue's 250-token ceiling; principles.md keeps only detail, now including 'The ERROR names the missed items'; and task 0.1 stops the run if a prerequisite's merged text drifts.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 Alternatives covers a second wording (rejected by the person), a generator or comparison test, moving only the four rules the issue lists (rules in two homes), and importing principles.md whole (about 3,400 tokens, ADR 0043). Deleting `## Development Workflow` removes a restatement of Governance's delegation paragraph; no file links `#development-workflow` (grep). Dropping SKILL.md's 'On any conflict…' follows from one wording. No simpler design meets the widened Goals.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md Scenario → test map. distribution / Rules file written → test_rules_carry_the_always_on_file (D5: §I–VII in file and section, each bullet opening `**§N**`). distribution / Unmanaged rules file → test_init_conflicts.py::test_conflict_fails_closed case rules-unmanaged. roles / A consumer reads principles and tactics → test_skill_carries_principles_core_and_harness_tactics (D5: one line holding the seven anchors and the operative-principles link, each principles.md section linking it). review-and-merge / Each principle has a severity → test_review_contract_labels_each_principle (tags still hold §I–VI; D5 adds the always-on.md assert). Every delta scenario has a named test.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.2 runs check_red after task 0.1. Before group 2: always-on.md has no `## Operative principles`; SKILL.md has seven principle lines and no `](always-on.md#operative-principles)`; no principles.md section links that anchor; the Policy source bullet does not name always-on.md. All three D5 asserts fail for real. D5 now says 'no other principle line' (line 166).",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "reusable-agent-review.yml:42-47 checks out ekolvah/agent-process-distribution at job.workflow_sha into `trusted`, so the trusted always-on.md exists in every consumer's review run. Lines 106-108 treat the PR worktree's CLAUDE.md and `.claude/rules/` as untrusted data. The reviewer not following a link is on record in review-checks-every-principle. ADR 0043 records unscoped rules loading in every session and relative links not resolving. init.py copies always-on.md whole.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D2's new edits, checked verbatim against the consumer-neutral-principles worktree (b1409d4, archived). §II (unchanged by that change): 'Every external service is hidden behind…injected into callers.', 'tests wire in-memory doubles via the same constructor signature', 'Each external dependency gets its own Protocol boundary, documented with' and 'tests use in-memory doubles, not mocks of internal functions.' all exist. §III: the span 'The system MUST NOT silently lose output…and exit non-zero.' and 'State that records what was delivered MUST reflect confirmed delivery.' exist. §VI: 'Declarative config is validated at load time. Errors that can be caught at startup MUST NOT surface mid-run:', the same-PR sentence ending 'to the run that first uses it.' and 'One load-time validation step is the gate.' exist. Moved rule against its new home: §II and §VI are fully kept in D1 plus the kept detail. §III: D1 carries ERROR, not-ok and exit non-zero, and the kept §III text now opens 'The ERROR names the missed items; the not-ok mark applies where the code has a result type.' (design.md line 84), so no rule is lost and the MINOR claim holds. The §II removal ends the preceding clause with a full stop (line 81). The §IV tag and the earlier moves are as checked in rounds 5 and 7.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Task 0.1 now diffs, on origin/main, the roles and review-and-merge requirements, §III, §IV and §VI, and the contract's Policy source and P0/P1 clauses against the texts D2 edits. Any difference stops the run for /opsx:update and another review before RED. §II is not in 0.1's list; consumer-neutral-principles leaves it unchanged, so main's text is the base. Context now says it rewrites §III, §IV and §VI (line 10).",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "D1 now has 183 words and 1,161 characters, measured from design.md (D4: ~1,170). With D3's ~240 removed, net about 930, roughly 250 tokens: the issue's ceiling, recorded in D4 and Risks. D5 asserts the heading, the seven `**§N**` bullet openings and the §-sets; the bullet bodies are semantic. Delta sentences: distribution about 20 words, roles about 30 (rewritten first two sentences) and review-and-merge about 15; their tests assert the section numerals, the anchor line and the trusted path. One-wording check: each rule body of §I–VII appears only in D1. The kept principles.md text is detail ('tests wire doubles through the same constructor signature', 'records only those', 'Load-time errors include'). The contract tags name breaches. Goals 1 and 2, Scripts over instructions, the skill line and CLAUDE.md hold only names and references.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script or check. D5 extends three existing tests. Non-Goals exclude a size gate, a generator and a text-comparison test.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
