@@ -468,6 +468,10 @@ def _worktree(root: Path, branch: str) -> Path:
     return path
 
 
+def _head(root: Path) -> str:
+    return _git("-C", str(root), "rev-parse", "HEAD").strip()
+
+
 def _untracked(root: Path) -> set[str]:
     return set(_git("-C", str(root), "status", "--porcelain", "--untracked-files=all").splitlines())
 
@@ -574,7 +578,7 @@ def test_merged_changes_worktree(
     done, dirty, open_, new = (_worktree(root, b) for b in ("done", "dirty", "open", "new"))
     (dirty / "notes.txt").write_text("uncommitted\n", encoding="utf-8")
     monkeypatch.chdir(root)
-    tip = _git("-C", str(root), "rev-parse", "HEAD").strip()
+    tip = _head(root)
     gh = Gh(
         root=root,
         git_runner=_run,
@@ -604,7 +608,7 @@ def test_merged_changes_branch(
     one without a PR untouched; `origin/main` remains and `main` is not examined."""
     start_change = load_script("start_change")
     root = _clone(tmp_path)
-    tip = _git("-C", str(root), "rev-parse", "HEAD").strip()
+    tip = _head(root)
     _git("-C", str(root), "branch", "gone")
     _git("-C", str(root), "push", "-q", "origin", "gone")
     _git("-C", str(tmp_path / "origin.git"), "branch", "-D", "gone")
@@ -641,7 +645,7 @@ def test_started_from_inside_the_previous_changes_worktree(
     prev = _worktree(main_root, "prev")
     make_change(prev, tasks=GROUP0.format(token=TOKEN), config=None)
     monkeypatch.chdir(prev)
-    tip = _git("-C", str(main_root), "rev-parse", "HEAD").strip()
+    tip = _head(main_root)
     gh = Gh(root=main_root, git_runner=_run, pr_states={"prev": "MERGED"}, pr_heads={"prev": tip})
 
     start_change.main(START, gh=gh, root=prev)
@@ -672,7 +676,7 @@ def test_cleanup_fails(
     root = _clone(tmp_path)
     done = _worktree(root, "done")
     monkeypatch.chdir(root)
-    tip = _git("-C", str(root), "rev-parse", "HEAD").strip()
+    tip = _head(root)
     gh = Gh(
         root=root,
         git_runner=_run,

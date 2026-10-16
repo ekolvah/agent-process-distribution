@@ -57,7 +57,7 @@ from pathlib import Path
 from archive_change import mark_own_task
 from init import release_drift
 from session_binding import PLACEHOLDER, bind, ledger_path, tracking_issue
-from set_status import Gh, _linked_project, _repo, run_gh, set_status
+from set_status import Gh, _json, _linked_project, _repo, run_gh, set_status
 
 ROOT = Path.cwd()
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -115,18 +115,12 @@ def _status(gh: Gh, number: int) -> str:
     return "none"
 
 
-def worktrees(listing: str) -> list[tuple[Path, str | None]]:
-    """`(path, branch)` per entry of `git worktree list --porcelain`, the main worktree first;
-    `None` for a detached one (it prints no `branch` line)."""
-    entries: list[tuple[Path, str | None]] = []
+def first_worktree(listing: str) -> Path:
+    """The path of the first entry of `git worktree list --porcelain`: the main worktree."""
     for line in listing.splitlines():
         if line.startswith("worktree "):
-            entries.append((Path(line.removeprefix("worktree ")), None))
-        elif line.startswith("branch refs/heads/") and entries:
-            entries[-1] = (entries[-1][0], line.removeprefix("branch refs/heads/"))
-    if not entries:
-        raise RuntimeError(f"`git worktree list --porcelain` listed no worktree: {listing!r}")
-    return entries
+            return Path(line.removeprefix("worktree "))
+    raise RuntimeError(f"`git worktree list --porcelain` listed no worktree: {listing!r}")
 
 
 def exclude_worktrees(main: Path, gh: Gh) -> None:
@@ -195,9 +189,8 @@ def prune_merged_changes(main: Path, root: Path, gh: Gh) -> None:
 
 def _prune_branch(branch: str, tip: str, path: Path | None, gh: Gh) -> None:
     """`prune_merged_changes` for one branch, checked out in `path` or in no worktree."""
-    kept: Path | str = path or branch
     try:
-        pr = json.loads(gh(["gh", "pr", "view", branch, "--json", "state,headRefOid"]))
+        pr = _json(gh, ["gh", "pr", "view", branch, "--json", "state,headRefOid"])
         if pr["state"] != "MERGED":
             return
         if pr["headRefOid"] != tip:
@@ -209,14 +202,17 @@ def _prune_branch(branch: str, tip: str, path: Path | None, gh: Gh) -> None:
                 return
             gh(["git", "worktree", "remove", str(path)])
             print(f"removed: {path}")
-            kept = branch
-        gh(["git", "branch", "-D", branch])
     except RuntimeError as exc:
         if NO_PR not in str(exc):
-            print(f"kept: {kept} — {exc}", file=sys.stderr)
+            print(f"kept: {path or branch} — {exc}", file=sys.stderr)
         return
-    except (json.JSONDecodeError, KeyError, TypeError) as exc:
-        print(f"kept: {kept} — unreadable PR: {exc!r}", file=sys.stderr)
+    except (KeyError, TypeError) as exc:
+        print(f"kept: {branch} — unreadable PR: {exc!r}", file=sys.stderr)
+        return
+    try:
+        gh(["git", "branch", "-D", branch])
+    except RuntimeError as exc:
+        print(f"kept: {branch} — {exc}", file=sys.stderr)
         return
     print(f"deleted: {branch}")
 
@@ -225,7 +221,7 @@ def main_worktree(root: Path, gh: Gh) -> Path:
     """The main worktree — the worktree base, since a session that carried the previous
     change may still run inside that change's worktree — once its `.claude/worktrees/` is
     excluded from its status and pruned of merged changes."""
-    main = worktrees(gh(["git", "worktree", "list", "--porcelain"]))[0][0].resolve()
+    main = first_worktree(gh(["git", "worktree", "list", "--porcelain"])).resolve()
     exclude_worktrees(main, gh)
     prune_merged_changes(main, root, gh)
     return main
