@@ -5,8 +5,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 Extend `test_skill_carries_principles_core_and_harness_tactics` in `tests/publisher/test_plugin.py` as design D2 says
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics` and commit RED with these ticks
+- [x] 1.1 Extend `test_skill_carries_principles_core_and_harness_tactics` in `tests/publisher/test_plugin.py` as design D2 says
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics` and commit RED with these ticks
 
 ## 2. Tactic
 
