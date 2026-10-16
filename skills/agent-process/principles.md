@@ -76,7 +76,7 @@ The rule is stated in
 [Operative principles](always-on.md#operative-principles); this section holds its detail.
 
 This holds per field: an item that is usable but has an unusable field (an empty
-URL, a missing image, a broken asset) is still emitted, with the marker. Fatal
+URL, a missing image, a broken asset) is still emitted, with a gap marker. Fatal
 input errors include no records and a malformed source.
 
 The same holds for each later step: a failed transformation or technical alert

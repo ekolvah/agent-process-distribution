@@ -90,9 +90,9 @@ def test_shared_skill_owns_the_procedure_and_scripts() -> None:
         assert not (ROOT / ".agent-process" / "scripts" / name).exists()
 
 
-def _section(text: str, heading: str) -> str:
+def _section(text: str, heading: str, end_marker: str = "\n## ") -> str:
     start = text.index(heading) + len(heading)
-    end = text.find("\n## ", start)
+    end = text.find(end_marker, start)
     return text[start : end if end != -1 else len(text)]
 
 
@@ -105,10 +105,8 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
     for goal in ("bug-fixing", "token spend", "user control"):
         assert goal in core
     operative = "](always-on.md#operative-principles)"
-    [line] = [line for line in core.splitlines() if operative in line]
-    assert not [
-        other for other in core.splitlines() if "](principles.md#" in other and other != line
-    ]
+    [line] = [line for line in core.splitlines() if "](principles.md#" in line]
+    assert operative in line
     assert not re.sub(r"[\W_]", "", re.sub(r"\[[^\]]*\]\([^)]*\)", "", line))
     principles = PRINCIPLES.read_text("utf-8")
     headings = re.findall(r"^### (VII|VI|V|IV|III|II|I)\. (.+)$", principles, re.M)
@@ -117,8 +115,7 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
         # GitHub's heading anchor: lower case, punctuation dropped, spaces to hyphens.
         anchor = re.sub(r"[^\w\s-]", "", f"{numeral}. {title}".lower()).replace(" ", "-")
         assert f"](principles.md#{anchor})" in line
-        section = principles.split(f"\n### {numeral}. {title}\n")[1].split("\n#")[0]
-        assert operative in section
+        assert operative in _section(principles, f"\n### {numeral}. {title}\n", "\n#")
     always_on = ALWAYS_ON.read_text(encoding="utf-8")
     for goal in ("bug-fixing", "token spend", "user control"):
         assert goal in _section(always_on, "\n## Goal function\n")

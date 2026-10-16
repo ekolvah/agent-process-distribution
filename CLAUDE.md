@@ -6,8 +6,7 @@ pending, `openspec/config.yaml` the repository context, and [`skills/agent-proce
 procedure. A PR that changes behaviour carries its change's spec delta
 (`openspec validate --strict`).
 
-The principles core is in the skill's [Principles](skills/agent-process/SKILL.md#principles);
-the goal function and the Claude harness tactics load from:
+The goal function, the operative principles and the Claude harness tactics load from:
 
 @skills/agent-process/always-on.md
 
