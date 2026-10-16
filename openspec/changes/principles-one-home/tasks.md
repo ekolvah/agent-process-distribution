@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 Apply design decision 6 to `tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics` and `::test_package_contents_are_closed`, and to `tests/publisher/test_reusable_workflows.py::test_review_contract_labels_each_principle`
-- [ ] 1.2 Run `agent-process check_red` with the three node ids of 1.1 and commit RED with these ticks
+- [x] 1.1 Apply design decision 6 to `tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics` and `::test_package_contents_are_closed`, and to `tests/publisher/test_reusable_workflows.py::test_review_contract_labels_each_principle`
+- [x] 1.2 Run `agent-process check_red` with the three node ids of 1.1 and commit RED with these ticks
 
 ## 2. One home
 

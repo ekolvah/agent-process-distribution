@@ -779,7 +779,7 @@ def test_review_contract_labels_each_principle() -> None:
     policy = _bullet_containing(contract, "Policy source")
     severity = _bullet_containing(contract, "`P0`/`P1` mean")
 
-    assert "trusted/skills/agent-process/principles.md" in policy
+    assert "principles.md" not in policy
     assert "trusted/skills/agent-process/always-on.md" in policy
     missing = {"I", "II", "III", "IV", "V", "VI"} - set(re.findall(r"§([IVX]+)", severity))
     assert not missing, f"P0/P1 clause names no breach of §{sorted(missing)}"

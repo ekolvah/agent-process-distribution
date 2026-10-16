@@ -27,7 +27,6 @@ MARKETPLACE = ROOT / ".claude-plugin" / "marketplace.json"
 SETTINGS = ROOT / ".claude" / "settings.json"
 SKILL = ROOT / "skills" / "agent-process" / "SKILL.md"
 PACKAGE = SKILL.parent
-PRINCIPLES = PACKAGE / "principles.md"
 ALWAYS_ON = PACKAGE / "always-on.md"
 SCRIPTS = PACKAGE / "scripts"
 MOVED_SCRIPTS = {
@@ -104,18 +103,9 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
     core = _section(text, "\n## Principles\n")
     for goal in ("bug-fixing", "token spend", "user control"):
         assert goal in core
-    operative = "](always-on.md#operative-principles)"
-    [line] = [line for line in core.splitlines() if "](principles.md#" in line]
-    assert operative in line
+    [line] = [line for line in core.splitlines() if "](always-on.md#operative-principles)" in line]
+    assert re.findall(r"\[([^\]]*)\]\([^)]*\)", line) == ["§I–VII"]
     assert not re.sub(r"[\W_]", "", re.sub(r"\[[^\]]*\]\([^)]*\)", "", line))
-    principles = PRINCIPLES.read_text("utf-8")
-    headings = re.findall(r"^### (VII|VI|V|IV|III|II|I)\. (.+)$", principles, re.M)
-    assert [numeral for numeral, _ in headings] == ["I", "II", "III", "IV", "V", "VI", "VII"]
-    for numeral, title in headings:
-        # GitHub's heading anchor: lower case, punctuation dropped, spaces to hyphens.
-        anchor = re.sub(r"[^\w\s-]", "", f"{numeral}. {title}".lower()).replace(" ", "-")
-        assert f"](principles.md#{anchor})" in line
-        assert operative in _section(principles, f"\n### {numeral}. {title}\n", "\n#")
     always_on = ALWAYS_ON.read_text(encoding="utf-8")
     for goal in ("bug-fixing", "token spend", "user control"):
         assert goal in _section(always_on, "\n## Goal function\n")
@@ -134,7 +124,7 @@ def test_package_contents_are_closed() -> None:
         if path.is_file() and "__pycache__" not in path.parts
     }
     assert relative_files == (
-        {"SKILL.md", "always-on.md", "architect-review.schema.json", "principles.md"}
+        {"SKILL.md", "always-on.md", "architect-review.schema.json"}
         | {f"scripts/{name}" for name in MOVED_SCRIPTS}
         | {f"templates/{name}" for name in TEMPLATES}
     )
