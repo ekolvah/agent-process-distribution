@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 4,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Both round-3 findings are closed. Group 1 now writes all three mapped tests that can fail first. ADR 0045 names the archive in plain text, so test_doc_links has nothing to resolve. Both coverage rows cite REVIEW_CONTRACT.md, which every reviewed repository receives.",
+  "classes": {
+    "simpler": {
+      "evidence": "Decision 5 rejects keeping the file for Quality Gates and Governance, because no role applies those rules. Decision 1 rejects moving every detail into always-on.md, because every session would pay for it under ADR 0044's 250-token ceiling. Decision 4 rejects folding the link into line 17, because the regex would then lose its proof. No simpler design meets the person's decision. The person approved moving decision 5's PR-statement clause into the skill's Delivery section, which closes round 3's advisory.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The deltas have 21 scenarios: roles 1, review-and-merge 2, planning 10, implementation 6, maintenance 2. tasks.md's map has 21 rows. Every named test exists today; I grepped each def. The one exception is test_review_contract_names_the_narrow_simplicity_triggers, which task 2.1 creates by renaming test_review_contract_and_principles_stay_coupled_on_narrow_simplicity_triggers (test_reusable_workflows.py:758). planning / Review finding is n/a with a reason. `openspec validate principles-one-home --strict` reports valid.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 edits three tests. test_skill_carries_principles_core_and_harness_tactics fails today because SKILL.md:23 has eight links, not one `§I–VII` link. test_package_contents_are_closed fails while principles.md exists. test_review_contract_labels_each_principle's new 'no principles.md' assertion fails while REVIEW_CONTRACT.md:12 names the file. Task 1.2 runs check_red on all three node ids after task 0.1. Task 2.4 now changes only the contract and the agent, and verifies the test. The coupling-test rename and test_doc_headers removal only remove assertions, so they rightly stay in 2.1.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The plan adds no new platform behaviour. Two behaviours it relies on are already on record. The review job reads trusted/skills/agent-process/* from the workflow_sha checkout (reusable-agent-review.yml, principles-core-every-session review). Consumers receive always-on.md as .claude/rules/agent-process.md (init.py, test_init_config.py::test_rules_carry_the_always_on_file). That test also asserts always-on.md has no relative link (`\\]\\((?!http)`), and decision 2 adds none. The claim that the plugin update removes the file holds because the plugin cache is per release directory (…/agent-process/3.22.0/skills/agent-process/), and the next release's tree has no principles.md.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Decision 6 lists each dropped guard. The per-section anchor loop and the PRINCIPLES constant of test_plugin.py:30 and :111-118 go together with the sections they read, and the kept regex still proves the line restates no rule. The test_doc_headers.py:54 entry goes with the file, because test_every_scoped_directory_contributes would otherwise fail on the missing path. The coupling test's principles.md half (test_reusable_workflows.py:760, :770) goes with the second home it coupled. Decision 2 drops the 87-character Rationale line plus its blank line; no test or script reads it (grep over tests/ and skills/agent-process/scripts). Decisions 1 and 5 put a destination or a reason beside every dropped item.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "I grepped every tracked file for principles.md (archive and this change excluded). Each match is covered by a task: REVIEW_CONTRACT.md:12 and :27, and agents/architect-reviewer.md:19 → 2.4. SKILL.md:17 and :23 → 2.3. openspec/config.yaml:20 and ADR 0011:30 (the only link) → 2.5. The four openspec/specs lines → the deltas. test_plugin.py:30, :108, :117 and :137, and test_reusable_workflows.py:782 → 1.1. test_doc_headers.py:51-54 and test_reusable_workflows.py:760 and :770 → 2.1. What remains is history prose in ADRs 0011, 0016, 0027, 0043 and 0044, which has no links, and the navigation_policy.py comment that 2.5 expects. Running test_doc_links.link_targets finds principles.md targets only in ADR 0011 and SKILL.md, and none in the change's .md artifacts as revised. So neither the plan commit in 0.1 nor the archive in 4.1 can turn test_every_internal_link_resolves red. Task 2.6 now names the archived design.md in plain text, which link_targets does not resolve. Decision 1's second §I row and decision 5's coverage row now cite REVIEW_CONTRACT.md's 'explicitly recorded coverage decision'. That clause reaches every reviewed repository through the trusted checkout. test_doc_links, test_doc_headers and the contract tests all run in task 3.3's quality command.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Counts per added or edited rule and spec sentence. The roles delta's first sentence is about 33 words: the goals, one line holding only a link to #operative-principles, and 'restates no rule'. Task 1.1 asserts all of it. The 'Reviewer instructions' edit is about 8 words ('and the two narrow simplicity triggers'), and its THEN has 9; the two marker assertions cover both. 'The review contract labels each principle' is about 35 words, and its THEN is asserted by the policy and severity checks of test_review_contract_labels_each_principle. The maintenance, planning and implementation edits only shorten text or swap a file reference. Some added text is semantic and no test asserts it, as in earlier reviews: the §V clause in always-on.md (7 words, 43 characters), the skill #proposal clause (about 15 words) and the #delivery clause (about 15). always-on.md goes from 3,523 to about 3,479 characters (-87 +43), under ADR 0044's 250-token ceiling. Task 2.2 counts committed characters through `git show`, using the staged copy for the after-count. Round 4 changes no rule or spec sentence; it edits only task and design rows.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script and no check. Decision 6 only removes assertions from four existing tests, plus one rename and one 'no principles.md' assertion. A stray link is left to the existing test_doc_links.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "planning",
+      "scenario": "Review finding",
+      "reason": "a reviewer's judgement; the delta only repoints the requirement's file reference"
+    }
+  ]
+}
