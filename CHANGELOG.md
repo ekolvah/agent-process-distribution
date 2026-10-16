@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.25.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.24.0...v3.25.0) (2026-10-16)
+
+
+### Features
+
+* principles-core-every-session ([#441](https://github.com/ekolvah/agent-process-distribution/issues/441)) ([9585127](https://github.com/ekolvah/agent-process-distribution/commit/958512791679183a1e2839eab710c86754451796))
+
 ## [3.24.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.23.0...v3.24.0) (2026-10-16)
 
 
