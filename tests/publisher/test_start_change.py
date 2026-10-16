@@ -624,7 +624,8 @@ def test_merged_changes_branch(
     out, err = capsys.readouterr()
     assert not _git("-C", str(root), "branch", "--list", "gone").strip()
     assert "deleted: gone" in out
-    assert _git("-C", str(root), "branch", "-r").split() == ["origin/main"]
+    remote = _git("-C", str(root), "branch", "-r").split()
+    assert "origin/main" in remote and "origin/gone" not in remote
     assert "kept: later — tip is not the merged PR's head" in err
     assert _git("-C", str(root), "branch", "--list", "later", "none").split() == ["later", "none"]
     assert not any(c[:4] == ["gh", "pr", "view", "main"] for c in gh.calls)

@@ -12,9 +12,9 @@
 
 ## 2. Cleanup
 
-- [ ] 2.1 In `skills/agent-process/scripts/start_change.py`, replace `prune_merged_worktrees` with `prune_merged_changes` (D3): `git remote prune origin` (D4); one `git for-each-ref refs/heads` with name, tip and worktree path; skip the main worktree's and the cwd's branches; one `gh pr view <branch> --json state,headRefOid`; when `MERGED` and tip equals `headRefOid`, remove a clean worktree under `.claude/worktrees/`, then `git branch -D`, printing each (D1); a dirty worktree, a differing tip and every failure a `kept:` line, `no pull requests found` silent (D5); rewrite the cleanup rule of the module docstring to match. Verify `python -m pytest tests/publisher/test_start_change.py`
-- [ ] 2.2 In `skills/agent-process/SKILL.md` Group 0, "removes the clean worktrees of merged changes" becomes "removes the clean worktrees and the local branches of merged changes"; in `CLAUDE.md` add the exception of D2 to the force-delete line. Verify with `grep -n "local branches of merged" skills/agent-process/SKILL.md` and `grep -n "PR head" CLAUDE.md`
-- [ ] 2.3 Commit the group with its ticks
+- [x] 2.1 In `skills/agent-process/scripts/start_change.py`, replace `prune_merged_worktrees` with `prune_merged_changes` (D3): `git remote prune origin` (D4); one `git for-each-ref refs/heads` with name, tip and worktree path; skip the main worktree's and the cwd's branches; one `gh pr view <branch> --json state,headRefOid`; when `MERGED` and tip equals `headRefOid`, remove a clean worktree under `.claude/worktrees/`, then `git branch -D`, printing each (D1); a dirty worktree, a differing tip and every failure a `kept:` line, `no pull requests found` silent (D5); rewrite the cleanup rule of the module docstring to match. Verify `python -m pytest tests/publisher/test_start_change.py`
+- [x] 2.2 In `skills/agent-process/SKILL.md` Group 0, "removes the clean worktrees of merged changes" becomes "removes the clean worktrees and the local branches of merged changes"; in `CLAUDE.md` add the exception of D2 to the force-delete line. Verify with `grep -n "local branches of merged" skills/agent-process/SKILL.md` and `grep -n "PR head" CLAUDE.md`
+- [x] 2.3 Commit the group with its ticks
 
 ## 3. Verify
 

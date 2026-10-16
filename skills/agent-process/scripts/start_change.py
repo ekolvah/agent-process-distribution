@@ -19,10 +19,14 @@ leads another issue exits 2 there too; otherwise it is bound to this one (`sessi
 Then `git worktree list --porcelain` names the main worktree (its first entry; a failed
 listing is exit 1 before any branch exists), the line `/.claude/worktrees/` is appended to
 the repository's `info/exclude` unless present (`git rev-parse --git-path info/exclude`; a
-failure is exit 1 before any branch exists), and every worktree under its `.claude/worktrees/`
-whose branch's PR is merged is removed if clean (`removed: <path>`) or kept and named on
-stderr (`kept: <path> — <reason>`); the one containing the cwd, and any whose PR is open,
-closed or absent, is left. Then `gh issue develop <N> --name <change>` creates the linked
+failure is exit 1 before any branch exists), `git remote prune origin` drops the refs to
+branches gone on `origin`, and every local branch whose PR is merged and whose tip is that
+PR's `headRefOid` is deleted (`git branch -D`, `deleted: <branch>`) once its worktree under
+`.claude/worktrees/`, if any, is removed when clean (`removed: <path>`); a differing tip, a
+dirty worktree or a failure is kept and named on stderr (`kept: <branch|path|origin> —
+<reason>`), never a stop. A branch checked out in the main worktree, in the one containing
+the cwd or outside `.claude/worktrees/`, and any whose PR is open, closed or absent, is left.
+Then `gh issue develop <N> --name <change>` creates the linked
 branch without checkout (from the default branch, `--base` unset), `git fetch origin
 <change>` and `git worktree add --track -b <change> <main>/.claude/worktrees/<change>
 origin/<change>` carry it in its own worktree, `openspec/changes/<change>/` moves there from
@@ -156,45 +160,74 @@ def exclude_worktrees(main: Path, gh: Gh) -> None:
         raise RuntimeError(f"cannot add `{line}` to {exclude}: {exc}") from exc
 
 
-def prune_merged_worktrees(
-    main: Path, root: Path, listing: list[tuple[Path, str | None]], gh: Gh
-) -> None:
-    """Remove the clean worktrees under `<main>/.claude/worktrees/` whose branch's PR is merged
-    (the merge is the person's, after the run that made them); a dirty one or a failure is a
-    `kept:` line on stderr, never a stop. The one containing `root` — the cwd, whose plan is
-    about to move — and every one whose PR is not merged or absent are left."""
+def prune_merged_changes(main: Path, root: Path, gh: Gh) -> None:
+    """Delete the local branches whose PR is merged and whose tip is that PR's head commit (the
+    merge is the person's, after the run that made them; the head stays fetchable at
+    `refs/pull/<N>/head`), first removing the clean worktree under `<main>/.claude/worktrees/`
+    a branch is checked out in, and prune `origin`'s refs to deleted branches. A differing tip,
+    a dirty worktree or a failure is a `kept:` line on stderr, never a stop. A branch checked
+    out elsewhere — the main worktree, the one containing `root` (the cwd, whose plan is about
+    to move) — and every one whose PR is not merged or absent are left."""
+    try:
+        gh(["git", "remote", "prune", "origin"])
+    except RuntimeError as exc:
+        print(f"kept: origin — {exc}", file=sys.stderr)
     base = (main / WORKTREES).resolve()
     here = root.resolve()
-    for listed, branch in listing:
-        path = listed.resolve()
-        if branch is None or path.parent != base or here.is_relative_to(path):
-            continue
-        try:
-            state = json.loads(gh(["gh", "pr", "view", branch, "--json", "state"]))["state"]
-            if state != "MERGED":
-                continue
+    try:
+        refs = gh(
+            [
+                "git",
+                "for-each-ref",
+                "refs/heads",
+                "--format=%(refname:short)%00%(objectname)%00%(worktreepath)",
+            ]
+        )
+    except RuntimeError as exc:
+        print(f"kept: local branches — {exc}", file=sys.stderr)
+        return
+    for line in refs.splitlines():
+        branch, tip, listed = line.split("\0")
+        path = Path(listed).resolve() if listed else None
+        if path is None or (path.parent == base and not here.is_relative_to(path)):
+            _prune_branch(branch, tip, path, gh)
+
+
+def _prune_branch(branch: str, tip: str, path: Path | None, gh: Gh) -> None:
+    """`prune_merged_changes` for one branch, checked out in `path` or in no worktree."""
+    kept: Path | str = path or branch
+    try:
+        pr = json.loads(gh(["gh", "pr", "view", branch, "--json", "state,headRefOid"]))
+        if pr["state"] != "MERGED":
+            return
+        if pr["headRefOid"] != tip:
+            print(f"kept: {branch} — tip is not the merged PR's head", file=sys.stderr)
+            return
+        if path is not None:
             if gh(["git", "-C", str(path), "status", "--porcelain"]).strip():
                 print(f"kept: {path} — uncommitted changes", file=sys.stderr)
-                continue
+                return
             gh(["git", "worktree", "remove", str(path)])
-        except RuntimeError as exc:
-            if NO_PR not in str(exc):
-                print(f"kept: {path} — {exc}", file=sys.stderr)
-            continue
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            print(f"kept: {path} — unreadable PR state: {exc!r}", file=sys.stderr)
-            continue
-        print(f"removed: {path}")
+            print(f"removed: {path}")
+            kept = branch
+        gh(["git", "branch", "-D", branch])
+    except RuntimeError as exc:
+        if NO_PR not in str(exc):
+            print(f"kept: {kept} — {exc}", file=sys.stderr)
+        return
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        print(f"kept: {kept} — unreadable PR: {exc!r}", file=sys.stderr)
+        return
+    print(f"deleted: {branch}")
 
 
 def main_worktree(root: Path, gh: Gh) -> Path:
     """The main worktree — the worktree base, since a session that carried the previous
     change may still run inside that change's worktree — once its `.claude/worktrees/` is
     excluded from its status and pruned of merged changes."""
-    listing = worktrees(gh(["git", "worktree", "list", "--porcelain"]))
-    main = listing[0][0].resolve()
+    main = worktrees(gh(["git", "worktree", "list", "--porcelain"]))[0][0].resolve()
     exclude_worktrees(main, gh)
-    prune_merged_worktrees(main, root, listing, gh)
+    prune_merged_changes(main, root, gh)
     return main
 
 
