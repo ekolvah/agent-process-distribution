@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.22.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.21.0...v3.22.0) (2026-10-16)
+
+
+### Features
+
+* review-checks-every-principle ([#434](https://github.com/ekolvah/agent-process-distribution/issues/434)) ([1466811](https://github.com/ekolvah/agent-process-distribution/commit/1466811f68f7de910c966b9ecd2795c69019e039))
+
 ## [3.21.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.20.0...v3.21.0) (2026-10-15)
 
 
