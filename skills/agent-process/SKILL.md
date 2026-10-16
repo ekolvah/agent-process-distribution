@@ -14,13 +14,13 @@ enabled.
 
 ## Principles
 
-[`principles.md`](principles.md) binds every role. Its [goals](always-on.md#goal-function), in strict order:
+[`always-on.md`](always-on.md) binds every role. Its [goals](always-on.md#goal-function), in strict order:
 
 1. Minimize future bug-fixing and support.
 2. Optimize token spend, in development and at runtime.
 3. Preserve predictability and user control.
 
-- [§I](principles.md#i-test-first-non-negotiable), [§II](principles.md#ii-protocol-boundaries-with-dependency-injection), [§III](principles.md#iii-delivery-truthfulness), [§IV](principles.md#iv-visibility-over-silence), [§V](principles.md#v-root-cause-before-fix), [§VI](principles.md#vi-fail-fast-configuration), [§VII](principles.md#vii-simplicity-first): [Operative principles](always-on.md#operative-principles).
+- [§I–VII](always-on.md#operative-principles)
 
 ## Claude harness
 
@@ -36,7 +36,8 @@ The token tactics are in [`always-on.md`](always-on.md#claude-harness).
   scope, a CLI flag — verify it before the proposal and record the observation, not the
   inference, under **Why** or in `design.md` beside the decision: cite the reference page and
   sentence, or a run id or exact command output — a run of a standard checker counts, a listing, a name or an inference from
-  another behaviour does not. Point to an observation already on record instead of repeating it.
+  another behaviour does not; for how an external system's data is read, name the failing record and a
+  valid one from the same captured response. Point to an observation already on record instead of repeating it.
 
 ## Specifications
 
@@ -114,8 +115,8 @@ verdict is the gate, and Group 0 reads it.
 
 Start from a worktree clean but for the change's own `tasks.md`. Run `agent-process archive_change
 <change>` before `gh pr create --title "<type>: <change>" --body-file <report>`. The report names the
-tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map and
-deferrals. The archive is the head the PR opens on. Then run `gh pr merge <PR> --auto --squash`:
+tracking issue as a plain reference, never `Closes`, and carries the scenario-to-test map,
+deferrals and the principles the change interacts with, justifying any breach. The archive is the head the PR opens on. Then run `gh pr merge <PR> --auto --squash`:
 the approval ruleset holds the PR, so the person's approval merges it.
 
 The `agent-review` check reviews every head with the Claude review job. After creating the

@@ -17,8 +17,7 @@ context: |
   when it names the observable outcome. Requirement titles are the identity tests refer to:
   keep them short and stable; a rename is a RENAMED delta plus the test rename in one PR.
   The enforced process is openspec/specs/ and the procedure is skills/agent-process/SKILL.md.
-  Principles §I–VII (skills/agent-process/principles.md) bind every artifact:
-  test-first, protocol boundaries, root cause before fix, visible degradation, minimal diff.
+  Principles §I–VII (skills/agent-process/always-on.md) bind every artifact.
   The complete quality command of this repository is the `test` that
   `.github/agent-process-quality.json` declares (format, lint, secrets, tests, dependency
   audit); it is what the Verify group and the pre-delivery gate run.

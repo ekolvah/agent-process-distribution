@@ -48,10 +48,8 @@ read_budget_hint = _policy.read_budget_hint
 
 # Mapped Markdown paths; this project's own file-map document defines the canonical
 # boundary. `.claude/rules` is a Layer 1 (Claude adapter) directory: it only exists, and is
-# only scanned, when that adapter is installed. The skill's `principles.md` is mapped as a
-# file: `SKILL.md` beside it is the procedure, not a mapped document.
+# only scanned, when that adapter is installed.
 _SCOPED_DIRS = (
-    _REPO_ROOT / "skills" / "agent-process" / "principles.md",
     _REPO_ROOT / ".claude" / "rules",
 )
 # English is the repository documentation language; the marker set is closed.
