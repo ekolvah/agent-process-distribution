@@ -6,8 +6,7 @@ pending, `openspec/config.yaml` the repository context, and [`skills/agent-proce
 procedure. A PR that changes behaviour carries its change's spec delta
 (`openspec validate --strict`).
 
-The principles core is in the skill's [Principles](skills/agent-process/SKILL.md#principles);
-the goal function and the Claude harness tactics load from:
+The goal function, the operative principles and the Claude harness tactics load from:
 
 @skills/agent-process/always-on.md
 
@@ -18,11 +17,7 @@ it loads only under `tests/**`.
 
 - Capture Python subprocess output with `encoding="utf-8"`; do not turn a
   `None` stdout or stderr into an empty string.
-- Keep a PR to one logical unit. Update planned docs and ADRs, or explicitly
-  record why they do not apply.
-- Follow [Principle V](skills/agent-process/principles.md#v-root-cause-before-fix):
-  instrument before patching, and observe the live external system when a plan
-  depends on how that system is read or classified.
+- Update planned docs and ADRs, or explicitly record why they do not apply.
 - Never bypass hooks, push directly to `main`, force-push, hard-reset,
   force-delete a branch (except a merged branch at its PR head, which
   `start_change` deletes), or self-merge. The repository hook is supplementary;

@@ -20,15 +20,7 @@ enabled.
 2. Optimize token spend, in development and at runtime.
 3. Preserve predictability and user control.
 
-- [§I](principles.md#i-test-first-non-negotiable): a failing test precedes every behavioural change.
-- [§II](principles.md#ii-protocol-boundaries-with-dependency-injection): each external service sits behind an injected `typing.Protocol`; tests use in-memory doubles, not mocks of internal logic.
-- [§III](principles.md#iii-delivery-truthfulness): user-visible data is never lost silently; a failed delivery turns the run red.
-- [§IV](principles.md#iv-visibility-over-silence): a degraded item reaches the user with a gap marker; no swallowed error or fail-open branch.
-- [§V](principles.md#v-root-cause-before-fix): reproduce and locate the failure, observing the live system when it is the subject, before any change; no shim.
-- [§VI](principles.md#vi-fail-fast-configuration): configuration is validated at load time.
-- [§VII](principles.md#vii-simplicity-first): the minimum diff for the stated task; no speculative feature or single-caller abstraction.
-
-On any conflict, the full text of `principles.md` decides.
+- [§I](principles.md#i-test-first-non-negotiable), [§II](principles.md#ii-protocol-boundaries-with-dependency-injection), [§III](principles.md#iii-delivery-truthfulness), [§IV](principles.md#iv-visibility-over-silence), [§V](principles.md#v-root-cause-before-fix), [§VI](principles.md#vi-fail-fast-configuration), [§VII](principles.md#vii-simplicity-first): [Operative principles](always-on.md#operative-principles).
 
 ## Claude harness
 
