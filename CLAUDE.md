@@ -19,7 +19,8 @@ it loads only under `tests/**`.
   `None` stdout or stderr into an empty string.
 - Update planned docs and ADRs, or explicitly record why they do not apply.
 - Never bypass hooks, push directly to `main`, force-push, hard-reset,
-  force-delete a branch, or self-merge. The repository hook is supplementary;
+  force-delete a branch (except a merged branch at its PR head, which
+  `start_change` deletes), or self-merge. The repository hook is supplementary;
   GitHub branch protection remains the final barrier.
 
 ## Code review

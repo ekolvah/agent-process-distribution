@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.23.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.22.0...v3.23.0) (2026-10-16)
+
+
+### Features
+
+* delegate-exploration-reads ([#438](https://github.com/ekolvah/agent-process-distribution/issues/438)) ([f0aa4dd](https://github.com/ekolvah/agent-process-distribution/commit/f0aa4dd2878c112a3099abde1bb991a41047dfac))
+
 ## [3.22.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.21.0...v3.22.0) (2026-10-16)
 
 
