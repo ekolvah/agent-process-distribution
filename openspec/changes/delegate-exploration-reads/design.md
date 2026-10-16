@@ -67,8 +67,6 @@ the measurement issue and close it.
   `cost_usd`; if it rises with no fall in compactions, revert the bullet.
 - [Issue 414 merges a roles requirement other than the text this delta copies] → task 0.2
   compares them and rewrites the delta on the merged text before RED.
-- [Issue 414 is abandoned] → revise the plan to edit `SKILL.md#claude-harness` and the current
-  roles requirement.
 
 ## Migration Plan
 
