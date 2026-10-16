@@ -1,7 +1,7 @@
 ## 0. Delivery start
 
 - [x] 0.1 After issue 414 (`goal-function-every-session`) has merged, run `agent-process start_change delegate-exploration-reads --planner Claude --implementer Claude` (tracking issue 424), enter the worktree it prints with `EnterWorktree`, and run every later task there; verify the branch is linked to the issue and the plan commit exists
-- [ ] 0.2 Compare *The skill carries the principles core and harness tactics* in `openspec/specs/roles/spec.md` with this change's roles delta, apart from the delegation sentence and the scenario's `Explore` clause; if they differ, rewrite the delta on the merged text and commit it; verify `openspec validate delegate-exploration-reads --strict`
+- [x] 0.2 Compare *The skill carries the principles core and harness tactics* in `openspec/specs/roles/spec.md` with this change's roles delta, apart from the delegation sentence and the scenario's `Explore` clause; if they differ, rewrite the delta on the merged text and commit it; verify `openspec validate delegate-exploration-reads --strict`
 
 ## 1. RED
 

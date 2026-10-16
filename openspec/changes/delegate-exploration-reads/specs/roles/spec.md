@@ -12,4 +12,4 @@ subagent for a `path:line` conclusion.
 
 #### Scenario: A consumer reads principles and tactics from the skill
 - **WHEN** a consumer session invokes the `agent-process` skill
-- **THEN** the skill body names the three goals, each of §I–VII with a link to `principles.md`, and links `always-on.md#claude-harness`, whose harness tactics carry the `gh issue view` recovery, no `/compact` request, and the `Explore` delegation with its two-or-more trigger and `path:line` conclusion
+- **THEN** the skill body names the three goals, each of §I–VII with a link to `principles.md`, and links the `#claude-harness` anchor of `always-on.md`, whose harness tactics carry the `gh issue view` recovery, no `/compact` request, and the `Explore` delegation with its two-or-more trigger and `path:line` conclusion
