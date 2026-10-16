@@ -60,8 +60,8 @@ Alternatives:
 
 ### D2 — `principles.md` and the skill link the rules instead of restating them
 
-Each of §I–VII opens with "The rule is stated in
-[Operative principles](always-on.md#operative-principles); this section holds its detail." and
+Each of §I–VII opens with `The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.` and
 loses the sentences D1 now states:
 
 - §I: the first paragraph becomes "The implementer workflow enforces it from the issue's
@@ -109,8 +109,8 @@ loses the sentences D1 now states:
   "(the former §Development Workflow)" is removed.
 - `## Development Workflow` is deleted: it restates Governance's delegation paragraph.
 - `SKILL.md` `#principles`: the seven lines and "On any conflict, the full text of
-  `principles.md` decides." become one line, "- [§I](…), [§II](…), … [§VII](…):
-  [Operative principles](always-on.md#operative-principles)." with the existing
+  `principles.md` decides." become one line, `- [§I](…), [§II](…), … [§VII](…):
+  [Operative principles](always-on.md#operative-principles).` with the existing
   `principles.md` anchors; one wording leaves no conflict to decide.
 
 `implementation` spec's "exempt (`principles.md` §I)" stays true: §I links the exemptions.
@@ -166,7 +166,7 @@ report and in the ADR.
 - `test_skill_carries_principles_core_and_harness_tactics` asserts that the skill line holding
   `](always-on.md#operative-principles)` holds the anchors of §I–VII and, with its links
   removed, nothing but punctuation; that the core holds no other principle line; and that each of the
-  seven sections of `principles.md` links `always-on.md#operative-principles`.
+  seven sections of `principles.md` links the `#operative-principles` anchor of `always-on.md`.
 - `test_review_contract_labels_each_principle` also asserts that the `Policy source` bullet
   names `trusted/skills/agent-process/always-on.md`.
 

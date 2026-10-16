@@ -21,17 +21,14 @@ The goal function and *Scripts over instructions* are in
 
 ### I. Test-First (NON-NEGOTIABLE)
 
-For every behavioural change a failing test exists **before** the implementation
-commit. The implementer workflow enforces this: write tests from the
-issue's `## Test plan` section, run the test suite to confirm RED, then write
-code to make them GREEN.
+The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.
 
-Exceptions, all narrow: (a) rename / move of an already-tested symbol, (b)
-documentation-only PRs, (c) one-line non-behavioural fixes (typos, comments).
-Anything that changes what the code *does* needs a test that would have caught
-the prior behaviour. The converse — when a *non-behavioural* regression still
-does not earn a guard test (a resource-only cost, not correctness/safety) — is
-a target-project coverage decision to record explicitly.
+The implementer workflow enforces it from the issue's `## Test plan` section.
+The test would have caught the prior behaviour. The converse — when a
+*non-behavioural* regression still does not earn a guard test (a resource-only
+cost, not correctness/safety) — is a target-project coverage decision to record
+explicitly.
 
 A test that pins a known production bug (`TestConfigValidationKnownGaps` style)
 is allowed only when an issue tracks the fix; when fixed, the test MUST be
@@ -42,30 +39,31 @@ makes the contract explicit and the divergence audible.
 
 ### II. Protocol Boundaries with Dependency Injection
 
-Every external service is hidden behind a `typing.Protocol` and injected into
-callers. Production wires real clients in `if __name__ == "__main__":` blocks;
-tests wire in-memory doubles via the same constructor signature.
+The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.
 
-Each external dependency gets its own Protocol boundary, documented with the
-project's current boundary names in a project-local runtime document.
-Implementations receive ready clients, never credentials; tests use in-memory
-doubles, not mocks of internal functions. Production entry points wire concrete
-clients, while the pipeline and extraction helpers are called directly in tests.
+Production wires real clients in `if __name__ == "__main__":` blocks; tests wire
+doubles through the same constructor signature.
+
+Each boundary is documented with the project's current boundary names in a
+project-local runtime document. Implementations receive ready clients, never
+credentials. Production entry points wire concrete clients, while the pipeline
+and extraction helpers are called directly in tests.
 
 **Rationale:** mocking internal logic lets production drift undetected; Protocol
 doubles exercise the real code path with deterministic external state.
 
 ### III. Delivery Truthfulness
 
-The system MUST NOT silently lose output a user relies on. When a run cannot
-deliver an item it owes a user, it MUST surface an explicit operational
-failure: log ERROR naming the missed items, mark the result not-ok where the
-code has such a type, and exit non-zero. A best-effort technical alert should
-be sent when the failure is not the delivery channel itself.
+The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.
 
-State that records what was delivered MUST reflect confirmed delivery. A run
-that can tell which items were delivered records only those. Recording before
-delivery is allowed only when a delivery failure is still an explicit
+The ERROR names the missed items; the not-ok mark applies where the code has a
+result type. A best-effort technical alert should be sent when the failure is
+not the delivery channel itself.
+
+A run that can tell which items were delivered records only those. Recording
+before delivery is allowed only when a delivery failure is still an explicit
 operational failure.
 
 **Rationale:** users must be able to distinguish "there was nothing to
@@ -74,35 +72,35 @@ neither destroys trust.
 
 ### IV. Visibility Over Silence
 
-A degraded item reaches the user as a **visible anomaly**, not a silent skip.
-If an item is usable but one of its fields is not (an empty URL, a missing
-image, a broken asset), the item is still emitted with a clear gap marker AND a
-WARNING log line.
+The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.
 
-Conversely, fatal input errors (no records, a malformed source) MUST log ERROR
-and exit non-zero, so CI or the operator sees the failure.
+This holds per field: an item that is usable but has an unusable field (an empty
+URL, a missing image, a broken asset) is still emitted, with the marker. Fatal
+input errors include no records and a malformed source.
 
 The same holds for each later step: a failed transformation or technical alert
 MUST NOT be collapsed into "nothing to report"; a failed delivery is §III.
 
-Forbid swallowed errors and fail-open branches. An intentional broad catch
-that keeps the failure visible carries its reason inline.
+An intentional broad catch that keeps the failure visible carries its reason
+inline.
 
 **Rationale:** silent degradation is the worst kind of bug — a visible gap or a
 red CI badge is a forcing function for someone to look.
 
 ### V. Root Cause Before Fix
 
-Before changing code in response to a bug or unexpected behaviour, the failure
-mode MUST be reproduced and located. Instrument before patching: inspect logs,
-inputs, and the failure point before proposing a change. When the behaviour to
-be designed is how an external system is read or classified, observation of
-that live system is part of locating the failure; repository reasoning alone
-is not evidence. The observation names the failing record and an exact valid
-record from the same captured response; a sibling feed, query or source does
-not stand in for it. Compare candidate fix boundaries from broad to narrow: one
-that loses the valid record needs an explicit product decision. Trace the
-current call path before claiming that a narrow fix needs another fetch.
+The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.
+
+Instrumenting means inspecting logs, inputs, and the failure point before
+proposing a change. When the behaviour to be designed is how an external system
+is read or classified, repository reasoning alone is not evidence. The
+observation names the failing record and an exact valid record from the same
+captured response; a sibling feed, query or source does not stand in for it.
+Compare candidate fix boundaries from broad to narrow: one that loses the valid
+record needs an explicit product decision. Trace the current call path before
+claiming that a narrow fix needs another fetch.
 
 Reproduction is a step of planning: the `proposal` rule in `openspec/config.yaml`
 says what the proposal records (the failing test, or the exact observation when
@@ -112,9 +110,7 @@ does. Captured bytes become a committed regression fixture only when a
 production-behaviour test reads them in the same commit, and that test proves
 preservation (the valid record still passes) rather than inferring it.
 
-No workarounds, shims, retries, broader try/except, or CI-bypass flags are
-accepted as fixes when the underlying mechanism is not understood. If the
-immediate fix proves too large for the current PR, the PR may ship a
+If the immediate fix proves too large for the current PR, the PR may ship a
 **documented mitigation** (e.g. raise-and-skip, or a temporary unblock of an
 unrelated CI failure, with a linked issue for the root cause), but the
 mitigation itself must be a deliberate choice, not a guess.
@@ -124,31 +120,29 @@ cheap-now is expensive-later.
 
 ### VI. Fail-Fast Configuration
 
-Declarative config is validated at load time. Errors that can be caught at
-startup MUST NOT surface mid-run: missing required fields, out-of-range values
-such as non-positive limits, references that do not resolve, mismatched
-schemas.
+The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.
 
-One load-time validation step is the gate. When a new class of config error
-becomes possible, that step MUST grow a check for it in the same PR, rather
-than defer a known invalid configuration to the run that first uses it.
+Load-time errors include missing required fields, out-of-range values such as
+non-positive limits, references that do not resolve, mismatched schemas.
+
+One load-time validation step is the gate.
 
 **Rationale:** a config-validation gap otherwise surfaces at first use, far
 from the edit that introduced it.
 
 ### VII. Simplicity First
 
-Every change is the **minimum diff that solves the stated task — nothing speculative.**
+The rule is stated in
+[Operative principles](always-on.md#operative-principles); this section holds its detail.
+
 No unrequested features, premature abstractions, or error-handling beyond what the task
 needs (auth / payments / security excepted). Heuristic: if the solution could be half its
 length, rewrite it; an abstraction with a single caller is inlined, not introduced.
 
-**Surgical changes:** touch only what the task requires and match the surrounding style;
-do NOT "improve" or refactor adjacent unbroken code inside an unrelated diff. Removing
-dead code is a separate, deliberate unit (one-PR-one-unit,
-[the agent process](SKILL.md)), not silently widened scope. New
-dependencies / packages / build steps are not added without asking first — prefer stdlib
-and existing repo packages.
+Removing dead code is a separate, deliberate unit (one-PR-one-unit,
+[the agent process](SKILL.md)), not silently widened scope. Prefer stdlib and
+existing repo packages.
 
 Mostly not machine-gated: "over-complicated" is a semantic judgement, enforced at
 **plan stage** by the [architect review](SKILL.md#architect-review),
@@ -162,15 +156,6 @@ simplicity opinion stays advisory at diff stage.
 **Rationale:** over-engineering is a systematic LLM-agent failure mode, cheapest to
 prevent as a standing default — more code is more bug/support surface (goal 1) and
 more dev + runtime tokens (goal 2).
-
-## Development Workflow
-
-The procedural workflow rules (branch creation, PR discipline,
-plan→implement flow, pre-commit gate, dependency consistency, architect-review
-gate) are an **operational procedure**, delegated to their canonical home
-[the agent process](SKILL.md). They
-supplement the principles above and are **equally binding**. This file does not
-restate them — edit them there.
 
 ## Quality Gates
 
@@ -197,9 +182,10 @@ implementation-detail references — kept short, kept linked, never the source
 of truth on principles.
 
 **Delegation of operational procedures.** This constitution retains the
-**goal function** (held in [`always-on.md`](always-on.md)), the **principles §I–VII**,
+**goal function** and the rules of §I–VII (held in [`always-on.md`](always-on.md)), the
+**detail of §I–VII**,
 the **Quality Gates**, and this **Governance** section as its canon. The *operational
-procedural rules* (the former §Development Workflow) are delegated to
+procedural rules* are delegated to
 [the agent process](SKILL.md). Delegation does **not** weaken their
 authority: those rules bind equally; the skill, with `openspec/specs/`, is their
 single source of truth (other mentions are links only). Amending them happens

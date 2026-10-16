@@ -10,10 +10,10 @@
 
 ## 2. One wording
 
-- [ ] 2.1 Insert design D1's section between `## Goal function` and `## Claude harness` of `skills/agent-process/always-on.md` and apply design D3 to that file and `CLAUDE.md` (spec distribution: An installed repository's sessions carry the goal function); verify `test_rules_carry_the_always_on_file`, `test_publisher_dogfoods_process` and `tests/publisher/test_init_conflicts.py::test_conflict_fails_closed`
-- [ ] 2.2 Apply design D2 to `skills/agent-process/principles.md`, `SKILL.md` and `.agent-process/REVIEW_CONTRACT.md` (spec review-and-merge: The review contract labels each principle) (spec roles: The skill carries the principles core and harness tactics); verify `test_skill_carries_principles_core_and_harness_tactics`, `tests/publisher/test_reusable_workflows.py`, `tests/agent_process/test_doc_links.py` and `tests/agent_process/test_doc_headers.py`
-- [ ] 2.3 Write `.agent-process/docs/adr/0044-operative-principles-reach-every-session.md` (design D1 with its alternatives, D2, D4 with `git show main:skills/agent-process/always-on.md | wc -c`, `wc -c skills/agent-process/always-on.md` and their token estimate at 3.7 characters per token; deletion condition: Claude Code loads a plugin's instructions into every session natively); verify `tests/agent_process/test_adr_records.py`
-- [ ] 2.4 Commit the group with its ticks
+- [x] 2.1 Insert design D1's section between `## Goal function` and `## Claude harness` of `skills/agent-process/always-on.md` and apply design D3 to that file and `CLAUDE.md` (spec distribution: An installed repository's sessions carry the goal function); verify `test_rules_carry_the_always_on_file`, `test_publisher_dogfoods_process` and `tests/publisher/test_init_conflicts.py::test_conflict_fails_closed`
+- [x] 2.2 Apply design D2 to `skills/agent-process/principles.md`, `SKILL.md` and `.agent-process/REVIEW_CONTRACT.md` (spec review-and-merge: The review contract labels each principle) (spec roles: The skill carries the principles core and harness tactics); verify `test_skill_carries_principles_core_and_harness_tactics`, `tests/publisher/test_reusable_workflows.py`, `tests/agent_process/test_doc_links.py` and `tests/agent_process/test_doc_headers.py`
+- [x] 2.3 Write `.agent-process/docs/adr/0044-operative-principles-reach-every-session.md` (design D1 with its alternatives, D2, D4 with `git show main:skills/agent-process/always-on.md | wc -c`, `wc -c skills/agent-process/always-on.md` and their token estimate at 3.7 characters per token; deletion condition: Claude Code loads a plugin's instructions into every session natively); verify `tests/agent_process/test_adr_records.py`
+- [x] 2.4 Commit the group with its ticks
 
 ## 3. Verify
 
