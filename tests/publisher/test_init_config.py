@@ -169,8 +169,15 @@ def test_rules_carry_the_always_on_file(sandbox: Sandbox) -> None:
     init = load_init()
     source = init.ALWAYS_ON.read_text(encoding="utf-8")
     assert not source.startswith("---")
-    assert "\n## Goal function\n" in source and "\n## Claude harness\n" in source
+    for heading in ("Goal function", "Operative principles", "Claude harness"):
+        assert f"\n## {heading}\n" in source
     assert not re.search(r"\]\((?!http)", source)
+    numerals = ["I", "II", "III", "IV", "V", "VI", "VII"]
+    assert set(re.findall(r"§([IVX]+)", source)) == set(numerals)
+    operative = source.split("\n## Operative principles\n")[1].split("\n## ")[0]
+    assert re.findall(r"^- \*\*§([IVX]+)\*\* ", operative, re.M) == numerals
+    assert set(re.findall(r"§([IVX]+)", operative)) == set(numerals)
+    assert len(re.findall(r"^- ", operative, re.M)) == len(numerals)
     rules = sandbox.root / ".claude" / "rules" / "agent-process.md"
     _installed(init, sandbox)
     assert rules.read_text(encoding="utf-8") == f"{init.MANAGED}\n\n{source}"

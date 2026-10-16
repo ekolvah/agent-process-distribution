@@ -1,12 +1,12 @@
 ## 0. Delivery start
 
-- [ ] 0.1 Confirm `openspec/changes/archive/` on `origin/main` holds `consumer-neutral-principles`, `delegate-exploration-reads` and `review-checks-every-principle`, then diff on `origin/main`: the roles requirement against this change's roles delta, the review-and-merge requirement against this change's review-and-merge delta, §III, §IV and §VI of `principles.md` and the contract's `Policy source` and `P0`/`P1` clauses against the texts design D2 edits. Any difference other than this change's own edits (D2) stops the run: revise the plan with `/opsx:update` and review it again before RED
+- [x] 0.1 Confirm `openspec/changes/archive/` on `origin/main` holds `consumer-neutral-principles`, `delegate-exploration-reads` and `review-checks-every-principle`, then diff on `origin/main`: the roles requirement against this change's roles delta, the review-and-merge requirement against this change's review-and-merge delta, §III, §IV and §VI of `principles.md` and the contract's `Policy source` and `P0`/`P1` clauses against the texts design D2 edits. Any difference other than this change's own edits (D2) stops the run: revise the plan with `/opsx:update` and review it again before RED
 - [x] 0.2 Run `agent-process start_change principles-core-every-session --planner Claude --implementer Claude` (tracking issue 429), enter the worktree it prints with `EnterWorktree`, and run every later task there; verify the branch is linked to the issue and the plan commit exists
 
 ## 1. RED
 
-- [ ] 1.1 Apply design D5 to `tests/publisher/test_init_config.py::test_rules_carry_the_always_on_file`, `tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics` and `tests/publisher/test_reusable_workflows.py::test_review_contract_labels_each_principle`
-- [ ] 1.2 Run `agent-process check_red` with the node ids of 1.1 and commit RED with these ticks
+- [x] 1.1 Apply design D5 to `tests/publisher/test_init_config.py::test_rules_carry_the_always_on_file`, `tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics` and `tests/publisher/test_reusable_workflows.py::test_review_contract_labels_each_principle`
+- [x] 1.2 Run `agent-process check_red` with the node ids of 1.1 and commit RED with these ticks
 
 ## 2. One wording
 
