@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.24.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.23.0...v3.24.0) (2026-10-16)
+
+
+### Features
+
+* prune-merged-branches ([#440](https://github.com/ekolvah/agent-process-distribution/issues/440)) ([5cc600c](https://github.com/ekolvah/agent-process-distribution/commit/5cc600ce4d4d1ff7e4f11ef5d029e3900554de69))
+
 ## [3.23.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.22.0...v3.23.0) (2026-10-16)
 
 
