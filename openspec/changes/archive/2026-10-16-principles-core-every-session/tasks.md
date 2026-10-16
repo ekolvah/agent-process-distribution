@@ -23,7 +23,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change principles-core-every-session`, then `gh pr create --title "feat: principles-core-every-session" --body-file <report>`; the report names tracking issue 429 as a plain reference, carries the scenario-to-test map and both `wc -c` figures with their token estimate, and states the MINOR amendment and the principles it interacts with (§I–VII, goal 2)
+- [x] 4.1 Run `agent-process archive_change principles-core-every-session`, then `gh pr create --title "feat: principles-core-every-session" --body-file <report>`; the report names tracking issue 429 as a plain reference, carries the scenario-to-test map and both `wc -c` figures with their token estimate, and states the MINOR amendment and the principles it interacts with (§I–VII, goal 2)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
