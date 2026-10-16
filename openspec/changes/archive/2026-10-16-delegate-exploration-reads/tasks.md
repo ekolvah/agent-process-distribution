@@ -21,8 +21,8 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Open the measurement issue of design D3 with `gh issue create`, its body carrying D3's comparison and the revert condition of Risks, and set its area with `agent-process set_status <N> --area "Token efficiency"`; verify `gh issue view <N>` shows the body
-- [ ] 4.2 Run `agent-process archive_change delegate-exploration-reads`, then `gh pr create --title "feat: delegate-exploration-reads" --body-file <report>`; the report names tracking issue 424 as a plain reference and carries the scenario-to-test map and names the measurement issue of 4.1
+- [x] 4.1 Open the measurement issue of design D3 with `gh issue create`, its body carrying D3's comparison and the revert condition of Risks, and set its area with `agent-process set_status <N> --area "Token efficiency"`; verify `gh issue view <N>` shows the body
+- [x] 4.2 Run `agent-process archive_change delegate-exploration-reads`, then `gh pr create --title "feat: delegate-exploration-reads" --body-file <report>`; the report names tracking issue 424 as a plain reference and carries the scenario-to-test map and names the measurement issue of 4.1
 - [ ] 4.3 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
