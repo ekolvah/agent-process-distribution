@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "A one-bullet edit is the minimum design, its scenario has a RED test, and both round-1 findings are closed. D1 now records an observed run in which the rule makes the session call Explore. D3's measurement and revert condition have a carrier that outlives the merge. Task 0.2 guards the delta's base text against issue 414's merged requirement.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 replaces one bullet of always-on.md and rejects a PreToolUse hook, a custom agents/ definition and a procedure step. Relying on issue 414's every-session load alone is rejected by proposal.md Why: the text was present in 10 of 71 transcripts with no exploration delegation. D1's no-rule run reproduces that: Grep and Read in the main context, no Agent call.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The one delta scenario, roles / A consumer reads principles and tactics from the skill, maps to tests/publisher/test_plugin.py::test_skill_carries_principles_core_and_harness_tactics (tasks.md map). D2's asserts cover the added THEN clause.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 extends the named test with D2's three asserts (`Explore`, 'two or more', 'path:line') and runs check_red on its node id. The asserts fail on issue 414's bullet text. Task 0.1's precondition that 414 has merged ensures the RED is not a FileNotFoundError on always-on.md.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Explore's existence, read-only tools, context isolation and model are quoted from code.claude.com/docs/en/sub-agents, which I fetched on 2026-10-15 (page lines 36-47 match). design.md D1 records the observation behind the mechanism: two `claude -p` runs on Claude Code 2.1.296. With the bullet in an unscoped `.claude/rules/delegate.md` (session a419d0f9-…), the only main-session call was Agent with subagent_type Explore. Without the bullet (session 0ff972b9-…), there were two Grep and three Read calls. Per D1, an unscoped rules file is the same carrier a consumer gets from issue 414's `.claude/rules/agent-process.md`. The higher one-off cost ($0.58 vs $0.38) is recorded beside D1 and falls under the Risks revert condition. That the saving appears in long sessions is an expectation, and D3 tests it.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The plan replaces no project-declared input and drops no guard. The 'more than three round trips' allowance for research is superseded by the `Explore` instruction for read-only lookups. Explore's tools are read-only with only Write and Edit denied (sub-agents docs), so `gh` and web lookups remain reachable.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Cost-rise revert (Risks row 1): D3's measurement is now carried by a separate measurement issue that task 4.1 creates before the archive. It is not carried by issue 424, which the linked branch closes on merge (openspec/specs/implementation/spec.md:166-168). The area `Token efficiency` is one of Project 4's Area options (read with gh project field-list on 2026-10-15), and set_status.py adds the issue as an item. Task 4.2's PR report names it. Base-text drift from issue 414 (Risks row 2) is caught by task 0.2 before RED, which compares the merged requirement and rewrites the delta, verified by `openspec validate --strict`. Issue 414 abandoned (Risks row 3) is caught by task 0.1's precondition, and also by task 2.1 failing on a missing always-on.md. One pointer slip, not blocking: Risks row 2 says 'task 0.1', but the comparison is task 0.2.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec requirement: +27 words (the delegation sentence). Scenario: +12 words. The test asserts about 5 words. The always-on bullet: 42 words replacing issue 414's 26, so +16 words per session in each installed repository. Its unasserted words are the scope condition and the carried-over spawn and redo clauses, which a string match would not prove anyway. The added text is proportionate to one tactic, and round 2 left the spec and the bullet unchanged.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script, hook or check. D1 rejects a hook and a custom agent definition in favour of the platform's built-in `Explore`. Task 4.1 uses the existing set_status.py.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

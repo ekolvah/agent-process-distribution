@@ -119,6 +119,8 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
     assert "gh issue view" in harness
     assert "git branch --show-current" in harness
     assert "/compact" not in harness
+    for delegation in ("`Explore`", "two or more", "path:line"):
+        assert delegation in harness
 
 
 def test_package_contents_are_closed() -> None:
