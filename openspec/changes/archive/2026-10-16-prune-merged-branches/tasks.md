@@ -24,7 +24,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change prune-merged-branches`, then `gh pr create --title "feat: prune-merged-branches" --body-file <report>`. The report names the tracking issue as a plain reference, the principles the change interacts with, and the scenario-to-test map
+- [x] 4.1 Run `agent-process archive_change prune-merged-branches`, then `gh pr create --title "feat: prune-merged-branches" --body-file <report>`. The report names the tracking issue as a plain reference, the principles the change interacts with, and the scenario-to-test map
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
