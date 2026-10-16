@@ -566,17 +566,20 @@ def test_worktree_step_fails_after_branch_exists(
 def test_merged_changes_worktree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Scenario: Merged change's worktree — a merged clean one is removed and printed, a merged
-    dirty one kept and named, one with an open PR or none untouched; the start goes on."""
+    """Scenario: Merged change's worktree — a merged clean one at its PR's head is removed and
+    printed and its branch deleted, a merged dirty one kept and named, one with an open PR or
+    none untouched; the start goes on."""
     start_change = load_script("start_change")
     root = _clone(tmp_path)
     done, dirty, open_, new = (_worktree(root, b) for b in ("done", "dirty", "open", "new"))
     (dirty / "notes.txt").write_text("uncommitted\n", encoding="utf-8")
     monkeypatch.chdir(root)
+    tip = _git("-C", str(root), "rev-parse", "HEAD").strip()
     gh = Gh(
         root=root,
         git_runner=_run,
         pr_states={"done": "MERGED", "dirty": "MERGED", "open": "OPEN"},
+        pr_heads={"done": tip, "dirty": tip, "open": tip},
     )
 
     start_change.main(START, gh=gh, root=root)
@@ -586,9 +589,45 @@ def test_merged_changes_worktree(
     assert done.as_posix() not in _git("worktree", "list", "--porcelain")
     assert f"removed: {done}" in out
     assert dirty.exists() and open_.exists() and new.exists()
-    assert f"kept: {dirty}" in err
+    assert f"kept: {dirty} — uncommitted changes" in err
     assert (root / ".claude" / "worktrees" / CHANGE / "openspec" / "changes" / CHANGE).is_dir()
-    assert _git("branch", "--list", "done").strip()
+    assert not _git("-C", str(root), "branch", "--list", "done").strip()
+    assert "deleted: done" in out
+    assert len(_git("-C", str(root), "branch", "--list", "dirty", "open", "new").splitlines()) == 3
+
+
+def test_merged_changes_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Merged change's branch — a merged branch at its PR's head and its gone
+    `origin/<branch>` are deleted and printed, one with commits after its head kept and named,
+    one without a PR untouched; `origin/main` remains and `main` is not examined."""
+    start_change = load_script("start_change")
+    root = _clone(tmp_path)
+    tip = _git("-C", str(root), "rev-parse", "HEAD").strip()
+    _git("-C", str(root), "branch", "gone")
+    _git("-C", str(root), "push", "-q", "origin", "gone")
+    _git("-C", str(tmp_path / "origin.git"), "branch", "-D", "gone")
+    after = _git("-C", str(root), "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "after")
+    _git("-C", str(root), "branch", "later", after.strip())
+    _git("-C", str(root), "branch", "none")
+    monkeypatch.chdir(root)
+    gh = Gh(
+        root=root,
+        git_runner=_run,
+        pr_states={"gone": "MERGED", "later": "MERGED"},
+        pr_heads={"gone": tip, "later": tip},
+    )
+
+    start_change.main(START, gh=gh, root=root)
+
+    out, err = capsys.readouterr()
+    assert not _git("-C", str(root), "branch", "--list", "gone").strip()
+    assert "deleted: gone" in out
+    assert _git("-C", str(root), "branch", "-r").split() == ["origin/main"]
+    assert "kept: later — tip is not the merged PR's head" in err
+    assert _git("-C", str(root), "branch", "--list", "later", "none").split() == ["later", "none"]
+    assert not any(c[:4] == ["gh", "pr", "view", "main"] for c in gh.calls)
 
 
 def test_started_from_inside_the_previous_changes_worktree(
@@ -601,7 +640,8 @@ def test_started_from_inside_the_previous_changes_worktree(
     prev = _worktree(main_root, "prev")
     make_change(prev, tasks=GROUP0.format(token=TOKEN), config=None)
     monkeypatch.chdir(prev)
-    gh = Gh(root=main_root, git_runner=_run, pr_states={"prev": "MERGED"})
+    tip = _git("-C", str(main_root), "rev-parse", "HEAD").strip()
+    gh = Gh(root=main_root, git_runner=_run, pr_states={"prev": "MERGED"}, pr_heads={"prev": tip})
 
     start_change.main(START, gh=gh, root=prev)
 
@@ -611,26 +651,41 @@ def test_started_from_inside_the_previous_changes_worktree(
     assert not (prev / ".claude").exists()
     assert prev.is_dir()
     assert str(prev) not in out and str(prev) not in err
-    assert ["gh", "pr", "view", "prev", "--json", "state"] not in gh.calls
+    assert _git("-C", str(main_root), "branch", "--list", "prev").strip()
+    assert not any(c[:4] == ["gh", "pr", "view", "prev"] for c in gh.calls)
 
 
-def test_cleanup_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Scenario: Cleanup fails — a `kept:` line naming the worktree and the failure; the
-    start still creates its branch and exits 0."""
+@pytest.mark.parametrize(
+    "command", ["worktree remove", "branch -D", "remote prune"], ids=lambda c: c.split()[0]
+)
+def test_cleanup_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
+) -> None:
+    """Scenario: Cleanup fails — a failed worktree removal, branch deletion or remote prune is
+    a `kept:` line naming the worktree, branch or remote and the failure; the start still
+    creates its branch and exits 0."""
     start_change = load_script("start_change")
-    root = make_change(tmp_path, tasks=GROUP0.format(token=TOKEN))
+    root = _clone(tmp_path)
+    done = _worktree(root, "done")
+    monkeypatch.chdir(root)
+    tip = _git("-C", str(root), "rev-parse", "HEAD").strip()
     gh = Gh(
         root=root,
-        extra_worktrees=["done"],
+        git_runner=_run,
         pr_states={"done": "MERGED"},
-        fail_on=["git", "worktree", "remove"],
+        pr_heads={"done": tip},
+        fail_on=["git", *command.split()],
     )
 
     start_change.main(START, gh=gh, root=root)
 
     err = capsys.readouterr().err
+    named = {"worktree remove": str(done), "branch -D": "done", "remote prune": "origin"}[command]
     kept = next(line for line in err.splitlines() if line.startswith("kept: "))
-    assert str(root / ".claude" / "worktrees" / "done") in kept and "boom" in kept
+    assert kept.startswith(f"kept: {named} — ") and "boom" in kept
     assert len(develops(gh)) == 1
 
 

@@ -69,9 +69,11 @@ class Gh:
     `root` is the main worktree `git worktree list --porcelain` lists, followed by one
     clean worktree per branch of `extra_worktrees` under its `.claude/worktrees/`, and
     `git -C <root> rev-parse --path-format=absolute --git-path info/exclude` answers
-    `<root>/.git/info/exclude` and `--git-common-dir` answers `<root>/.git`; `pr_states` answers `gh pr view <branch> --json state` (an absent branch raises as
-    `run_gh` does on `no pull requests found`); `git_runner`, when given, runs every `git`
-    command and `gh issue develop` pushes the branch through it.
+    `<root>/.git/info/exclude` and `--git-common-dir` answers `<root>/.git`; `pr_states` and
+    `pr_heads` answer `gh pr view <branch> --json state,headRefOid` (a branch absent from
+    `pr_states` raises as `run_gh` does on `no pull requests found`); `git_runner`, when
+    given, runs every `git` command and `gh issue develop` pushes the branch through it;
+    without it `git for-each-ref` lists no branch and `git remote prune` prunes nothing.
     """
 
     def __init__(  # noqa: PLR0913 -- keyword-only fake knobs, one per gh answer
@@ -86,6 +88,7 @@ class Gh:
         root: Path | None = None,
         extra_worktrees: Sequence[str] = (),
         pr_states: dict[str, str] | None = None,
+        pr_heads: dict[str, str] | None = None,
         git_runner: Callable[[list[str]], str] | None = None,
     ) -> None:
         self.calls: list[list[str]] = []
@@ -98,6 +101,7 @@ class Gh:
         self.root = root
         self.extra_worktrees = list(extra_worktrees)
         self.pr_states = pr_states or {}
+        self.pr_heads = pr_heads or {}
         self.git_runner = git_runner
 
     def _listing(self) -> str:
@@ -121,7 +125,11 @@ class Gh:
             return self.git_runner(cmd)
         if head == ["git", "ls-remote", "--heads"]:
             return f"0123abcd\trefs/heads/{cmd[-1]}\n" if self.remote_branch else ""
-        if head in (["git", "fetch", "origin"], ["git", "worktree", "add"]):
+        if head in (
+            ["git", "fetch", "origin"],
+            ["git", "worktree", "add"],
+            ["git", "remote", "prune"],
+        ) or cmd[:2] == ["git", "for-each-ref"]:
             return ""
         if cmd == ["git", "worktree", "list", "--porcelain"]:
             return self._listing()
@@ -151,7 +159,9 @@ class Gh:
                 raise RuntimeError(
                     f'`{" ".join(cmd)}` failed (rc=1): no pull requests found for branch "{cmd[3]}"'
                 )
-            return json.dumps({"state": self.pr_states[cmd[3]]})
+            return json.dumps(
+                {"state": self.pr_states[cmd[3]], "headRefOid": self.pr_heads.get(cmd[3])}
+            )
         if head == ["gh", "issue", "view"] and "projectItems" in cmd:
             # The shape `gh issue view 144 --json projectItems` printed: `title` is the
             # Project's title, one entry per Project the issue is an item of (v2-2f).
