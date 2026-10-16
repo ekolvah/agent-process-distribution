@@ -36,8 +36,9 @@ workaround script.
 
 - Read narrowly: a search or an `offset`/`limit` read before a whole file. When the read-budget
   hook denies a `Read`, take the call it names; never route around it.
-- Spawn a subagent only for independent work, or for research that needs more than three
-  round trips; do not redo the work it reports.
+- When a question takes two or more lookups (reads, searches, `gh`, web) of material you will
+  not edit, ask the `Explore` subagent for the conclusion with `path:line` references. Spawn
+  other subagents only for independent work; do not redo work a subagent reports.
 - Be concise by default, in replies and in files.
 - Wait for a long command with one foreground call and a raised `timeout`, never a `sleep` or
   re-read loop.

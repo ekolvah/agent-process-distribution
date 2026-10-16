@@ -10,8 +10,8 @@
 
 ## 2. Tactic
 
-- [ ] 2.1 Replace the subagent bullet of `## Claude harness` in `skills/agent-process/always-on.md` with the text of design D1 (spec roles: The skill carries the principles core and harness tactics); verify the node of 1.2 passes
-- [ ] 2.2 Commit the group with its ticks
+- [x] 2.1 Replace the subagent bullet of `## Claude harness` in `skills/agent-process/always-on.md` with the text of design D1 (spec roles: The skill carries the principles core and harness tactics); verify the node of 1.2 passes
+- [x] 2.2 Commit the group with its ticks
 
 ## 3. Verify
 
