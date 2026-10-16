@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Both round-1 findings are fixed: §III keeps the missed-item logs and the alert condition, §IV keeps 'no records' without the qualifier, and D3 names the one rewording (transport to channel). The §III example lists are gone, which fits D1, so MINOR holds and every class is ok.",
+  "classes": {
+    "simpler": {
+      "evidence": "The simpler design is to fix only the wrong test path and swap the product nouns. D1 and D2 reject it because the issue asks for rules any consumer can apply, and a repository gate named in canon stays a repository fact in every consumer's copy. D1 now also rejects a new list per principle ('§III has no such list and gets none'). D2 rejects moving the gate to CLAUDE.md, which every session would pay for, while the gate announces itself through `tests/agent_process/test_ruff_silence_rules.py` and `.agent-process/pyproject.toml`. 'Not here' (principles.md lines 9-13) covers the deletion. The stale PR 426 risk is replaced. 426 merged as d4241de without touching §III, §IV or §VI.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "No spec delta (`skip_specs: true`), so there are no scenarios to map. No requirement in openspec/specs pins the wording of §III, §IV or §VI. roles/spec.md pins only the §I–VII anchors, which the plan keeps (tests/publisher/test_plugin.py:107-113). review-and-merge couples only §VII. tasks.md says plainly that the map is empty.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 reads 'no RED: docs-only (`skip_specs`), principle prose under the principles.md §I documentation exception'. This matches SKILL.md Tasks step 2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "No platform behaviour is relied on. The repository facts were observed. `tests/test_ruff_silence_rules.py` is absent; the test is at `tests/agent_process/test_ruff_silence_rules.py`. distribution/spec.md:780 seeds consumers `C901` and `PLR0911`-`PLR0915`, not `BLE` or `TRY400`. The task 2.1 grep against origin/main's principles.md hits only lines inside §III, §IV and §VI (73-74, 92, 96, 135, 142), and none of its tokens appears in the planned wording.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Checked clause by clause against principles.md lines 84-99, 108-120 and 158-169.\n- §III: 'log ERROR naming the missed items' keeps the rule that missed items are logged so they can be identified. The alert keeps its condition ('when the failure is not the delivery channel itself'), and D3's row names the transport-to-channel rewording. The state, partition and record-before-delivery clauses are kept.\n- §IV: 'no records, a malformed source' are fatal without a qualifier. The gap-marker and no-collapse rules are kept, with failed delivery routed to §III.\n- §VI: the load-time gate and same-PR rule are kept.\nThe one dropped guard sentence, §IV's ruff `BLE001`/`TRY400` statement and its guard test, is listed in D2 and called out in D3. The gate itself stays in this repository.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Catchers for the gate that leaves canon:\n- The edit-time `ruff-check` hook of `.pre-commit-config.yaml` (run by hooks/hooks.json on the edited file), and ci_check `lint` over all files inside the `test` of `.github/agent-process-quality.json`. That runs locally at task 3.3 and on every pushed head through `agent-process / quality`.\n- `tests/agent_process/test_ruff_silence_rules.py`, collected via `testpaths = [\"tests/agent_process\"]`, in the same runs.\nCatchers for the edited sections: the task 2.1 grep catches leftover product or gate tokens at implementation time, and test_plugin's anchor test catches a changed heading on every head.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Edited rule text, word counts without quote markers: §III about 114 words now and about 131 planned (the logs clause moves into the failure sentence, and 'there was no news' is restated). §IV about 195 now and about 104 planned. §VI about 89 now and about 92 planned. No added sentence is speculative, and the 'half its length' check finds nothing to cut. Assertions: the task 2.1 grep checks that 5 tokens are absent, and test_plugin.py:107-113 checks the 3 unchanged headings. That is proportionate for docs-only canon prose.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The plan adds no script or check. Task 2.1's grep is a one-time verification command, not a committed check.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
