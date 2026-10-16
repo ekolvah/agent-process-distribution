@@ -24,7 +24,8 @@ it loads only under `tests/**`.
   instrument before patching, and observe the live external system when a plan
   depends on how that system is read or classified.
 - Never bypass hooks, push directly to `main`, force-push, hard-reset,
-  force-delete a branch, or self-merge. The repository hook is supplementary;
+  force-delete a branch (except a merged branch at its PR head, which
+  `start_change` deletes), or self-merge. The repository hook is supplementary;
   GitHub branch protection remains the final barrier.
 
 ## Code review
