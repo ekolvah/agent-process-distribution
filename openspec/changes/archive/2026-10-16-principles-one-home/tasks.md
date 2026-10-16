@@ -25,7 +25,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change principles-one-home`, then `gh pr create --title "feat: principles-one-home" --body-file <report>`; the report names tracking issue 443 as a plain reference, carries the scenario-to-test map, links ADR 0045 for the destination tables, gives the `always-on.md` character change, and states the principles it interacts with (§I–VII, goal 2)
+- [x] 4.1 Run `agent-process archive_change principles-one-home`, then `gh pr create --title "feat: principles-one-home" --body-file <report>`; the report names tracking issue 443 as a plain reference, carries the scenario-to-test map, links ADR 0045 for the destination tables, gives the `always-on.md` character change, and states the principles it interacts with (§I–VII, goal 2)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map

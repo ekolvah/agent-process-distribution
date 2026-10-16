@@ -46,7 +46,7 @@ unreadable) SHALL surface a marker or fail closed, never pass silently.
 ### Requirement: RED first for behavioural changes
 The implementer SHALL write the failing test named in `tasks.md` and prove it red with
 `check_red` before writing code; this is a `config.yaml` rule on `tasks`.
-Documentation-only, rename and one-line non-behavioural changes are exempt (`principles.md`
+Documentation-only, rename and one-line non-behavioural changes are exempt (`always-on.md`
 §I). The RED commit SHALL be the first commit after the plan commit of `start_change` and
 SHALL carry the Group 1 ticks; the commit that ends every later group SHALL carry that
 group's ticks. `check_red` SHALL run `python -m pytest` of the `python` on `PATH`, not of the

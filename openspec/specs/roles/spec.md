@@ -46,10 +46,8 @@ keep no `AGENTS.md`, and the review contract's policy source SHALL name `CLAUDE.
 - **THEN** no `AGENTS.md` exists, `CLAUDE.md` links the review contract, and the contract and the prompt each name `CLAUDE.md` and `.claude/rules/` and neither names `AGENTS.md`
 
 ### Requirement: The skill carries the principles core and harness tactics
-The `agent-process` skill SHALL state the three goals and name each principle §I–VII with a link
-to `principles.md` for their detail, on one line that links the `#operative-principles` anchor of
-`always-on.md` and restates no rule. Each section in `principles.md` SHALL link that anchor for its rule. The skill SHALL link the
-package's `always-on.md`, which holds the full goal function, the operative principles and the
+The `agent-process` skill SHALL state the three goals and name §I–VII on one line that holds only
+a link to the `#operative-principles` anchor of `always-on.md` and restates no rule. The skill SHALL link the package's `always-on.md`, which holds the full goal function, the operative principles and the
 Claude-harness token tactics.
 Its tactic for a compaction
 between the RED commit and GREEN SHALL recover state from the branch, the RED commit and one
@@ -59,7 +57,7 @@ subagent for a `path:line` conclusion.
 
 #### Scenario: A consumer reads principles and tactics from the skill
 - **WHEN** a consumer session invokes the `agent-process` skill
-- **THEN** the skill body names the three goals, each of §I–VII with a link to `principles.md` on one line that holds only those links and a link to the `#operative-principles` anchor of `always-on.md`; each of the seven sections of `principles.md` links the same anchor; and the body links the `#claude-harness` anchor of `always-on.md`, whose harness tactics carry the `gh issue view` recovery, no `/compact` request, and the `Explore` delegation with its two-or-more trigger and `path:line` conclusion
+- **THEN** the skill body names the three goals, and §I–VII on one line that holds only a link to the `#operative-principles` anchor of `always-on.md`; and the body links the `#claude-harness` anchor of `always-on.md`, whose harness tactics carry the `gh issue view` recovery, no `/compact` request, and the `Explore` delegation with its two-or-more trigger and `path:line` conclusion
 
 ### Requirement: Plugin agents inherit the session model
 Every plugin agent SHALL declare `model: inherit` and no `effort` in its frontmatter.
