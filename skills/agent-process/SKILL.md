@@ -36,8 +36,9 @@ The token tactics are in [`always-on.md`](always-on.md#claude-harness).
   scope, a CLI flag — verify it before the proposal and record the observation, not the
   inference, under **Why** or in `design.md` beside the decision: cite the reference page and
   sentence, or a run id or exact command output — a run of a standard checker counts, a listing, a name or an inference from
-  another behaviour does not; for how an external system's data is read, name the failing record and a
-  valid one from the same captured response. Point to an observation already on record instead of repeating it.
+  another behaviour does not. For how an external system's data is read, name the failing record
+  and a valid one from the same captured response. Point to an observation already on record
+  instead of repeating it.
 
 ## Specifications
 

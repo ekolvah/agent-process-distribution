@@ -89,9 +89,9 @@ def test_shared_skill_owns_the_procedure_and_scripts() -> None:
         assert not (ROOT / ".agent-process" / "scripts" / name).exists()
 
 
-def _section(text: str, heading: str, end_marker: str = "\n## ") -> str:
+def _section(text: str, heading: str) -> str:
     start = text.index(heading) + len(heading)
-    end = text.find(end_marker, start)
+    end = text.find("\n## ", start)
     return text[start : end if end != -1 else len(text)]
 
 
@@ -104,8 +104,9 @@ def test_skill_carries_principles_core_and_harness_tactics() -> None:
     for goal in ("bug-fixing", "token spend", "user control"):
         assert goal in core
     [line] = [line for line in core.splitlines() if "](always-on.md#operative-principles)" in line]
-    assert re.findall(r"\[([^\]]*)\]\([^)]*\)", line) == ["§I–VII"]
-    assert not re.sub(r"[\W_]", "", re.sub(r"\[[^\]]*\]\([^)]*\)", "", line))
+    link = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+    assert link.findall(line) == ["§I–VII"]
+    assert not re.sub(r"[\W_]", "", link.sub("", line))
     always_on = ALWAYS_ON.read_text(encoding="utf-8")
     for goal in ("bug-fixing", "token spend", "user control"):
         assert goal in _section(always_on, "\n## Goal function\n")

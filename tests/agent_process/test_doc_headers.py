@@ -71,11 +71,8 @@ def _mapped_docs_in(directory: Path) -> list[Path]:
     """Use `rglob`, not `glob`: the specification says ".md" **under** the directory.
 
     A flat `glob` would silently leave a future subdirectory's `.md` files outside the
-    invariant — the same form of silent vacuum as moving the directory itself. A mapped file
-    is its own scope.
+    invariant — the same form of silent vacuum as moving the directory itself.
     """
-    if directory.is_file():
-        return [directory]
     return sorted(directory.rglob("*.md"))
 
 
