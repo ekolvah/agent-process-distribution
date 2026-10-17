@@ -108,7 +108,7 @@ specifications, design, and tasks against principles §I–VII by invoking the
 Findings point at artifacts instead of restating them. On `rework`, answer every finding and
 review again. The propose run ends on `approve`: if the change has no issue, choose the area
 that fits the change from the Project's `Area` options and run
-`agent-process create_tracking_issue <change> --area <name>` (without
+`agent-process finish_propose <change> --area <name>` (without
 `--area` it lists the options); otherwise run it without area. It validates the review
 first; send its errors back to the reviewer. A missing `## Standard approach` goes back to
 the planner, who adds it and reviews again. The issue must be `Planned` before the

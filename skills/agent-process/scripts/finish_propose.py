@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The tail of the propose run as one command: the tracking issue in `Planned` with its area.
 
-Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--area <name>]
+Usage: python skills/agent-process/scripts/finish_propose.py <change> [--area <name>]
 
 A release drift exits 2 first, as in `start_change`. The architect review is validated
 next, as `start_change` reads it: an invalid file or a
@@ -63,7 +63,7 @@ def _require_standard_approach(change_dir: Path) -> None:
     )
 
 
-def create_tracking_issue(
+def finish_propose(
     change: str, *, area: str | None, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
     if drift := release_drift(root, SCRIPT_DIR):
@@ -138,7 +138,7 @@ def main(argv: list[str] | None = None, *, gh: Gh = run_gh, root: Path = ROOT) -
     )
     ns = parser.parse_args(argv)
     try:
-        code = create_tracking_issue(ns.change, area=ns.area, gh=gh, root=root)
+        code = finish_propose(ns.change, area=ns.area, gh=gh, root=root)
     except (FileNotFoundError, KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         sys.exit(2)

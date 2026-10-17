@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One session leads one task: the ledger binding a Claude Code session to an issue.
 
-`create_tracking_issue`, `start_change` and `archive_change` call `bind` with the change's
+`finish_propose`, `start_change` and `archive_change` call `bind` with the change's
 tracking issue and the session that `CLAUDE_CODE_SESSION_ID` names. The ledger is
 `<git common dir>/agent-process/sessions`, one line `<session-id> <issue>` per binding, so every
 worktree of a clone shares it; it is never committed. A session already bound to another issue

@@ -8,9 +8,9 @@
 
 ## 2. Rename
 
-- [ ] 2.1 `git mv skills/agent-process/scripts/create_tracking_issue.py skills/agent-process/scripts/finish_propose.py`; rename its function and docstring usage line to `finish_propose` (design: The name is `finish_propose`)
-- [ ] 2.2 Replace `create_tracking_issue` with `finish_propose` in the other edited files of the proposal's Impact (tests: `load_script`, `_SCRIPTS`, `MOVED_SCRIPTS`, `test_plan_approved`); add the ADR 0027 dated entry in a few lines (design: No alias for the old name, Which documents change)
-- [ ] 2.3 Verify `test_tasks_of_a_new_change` is GREEN and commit the group with its ticks
+- [x] 2.1 `git mv skills/agent-process/scripts/create_tracking_issue.py skills/agent-process/scripts/finish_propose.py`; rename its function and docstring usage line to `finish_propose` (design: The name is `finish_propose`)
+- [x] 2.2 Replace `create_tracking_issue` with `finish_propose` in the other edited files of the proposal's Impact (tests: `load_script`, `_SCRIPTS`, `MOVED_SCRIPTS`, `test_plan_approved`); add the ADR 0027 dated entry in a few lines (design: No alias for the old name, Which documents change)
+- [x] 2.3 Verify `test_tasks_of_a_new_change` is GREEN and commit the group with its ticks
 
 ## 3. Verify
 

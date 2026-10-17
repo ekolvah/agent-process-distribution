@@ -13,7 +13,7 @@ tracking issue — the number in the first `tracking issue <N>` token of `tasks.
 which the propose run replaced — is an item of the repository's linked Project in `Planned`.
 Otherwise exit 2 and nothing is created: on `rework` the verdict is named (apply the findings,
 re-review); when the token still carries the placeholder or the issue is not `Planned`,
-`propose run not finished` names the tail to run (`create_tracking_issue.py`). A session that
+`propose run not finished` names the tail to run (`finish_propose.py`). A session that
 leads another issue exits 2 there too; otherwise it is bound to this one (`session_binding`).
 
 Then `git worktree list --porcelain` names the main worktree (its first entry; a failed
@@ -67,7 +67,7 @@ WORKTREES = Path(".claude") / "worktrees"
 NO_PR = "no pull requests found"
 NOT_FINISHED = (
     "propose run not finished: run its tail "
-    f'(python "{SCRIPT_DIR / "create_tracking_issue.py"}" '
+    f'(python "{SCRIPT_DIR / "finish_propose.py"}" '
     "{change} --area <name>) first"
 )
 
