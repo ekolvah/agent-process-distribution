@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.26.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.25.0...v3.26.0) (2026-10-17)
+
+
+### Features
+
+* principles-one-home ([#445](https://github.com/ekolvah/agent-process-distribution/issues/445)) ([1ba2857](https://github.com/ekolvah/agent-process-distribution/commit/1ba2857e041dc2bfad521291c098ddb88067dbec))
+
 ## [3.25.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.24.0...v3.25.0) (2026-10-16)
 
 
