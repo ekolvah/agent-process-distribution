@@ -15,8 +15,8 @@ By count, 405 is the worst task; by rate, 401 and 417 grew their context fastest
 
 ## What Changes
 
-- Panels `compactions` and `failed + denied calls` draw their event per 100 `api_requests`
-  per task, with their trend, instead of the count (design D1, D2).
+- Panels `compactions` and `failed + denied calls` keep the count and its trend and add the
+  event per 100 `api_requests` per task as a line on a right axis (design D1, D2).
 
 ## Capabilities
 
@@ -26,7 +26,8 @@ None.
 
 ### Modified Capabilities
 
-- `measurement`: a new requirement, *The dashboard draws step events per 100 requests*.
+- `measurement`: a new requirement, *The dashboard draws step events per 100 requests next to
+  the count*.
 
 ## Impact
 

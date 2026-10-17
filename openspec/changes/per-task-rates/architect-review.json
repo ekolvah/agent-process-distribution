@@ -1,39 +1,39 @@
 {
   "verdict": "approve",
-  "round": 2,
+  "round": 4,
   "reviewer": "architect-reviewer",
-  "reasoning": "The round-1 finding is answered: D1 now moves the per-task override to the rate field and hides the raw columns and api_requests, and test_rate_panels asserts both, so the one scenario is proven. The Infinity behaviour the design uses is observed.",
+  "reasoning": "The round-3 finding is answered: the rate gets its own unit, so it gets its own scale whatever Grafana does with placement; test 1.1 asserts the unit; and task 4.3 now renders panel 23, which is the observation that would catch a single shared axis.",
   "classes": {
     "simpler": {
-      "evidence": "design.md D1 rejects a rate column written by task_readings.py (it would change the header for every adopter) and Grafana binary calculateField steps (two transformations per panel). Neither the spec nor the scenario needs anything heavier than one computed column per target. dashboard.py copies the whole prototype target (scripts/dashboard.py:45-47), so the new computed column reaches every repository's query without a code change.",
+      "evidence": "D1 adds one computed column per target, one override (display name, unit, placement, colour) and `api_requests` in `organize`. D1 rejects the rate on the count's axis with data (PR 405: 5 compactions, 1.14 per 100) and the rate-only plan by the person's choice. A trend over the rate is deferred (§VII). dashboard.py copies the whole prototype target, so every repository's query gets the column without a code change.",
       "result": "ok"
     },
     "map": {
-      "evidence": "One delta scenario, measurement / Rate panels, maps to tests/publisher/test_dashboard.py::test_rate_panels (tasks.md map). Task 1.1 now asserts the D1 computed column, the trend window over it, the per-task override matched on the rate field, and organize hiding the raw columns and api_requests. That covers 'draws its rate and windows its trend over it'. This answers the round-1 finding against D1 and 1.1.",
+      "evidence": "One scenario, measurement / Rate panels, maps to tests/publisher/test_dashboard.py::test_rate_panels. Task 1.1 asserts each part of the THEN clause: the D1 computed column; the rate override with unit `suffix:/100 req` and axisPlacement right; the window trend and `per task` override still on the count; and `organize` hiding `api_requests`. Task 2.1 now cites the current requirement title.",
       "result": "ok"
     },
     "red": {
-      "evidence": "Group 1: task 1.1 adds test_rate_panels and task 1.2 runs `agent-process check_red` on its node id, then commits RED with the ticks. The test fails today because panels 22 and 23 have only the `repository` computed column.",
+      "evidence": "Tasks 1.1 and 1.2 revise the RED test from commit 6da8c93, which asserted the old plan, and re-run check_red before the revised RED commit. At HEAD neither panel's target has a rate computed column, so the panel lookup fails and the test is RED.",
       "result": "ok"
     },
     "platform": {
-      "evidence": "The design rests on one platform behaviour: Infinity computed-column arithmetic and how it treats empty cells. design.md D1 records the observation (/api/ds/query on grafanacloud-infinity, 2026-10-17, both expressions): PR 401 gives 1.4598 and 6.5693, PR 433 gives 0, and PRs 385-397 give null. The filterByValue, organize and windowFunctions transformations are ones the template already uses on panel fields today (per-task-dashboard.json:1157-1236). Division by zero was not observed. The Risks section rests it on data (no row has api_requests 0 with a non-empty reading), not on platform behaviour.",
+      "evidence": "Infinity arithmetic and empty cells are observed in D1 (/api/ds/query, 2026-10-17: PR 401 gives 1.4598 and 6.5693, PR 433 gives 0, PRs 385-397 give null). The separate right axis now comes from the rate's own unit, `suffix:/100 req`, which differs from the defaults' `none` that the count and trend use. The observation is the panel 23 render in task 4.3. get_panel_image has rendered aqxk4q before (archived adopter-task-dashboard 6.2 and agent-working-time 6.2), so the step can run. Note for the planner, not blocking: D1's aside 'not by placement' is unobserved and nothing rests on it, because the unit separates the scales either way. It can be trimmed to 'the unit separates the axes'.",
       "result": "ok"
     },
     "replaced": {
-      "evidence": "No project-declared input is replaced. One guard changes: the empty-reading filterByValue moves from the raw columns to the rate column. D1's observation shows that an empty reading yields a null rate, so the same rows are still excluded. The removed binary calculateField is replaced by the expression rather than dropped.",
+      "evidence": "No project-declared input is replaced and no guard is dropped. The count's filterByValue, panel 22's binary calculateField, the window trend over the count and the `per task` override stay as at HEAD. Panel 22 adds `api_requests` to its existing `organize`; panel 23 gains an `organize` step (D1 now says so). An empty reading yields a null rate (D1 observation), so the filter on the raw count still excludes the same rows.",
       "result": "ok"
     },
     "catcher": {
-      "evidence": "The plan names one catcher, task 4.3. After merge it re-imports aqxk4q from `agent-process dashboard ekolvah/agent-process-distribution` and checks panel 23's /api/ds/query result for PR 401 against D1. The launcher prefers the current directory's skills/agent-process/scripts/ (plugin bin/agent-process), so in the worktree it renders the merged template, not the plugin release. A missing rate column would therefore show up as a mismatch in that query.",
+      "evidence": "Task 4.3 re-imports aqxk4q from `agent-process dashboard` (the worktree's merged template). It then catches a missing or misnamed computed column by comparing panel 23's /api/ds/query result for PR 401 with D1, and a shared or missing right axis by rendering panel 23 with get_panel_image. It records all three in the PR.",
       "result": "ok"
     },
     "length": {
-      "evidence": "The plan adds one spec requirement of 36 words and one scenario of 22 words. Test 1.1 asserts the requirement's drawn rate (both expressions, the override on the rate field, the hidden raw columns) and the trend over it. 'Trailing mean' is unchanged template state that the window assertion reads. Task 2.2 edits a docs paragraph (§I docs-only exemption).",
+      "evidence": "One requirement of 42 words (title 12) and one scenario of 27 words, unchanged since round 3. Test 1.1 asserts each clause: both expressions, 'added line on a right axis' (the rate override's placement and unit) and 'the count and its trailing-mean trend SHALL stay' (window field and `per task` override on the count). Task 2.2 edits one docs paragraph (§I docs-only exemption).",
       "result": "ok"
     },
     "bespoke": {
-      "evidence": "The plan adds no script or check: the change is a template edit, one test, and a docs paragraph.",
+      "evidence": "The plan adds no script or check: one template edit, one revised test, one docs paragraph.",
       "result": "ok"
     }
   },
