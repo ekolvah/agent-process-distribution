@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 Add `tests/publisher/test_dashboard.py::test_rate_panels` for scenario *Rate panels* with the file's helpers: each panel carries its D1 computed column, windows its trend over it, matches its `per task` override to it, and hides its raw columns and `api_requests` with `organize`
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_dashboard.py::test_rate_panels` and commit RED with these ticks
+- [x] 1.1 Add `tests/publisher/test_dashboard.py::test_rate_panels` for scenario *Rate panels* with the file's helpers: each panel carries its D1 computed column, windows its trend over it, matches its `per task` override to it, and hides its raw columns and `api_requests` with `organize`
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_dashboard.py::test_rate_panels` and commit RED with these ticks
 
 ## 2. Rate panels
 

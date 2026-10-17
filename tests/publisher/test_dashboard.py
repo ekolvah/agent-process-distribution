@@ -100,6 +100,32 @@ def test_hours_panel() -> None:
     assert index["agent_hours"] == index["hours"] + 1
 
 
+def test_rate_panels() -> None:
+    """Scenario: Rate panels."""
+    _, dashboard = _render(_KINOZAL)
+    rates = {
+        "compactions_per_100_requests": ("compactions * 100 / api_requests", ["compactions"]),
+        "failed_denied_per_100_requests": (
+            "(failed + denied) * 100 / api_requests",
+            ["failed", "denied"],
+        ),
+    }
+    for rate, (expression, raw) in rates.items():
+        (panel,) = [p for p in _data_panels(dashboard) if rate in _computed(p["targets"][0])]
+        assert _computed(panel["targets"][0])[rate] == expression
+        assert {*raw, "api_requests"} <= set(_selectors(panel))
+        transformations = {t["id"]: t["options"] for t in panel["transformations"]}
+        window = next(
+            t["options"]["window"]
+            for t in panel["transformations"]
+            if t["options"].get("mode") == "windowFunctions"
+        )
+        assert window["field"] == rate
+        assert {"id": "displayName", "value": "per task"} in _overrides(panel)[rate]
+        hidden = transformations["organize"]["excludeByName"]
+        assert hidden == dict.fromkeys([*raw, "api_requests"], True)
+
+
 def test_several_repositories() -> None:
     """Scenario: Several repositories."""
     _, dashboard = _render(_OTHER, _KINOZAL)
