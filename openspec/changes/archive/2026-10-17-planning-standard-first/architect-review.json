@@ -1,0 +1,52 @@
+{
+  "verdict": "approve",
+  "round": 4,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All four round-3 findings are applied: the delta now modifies 'Human approval is the gate' to name the form check, decision 3 states what the gate catches and records its observed rejection of OpenSpec and MD043, design Context names the departures from the cited pattern, and Group 1 pins the design.md path, the form boundaries and the unasserted phrases.",
+  "classes": {
+    "simpler": {
+      "evidence": "The simpler design is round 2's: the reading bullet plus the `bespoke` class, no script. The person chose the gate after the prior-art research (proposal `## Standard approach`). Within it, decision 3 places the check as one function in the existing `create_tracking_issue` and rejects a field in `architect-review.json` (the reviewer cannot source it, the `additions` failure) and a Stop hook (fires every turn, does not know the change). Decision 2 rejects a ninth class (three copies of the class list; old reviews would fail `additionalProperties`).",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "14 delta scenarios, 14 map rows. 'Validator scope' (now in the MODIFIED 'Human approval is the gate') is n/a with its reason: content is the person's judgement, and the form check is `test_plan_without_a_standard_approach`. 'Ambiguous scope' is n/a, its text unchanged. The two new tests are tasks 1.1 and 1.2; the other ten named tests exist in tests/publisher. `openspec validate planning-standard-first --strict` prints 'Change 'planning-standard-first' is valid'.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.2 now covers the class of the check. Rejected cases: no section in either file; a section with neither URL nor `none found:` text; `none found:` with nothing after it; and a URL only under the next `##` section, each on the placeholder and existing-number branches with `creates(gh) == []` and `gh.edits() == []`. The accepted case is a `design.md`-only section with a `###` subheading before its URL, which reaches `set_status`. That pins both the either-file rule and the `##` boundary, which the design and spec now word as 'the next `##` heading'. All of these fail today, because `create_tracking_issue.py:54-110` reads no plan content: the rejected cases create or move, and the accepted case already passes, so RED rests on the rejected ones. 1.1's phrases are absent from SKILL.md `## Proposal` and the `bespoke` description today. The `make_change` fixture update (delivery_fakes.py:246) keeps the other tail tests green, including test_session_binding.py.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Decision 3 records the observations behind its rejections. The OpenSpec 1.13.0 `ArtifactSchema` fields come from `dist/core/artifact-graph/types.js:24-31`, which I checked in round 3. The MD043 rejection quotes its doc sentence with the URL. `openspec validate --strict` passing the change before it had the section is a run. The rest of the design rests on no platform behaviour; the kepval/PRR and Claude Code claims in the proposal carry URLs.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. The tail gains a check before both branches. `start_change`'s `verdict()` (start_change.py:75-96) is untouched (Placement), so a change approved before the update still starts. 'Human approval is the gate' widens explicitly to name the form check beside `openspec validate`, and its 'no script judges whether its content is right' still holds.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The gate is reached in every propose run, because the run ends only when `create_tracking_issue` has made the issue `Planned`. It runs after `verdict()` and before `bind`, `set_status` and `gh issue create` on both branches (decision 3, task 2.3). The `bespoke` class is reached in the review before approve and catches a boilerplate `none found` (Risks 2). Risks 1 (section added after an approve without re-review) now names the person's approval of the plan page (SKILL.md Architect review) as the catcher reached. Risks 3 (analysis outside propose) is a recorded Non-Goal the person chose over issue 451's scope line.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The reading requirement's sentence is 64 words. 1.1 asserts in `## Proposal`: usage guidance, external tool model or API, built around, new to the repository, standard approach to the problem, `## Standard approach`, URL, none found:, what was searched. Those carry its scope, location, source form and escape. The finding-class clause is asserted through the `bespoke` tuple: `## Standard approach`, standard approach to the problem, none found, convincing, follows or departs. The tail clause (either file, next `##` heading, URL or `none found:` with text, back to the planner) is asserted by 1.1's 'goes back to the planner' and by 1.2's behaviour cases. The 'Human approval is the gate' sentence is spec-only; no rule text repeats it, and its form half is 1.2's behaviour. The ADR bullet is docs-only.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The one added check is decision 3's section-form function in `create_tracking_issue`.\n- Problem: the plan that reaches the tail without the section, whether the reviewer missed it or approved it anyway, from the jev observation recorded in tracking issue 451. The design admits the observed analysis itself stays ungated, a Non-Goal the person chose.\n- Standard: MD043 (heading sequence, not the text under a heading; Node dependency, quoted), `openspec validate` (ran without the section), a custom OpenSpec schema (no content field, observed; it would also break unmodified `spec-driven`), and kepval (a pattern, not a tool). None fits, and one function in the existing tail is the minimum.\n- Difference from the removed `additions` (ADR 0027:660-665): the input exists when the planner writes it, and `none found:` with what was searched is accepted, so nothing forces a fabricated `#1`. Its scope is one section per change, not every non-test file. 'Form, not relevance' is answered by decision 2's class.\n- Departures from the cited template + script + reviewer pattern are in design Context: no template section, and the script runs after the reviewer, unlike kepval.\n- The plan follows its own rule: the proposal's `## Standard approach` cites the Rust RFC and KEP templates, kepval, PRR and the Claude Code guidance with URLs.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "planning",
+      "scenario": "Ambiguous scope",
+      "reason": "n/a: person and planner behaviour; the delta leaves it unchanged"
+    },
+    {
+      "capability": "planning",
+      "scenario": "Validator scope",
+      "reason": "n/a: the person's judgement of content; the form check is test_plan_without_a_standard_approach"
+    }
+  ]
+}

@@ -199,12 +199,41 @@ def test_over_long_rule_or_bespoke_check() -> None:
     """Scenario: Over-long rule or bespoke check — each is a class of its own."""
     assert "words its tests assert" in _class_description("length")
     bespoke = _class_description("bespoke")
-    for phrase in ("script or check the plan adds", "design.md decision", "closes", "does not fit"):
+    for phrase in (
+        "script or check the plan adds",
+        "design.md decision",
+        "closes",
+        "does not fit",
+        "## Standard approach",
+        "standard approach to the problem",
+        "none found",
+        "convincing",
+        "follows or departs",
+    ):
         assert phrase in bespoke, phrase
     assert "non-test file" not in bespoke
     assert "additions" not in _schema()["properties"]
     design = _section("Design")
     assert "the problem it closes" in design and "the standard for its job" in design
+
+
+def test_design_on_an_external_tool() -> None:
+    """Scenario: Design on an external tool — prior art is its docs and the standard approach."""
+    proposal = _section("Proposal")
+    for phrase in (
+        "usage guidance",
+        "external tool, model or API",
+        "built around",
+        "new to the repository",
+        "standard approach to the problem",
+        "## Standard approach",
+        "URL",
+        "none found:",
+        "what was searched",
+    ):
+        assert phrase in proposal, phrase
+    review = _section("Architect review")
+    assert "## Standard approach" in review and "goes back to the planner" in review
 
 
 def test_review_round() -> None:

@@ -16,20 +16,29 @@ A GitHub issue SHALL track the change (title, change name, area) and is its Proj
 - **THEN** a change directory exists and validates before any code is written
 
 ### Requirement: The planner reads before writing and asks instead of guessing
-The planner SHALL read the code and prior art before writing a plan, and SHALL ask the
-person when a decision is theirs. Project context reaches it from `openspec/config.yaml`.
+The planner SHALL read the code and prior art before writing a plan: the usage guidance of
+each external tool, model or API the design is built around or that is new to the
+repository, and the standard approach to the problem, recorded under a `## Standard approach`
+heading of `design.md` or `proposal.md` with each source's URL, or `none found:` with what was
+searched. It SHALL ask the person when a decision is theirs. Project context reaches it from `openspec/config.yaml`.
 
 #### Scenario: Ambiguous scope
 - **WHEN** the request leaves a scope decision open
 - **THEN** the planner asks before writing the proposal
 
+#### Scenario: Design on an external tool
+- **WHEN** the planner designs a change built around an external tool, model or API
+- **THEN** the `## Standard approach` section cites that tool's usage guidance and the standard approach to the problem with their URLs, or `none found:` with what was searched
+
 ### Requirement: Human approval is the gate
 The person SHALL approve the change; nothing implements before the person runs
-`/opsx:apply <change>` (`$openspec-apply-change`). The only automated check on a plan SHALL be `openspec validate --strict`.
+`/opsx:apply <change>` (`$openspec-apply-change`). The automated checks on a plan SHALL be
+`openspec validate --strict` and the propose tail's check that the `## Standard approach`
+section is present with a URL or `none found:`, which checks its form only.
 
 #### Scenario: Validator scope
 - **WHEN** a change validates
-- **THEN** no other script judges its content; the person does
+- **THEN** no script judges whether its content is right; the person does
 
 ### Requirement: A behaviour change carries its spec delta
 A PR that changes target behaviour SHALL carry the change's spec delta and SHALL archive
@@ -77,14 +86,17 @@ the scenario → test map of `tasks.md`. The file SHALL be valid against
 class with its evidence and `ok` or the finding, and the scenario coverage; the classes and
 the evidence each requires are the schema's. The review contract SHALL live in the shared
 skill and that schema, not in a schema of OpenSpec: the OpenSpec schema is the unmodified
-`spec-driven`. A rule or spec sentence longer than the words its tests assert, and a new
-script or check whose `design.md` decision does not name the problem it closes and the
+`spec-driven`. A rule or spec sentence longer than the words its tests assert, a
+`## Standard approach` whose source is not the standard approach to the problem or whose
+`none found` is unconvincing, or a new script or check whose `design.md` decision does not name the problem it closes and the
 standard it weighed, SHALL each be a finding class. On
 `rework` the planner SHALL apply or answer every finding in the artifact it names and the
 review SHALL run again. On `approve` the planner SHALL run `create_tracking_issue <change>`
 — with the area the planner chose from the Project's `Area` options when the change has no tracking issue yet — which
-SHALL exit 2 without creating anything when the file is not valid or its verdict is not
-`approve`, the errors going back to the reviewer; otherwise it creates the issue from the
+SHALL exit 2 without creating or moving anything when the file is not valid or its verdict is
+not `approve`, the errors going back to the reviewer, or when neither `proposal.md` nor
+`design.md` has a `## Standard approach` section (up to the next `##` heading) carrying a URL or `none found:` with text,
+which goes back to the planner; otherwise it creates the issue from the
 proposal, sets its Status to `Planned` with the area and writes the number into
 `tasks.md`, or, when `tasks.md` already carries the number, sets `Planned` alone and refuses
 an area; the propose run ends there. The apply gate SHALL be the first delivery task of
@@ -100,8 +112,12 @@ existence only.
 - **THEN** `create_tracking_issue` exits 2 naming each validation error, creates no issue, and the propose run does not report the artifacts ready
 
 #### Scenario: Over-long rule or bespoke check
-- **WHEN** a plan carries a rule or spec sentence longer than the words its tests assert, or a new script or check whose `design.md` decision does not name the problem it closes and the standard it weighed
+- **WHEN** a plan carries a rule or spec sentence longer than the words its tests assert, a `## Standard approach` whose source is not the standard approach to the problem or whose `none found` is unconvincing, or a new script or check whose `design.md` decision does not name the problem it closes and the standard it weighed
 - **THEN** the architect review reports it as a finding of its class before the person approves
+
+#### Scenario: Plan without a standard approach
+- **WHEN** `create_tracking_issue` runs on an `approve` review whose change has no `## Standard approach` section in `proposal.md` or `design.md`, or one with neither a URL nor `none found:` with text
+- **THEN** it exits 2 naming the section, and creates no issue and moves no status
 
 #### Scenario: Plan without a prior issue
 - **WHEN** an `approve` review of a change with no tracking issue yet carries every class `ok` and no reference to a problem
