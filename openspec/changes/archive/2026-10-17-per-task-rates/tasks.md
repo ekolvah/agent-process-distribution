@@ -21,7 +21,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change per-task-rates`, then `gh pr create --title "feat: per-task-rates" --body-file <report>`; the report names the tracking issue as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (§VII, goal 1)
+- [x] 4.1 Run `agent-process archive_change per-task-rates`, then `gh pr create --title "feat: per-task-rates" --body-file <report>`; the report names the tracking issue as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (§VII, goal 1)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 - [ ] 4.3 After merge, re-import `aqxk4q` from `agent-process dashboard ekolvah/agent-process-distribution` and record the version it returns; run panel 23's query through `grafana_api_request` `/api/ds/query` and confirm PR 401 matches the D1 observation; render panel 23 with `get_panel_image` and confirm a right axis scaled to the rate; record all three in the PR
 
