@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.27.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.26.0...v3.27.0) (2026-10-17)
+
+
+### Features
+
+* per-task-rates ([#448](https://github.com/ekolvah/agent-process-distribution/issues/448)) ([eee117c](https://github.com/ekolvah/agent-process-distribution/commit/eee117c20f9086256c7c5192e71d82dbce5c2f06))
+
 ## [3.26.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.25.0...v3.26.0) (2026-10-17)
 
 
