@@ -124,7 +124,7 @@ Arm B is the person's own CLI sessions, `claude --model claude-opus-5-5 --plugin
 
 ## 6. Deliver
 
-- [ ] 6.1 Run `agent-process archive_change evaluate-ponytail`, then `gh pr create --title "docs: evaluate-ponytail" --body-file <report>`; the report names tracking issue 9 as a plain reference, links the pilot PRs, carries the scenario-to-test map, and states the principles it interacts with (goal 2, §I, §IV, §V, §VII); it asks the person to post the decision on issue 9 and close it after merge
+- [x] 6.1 Run `agent-process archive_change evaluate-ponytail`, then `gh pr create --title "docs: evaluate-ponytail" --body-file <report>`; the report names tracking issue 9 as a plain reference, links the pilot PRs, carries the scenario-to-test map, and states the principles it interacts with (goal 2, §I, §IV, §V, §VII); it asks the person to post the decision on issue 9 and close it after merge
 - [ ] 6.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
