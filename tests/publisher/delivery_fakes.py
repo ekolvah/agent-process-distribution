@@ -243,7 +243,9 @@ def make_change(
         json.dumps(review or fake_review(verdict)), encoding="utf-8"
     )
     (change_dir / "tasks.md").write_text(tasks, encoding="utf-8")
-    (change_dir / "proposal.md").write_text("## Why\n\nA fixture.\n", encoding="utf-8")
+    (change_dir / "proposal.md").write_text(
+        "## Why\n\nA fixture.\n\n## Standard approach\n\nnone found: fixture\n", encoding="utf-8"
+    )
     return tmp_path
 
 

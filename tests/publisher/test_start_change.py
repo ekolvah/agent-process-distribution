@@ -153,6 +153,50 @@ def test_plan_without_a_prior_issue(tmp_path: Path) -> None:
     assert len(creates(gh)) == 1
 
 
+@pytest.mark.parametrize(
+    "proposal",
+    [
+        "## Why\n\nA fixture.\n",
+        "## Why\n\nA fixture.\n\n## Standard approach\n\nModel cascades.\n",
+        "## Standard approach\n\nnone found:\n",
+        "## Standard approach\n\nModel cascades.\n\n## What Changes\n\n<https://example.com>\n",
+    ],
+    ids=["missing", "no-source", "empty-none-found", "url-in-next-section"],
+)
+def test_plan_without_a_standard_approach(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], proposal: str
+) -> None:
+    """Scenario: Plan without a standard approach — an approve whose plan lacks the section's
+    source is refused on both branches, and nothing is created or moved."""
+    create = load_script("create_tracking_issue")
+    for name, token, args in (
+        ("placeholder", PLACEHOLDER, [CHANGE, "--area", "Observability"]),
+        ("existing", TOKEN, [CHANGE]),
+    ):
+        root = make_change(tmp_path / name, tasks=GROUP0.format(token=token))
+        change_dir = root / "openspec" / "changes" / CHANGE
+        (change_dir / "proposal.md").write_text(proposal, encoding="utf-8")
+        gh = Gh()
+        with pytest.raises(SystemExit) as exc:
+            create.main(args, gh=gh, root=root)
+        assert exc.value.code == 2, name
+        assert creates(gh) == [] and gh.edits() == [], name
+        assert "## Standard approach" in capsys.readouterr().err, name
+
+    # The section in design.md alone, its URL under a `###` subheading, is accepted.
+    root = make_change(tmp_path / "accepted", tasks=GROUP0.format(token=PLACEHOLDER))
+    change_dir = root / "openspec" / "changes" / CHANGE
+    (change_dir / "proposal.md").write_text("## Why\n\nA fixture.\n", encoding="utf-8")
+    (change_dir / "design.md").write_text(
+        "## Standard approach\n\n### Cascades\n\n<https://example.com>\n\n## Decisions\n",
+        encoding="utf-8",
+    )
+    gh = Gh()
+    create.main([CHANGE, "--area", "Observability"], gh=gh, root=root)
+    assert len(creates(gh)) == 1
+    assert [e[e.index("--single-select-option-id") + 1] for e in gh.edits()] == ["S_PLAN", "A_OBS"]
+
+
 def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Addition without evidence — a review still carrying the removed `additions`
     key is refused by both scripts, naming it, and nothing is created."""
