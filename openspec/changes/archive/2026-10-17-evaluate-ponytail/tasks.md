@@ -120,7 +120,7 @@ Arm B is the person's own CLI sessions, `claude --model claude-opus-5-5 --plugin
 - [x] 5.2 Run `openspec validate --strict --all`
   - 9 passed, 0 failed.
 - [x] 5.3 Run the `test` that `.github/agent-process-quality.json` declares
-  - `ci_check.py` first failed `test_every_internal_link_resolves`: the proposal and design named `SKILL.md#install` as a path, which resolves against the change directory. Both now name the skill's `## Install` section instead, so the wording survives the archive move. The test passes.
+  - `ci_check.py` first failed `test_every_internal_link_resolves`: the proposal and design pointed at the Install anchor by a bare path, which resolves against the change directory. Both now name the skill's `## Install` section instead, so the wording survives the archive move. The test passes.
 
 ## 6. Deliver
 
