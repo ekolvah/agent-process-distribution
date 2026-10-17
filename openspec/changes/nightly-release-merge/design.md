@@ -55,7 +55,7 @@ guard that only the run that produced the head approves it.
    the current `main`; the push dismisses the old approval and the same run approves again.
 3. **Releases stay on every push.** `skip-github-release` is not set: the merge of the release
    PR at night starts a push run that creates the release and moves `stable`, as today.
-4. **ADR 0046** records the cadence and amends ADR 0031 D4; ADR 0031 gets one "Amended by"
+4. **ADR 0047** records the cadence and amends ADR 0031 D4; ADR 0031 gets one "Amended by"
    line.
 
 ## Risks / Trade-offs

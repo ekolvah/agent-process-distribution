@@ -54,6 +54,8 @@ Chosen: **recognise the release PR by its diff, exempt it, and let auto-merge me
   review --approve`); the repository allows GitHub Actions to approve pull requests
   (`can_approve_pull_request_reviews=true`, set once by the person), and without it the step
   fails red and the PR waits for the person's approval.
+  Amended by [ADR 0047](0047-release-prs-merge-nightly.md): only a nightly run opens or
+  updates the release PR, so these steps run once a day.
 
 ### Consequences
 

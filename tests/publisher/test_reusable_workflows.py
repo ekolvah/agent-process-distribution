@@ -898,7 +898,7 @@ def test_release_workflow_moves_stable() -> None:
 
 def test_push_to_main() -> None:
     """Scenario: Push to main — only the nightly run opens or updates the release PR; a
-    push run still creates the release of a merged release PR (ADR 0046)."""
+    push run still creates the release of a merged release PR (ADR 0047)."""
     document = _workflow("release-please.yml")
     assert _trigger(document) == {
         "push": {"branches": ["main"]},

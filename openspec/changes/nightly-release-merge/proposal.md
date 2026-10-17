@@ -35,7 +35,7 @@ None.
 
 ## Impact
 
-- Added: `.agent-process/docs/adr/0046-release-prs-merge-nightly.md`.
+- Added: `.agent-process/docs/adr/0047-release-prs-merge-nightly.md`.
 - Edited: `.github/workflows/release-please.yml` (trigger, one action input, header comment);
   `release-please-config.json` (`always-update`);
   `tests/publisher/test_reusable_workflows.py`;

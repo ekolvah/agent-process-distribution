@@ -10,10 +10,10 @@
 
 ## 2. Nightly release PR
 
-- [ ] 2.1 Apply design decisions 1 and 3 to `.github/workflows/release-please.yml`: the `schedule` trigger, the action input, and a header comment naming ADR 0046 (spec distribution: Push to main)
-- [ ] 2.2 Apply design decision 2 to `release-please-config.json` (spec distribution: Release PR behind main)
-- [ ] 2.3 Apply design decision 4: add `.agent-process/docs/adr/0046-release-prs-merge-nightly.md` (context, options from design decision 1, outcome, consequences, deletion condition, confirmation naming the tests of group 1 and the first nightly run) and an "Amended by ADR 0046" line in D4 of ADR 0031
-- [ ] 2.4 Verify `python -m pytest tests/publisher/test_reusable_workflows.py tests/publisher/test_plugin.py tests/publisher/test_release_pr.py tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
+- [x] 2.1 Apply design decisions 1 and 3 to `.github/workflows/release-please.yml`: the `schedule` trigger, the action input, and a header comment naming ADR 0047 (spec distribution: Push to main)
+- [x] 2.2 Apply design decision 2 to `release-please-config.json` (spec distribution: Release PR behind main)
+- [x] 2.3 Apply design decision 4: add `.agent-process/docs/adr/0047-release-prs-merge-nightly.md` (context, options from design decision 1, outcome, consequences, deletion condition, confirmation naming the tests of group 1 and the first nightly run) and an "Amended by ADR 0047" line in D4 of ADR 0031
+- [x] 2.4 Verify `python -m pytest tests/publisher/test_reusable_workflows.py tests/publisher/test_plugin.py tests/publisher/test_release_pr.py tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
