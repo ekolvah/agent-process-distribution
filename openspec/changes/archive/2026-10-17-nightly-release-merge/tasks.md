@@ -18,12 +18,12 @@
 ## 3. Verify
 
 - [x] 3.1 Run `/simplify` without an argument and commit its edits
-- [ ] 3.2 Run `openspec validate --strict --all`
-- [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 3.2 Run `openspec validate --strict --all`
+- [x] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change nightly-release-merge`, then `gh pr create --title "feat: nightly-release-merge" --body-file <report>`; the report names tracking issue 465 as a plain reference, carries the scenario-to-test map, names the first nightly run as the live check, and states the principles it interacts with (goal 1, goal 3, §IV, §VII)
+- [x] 4.1 Run `agent-process archive_change nightly-release-merge`, then `gh pr create --title "feat: nightly-release-merge" --body-file <report>`; the report names tracking issue 465 as a plain reference, carries the scenario-to-test map, names the first nightly run as the live check, and states the principles it interacts with (goal 1, goal 3, §IV, §VII)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
