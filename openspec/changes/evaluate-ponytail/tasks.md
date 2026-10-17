@@ -115,9 +115,12 @@ Arm B is the person's own CLI sessions, `claude --model claude-opus-5-5 --plugin
 
 ## 5. Verify
 
-- [ ] 5.1 Run `/simplify` without an argument and commit its edits
-- [ ] 5.2 Run `openspec validate --strict --all`
-- [ ] 5.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 5.1 Run `/simplify` without an argument and commit its edits
+  - The diff is docs only (ADR, tasks, proposal, design), so the four angles were reviewed inline without the agents (goal 2); no edits.
+- [x] 5.2 Run `openspec validate --strict --all`
+  - 9 passed, 0 failed.
+- [x] 5.3 Run the `test` that `.github/agent-process-quality.json` declares
+  - `ci_check.py` first failed `test_every_internal_link_resolves`: the proposal and design named `SKILL.md#install` as a path, which resolves against the change directory. Both now name the skill's `## Install` section instead, so the wording survives the archive move. The test passes.
 
 ## 6. Deliver
 

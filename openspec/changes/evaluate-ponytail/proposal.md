@@ -26,7 +26,7 @@ decision 1 names the departures and why `claude plugin eval` is not used.
   1 when that task already decides.
 - A new ADR records the comparison, the readings and the decision: an optional plugin (pinned
   version, install path, rollback) or not planned.
-- On adoption only, `skills/agent-process/SKILL.md#install` gains one optional row. Nothing
+- On adoption only, the skill's `## Install` gains one optional row. Nothing
   enforced changes, so no spec delta either way (`skip_specs`).
 - No gate weakened: `start_change`, `ci_check`, `agent-review`, branch protection and human
   merge run unchanged for both arms.

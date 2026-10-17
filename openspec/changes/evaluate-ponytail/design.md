@@ -137,7 +137,7 @@ Otherwise the decision is "not planned".
 Adoption names the pinned tag, the install path (the marketplace `ref` pinned to that tag,
 `claude plugin install ponytail@<marketplace> --scope user --config ledger=false`) and the
 rollback (`claude plugin uninstall ponytail@<marketplace>`). The pin follows the observation
-on record in `SKILL.md#install`: "the `ref` in `.claude/settings.json` does not re-point a
+on record in the skill's `## Install`: "the `ref` in `.claude/settings.json` does not re-point a
 marketplace the machine already knows".
 
 ## Risks / Trade-offs
