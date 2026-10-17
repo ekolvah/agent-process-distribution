@@ -23,3 +23,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 445,principles-one-home,issue-443,2026-10-16T17:22:14Z,2026-10-17T04:14:38Z,10.87,0.93,805,4,1,12.8177,246,7,1,1,
 448,per-task-rates,issue-447,2026-10-17T04:18:36Z,2026-10-17T06:04:01Z,1.76,0.59,307,4,1,6.1967,146,1,0,0,
 452,add-readme,issue-450,2026-10-17T06:49:39Z,2026-10-17T07:49:46Z,1.00,0.72,227,3,2,6.2133,118,5,0,0,
+454,planning-standard-first,issue-451,2026-10-17T06:47:02Z,2026-10-17T08:31:28Z,1.74,1.03,530,4,2,12.7305,236,3,4,1,
