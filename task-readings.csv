@@ -21,3 +21,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 440,prune-merged-branches,issue-436,2026-10-16T04:22:06Z,2026-10-16T06:30:30Z,2.14,0.79,552,2,2,9.8143,160,4,0,1,
 441,principles-core-every-session,issue-429,2026-10-15T06:31:40Z,2026-10-16T17:21:13Z,34.83,1.09,699,9,3,17.9638,285,1,1,1,
 445,principles-one-home,issue-443,2026-10-16T17:22:14Z,2026-10-17T04:14:38Z,10.87,0.93,805,4,1,12.8177,246,7,1,1,
+448,per-task-rates,issue-447,2026-10-17T04:18:36Z,2026-10-17T06:04:01Z,1.76,0.59,307,4,1,6.1967,146,1,0,0,
