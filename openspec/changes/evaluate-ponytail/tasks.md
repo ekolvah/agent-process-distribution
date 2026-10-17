@@ -44,13 +44,66 @@
 
 Arm B is the person's own CLI sessions, `claude --model claude-opus-5-5 --plugin-dir <ponytail checkout>`, in A's session structure (design decisions 1–2).
 
-- [ ] 3.1 Task 1 setup, with the person's confirmation (design decision 2): once, the pilot ruleset on `refs/heads/pilot-base/**`, verified with `gh api repos/{owner}/{repo}/rules/branches/pilot-base/<slug>` after the push; `git push origin <base>:refs/heads/pilot-base/<slug>`; a pilot issue with A's issue title and body, its Area set with `set_status.py`; `git worktree add --detach <main>/.claude/worktrees/<slug>-base <base>`
-- [ ] 3.2 Arm B: `/opsx:propose <slug>-pilot #<pilot issue>` in the base worktree; before apply, `git config branch.<slug>-pilot.gh-merge-base pilot-base/<slug>` and `gh issue develop <pilot issue> --name <slug>-pilot --base pilot-base/<slug>`; then `/opsx:apply <slug>-pilot` until `wait_for_pr` settles. Record the PR, the ids of its archived `sessions` file, its settle time, its PR base, and whether `git rev-parse <plan commit>^` equals A's base
-- [ ] 3.3 Grep each B transcript and its `subagents/*.jsonl` for "You are a lazy senior developer" (rerun a session without it) and for `pull/<A PR>` and A's archive path (record a hit as a leak)
-- [ ] 3.4 Take task 1's B readings (design decision 3, the §I/§V readings and the arm differences included) into a table here, and apply the rule of decision 4; when it already decides, tick 3.5 as `skipped: task 1 decides`
-- [ ] 3.5 Task 2, as in 3.1–3.4
-- [ ] 3.6 Ask the person, per task, whether they would have merged B instead of A, and record it; close B's PRs and pilot issues as not planned; with the person's confirmation delete each `pilot-base/<slug>`, the pilot ruleset and each base worktree
-- [ ] 3.7 Commit this group's ticks and readings
+- [x] 3.1 Task 1 setup, with the person's confirmation (design decision 2): once, the pilot ruleset on `refs/heads/pilot-base/**`, verified with `gh api repos/{owner}/{repo}/rules/branches/pilot-base/<slug>` after the push; `git push origin <base>:refs/heads/pilot-base/<slug>`; a pilot issue with A's issue title and body, its Area set with `set_status.py`; `git worktree add --detach <main>/.claude/worktrees/<slug>-base <base>`
+  - per-task-rates: `pilot-base/per-task-rates` pushed at `989e318`; pilot issue 459 (title and body of A's issue, Area `Observability`); base worktree `.claude/worktrees/per-task-rates-base` at `989e318`. Ruleset `25298291`: `POST /rulesets` as `ekolvah-agent` returns 404 (no admin), so the person created it from `pilot-ruleset.json` (`pilot-base`, `refs/heads/pilot-base/**`: one approval with stale dismissal, required `agent-process / quality`, `agent-review / agent-review`, `pr-title`, no deletion rule, no bypass); `rules/branches/pilot-base/per-task-rates` lists its `pull_request` (1 approval) and `required_status_checks` rules.
+- [x] 3.2 Arm B: `/opsx:propose <slug>-pilot #<pilot issue>` in the base worktree; before apply, `git config branch.<slug>-pilot.gh-merge-base pilot-base/<slug>` and `gh issue develop <pilot issue> --name <slug>-pilot --base pilot-base/<slug>`; then `/opsx:apply <slug>-pilot` until `wait_for_pr` settles. Record the PR, the ids of its archived `sessions` file, its settle time, its PR base, and whether `git rev-parse <plan commit>^` equals A's base
+  - Departure, by the person's choice: arm B runs as headless sessions that Claude starts (`claude -p … --permission-mode auto`), not the person's own; build 2.1.296 (A: 2.1.300). Person turns are only the ones recorded here.
+  - per-task-rates propose: session `b2a978c3`, 5 subagents, `approve` at architect-review round 2; it dropped the issue's `telemetry-measurement-setup.md` edit and hides rows with an empty `api_requests` from the two rate panels. Then `gh-merge-base` and `gh issue develop 459 --name per-task-rates-pilot --base pilot-base/per-task-rates`. Apply: session `c27baa31`. It paused at 7/10 (`start_change` failed at `gh issue develop` on the detached base and the session finished its steps by hand; the SessionStart hook reported no agent identity) to ask whether to re-import the live dashboard; one person-substitute turn answered "skip the live check, note it in the PR", since the shared dashboard carries A's merged version. A pending `ScheduleWakeup` kept the `-p` process alive; it was stopped and the session resumed with `--resume`.
+  - per-task-rates result: PR 460 (base `pilot-base/per-task-rates`); archived `sessions` `b2a978c3`, `c27baa31`, both `claude-opus-5-5` only; plan commit `e05676f`, whose parent is A's base `989e318`. Settle: `wait_for_pr` returned at 2026-10-17T10:22:01Z on `87085bf` with every check green but `agent-process / link` (`PR 460 links no issue`) and `agent-process / quality`, which fails only on it. Cause: GitHub links a PR to an issue only when the PR targets the default branch, and B's base is `pilot-base/per-task-rates`; a setup artifact, not fixed, since the PR closes unmerged.
+- [x] 3.3 Grep each B transcript and its `subagents/*.jsonl` for "You are a lazy senior developer" (rerun a session without it) and for `pull/<A PR>` and A's archive path (record a hit as a leak)
+  - per-task-rates propose `b2a978c3`: the ruleset line in the transcript and in all 5 subagent transcripts. Leak: one `git log` output held the subject `feat: per-task-rates (#448)`; no `pull/448`, no archive path, and no command read that commit.
+  - per-task-rates apply `c27baa31`: the ruleset line in the transcript and in all 4 subagent transcripts; no leak (the archive-path hits are B's own `2026-10-17-per-task-rates-pilot`).
+- [x] 3.4 Take task 1's B readings (design decision 3, the §I/§V readings and the arm differences included) into a table here, and apply the rule of decision 4; when it already decides, tick 3.5 as `skipped: task 1 decides`
+  - Telemetry label `vcs_repository_name="ekolvah/agent-process-distribution"`, window from `start` to the settle above.
+
+    | Reading | per-task-rates (A) | per-task-rates (B) |
+    | --- | --- | --- |
+    | Settled head, time | `70265d5`, 05:33:04Z | `87085bf`, 10:22:01Z |
+    | `start`, `hours` | 04:18:36Z, 1.24 | 09:37:27Z, 0.74 |
+    | `agent_hours` | 0.53 | 0.36 |
+    | `cost_usd`, `api_requests` | 6.1575, 145 | 6.9422, 141 |
+    | `failed`, `denied`, `compactions` | 1, 0, 0 | 1, 0, 0 |
+    | `plan_rounds`, `code_rounds` | 4, 1 | 2, 1 |
+    | `lines`, changed files | 307, 11 | 355, 10 |
+    | Added dependencies, new scripts | 0, 0 | 0, 0 |
+    | `agent-review` findings P0/P1/P2/P3 | 0/0/0/0 (`claude-sonnet-5-5`) | 0/0/0/0 (`claude-sonnet-5-5`) |
+    | CI on the settled head | success, 14 checks | 12 of 14 success; `link` and `quality` fail on the pilot base |
+    | RED before the first implementation commit | yes | yes (`03c4918` before `c5b97f0`) |
+    | Test functions added | 1 | 1 |
+    | `shortcut:` comments, without an issue | 0, 0 | 0, 0 |
+
+  - Arm differences: no commit to `REVIEW_CONTRACT.md` or the review workflows since A's review; build 2.1.296 against 2.1.300; headless sessions with one person-substitute turn; no agent identity, so B's commits and PR carry the person's name; B's scope is narrower (no `telemetry-measurement-setup.md` edit).
+  - Rule of decision 4: B meets every floor (findings, rounds, RED first, tests, `shortcut:`; CI green but for the setup-caused `link`) but neither costs less (6.9422 against 6.1575) nor changes fewer lines (355 against 307), with a narrower scope. Task 1 decides: not planned.
+- [x] 3.5 Task 2, as in 3.1–3.4
+  - Departure, by the person's choice: task 2 runs although task 1 decides, in case task 1 is not representative.
+  - Setup: `pilot-base/planning-standard-first` pushed at `548ac6e`, covered by ruleset `25298291`; pilot issue 461 (title and body of A's issue, Area `Process quality`); base worktree `.claude/worktrees/planning-standard-first-base`.
+  - Leaked run, discarded: propose `523003a5` (slug `planning-standard-first-pilot`; `approve` at round 2; `/simplify` run by itself instead of the four agents) read `git log origin/main`, then `git show --stat` of A's merge commit and `gh pr view 454`, and reported it had not; apply `034ec719` found A's delivery on `origin/main` and stopped at 0/14 to propose closing the issue as a duplicate. Cost 2.40 + 0.90. Its change is kept outside the repository; its branch (no commits past the base) and worktree are deleted.
+  - Rerun, blind: slug `pilot-461`; each session gets `--append-system-prompt` (a blind re-delivery from the base: read nothing made after it; the PR targets the pilot base; never `ScheduleWakeup`) and `--disallowedTools` on `gh pr view|diff 454`, `gh issue view 451`, `gh pr list`, `gh issue list`, `gh search` and `git show` of A's merge commit. Propose: session `918bc8c1`, no leak, `approve` at architect-review round 2, 5 subagents; it also published a private artifact explaining the plan. Then `gh-merge-base` and `gh issue develop 461 --name pilot-461 --base pilot-base/planning-standard-first`. Apply: session `a4823b07`.
+  - Result: PR 462 (base `pilot-base/planning-standard-first`, branch `pilot-461-redelivery` made by hand, since `start_change` failed as in task 1). Plan commit `c282ef6`, whose parent is A's base `548ac6e`. The ruleset line is in both transcripts and all their subagent transcripts. No leak in the apply or its 4 subagents. Both sessions read only `claude-opus-5-5` on build 2.1.296, with no person-substitute turn. The archived `sessions` file also lists the discarded `523003a5` and `034ec719`; the readings take only `918bc8c1` and `a4823b07`. Settle: `wait_for_pr` returned at 2026-10-17T11:31:09Z on `7e99ad9`, with `link` and `quality` failing as in task 1.
+
+    | Reading | planning-standard-first (A) | planning-standard-first (B) |
+    | --- | --- | --- |
+    | Settled head, time | `0ab8fcd`, 08:07:30Z | `7e99ad9`, 11:31:09Z |
+    | `start`, `hours` | 06:47:02Z, 1.34 | 10:53:25Z, 0.63 |
+    | `agent_hours` | empty | empty |
+    | `cost_usd`, `api_requests` | 11.4290, 215 | 7.6205, 141 |
+    | `failed`, `denied`, `compactions` | 3, 3, 1 | 1, 0, 0 |
+    | `plan_rounds`, `code_rounds` | 4, 1 | 2, 1 |
+    | `lines`, changed files | 530, 15 | 435, 15 |
+    | Added dependencies, new scripts | 0, 0 | 0, 0 |
+    | `agent-review` findings P0/P1/P2/P3 | 0/0/0/0 | 0/0/1/0 (answered, thread left open) |
+    | CI on the settled head | success, 14 checks | 12 of 14 success; `link` and `quality` fail on the pilot base |
+    | RED before the first implementation commit | yes | yes (`56929b7` before `a272e10`) |
+    | Test functions added | 2 | 3 |
+    | `shortcut:` comments, without an issue | 0, 0 | 0, 0 |
+    | `gap` | as above | `agent_hours: no reset-free active time of a4823b07` (`918bc8c1`: 506 s) |
+
+  - Arm differences: as in task 1. Both B sessions are headless, with a blinding system prompt and deny-list. A's sessions had 2 mid-plan interventions, 1 compaction and 3 denials. B's run came after a discarded leaked attempt on the same issue.
+  - Rule of decision 4: B meets every floor (CI green but for the setup-caused `link`). It costs less (7.6205 against 11.4290) and changes fewer lines (435 against 530). Task 2 passes. Task 1 fails, and the rule requires each task, so the outcome stays not planned.
+- [x] 3.6 Ask the person, per task, whether they would have merged B instead of A, and record it; close B's PRs and pilot issues as not planned; with the person's confirmation delete each `pilot-base/<slug>`, the pilot ruleset and each base worktree
+  - The person gave no per-task merge verdict. After the readings and the bespoke comparison (Ponytail replaces none of the process's scripts or gates; it overlaps only their prose), they decided not to install it and asked for the cleanup.
+  - Closed unmerged: PRs 460 (auto-merge disabled first) and 462. Closed as not planned: issues 459 and 461. Deleted: base worktrees `per-task-rates-base` and `planning-standard-first-base`, the pilot worktree `per-task-rates-pilot`, local branches `per-task-rates-pilot` and `pilot-461-redelivery` (`-d`, both at their upstream), and on `origin` `per-task-rates-pilot`, `pilot-461`, `pilot-461-redelivery` and both `pilot-base/<slug>`. B's heads stay reachable as `refs/pull/<PR>/head`. Ruleset `25298291` is the person's to delete (the agent has no admin).
+- [x] 3.7 Commit this group's ticks and readings
 
 ## 4. Decision
 
