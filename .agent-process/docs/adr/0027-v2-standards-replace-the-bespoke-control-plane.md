@@ -663,6 +663,15 @@ questions of #114 in its order:
   unrelated one (sandbox issue 117 step 7a cited `#1`). The problem and the standard weighed
   are a `design.md` decision, the MADR "Considered Options" form, which the `bespoke` class
   judges for each script or check. No script.
+* Prior art is read before designing: the planner records the usage guidance of each
+  external tool the design rests on and the standard approach to the problem under
+  `## Standard approach`, with a URL or `none found:` and what was searched; in the `jev`
+  model analysis the vendor's guidance reached only the second measurement and the standard
+  approach had no source. `create_tracking_issue` exits 2 when neither `proposal.md` nor
+  `design.md` carries the section in that form, and the `bespoke` class judges its content.
+  Unlike `additions`, the source exists before the plan and the planner writes it before the
+  review; the script checks form, not relevance. Deletion condition: OpenSpec validates
+  required design sections, and a standard check replaces the function.
 * The v1 review control plane is deleted (`v2-4a-review-protection`, tracking issue 172,
   issue 114). Observed 2026-09-24: `is_valid_branch_name` printed `False False True` for
   `review-bespoke-standard`, `v2-2j-remove-v1-quality-caller` and

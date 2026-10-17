@@ -28,7 +28,11 @@ The token tactics are in [`always-on.md`](always-on.md#claude-harness).
 
 ## Proposal
 
-- Read the code and prior art before writing. Ask the person when a scope decision is theirs.
+- Read the code and prior art before writing: the usage guidance of each external tool,
+  model or API the design is built around or that is new to the repository, and the
+  standard approach to the problem. Record them under `## Standard approach` in `design.md`
+  or `proposal.md` with each source's URL, or `none found:` with what was searched. Ask the
+  person when a scope decision is theirs.
 - For a bug, record the reproduction — the failing test, or the exact observation when a test
   needs project-specific capture — and the root cause under **Why** before any design.
 - **Impact** lists every file added, edited, and removed; keep doc-only work separate.
@@ -106,7 +110,8 @@ review again. The propose run ends on `approve`: if the change has no issue, cho
 that fits the change from the Project's `Area` options and run
 `agent-process create_tracking_issue <change> --area <name>` (without
 `--area` it lists the options); otherwise run it without area. It validates the review
-first; send its errors back to the reviewer. The issue must be `Planned` before the
+first; send its errors back to the reviewer. A missing `## Standard approach` goes back to
+the planner, who adds it and reviews again. The issue must be `Planned` before the
 plan is ready. Then explain the plan in plain words — what changes, why, what `/simplify`
 changed, what the person decides — as a page linked in the final message, or in that
 message when the carrier cannot publish one. Artifact status is file existence only: the
