@@ -334,6 +334,7 @@ def test_tasks_of_a_new_change() -> None:
         "sed -i",
         "gh issue develop",
         "finish_change",
+        "create_tracking_issue",
         "--test",
         "--report",
         "AGENTS.md",
@@ -472,11 +473,11 @@ def test_reviewer_adapter_reads_the_shared_contract() -> None:
 def test_plan_approved() -> None:
     text = _skill()
     review = _section("Architect review")
-    assert text.index("## Architect review") < text.index("agent-process create_tracking_issue")
+    assert text.index("## Architect review") < text.index("agent-process finish_propose")
     # The tail is one command: the planner chooses the area, asking the person nothing.
-    assert review.index("choose the area") < review.index("agent-process create_tracking_issue")
+    assert review.index("choose the area") < review.index("agent-process finish_propose")
     assert re.search(r"\bask", review) is None
-    assert review.index("agent-process create_tracking_issue") < review.index("--area")
+    assert review.index("agent-process finish_propose") < review.index("--area")
     assert "priority" not in review
     assert "Planned" in review
     # Group 0 asks nothing and creates nothing: the token is how the number reaches the
@@ -485,7 +486,7 @@ def test_plan_approved() -> None:
     assert "agent-process start_change" in group0
     assert "tracking issue <N>" in group0
     assert "propose run not finished" in group0
-    for absent in ("create_tracking_issue", "priority", "--area", "Planned", "gh issue view"):
+    for absent in ("finish_propose", "priority", "--area", "Planned", "gh issue view"):
         assert absent not in group0, absent
 
 

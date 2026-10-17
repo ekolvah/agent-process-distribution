@@ -84,7 +84,7 @@ def test_second_task_in_one_session(
 
 def test_plan_creates_the_issue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Scenario: Plan creates the issue — the session is bound to the created issue."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     root = make_change(tmp_path, tasks=GROUP0.format(token=PLACEHOLDER))
     monkeypatch.setenv(_VARIABLE, "s-plan")
 
@@ -110,7 +110,7 @@ def test_plan_and_implementation_in_two_sessions(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Scenario: Plan and implementation in two sessions — the archived `sessions` lists both."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     start_change = load_script("start_change")
     archive_change = load_script("archive_change")
     root = make_change(tmp_path, tasks=GROUP0.format(token=PLACEHOLDER))
@@ -144,7 +144,7 @@ def test_side_issue_refused_before_create(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """D3: a session bound to another issue cannot create a change's issue."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     root = make_change(tmp_path, tasks=GROUP0.format(token=PLACEHOLDER))
     _seed(root, f"s-1 {_OTHER}\n")
     monkeypatch.setenv(_VARIABLE, "s-1")

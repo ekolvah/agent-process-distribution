@@ -39,7 +39,7 @@ Chosen: **the delivery scripts bind the session to the issue in a ledger of the 
 archive exports the issue's sessions with the change, and the readings filter Grafana by
 those session ids.**
 
-* **Binding.** `create_tracking_issue`, `start_change` and `archive_change` call
+* **Binding.** `finish_propose`, `start_change` and `archive_change` call
   `session_binding.bind(issue)` with `CLAUDE_CODE_SESSION_ID`. Filing a side issue with
   `set_status --area` does not bind. A hook would have to guess the issue from arbitrary
   commands, and no standard tool links a session to an issue.

@@ -143,7 +143,7 @@ Scripts v2 keeps or adds, and why the native feature falls short:
 * Codex ships hooks and subagents as stable → the Codex-specific self-review artifact and
   the `wait_for_pr`-only guard are removed; hooks are restored from v1 (`codex_hooks`).
 * GitHub Projects gain a native Planned/In Progress trigger → `set_status` is deleted.
-* OpenSpec gains a post-review hook → `start_change` and `create_tracking_issue` are
+* OpenSpec gains a post-review hook → `start_change` and `finish_propose` are
   deleted.
 * `gh pr checks --watch` learns the empty rollup and review threads → `wait_for_pr` is deleted.
 * `openspec validate` learns test results → `check_coverage` is deleted.
@@ -672,6 +672,11 @@ questions of #114 in its order:
   Unlike `additions`, the source exists before the plan and the planner writes it before the
   review; the script checks form, not relevance. Deletion condition: OpenSpec validates
   required design sections, and a standard check replaces the function.
+* The propose tail is renamed `finish_propose` (2026-10-17, `rename-propose-tail`): it
+  validates the plan before it creates or moves the issue, so the old name invited a skip
+  when the issue exists. No alias: `SKILL.md` and `start_change` ship in the same release
+  as the script, and a stale call exits 2 listing the scripts. The entries above keep the
+  old name as history.
 * The v1 review control plane is deleted (`v2-4a-review-protection`, tracking issue 172,
   issue 114). Observed 2026-09-24: `is_valid_branch_name` printed `False False True` for
   `review-bespoke-standard`, `v2-2j-remove-v1-quality-caller` and

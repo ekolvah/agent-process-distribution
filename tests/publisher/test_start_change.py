@@ -1,4 +1,4 @@
-"""``start_change`` and ``create_tracking_issue``, the entry scripts of the OpenSpec delivery
+"""``start_change`` and ``finish_propose``, the entry scripts of the OpenSpec delivery
 loop (changes v2-1a-delivery-scripts, v2-2f-start-change, release-drift-check).
 
 One test per scenario of the change's spec deltas that a script can prove; the
@@ -42,9 +42,9 @@ MOVED_SCRIPTS = {
     "agent_identity.py",
     "archive_change.py",
     "check_red.py",
-    "create_tracking_issue.py",
     "dashboard.py",
     "edit_lint.py",
+    "finish_propose.py",
     "init.py",
     "manual.py",
     "memory_checkpoint.py",
@@ -100,7 +100,7 @@ def test_verdict_is_rework(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert "rework" in capsys.readouterr().err
 
     # The propose tail refuses the same verdict: no issue from a plan still in rework.
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     root = make_change(tmp_path / "tail", verdict="rework", tasks=GROUP0.format(token=PLACEHOLDER))
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
@@ -132,7 +132,7 @@ def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
     for message in messages:
         assert message in err, message
 
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     root = make_change(tmp_path / "b", tasks=GROUP0.format(token=PLACEHOLDER), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
@@ -146,7 +146,7 @@ def test_review_not_valid(tmp_path: Path, capsys: pytest.CaptureFixture[str]) ->
 def test_plan_without_a_prior_issue(tmp_path: Path) -> None:
     """Scenario: Plan without a prior issue — an approve with no problem reference creates
     the issue: the reviewer never has to cite an unrelated one."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     root = make_change(tmp_path, tasks=GROUP0.format(token=PLACEHOLDER))
     gh = Gh()
     create.main([CHANGE, "--area", "Observability"], gh=gh, root=root)
@@ -168,7 +168,7 @@ def test_plan_without_a_standard_approach(
 ) -> None:
     """Scenario: Plan without a standard approach — an approve whose plan lacks the section's
     source is refused on both branches, and nothing is created or moved."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     for name, token, args in (
         ("placeholder", PLACEHOLDER, [CHANGE, "--area", "Observability"]),
         ("existing", TOKEN, [CHANGE]),
@@ -212,7 +212,7 @@ def test_addition_without_evidence(tmp_path: Path, capsys: pytest.CaptureFixture
     assert exc.value.code == 2 and develops(gh) == []
     assert message in capsys.readouterr().err
 
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     root = make_change(tmp_path / "b", tasks=GROUP0.format(token=PLACEHOLDER), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
@@ -255,7 +255,7 @@ def test_review_approves_an_open_finding(
     assert exc.value.code == 2 and develops(gh) == []
     assert "$.classes.length.result" in capsys.readouterr().err
 
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     root = make_change(tmp_path / "b", tasks=GROUP0.format(token=PLACEHOLDER), review=review)
     gh = Gh()
     with pytest.raises(SystemExit) as exc:
@@ -779,7 +779,7 @@ def test_plan_approved_creates_the_issue(
 ) -> None:
     """Scenario: Plan approved — the issue from proposal.md, Planned with the area, the
     number into tasks.md before `set_status`; the area is required on the placeholder."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
 
     root = make_change(tmp_path / "a", tasks=GROUP0.format(token=PLACEHOLDER))
     gh = Gh()
@@ -833,7 +833,7 @@ def test_plan_approved_creates_the_issue(
 
 def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Existing tracking issue — no create, an area refused, Planned alone."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
 
     root = make_change(tmp_path / "a", tasks=GROUP0.format(token=TOKEN))
     gh = Gh()
@@ -854,7 +854,7 @@ def test_area_field_drift_creates_no_issue(
 ) -> None:
     """Scenario: Area field drift — the area resolves against the Project before the issue is
     created: an unknown name or a board without `Area` is exit 2 and no issue exists."""
-    create = load_script("create_tracking_issue")
+    create = load_script("finish_propose")
     tasks_md = Path("openspec") / "changes" / CHANGE / "tasks.md"
 
     root = make_change(tmp_path / "a", tasks=GROUP0.format(token=PLACEHOLDER))
@@ -890,7 +890,7 @@ def _mixed_line_endings() -> bytes:
     return b"schema: spec-driven\r\n" + _release_config(load_script("init").VERSION)
 
 
-_SCRIPTS = {"start_change": START, "create_tracking_issue": [CHANGE]}
+_SCRIPTS = {"start_change": START, "finish_propose": [CHANGE]}
 _INSTALL_FIX = "re-run Install"
 _SKILL_FIX = "claude plugin update agent-process@agent-process-marketplace --scope"
 # case -> (config: a release to record, `None` for no release line, or a bytes factory;

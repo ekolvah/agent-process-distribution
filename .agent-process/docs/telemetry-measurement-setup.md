@@ -108,7 +108,7 @@ A task's telemetry is that of the Claude Code sessions bound to its issue, found
 and every token series the label `session_id`, equal to the session id that a script reads
 as `CLAUDE_CODE_SESSION_ID`.
 
-`create_tracking_issue`, `start_change` and `archive_change` bind the running session to the
+`finish_propose`, `start_change` and `archive_change` bind the running session to the
 change's issue in the clone's ledger `<git common dir>/agent-process/sessions`, one line
 `<session-id> <issue>` per binding. One session leads one task: a session bound to another
 issue exits 2 before the script's first side effect, with

@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 1,
+  "reviewer": "architect-reviewer",
+  "reasoning": "A mechanical rename whose deltas match the current specs except the name, whose Impact matches every live occurrence of the old name, and whose no-alias decision follows the cited standard's own premise; no class has a finding.",
+  "classes": {
+    "simpler": {
+      "evidence": "Considered: (a) an alias, rejected in design.md 'No alias for the old name' because SKILL.md, NOT_FINISHED and the script ship in one release and the drift check refuses a mismatch; (b) dropping the RED for the §I rename exemption: the RED is one string in an existing tuple with the finish_change precedent, cheaper than any other guard; (c) not renaming: the person chose the rename in issue 456. Nothing simpler fits.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Every scenario of the five MODIFIED requirements has a row: planning 12 (11 under 'Architect review is the last step of the propose run', 1 under 'A change planned from an issue is tracked by it'), measurement 4, distribution 3. Every mapped test exists (grep of def names in tests/publisher/). Each delta block is identical to openspec/specs/<cap>/spec.md with create_tracking_issue replaced by finish_propose (checked by script). `openspec validate rename-propose-tail --strict` passes.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 adds \"create_tracking_issue\" to the absent tuple of test_tasks_of_a_new_change (tests/publisher/test_planning_workflow.py:332). It fails today: SKILL.md:111 names the old command inside the procedure slice, before '## Install' (SKILL.md:156). Task 2.2 lists its test edits by site (load_script, _SCRIPTS, MOVED_SCRIPTS, test_plan_approved), so the new tuple entry is outside them; if a blanket replace changed it anyway, task 2.3 would fail visibly.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Design rests on: launcher exits 2 listing the plugin's scripts for an unknown name: bin/agent-process usage() and tests/publisher/test_plugin.py:359 test_launcher_refuses_an_unknown_script (asserts exit 2 and the listed name); the release-drift refusal: test_release_drift; 'resolves any script by file name': bin/agent-process lines 24-30. The session-restart claim repeats the existing distribution requirement and is not load-bearing: a stale call fails visibly whether or not the restart happened.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Replaced input: the command name create_tracking_issue. There is no alias, and design.md lists the decision. Dropped guard: none. test_plan_approved's group0 absent entry becomes finish_propose, which keeps its meaning (Group 0 does not run the tail). The one-off git grep check that /simplify removed was a plan step, not an existing guard. Its job passes to the RED tuple entry for SKILL.md and to load_script failures for the tests.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Named catchers: (1) the absent tuple: the old name back in the SKILL.md procedure fails test_tasks_of_a_new_change in the quality test of task 3.3 and in the PR's quality check; (2) the launcher usage(): a stale `agent-process create_tracking_issue` exits 2 listing finish_propose at the consumer's call; (3) load_script('create_tracking_issue') in an unedited test fails after the git mv in task 2.3. The NOT_FINISHED path (start_change.py:70) has no test on the path; task 2.2 covers it through Impact, and a miss would fail visibly (python cannot open the file, non-zero exit), not silently.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "No rule or spec sentence is added. Edited sentences change one identifier and keep their word count: the SKILL.md tail sentence (SKILL.md:109-112, 42 words; test_plan_approved asserts about 6: 'choose the area', 'agent-process <tail>', '--area', and no 'ask' or 'priority'), and the spec sentences of the five requirements (word counts unchanged; their tests assert the script name and outcomes as today). Trimming those pre-existing sentences would be adjacent refactoring (§VII). The ADR 0027 dated entry is a history record, not a rule.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The source of '## Standard approach' is the standard for removing public functionality, the SemVer FAQ on deprecation, plus the finish_change -> archive_change precedent (ADR 0027 v2-1d). The design departs from the deprecation window on the window's own premise: no callers outside the release. That holds because start_change's NOT_FINISHED and SKILL.md ship with the script and drift is refused. The plan adds no new script or check: one entry in an existing test tuple.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

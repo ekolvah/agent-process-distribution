@@ -91,7 +91,7 @@ skill and that schema, not in a schema of OpenSpec: the OpenSpec schema is the u
 `none found` is unconvincing, or a new script or check whose `design.md` decision does not name the problem it closes and the
 standard it weighed, SHALL each be a finding class. On
 `rework` the planner SHALL apply or answer every finding in the artifact it names and the
-review SHALL run again. On `approve` the planner SHALL run `create_tracking_issue <change>`
+review SHALL run again. On `approve` the planner SHALL run `finish_propose <change>`
 — with the area the planner chose from the Project's `Area` options when the change has no tracking issue yet — which
 SHALL exit 2 without creating or moving anything when the file is not valid or its verdict is
 not `approve`, the errors going back to the reviewer, or when neither `proposal.md` nor
@@ -109,23 +109,23 @@ existence only.
 
 #### Scenario: Review class without evidence
 - **WHEN** the reviewer writes `architect-review.json` with a class missing, an empty evidence, or a finding without its four fields
-- **THEN** `create_tracking_issue` exits 2 naming each validation error, creates no issue, and the propose run does not report the artifacts ready
+- **THEN** `finish_propose` exits 2 naming each validation error, creates no issue, and the propose run does not report the artifacts ready
 
 #### Scenario: Over-long rule or bespoke check
 - **WHEN** a plan carries a rule or spec sentence longer than the words its tests assert, a `## Standard approach` whose source is not the standard approach to the problem or whose `none found` is unconvincing, or a new script or check whose `design.md` decision does not name the problem it closes and the standard it weighed
 - **THEN** the architect review reports it as a finding of its class before the person approves
 
 #### Scenario: Plan without a standard approach
-- **WHEN** `create_tracking_issue` runs on an `approve` review whose change has no `## Standard approach` section in `proposal.md` or `design.md`, or one with neither a URL nor `none found:` with text
+- **WHEN** `finish_propose` runs on an `approve` review whose change has no `## Standard approach` section in `proposal.md` or `design.md`, or one with neither a URL nor `none found:` with text
 - **THEN** it exits 2 naming the section, and creates no issue and moves no status
 
 #### Scenario: Plan without a prior issue
 - **WHEN** an `approve` review of a change with no tracking issue yet carries every class `ok` and no reference to a problem
-- **THEN** `create_tracking_issue` creates the issue
+- **THEN** `finish_propose` creates the issue
 
 #### Scenario: Addition without evidence
 - **WHEN** a review carries an `additions` key
-- **THEN** `create_tracking_issue` and `start_change` exit 2 naming `additions` as not allowed, and nothing is created
+- **THEN** `finish_propose` and `start_change` exit 2 naming `additions` as not allowed, and nothing is created
 
 #### Scenario: Rework verdict
 - **WHEN** `architect-review.json` says `rework`
@@ -137,7 +137,7 @@ existence only.
 - **THEN** the tracking issue exists and is a Project item in `Planned` with its area before the propose run reports the artifacts ready
 
 #### Scenario: Existing tracking issue
-- **WHEN** `create_tracking_issue` runs on a change whose `tasks.md` already carries the issue number
+- **WHEN** `finish_propose` runs on a change whose `tasks.md` already carries the issue number
 - **THEN** it creates no issue, refuses an area, and moves that issue to `Planned`
 
 #### Scenario: Review archives with the change
@@ -199,7 +199,7 @@ into the `tracking issue <N>` token of Group 0 as it writes `tasks.md`.
 
 #### Scenario: Plan from an existing issue
 - **WHEN** a change is planned from an existing issue
-- **THEN** Group 0 of its `tasks.md` carries that issue's number, and `create_tracking_issue` creates no issue and moves that issue to `Planned`
+- **THEN** Group 0 of its `tasks.md` carries that issue's number, and `finish_propose` creates no issue and moves that issue to `Planned`
 
 ### Requirement: A simplify pass precedes the architect review
 The architect-review procedure of the shared skill SHALL run `/simplify` on
