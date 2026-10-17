@@ -120,12 +120,10 @@ def test_rate_panels(title: str, count: str) -> None:
     binary = steps[rate]["options"]["binary"]
     assert (binary["left"]["matcher"]["options"], binary["operator"]) == (count, "/")
     assert binary["right"]["matcher"]["options"] == "api_requests"
-    hide = next(
-        index
-        for index, step in enumerate(steps)
-        if step["id"] == "organize" and step["options"]["excludeByName"].get("api_requests")
+    assert any(
+        step["id"] == "organize" and step["options"]["excludeByName"].get("api_requests")
+        for step in steps[rate + 1 :]
     )
-    assert rate < hide
     properties = {prop["id"]: prop["value"] for prop in _overrides(panel)["per 100 requests"]}
     assert (properties["unit"], properties["custom.axisPlacement"]) == ("percentunit", "right")
 

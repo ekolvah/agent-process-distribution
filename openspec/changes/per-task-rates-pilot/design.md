@@ -39,7 +39,7 @@ records its readings* requirement and its tests, and old rows would stay without
 
 ### D2: The rate draws on a right axis of the same panel
 
-A field override on `per 100 requests` sets the unit, a display name, a fixed colour distinct
+A field override on `per 100 requests` sets the unit, a fixed colour distinct
 from the green count and orange trend, and `custom.axisPlacement: right`. Auto would also
 place it right, since "When there are two or more series with different units, Grafana
 assigns the left axis to the first unit and the right axis to the units that follow"

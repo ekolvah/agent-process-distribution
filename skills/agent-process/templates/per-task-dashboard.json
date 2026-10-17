@@ -1087,10 +1087,6 @@
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "per 100 requests"
-              },
-              {
                 "id": "unit",
                 "value": "percentunit"
               },
@@ -1414,10 +1410,6 @@
               "options": "per 100 requests"
             },
             "properties": [
-              {
-                "id": "displayName",
-                "value": "per 100 requests"
-              },
               {
                 "id": "unit",
                 "value": "percentunit"

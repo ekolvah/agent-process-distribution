@@ -14,8 +14,8 @@
 
 ## 3. Verify
 
-- [ ] 3.1 Run `/simplify` without an argument and commit its edits
-- [ ] 3.2 Run `openspec validate --strict --all`
+- [x] 3.1 Run `/simplify` without an argument and commit its edits
+- [x] 3.2 Run `openspec validate --strict --all`
 - [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares; then, with the person's confirmation, re-import `aqxk4q` from `agent-process dashboard ekolvah/agent-process-distribution` over its UID and record in the PR body the `per 100 requests` value the `compactions` panel shows for PR 401 (expected 1.46%)
 
 ## 4. Deliver
