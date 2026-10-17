@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 Revise `tests/publisher/test_dashboard.py::test_rate_panels` for scenario *Rate panels* with the file's helpers: each panel carries its D1 computed column, its rate override gives it unit `suffix:/100 req` on the right axis, the window trend and the `per task` override stay on the count, and `organize` also hides `api_requests`
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_dashboard.py::test_rate_panels` and commit the revised RED with these ticks
+- [x] 1.1 Revise `tests/publisher/test_dashboard.py::test_rate_panels` for scenario *Rate panels* with the file's helpers: each panel carries its D1 computed column, its rate override gives it unit `suffix:/100 req` on the right axis, the window trend and the `per task` override stay on the count, and `organize` also hides `api_requests`
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_dashboard.py::test_rate_panels` and commit the revised RED with these ticks
 
 ## 2. Rate panels
 
