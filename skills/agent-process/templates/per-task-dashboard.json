@@ -1079,6 +1079,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "per 100 requests"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "per 100 requests"
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1119,6 +1146,11 @@
             {
               "selector": "denied",
               "text": "denied",
+              "type": "number"
+            },
+            {
+              "selector": "api_requests",
+              "text": "api_requests",
               "type": "number"
             }
           ],
@@ -1170,6 +1202,13 @@
                   "options": {}
                 },
                 "fieldName": "denied"
+              },
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "api_requests"
               }
             ],
             "match": "any",
@@ -1200,9 +1239,33 @@
           }
         },
         {
+          "id": "calculateField",
+          "options": {
+            "alias": "per 100 requests",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "failed + denied"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "api_requests"
+                }
+              }
+            },
+            "mode": "binary",
+            "replaceFields": false
+          }
+        },
+        {
           "id": "organize",
           "options": {
             "excludeByName": {
+              "api_requests": true,
               "denied": true,
               "failed": true
             }
@@ -1344,6 +1407,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "per 100 requests"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "per 100 requests"
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1379,6 +1469,11 @@
             {
               "selector": "compactions",
               "text": "compactions",
+              "type": "number"
+            },
+            {
+              "selector": "api_requests",
+              "text": "api_requests",
               "type": "number"
             }
           ],
@@ -1423,10 +1518,48 @@
                   "options": {}
                 },
                 "fieldName": "compactions"
+              },
+              {
+                "config": {
+                  "id": "isNull",
+                  "options": {}
+                },
+                "fieldName": "api_requests"
               }
             ],
             "match": "any",
             "type": "exclude"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "per 100 requests",
+            "binary": {
+              "left": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "compactions"
+                }
+              },
+              "operator": "/",
+              "right": {
+                "matcher": {
+                  "id": "byName",
+                  "options": "api_requests"
+                }
+              }
+            },
+            "mode": "binary",
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "api_requests": true
+            }
           }
         },
         {

@@ -9,8 +9,8 @@
 
 ## 2. Panels
 
-- [ ] 2.1 In `skills/agent-process/templates/per-task-dashboard.json`, panel 23: add the `api_requests` column and its entry in the null filter, the binary step after the null filter and an `organize` excluding `api_requests` (D1), and the override with unit `percentunit` and the right axis (D2); panel 22: the same, the binary step after the `failed + denied` sum and `api_requests` added to its `organize`. Verify `python -m pytest tests/publisher/test_dashboard.py`
-- [ ] 2.2 Commit the group with its ticks
+- [x] 2.1 In `skills/agent-process/templates/per-task-dashboard.json`, panel 23: add the `api_requests` column and its entry in the null filter, the binary step after the null filter and an `organize` excluding `api_requests` (D1), and the override with unit `percentunit` and the right axis (D2); panel 22: the same, the binary step after the `failed + denied` sum and `api_requests` added to its `organize`. Verify `python -m pytest tests/publisher/test_dashboard.py`
+- [x] 2.2 Commit the group with its ticks
 
 ## 3. Verify
 
