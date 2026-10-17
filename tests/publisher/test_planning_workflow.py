@@ -207,6 +207,27 @@ def test_over_long_rule_or_bespoke_check() -> None:
     assert "the problem it closes" in design and "the standard for its job" in design
 
 
+def test_departure_from_the_standard() -> None:
+    """Scenario: Departure from the standard — `bespoke` judges the section of every plan, and
+    § Proposal opens with the step that writes it."""
+    bespoke = _class_description("bespoke")
+    for phrase in (
+        "every plan",
+        "## Standard approach",
+        "the standard approach",
+        "follows or departs from it",
+    ):
+        assert phrase in bespoke, phrase
+    proposal = _section("Proposal")
+    for phrase in (
+        "usage guidance",
+        "industry-standard approach",
+        "## Standard approach",
+        "none found:",
+    ):
+        assert phrase in proposal, phrase
+
+
 def test_review_round() -> None:
     """Scenario: Review round — the schema requires `round` and states how it is counted."""
     schema = _schema()

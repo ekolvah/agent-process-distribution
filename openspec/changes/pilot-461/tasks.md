@@ -4,11 +4,11 @@
 
 ## 1. RED
 
-- [ ] 1.1 Add `## Standard approach` with a URL to the `proposal.md` that `tests/publisher/delivery_fakes.py::make_change` writes, so existing tests keep passing the gate
-- [ ] 1.2 Add `tests/publisher/test_start_change.py::test_standard_approach_missing`: no section, a section of plain text, and `none found:` with nothing after it each exit 2 naming `## Standard approach` and "review again" on the placeholder branch, and one of them on the existing-number branch; no create and no edit
-- [ ] 1.3 Add `tests/publisher/test_start_change.py::test_standard_approach_recorded`: the section only in `design.md` with `none found: <what was searched>` creates the issue; the fixture's URL in `proposal.md` moves an existing one to `Planned`
-- [ ] 1.4 Add `tests/publisher/test_planning_workflow.py::test_departure_from_the_standard`: the `bespoke` description names "every plan", `## Standard approach`, "the standard approach" and "follows or departs from it"; § Proposal names "usage guidance", "industry-standard approach", "## Standard approach" and "none found:"
-- [ ] 1.5 Run `agent-process check_red tests/publisher/test_start_change.py::test_standard_approach_missing tests/publisher/test_planning_workflow.py::test_departure_from_the_standard` (`test_standard_approach_recorded` passes before the gate exists) and commit RED with these ticks
+- [x] 1.1 Add `## Standard approach` with a URL to the `proposal.md` that `tests/publisher/delivery_fakes.py::make_change` writes, so existing tests keep passing the gate
+- [x] 1.2 Add `tests/publisher/test_start_change.py::test_standard_approach_missing`: no section, a section of plain text, and `none found:` with nothing after it each exit 2 naming `## Standard approach` and "review again" on the placeholder branch, and one of them on the existing-number branch; no create and no edit
+- [x] 1.3 Add `tests/publisher/test_start_change.py::test_standard_approach_recorded`: the section only in `design.md` with `none found: <what was searched>` creates the issue; the fixture's URL in `proposal.md` moves an existing one to `Planned`
+- [x] 1.4 Add `tests/publisher/test_planning_workflow.py::test_departure_from_the_standard`: the `bespoke` description names "every plan", `## Standard approach`, "the standard approach" and "follows or departs from it"; § Proposal names "usage guidance", "industry-standard approach", "## Standard approach" and "none found:"
+- [x] 1.5 Run `agent-process check_red tests/publisher/test_start_change.py::test_standard_approach_missing tests/publisher/test_planning_workflow.py::test_departure_from_the_standard` (`test_standard_approach_recorded` passes before the gate exists) and commit RED with these ticks
 
 ## 2. Standard approach gate
 

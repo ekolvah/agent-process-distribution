@@ -805,6 +805,57 @@ def test_existing_tracking_issue(tmp_path: Path, capsys: pytest.CaptureFixture[s
     assert [e[e.index("--single-select-option-id") + 1] for e in gh.edits()] == ["S_PLAN"]
 
 
+@pytest.mark.parametrize(
+    "proposal",
+    [
+        "## Why\n\nA fixture.\n",
+        "## Why\n\nA fixture.\n\n## Standard approach\n\nModel cascades.\n",
+        "## Why\n\nA fixture.\n\n## Standard approach\n\nnone found:\n\n## Impact\n\nhttps://x.org\n",
+    ],
+)
+def test_standard_approach_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], proposal: str
+) -> None:
+    """Scenario: Standard approach missing — no section, plain text, or `none found:` with
+    nothing after it is exit 2 naming the section on both branches; nothing created or moved."""
+    create = load_script("create_tracking_issue")
+    for name, token, argv in (
+        ("a", PLACEHOLDER, [CHANGE, "--area", "Observability"]),
+        ("b", TOKEN, [CHANGE]),
+    ):
+        root = make_change(tmp_path / name, tasks=GROUP0.format(token=token))
+        (root / "openspec" / "changes" / CHANGE / "proposal.md").write_text(
+            proposal, encoding="utf-8"
+        )
+        gh = Gh()
+        with pytest.raises(SystemExit) as exc:
+            create.main(argv, gh=gh, root=root)
+        assert exc.value.code == 2 and creates(gh) == [] and gh.edits() == []
+        err = capsys.readouterr().err
+        assert "## Standard approach" in err and "review again" in err
+
+
+def test_standard_approach_recorded(tmp_path: Path) -> None:
+    """Scenario: Standard approach recorded — `none found:` and what was searched in
+    design.md alone creates the issue; the fixture's URL in proposal.md moves an existing one."""
+    create = load_script("create_tracking_issue")
+    root = make_change(tmp_path / "a", tasks=GROUP0.format(token=PLACEHOLDER))
+    change_dir = root / "openspec" / "changes" / CHANGE
+    (change_dir / "proposal.md").write_text("## Why\n\nA fixture.\n", encoding="utf-8")
+    (change_dir / "design.md").write_text(
+        "## Standard approach\n\nnone found: vendor docs, MADR, markdownlint rules\n",
+        encoding="utf-8",
+    )
+    gh = Gh()
+    create.main([CHANGE, "--area", "Observability"], gh=gh, root=root)
+    assert len(creates(gh)) == 1
+
+    root = make_change(tmp_path / "b", tasks=GROUP0.format(token=TOKEN))
+    gh = Gh()
+    create.main([CHANGE], gh=gh, root=root)
+    assert [e[e.index("--single-select-option-id") + 1] for e in gh.edits()] == ["S_PLAN"]
+
+
 def test_area_field_drift_creates_no_issue(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
