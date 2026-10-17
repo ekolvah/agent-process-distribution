@@ -4,6 +4,19 @@ A Claude Code plugin that takes a GitHub issue to a merged PR through a planned,
 reviewed process, where nothing reaches the default branch without passing checks, a Claude
 review and the owner's approval.
 
+## Why
+
+An AI agent left alone in a repository writes code fast, but:
+
+| Problem | What the process does |
+| --- | --- |
+| It starts coding before anyone agreed what to build, and scope drifts. | Every change starts as a written plan — proposal, design, tasks — reviewed by an architect agent and approved by you before any code. |
+| It patches symptoms and ships untested code, so the same bugs come back. | Tests come first: a failing test, then the code. A bug fix names its root cause before the change. |
+| Its mistakes reach the default branch: a skipped review, a force-push, a self-merge. | The agent works under its own bot account. A branch ruleset protects the default branch: a PR needs the quality check, a Claude review and your approval to merge. |
+| Across sessions nobody sees which task is where. | Each change is an issue on a GitHub Project that moves Todo → Planned → In Progress → Done, linked to its branch and PR. |
+| You cannot tell what a task cost in tokens or where the agent struggled. | Every delivered task records its readings — tokens, requests, compactions, failed calls — on one dashboard. |
+| Each repository reinvents these rules and they drift. | One plugin installs the same process into every repository and updates it by release. |
+
 ## What it is
 
 - **The `agent-process` plugin** for Claude Code: commands, agents, hooks and the

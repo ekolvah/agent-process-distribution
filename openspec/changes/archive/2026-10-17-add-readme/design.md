@@ -9,7 +9,7 @@ relative links and anchors are already checked by
 ## Decisions
 
 **D1 — Root `README.md`, standard-readme order, under 100 lines.** Sections: title
-`agent-process-distribution`; the one-line description (D3); what it is (the Claude Code plugin
+`agent-process-distribution`; the one-line description (D3); Why (the problems it solves, one row per spec Purpose: planning, implementation, review-and-merge, state, measurement, distribution); what it is (the Claude Code plugin
 `agent-process`, the portable skill, the enforced gates); Install (the three machine-level steps
 of the `plugin-channel` row — `claude plugin marketplace add`, Enable auto-update under `/plugin`
 → Marketplaces, `claude plugin install` — then `/agent-process:init` in the target repository);
