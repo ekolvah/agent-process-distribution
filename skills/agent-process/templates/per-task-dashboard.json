@@ -1079,6 +1079,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed_denied_per_100_requests"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "per 100 requests"
+              },
+              {
+                "id": "unit",
+                "value": "suffix:/100 req"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1120,6 +1147,11 @@
               "selector": "denied",
               "text": "denied",
               "type": "number"
+            },
+            {
+              "selector": "api_requests",
+              "text": "api_requests",
+              "type": "number"
             }
           ],
           "datasource": {
@@ -1143,6 +1175,11 @@
               "selector": "'__REPOSITORY__'",
               "text": "repository",
               "type": "string"
+            },
+            {
+              "selector": "(failed + denied) * 100 / api_requests",
+              "text": "failed_denied_per_100_requests",
+              "type": "number"
             }
           ]
         }
@@ -1204,7 +1241,8 @@
           "options": {
             "excludeByName": {
               "denied": true,
-              "failed": true
+              "failed": true,
+              "api_requests": true
             }
           }
         },
@@ -1344,6 +1382,33 @@
                 }
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "compactions_per_100_requests"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "per 100 requests"
+              },
+              {
+                "id": "unit",
+                "value": "suffix:/100 req"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
           }
         ]
       },
@@ -1380,6 +1445,11 @@
               "selector": "compactions",
               "text": "compactions",
               "type": "number"
+            },
+            {
+              "selector": "api_requests",
+              "text": "api_requests",
+              "type": "number"
             }
           ],
           "datasource": {
@@ -1403,6 +1473,11 @@
               "selector": "'__REPOSITORY__'",
               "text": "repository",
               "type": "string"
+            },
+            {
+              "selector": "compactions * 100 / api_requests",
+              "text": "compactions_per_100_requests",
+              "type": "number"
             }
           ]
         }
@@ -1427,6 +1502,14 @@
             ],
             "match": "any",
             "type": "exclude"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "api_requests": true
+            }
           }
         },
         {

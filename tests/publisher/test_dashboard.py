@@ -100,6 +100,39 @@ def test_hours_panel() -> None:
     assert index["agent_hours"] == index["hours"] + 1
 
 
+def test_rate_panels() -> None:
+    """Scenario: Rate panels."""
+    _, dashboard = _render(_KINOZAL)
+    rates = {
+        "compactions_per_100_requests": (
+            "compactions * 100 / api_requests",
+            "compactions",
+            ["api_requests"],
+        ),
+        "failed_denied_per_100_requests": (
+            "(failed + denied) * 100 / api_requests",
+            "failed + denied",
+            ["failed", "denied", "api_requests"],
+        ),
+    }
+    for rate, (expression, count, hidden) in rates.items():
+        (panel,) = [p for p in _data_panels(dashboard) if rate in _computed(p["targets"][0])]
+        assert _computed(panel["targets"][0])[rate] == expression
+        assert "api_requests" in _selectors(panel)
+        overrides = _overrides(panel)
+        assert {"id": "unit", "value": "suffix:/100 req"} in overrides[rate]
+        assert {"id": "custom.axisPlacement", "value": "right"} in overrides[rate]
+        assert {"id": "displayName", "value": "per task"} in overrides[count]
+        window = next(
+            t["options"]["window"]
+            for t in panel["transformations"]
+            if t["options"].get("mode") == "windowFunctions"
+        )
+        assert window["field"] == count
+        organize = next(t for t in panel["transformations"] if t["id"] == "organize")
+        assert organize["options"]["excludeByName"] == dict.fromkeys(hidden, True)
+
+
 def test_several_repositories() -> None:
     """Scenario: Several repositories."""
     _, dashboard = _render(_OTHER, _KINOZAL)
