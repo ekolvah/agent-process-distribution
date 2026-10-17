@@ -4,7 +4,7 @@
 
 ## 1. RED
 
-- [ ] 1.1 Add `"create_tracking_issue"` to the `absent` tuple of `test_tasks_of_a_new_change` in `tests/publisher/test_planning_workflow.py` (design: The old name is a guarded absence); run `agent-process check_red` with its node id and commit RED with this tick
+- [x] 1.1 Add `"create_tracking_issue"` to the `absent` tuple of `test_tasks_of_a_new_change` in `tests/publisher/test_planning_workflow.py` (design: The old name is a guarded absence); run `agent-process check_red` with its node id and commit RED with this tick
 
 ## 2. Rename
 

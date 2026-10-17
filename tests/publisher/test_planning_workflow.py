@@ -334,6 +334,7 @@ def test_tasks_of_a_new_change() -> None:
         "sed -i",
         "gh issue develop",
         "finish_change",
+        "create_tracking_issue",
         "--test",
         "--report",
         "AGENTS.md",
