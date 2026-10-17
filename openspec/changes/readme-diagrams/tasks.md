@@ -4,13 +4,13 @@
 
 ## 1. RED
 
-- [ ] 1.1 no RED: docs-only, `skip_specs`
+- [x] 1.1 no RED: docs-only, `skip_specs`
 
 ## 2. Diagrams
 
-- [ ] 2.1 Add the architecture diagram under "What it is" and replace its bullets with one sentence (design D1, D3)
-- [ ] 2.2 Add the process diagram under "Usage" and drop the Why table's status clause (design D2, D3); verify each diagram is at most 14 lines, `wc -l README.md` prints under 100 and `python -m pytest tests/agent_process/test_doc_links.py` passes
-- [ ] 2.3 Commit the group with its ticks as `docs: add architecture and process diagrams to the README`
+- [x] 2.1 Add the architecture diagram under "What it is" and replace its bullets with one sentence (design D1, D3)
+- [x] 2.2 Add the process diagram under "Usage" and drop the Why table's status clause (design D2, D3); verify each diagram is at most 14 lines, `wc -l README.md` prints under 100 and `python -m pytest tests/agent_process/test_doc_links.py` passes
+- [x] 2.3 Commit the group with its ticks as `docs: add architecture and process diagrams to the README`
 
 ## 3. Verify
 

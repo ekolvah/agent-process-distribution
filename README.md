@@ -13,21 +13,31 @@ An AI agent left alone in a repository writes code fast, but:
 | It starts coding before anyone agreed what to build, and scope drifts. | Every change starts as a written plan — proposal, design, tasks — reviewed by an architect agent and approved by you before any code. |
 | It patches symptoms and ships untested code, so the same bugs come back. | Tests come first: a failing test, then the code. A bug fix names its root cause before the change. |
 | Its mistakes reach the default branch: a skipped review, a force-push, a self-merge. | The agent works under its own bot account. A branch ruleset protects the default branch: a PR needs the quality check, a Claude review and your approval to merge. |
-| Across sessions nobody sees which task is where. | Each change is an issue on a GitHub Project that moves Todo → Planned → In Progress → Done, linked to its branch and PR. |
+| Across sessions nobody sees which task is where. | Each change is an issue on a GitHub Project, linked to its branch and PR. |
 | You cannot tell what a task cost in tokens or where the agent struggled. | Every delivered task records its readings — tokens, requests, compactions, failed calls — on one dashboard. |
 | Each repository reinvents these rules and they drift. | One plugin installs the same process into every repository and updates it by release. |
 
 ## What it is
 
-- **The `agent-process` plugin** for Claude Code: commands, agents, hooks and the
-  `agent-process` and `openspec` launchers.
-- **A portable skill**, [`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md): the
-  procedure the agent follows. Each change is planned with
-  [OpenSpec](https://github.com/Fission-AI/OpenSpec) — a proposal, spec deltas, a design and
-  tasks under `openspec/` — implemented test-first and delivered as a PR.
-- **Gates** installed into the adopting repository: a required quality check and a required
-  Claude review on every PR, enforced by a branch ruleset. The agent opens PRs under its own bot
-  account; the owner's approval merges them.
+The `agent-process` plugin carries a portable skill,
+[`skills/agent-process/SKILL.md`](skills/agent-process/SKILL.md): the procedure for planning each change with [OpenSpec](https://github.com/Fission-AI/OpenSpec)
+and delivering it as a PR through gates installed in the adopting repository:
+
+```mermaid
+flowchart LR
+  subgraph dev["Developer machine"]
+    plugin["agent-process plugin: /agent-process:init, architect-reviewer, hooks, launchers"]; skill["portable skill: SKILL.md"]
+  end
+  subgraph repo["Adopted repository"]
+    opsx[".claude/commands/opsx/"]; specs["openspec/"]; ap[".agent-process/ and workflows"]
+  end
+  subgraph gh["GitHub"]
+    pr["PR under the bot account"]; checks["required checks and ruleset"]; owner["owner's approval"]; project["Project"]
+  end
+  plugin -->|init installs| repo
+  dev -->|agent opens| pr
+  checks -->|gate the merge| pr
+```
 
 ## Install
 
@@ -52,6 +62,19 @@ In an adopted repository:
 
 - `/opsx:propose <what to build>` plans a change and has it reviewed by an architect agent.
 - `/opsx:apply <change>` implements an approved plan and delivers it as a PR.
+
+```mermaid
+flowchart TD
+  issue["issue: Todo"] --> propose["/opsx:propose: proposal, specs, design, tasks"]
+  propose --> arch{"architect review"}
+  arch -->|rework| propose
+  arch -->|"approve: issue Planned"| plan["owner approves the plan"]
+  plan --> apply["/opsx:apply: worktree and branch, issue In Progress"]
+  apply --> red["RED tests"] --> code["code"] --> verify["Verify"] --> pr["archive and PR"]
+  pr --> review{"quality check and Claude review"}
+  review -->|"findings, at most 3 rounds"| code
+  review -->|pass| owner["owner's approval"] --> merge["merge: issue Done"]
+```
 
 ## Where things live
 
