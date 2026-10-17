@@ -4,12 +4,12 @@
 
 ## 1. RED
 
-- [ ] 1.1 no RED: docs-only, `skip_specs`
+- [x] 1.1 no RED: docs-only, `skip_specs`
 
 ## 2. README
 
-- [ ] 2.1 Add `LICENSE` with the standard MIT text (2026, `ekolvah`); write `README.md` per design D1–D3 and `git add` both; verify it is under 100 lines, its three install steps equal the `plugin-channel` row of `skills/agent-process/scripts/manual.py`, and `python -m pytest tests/agent_process/test_doc_links.py` passes
-- [ ] 2.2 Commit the group with its ticks as `docs: add a README`
+- [x] 2.1 Add `LICENSE` with the standard MIT text (2026, `ekolvah`); write `README.md` per design D1–D3 and `git add` both; verify it is under 100 lines, its three install steps equal the `plugin-channel` row of `skills/agent-process/scripts/manual.py`, and `python -m pytest tests/agent_process/test_doc_links.py` passes
+- [x] 2.2 Commit the group with its ticks as `docs: add a README`
 
 ## 3. Verify
 

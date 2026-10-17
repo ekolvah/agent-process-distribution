@@ -1,6 +1,6 @@
 ## Context
 
-No `README.md` or `LICENSE` exists. Install lives in `skills/agent-process/SKILL.md#install` and
+No `README.md` or `LICENSE` exists. Install lives in the Install section of `skills/agent-process/SKILL.md` and
 the `plugin-channel` row of `skills/agent-process/scripts/manual.py`. Every tracked `.md` file's
 relative links and anchors are already checked by
 `tests/agent_process/test_doc_links.py::test_every_internal_link_resolves`, which the declared
@@ -14,8 +14,8 @@ relative links and anchors are already checked by
 of the `plugin-channel` row — `claude plugin marketplace add`, Enable auto-update under `/plugin`
 → Marketplaces, `claude plugin install` — then `/agent-process:init` in the target repository);
 Usage (`/opsx:propose`, `/opsx:apply`); Where things live (specs, changes, ADRs, principles,
-`CHANGELOG.md`); Contributing (changes go through the process itself: links `CLAUDE.md` and
-`SKILL.md#delivery`); License: MIT, linking `LICENSE` (the owner chose free use; MIT is the common permissive license, copyright `ekolvah`). No table of contents:
+`CHANGELOG.md`); Contributing (changes go through the process itself: links `CLAUDE.md` and the
+Delivery section of `SKILL.md`); License: MIT, linking `LICENSE` (the owner chose free use; MIT is the common permissive license, copyright `ekolvah`). No table of contents:
 standard-readme makes it optional under 100 lines. Alternative: `.github/README.md` — hidden from
 a clone's root listing.
 
