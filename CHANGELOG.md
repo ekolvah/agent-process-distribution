@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.28.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.27.0...v3.28.0) (2026-10-17)
+
+
+### Features
+
+* planning-standard-first ([#454](https://github.com/ekolvah/agent-process-distribution/issues/454)) ([13b76ab](https://github.com/ekolvah/agent-process-distribution/commit/13b76ab27875f349f6971df0238c7efd68a1610d))
+
 ## [3.27.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.26.0...v3.27.0) (2026-10-17)
 
 
