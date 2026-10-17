@@ -100,6 +100,36 @@ def test_hours_panel() -> None:
     assert index["agent_hours"] == index["hours"] + 1
 
 
+@pytest.mark.parametrize(
+    ("title", "count"),
+    [("compactions", "compactions"), ("failed + denied calls", "failed + denied")],
+)
+def test_rate_panels(title: str, count: str) -> None:
+    """Scenario: Rate panels."""
+    _, dashboard = _render(_KINOZAL)
+    (panel,) = [panel for panel in _data_panels(dashboard) if panel["title"] == title]
+    assert "api_requests" in _selectors(panel)
+    steps = panel["transformations"]
+    null_filter = next(step for step in steps if step["id"] == "filterByValue")
+    assert "api_requests" in [entry["fieldName"] for entry in null_filter["options"]["filters"]]
+    rate = next(
+        index
+        for index, step in enumerate(steps)
+        if step["id"] == "calculateField" and step["options"].get("alias") == "per 100 requests"
+    )
+    binary = steps[rate]["options"]["binary"]
+    assert (binary["left"]["matcher"]["options"], binary["operator"]) == (count, "/")
+    assert binary["right"]["matcher"]["options"] == "api_requests"
+    hide = next(
+        index
+        for index, step in enumerate(steps)
+        if step["id"] == "organize" and step["options"]["excludeByName"].get("api_requests")
+    )
+    assert rate < hide
+    properties = {prop["id"]: prop["value"] for prop in _overrides(panel)["per 100 requests"]}
+    assert (properties["unit"], properties["custom.axisPlacement"]) == ("percentunit", "right")
+
+
 def test_several_repositories() -> None:
     """Scenario: Several repositories."""
     _, dashboard = _render(_OTHER, _KINOZAL)

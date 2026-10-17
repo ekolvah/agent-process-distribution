@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 Add `test_rate_panels` to `tests/publisher/test_dashboard.py`, reusing `_data_panels`, `_selectors` and `_overrides`: for the panels titled `compactions` and `failed + denied calls`, assert `api_requests` is among `_selectors(panel)`; the null `filterByValue` names `api_requests`; a `calculateField` binary step divides the count by `api_requests`, aliased `per 100 requests`, and comes before the `organize` that excludes `api_requests`; its override sets unit `percentunit` and `custom.axisPlacement` `right`
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_dashboard.py::test_rate_panels` and commit RED with these ticks
+- [x] 1.1 Add `test_rate_panels` to `tests/publisher/test_dashboard.py`, reusing `_data_panels`, `_selectors` and `_overrides`: for the panels titled `compactions` and `failed + denied calls`, assert `api_requests` is among `_selectors(panel)`; the null `filterByValue` names `api_requests`; a `calculateField` binary step divides the count by `api_requests`, aliased `per 100 requests`, and comes before the `organize` that excludes `api_requests`; its override sets unit `percentunit` and `custom.axisPlacement` `right`
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_dashboard.py::test_rate_panels` and commit RED with these ticks
 
 ## 2. Panels
 
