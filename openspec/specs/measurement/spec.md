@@ -76,10 +76,10 @@ those sessions to `merged_at`.
 - **THEN** those events add nothing to the row's `cost_usd` or `api_requests`
 
 ### Requirement: A session leads one task
-A session already bound to another issue SHALL make `create_tracking_issue`, `start_change`
+A session already bound to another issue SHALL make `finish_propose`, `start_change`
 and `archive_change` exit 2 before any issue, branch, status or archive change. The message
 SHALL name both issues and ask for a new session. Otherwise each script SHALL bind the session
-named by `CLAUDE_CODE_SESSION_ID` to the change's tracking issue; `create_tracking_issue`
+named by `CLAUDE_CODE_SESSION_ID` to the change's tracking issue; `finish_propose`
 binds a newly created issue once its number is in `tasks.md`. When
 `CLAUDE_CODE_SESSION_ID` is unset, the script SHALL print that the session is not bound and
 SHALL continue.
@@ -89,7 +89,7 @@ SHALL continue.
 - **THEN** the script exits 2, names both issues, and creates no branch
 
 #### Scenario: Plan creates the issue
-- **WHEN** an unbound session runs `create_tracking_issue` for a change without an issue
+- **WHEN** an unbound session runs `finish_propose` for a change without an issue
 - **THEN** the session is bound to the issue the script created
 
 #### Scenario: No session variable
@@ -101,7 +101,7 @@ Before the change is archived, `archive_change` SHALL write every session bound 
 change's tracking issue into the change's `sessions` file, one id per line.
 
 #### Scenario: Plan and implementation in two sessions
-- **WHEN** one session ran `create_tracking_issue` and another ran `start_change` and
+- **WHEN** one session ran `finish_propose` and another ran `start_change` and
   `archive_change` for the same change
 - **THEN** the archived change's `sessions` lists both session ids
 

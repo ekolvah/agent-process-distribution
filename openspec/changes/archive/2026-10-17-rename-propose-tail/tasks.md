@@ -20,7 +20,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change rename-propose-tail`, then `gh pr create --title "refactor: rename-propose-tail" --body-file <report>`; the report names tracking issue 456 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §I, §VII)
+- [x] 4.1 Run `agent-process archive_change rename-propose-tail`, then `gh pr create --title "refactor: rename-propose-tail" --body-file <report>`; the report names tracking issue 456 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §I, §VII)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
