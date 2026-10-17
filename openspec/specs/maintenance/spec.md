@@ -16,8 +16,8 @@ sections and a known status; records are immutable after acceptance.
 ### Requirement: Documents are guarded
 In every tracked file, links SHALL resolve. An issue or PR reference SHALL appear only in a
 history record: an ADR record under `.agent-process/docs/adr/`, `CHANGELOG.md`, or a change
-under `openspec/changes/`. A document under `.claude/rules/`, and the skill's
-`principles.md`, SHALL also state the question it answers.
+under `openspec/changes/`. A document under `.claude/rules/` SHALL also state the question it
+answers.
 
 #### Scenario: Narrative issue reference
 - **WHEN** a comment, docstring or document outside the history records carries `#N`,

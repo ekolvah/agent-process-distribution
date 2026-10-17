@@ -48,12 +48,8 @@ read_budget_hint = _policy.read_budget_hint
 
 # Mapped Markdown paths; this project's own file-map document defines the canonical
 # boundary. `.claude/rules` is a Layer 1 (Claude adapter) directory: it only exists, and is
-# only scanned, when that adapter is installed. The skill's `principles.md` is mapped as a
-# file: `SKILL.md` beside it is the procedure, not a mapped document.
-_SCOPED_DIRS = (
-    _REPO_ROOT / "skills" / "agent-process" / "principles.md",
-    _REPO_ROOT / ".claude" / "rules",
-)
+# only scanned, when that adapter is installed.
+_SCOPED_DIRS = (_REPO_ROOT / ".claude" / "rules",)
 # English is the repository documentation language; the marker set is closed.
 _MARKERS = ("**Question this document answers:**",)
 
@@ -73,11 +69,8 @@ def _mapped_docs_in(directory: Path) -> list[Path]:
     """Use `rglob`, not `glob`: the specification says ".md" **under** the directory.
 
     A flat `glob` would silently leave a future subdirectory's `.md` files outside the
-    invariant — the same form of silent vacuum as moving the directory itself. A mapped file
-    is its own scope.
+    invariant — the same form of silent vacuum as moving the directory itself.
     """
-    if directory.is_file():
-        return [directory]
     return sorted(directory.rglob("*.md"))
 
 

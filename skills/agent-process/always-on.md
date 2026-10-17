@@ -26,8 +26,6 @@ not to do X". Trigger heuristic: the moment a rule is phrased as "must not forge
 X belongs in a script or a gate. When a tool causes friction, look first for the
 architectural choice that causes it, not for a workaround script.
 
-**Rationale:** an agent skips prose items in a long pipeline; `exit 0/1` always runs.
-
 ## Operative principles
 
 - **§I** A behavioural change starts with a failing test: RED, code, GREEN. Exempt: renaming or
@@ -40,7 +38,7 @@ architectural choice that causes it, not for a workaround script.
   a WARNING; a fatal error logs ERROR and exits non-zero.
 - **§V** Reproduce and locate the failure before a change: instrument first, observe the live
   system when it is the subject. No workaround, shim, retry, broader catch or CI bypass until
-  the cause is named.
+  the cause is named or a documented mitigation links its issue.
 - **§VI** Config is validated at load; a new class of config error gets its check in the same
   PR.
 - **§VII** The minimum diff for the stated task, nothing speculative: touch only what it
