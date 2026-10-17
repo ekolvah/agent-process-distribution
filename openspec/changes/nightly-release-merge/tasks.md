@@ -4,9 +4,9 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_reusable_workflows.py` add `test_push_to_main`: `release-please.yml` triggers on exactly `push` to `main` and `schedule` with cron `17 0 * * *`, and its release-please action step has `skip-github-pull-request: ${{ github.event_name == 'push' }}` and no `skip-github-release`
-- [ ] 1.2 In the same file add `test_release_pr_behind_main`: `release-please-config.json` has `"always-update": true`
-- [ ] 1.3 Run `agent-process check_red` with the node ids of 1.1 and 1.2 and commit RED with these ticks
+- [x] 1.1 In `tests/publisher/test_reusable_workflows.py` add `test_push_to_main`: `release-please.yml` triggers on exactly `push` to `main` and `schedule` with cron `17 0 * * *`, and its release-please action step has `skip-github-pull-request: ${{ github.event_name == 'push' }}` and no `skip-github-release`
+- [x] 1.2 In the same file add `test_release_pr_behind_main`: `release-please-config.json` has `"always-update": true`
+- [x] 1.3 Run `agent-process check_red` with the node ids of 1.1 and 1.2 and commit RED with these ticks
 
 ## 2. Nightly release PR
 

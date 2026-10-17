@@ -894,3 +894,26 @@ def test_release_workflow_moves_stable() -> None:
     assert "--force" not in run and "force=true" not in run
     assert "continue-on-error" not in move
     assert "|| true" not in run and "set +e" not in run
+
+
+def test_push_to_main() -> None:
+    """Scenario: Push to main — only the nightly run opens or updates the release PR; a
+    push run still creates the release of a merged release PR (ADR 0046)."""
+    document = _workflow("release-please.yml")
+    assert _trigger(document) == {
+        "push": {"branches": ["main"]},
+        "schedule": [{"cron": "17 0 * * *"}],
+    }
+    (job,) = document["jobs"].values()
+    action = next(
+        s for s in job["steps"] if s.get("uses", "").startswith("googleapis/release-please")
+    )
+    assert action["with"]["skip-github-pull-request"] == "${{ github.event_name == 'push' }}"
+    assert "skip-github-release" not in action["with"]
+
+
+def test_release_pr_behind_main() -> None:
+    """Scenario: Release PR behind main — the nightly run pushes an open release PR onto
+    the current `main` even when its release notes are unchanged."""
+    config = json.loads((ROOT / "release-please-config.json").read_text(encoding="utf-8"))
+    assert config["always-update"] is True
