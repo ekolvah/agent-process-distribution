@@ -267,7 +267,9 @@ plugin's `templates/per-task-dashboard.json` for this repository
 ([ADR 0042](adr/0042-the-per-task-dashboard-renders-for-a-list-of-repositories.md)): an edit
 goes into the template, and `aqxk4q` is re-imported from
 `agent-process dashboard ekolvah/agent-process-distribution` over its UID, or the next
-import drops the edit. In the table, `task_id` links to the task's issue.
+import drops the edit. In the table, `task_id` links to the task's issue. The compactions
+and failed-plus-denied panels also draw the count per 100 `api_requests` on a right axis;
+the table keeps the counts.
 
 ### Adopters
 

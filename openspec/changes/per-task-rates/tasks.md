@@ -9,9 +9,9 @@
 
 ## 2. Rate panels
 
-- [ ] 2.1 Apply D1 to panels 22 and 23 of `skills/agent-process/templates/per-task-dashboard.json` (spec measurement: The dashboard draws step events per 100 requests next to the count); verify `tests/publisher/test_dashboard.py`
-- [ ] 2.2 In the `aqxk4q` paragraph of `.agent-process/docs/telemetry-measurement-setup.md`, say that compactions and failed plus denied calls also draw a per-100-API-requests line on a right axis and that the table keeps the counts
-- [ ] 2.3 Commit the group with its ticks
+- [x] 2.1 Apply D1 to panels 22 and 23 of `skills/agent-process/templates/per-task-dashboard.json` (spec measurement: The dashboard draws step events per 100 requests next to the count); verify `tests/publisher/test_dashboard.py`
+- [x] 2.2 In the `aqxk4q` paragraph of `.agent-process/docs/telemetry-measurement-setup.md`, say that compactions and failed plus denied calls also draw a per-100-API-requests line on a right axis and that the table keeps the counts
+- [x] 2.3 Commit the group with its ticks
 
 ## 3. Verify
 
