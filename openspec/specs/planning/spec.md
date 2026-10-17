@@ -25,7 +25,8 @@ person when a decision is theirs. Project context reaches it from `openspec/conf
 
 ### Requirement: Human approval is the gate
 The person SHALL approve the change; nothing implements before the person runs
-`/opsx:apply <change>` (`$openspec-apply-change`). The only automated check on a plan SHALL be `openspec validate --strict`.
+`/opsx:apply <change>` (`$openspec-apply-change`). The only automated checks on a plan SHALL be
+`openspec validate --strict` and the form of its `## Standard approach` section.
 
 #### Scenario: Validator scope
 - **WHEN** a change validates
@@ -83,8 +84,9 @@ standard it weighed, SHALL each be a finding class. On
 `rework` the planner SHALL apply or answer every finding in the artifact it names and the
 review SHALL run again. On `approve` the planner SHALL run `create_tracking_issue <change>`
 — with the area the planner chose from the Project's `Area` options when the change has no tracking issue yet — which
-SHALL exit 2 without creating anything when the file is not valid or its verdict is not
-`approve`, the errors going back to the reviewer; otherwise it creates the issue from the
+SHALL exit 2 without creating or moving anything when the file is not valid, its verdict is not
+`approve`, or `## Standard approach` is missing or out of form, the errors going back to the
+reviewer; otherwise it creates the issue from the
 proposal, sets its Status to `Planned` with the area and writes the number into
 `tasks.md`, or, when `tasks.md` already carries the number, sets `Planned` alone and refuses
 an area; the propose run ends there. The apply gate SHALL be the first delivery task of
@@ -131,6 +133,14 @@ existence only.
 #### Scenario: Review round
 - **WHEN** the reviewer reviews a change again after `rework`
 - **THEN** the new `architect-review.json` carries a `round` one more than the file it replaces, and a review without `round` fails validation naming it
+
+#### Scenario: Standard approach missing
+- **WHEN** `create_tracking_issue` runs on an approved change where neither `design.md` nor `proposal.md` has `## Standard approach` in form (missing, plain text, or `none found:` with nothing after it)
+- **THEN** it exits 2 naming `## Standard approach`, and no issue is created or moved
+
+#### Scenario: Standard approach recorded
+- **WHEN** the section in `design.md` or `proposal.md` carries a URL or `none found:` and what was searched
+- **THEN** `create_tracking_issue` creates or moves the tracking issue as it does without the gate
 
 ### Requirement: Platform facts are observed before a design rests on them
 A proposal whose design rests on a platform behaviour — an event, a permission, a merge
@@ -193,3 +203,15 @@ architect review, and the plan's explanation SHALL state what `/simplify` change
 #### Scenario: Plan written
 - **WHEN** a propose run has written `tasks.md`
 - **THEN** `/simplify` runs on the change directory before the `architect-reviewer` is invoked, and the explanation states what it changed
+
+### Requirement: Planning starts from the standard approach
+Before designing, the planner SHALL read the usage guidance of each external tool, model or API
+the change touches and SHALL record under `## Standard approach` in `design.md` or
+`proposal.md` the industry-standard approach to the problem with its source: a URL, or
+`none found:` followed by what was searched. The architect review's
+`bespoke` class SHALL judge, for every plan, whether the source is the standard approach and why
+the design follows or departs from it.
+
+#### Scenario: Departure from the standard
+- **WHEN** a plan lacks the section, its source is not the standard approach to the problem, or the design departs from it without saying why
+- **THEN** the architect review reports it as a `bespoke` finding before the person approves
