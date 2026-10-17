@@ -107,9 +107,11 @@ Arm B is the person's own CLI sessions, `claude --model claude-opus-5-5 --plugin
 
 ## 4. Decision
 
-- [ ] 4.1 Write `.agent-process/docs/adr/0046-ponytail-evaluation.md` from `template.md`: the comparison (design Context), the gate's resolutions, the method and its limits (decisions 1–2), the readings, the person's picks, the outcome. On adoption it names the install path of decision 4; on not planned, the deletion condition that would reopen the question. It cites no issue numbers; the delivery report links the pilot PRs
-- [ ] 4.2 On adoption only: add one optional row with decision 4's install path to `skills/agent-process/SKILL.md` `## Install`, after verifying the pinned `ref` with `claude plugin marketplace add` and `claude plugin list` on a machine without that marketplace; otherwise record `not planned: no Install row`
-- [ ] 4.3 Delete the Ponytail checkout and `~/.config/ponytail/band/`; commit the group with its ticks
+- [x] 4.1 Write `.agent-process/docs/adr/0046-ponytail-evaluation.md` from `template.md`: the comparison (design Context), the gate's resolutions, the method and its limits (decisions 1–2), the readings, the person's picks, the outcome. On adoption it names the install path of decision 4; on not planned, the deletion condition that would reopen the question. It cites no issue numbers; the delivery report links the pilot PRs
+- [x] 4.2 On adoption only: add one optional row with decision 4's install path to `skills/agent-process/SKILL.md` `## Install`, after verifying the pinned `ref` with `claude plugin marketplace add` and `claude plugin list` on a machine without that marketplace; otherwise record `not planned: no Install row`
+  - not planned: no Install row
+- [x] 4.3 Delete the Ponytail checkout and `~/.config/ponytail/band/`; commit the group with its ticks
+  - Deleted the checkout, the discarded leaked change kept beside it, and `~/.config/ponytail/` (it held only `band/`, created by the pilot).
 
 ## 5. Verify
 
