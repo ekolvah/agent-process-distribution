@@ -10,11 +10,11 @@
 
 ## 2. Standard approach first
 
-- [ ] 2.1 Apply design decision 1 to the first bullet of `## Proposal` in `skills/agent-process/SKILL.md` (spec planning: Design on an external tool)
-- [ ] 2.2 Apply design decision 2 to the `bespoke` description in `skills/agent-process/architect-review.schema.json` (spec planning: Over-long rule or bespoke check)
-- [ ] 2.3 Apply design decision 3 in `skills/agent-process/scripts/create_tracking_issue.py`: the section check after the verdict, before either branch, and one docstring sentence; in `SKILL.md` `## Architect review`, after "send its errors back to the reviewer", say that a missing section goes back to the planner, who adds it and reviews again (spec planning: Plan without a standard approach)
-- [ ] 2.4 Apply design decision 4: add the bullet to `.agent-process/docs/adr/0027-v2-standards-replace-the-bespoke-control-plane.md` after the `additions` removal entry
-- [ ] 2.5 Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_start_change.py tests/agent_process/test_issue_refs.py tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
+- [x] 2.1 Apply design decision 1 to the first bullet of `## Proposal` in `skills/agent-process/SKILL.md` (spec planning: Design on an external tool)
+- [x] 2.2 Apply design decision 2 to the `bespoke` description in `skills/agent-process/architect-review.schema.json` (spec planning: Over-long rule or bespoke check)
+- [x] 2.3 Apply design decision 3 in `skills/agent-process/scripts/create_tracking_issue.py`: the section check after the verdict, before either branch, and one docstring sentence; in `SKILL.md` `## Architect review`, after "send its errors back to the reviewer", say that a missing section goes back to the planner, who adds it and reviews again (spec planning: Plan without a standard approach)
+- [x] 2.4 Apply design decision 4: add the bullet to `.agent-process/docs/adr/0027-v2-standards-replace-the-bespoke-control-plane.md` after the `additions` removal entry
+- [x] 2.5 Verify `python -m pytest tests/publisher/test_planning_workflow.py tests/publisher/test_start_change.py tests/agent_process/test_issue_refs.py tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 

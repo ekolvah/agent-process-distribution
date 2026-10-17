@@ -5,7 +5,9 @@ Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--
 
 A release drift exits 2 first, as in `start_change`. The architect review is validated
 next, as `start_change` reads it: an invalid file or a
-verdict other than approve is exit 2 and nothing is created. Then `tasks.md` of the change
+verdict other than approve is exit 2 and nothing is created, as is a plan whose `proposal.md`
+and `design.md` carry no `## Standard approach` section with a URL or `none found:` and text
+(its form only; the review judges its content). Then `tasks.md` of the change
 decides the branch through its `tracking issue <N>` token (Group 0;
 the same read as `start_change`): while it carries the placeholder, `--area` is required (its
 refusal lists the Project's `Area` options for the planner to choose from) and is resolved against the Project's `Area` options first (a missing field or option is exit 2
@@ -44,6 +46,29 @@ def _issue_number(create_output: str) -> int:
     return int(tail)
 
 
+_SECTION = "## Standard approach"
+_SOURCE = re.compile(r"https?://|none found:\s*\S")
+
+
+def _require_standard_approach(change_dir: Path) -> None:
+    """A `## Standard approach` section, up to the next `##` heading, carries a source."""
+    for name in ("proposal.md", "design.md"):
+        path = change_dir / name
+        if not path.is_file():
+            continue
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for i, heading in enumerate(lines):
+            if heading.strip() != _SECTION:
+                continue
+            end = next((j for j in range(i + 1, len(lines)) if lines[j].startswith("## ")), None)
+            if _SOURCE.search("\n".join(lines[i + 1 : end])):
+                return
+    raise ValueError(
+        f"{_SECTION} missing or empty in proposal.md and design.md: add it with each source's "
+        "URL or `none found:` with what was searched, then review again (no issue created)"
+    )
+
+
 def create_tracking_issue(
     change: str, *, area: str | None, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
@@ -57,6 +82,7 @@ def create_tracking_issue(
             f"verdict: {line} — apply the findings, re-review (no issue created)", file=sys.stderr
         )
         return 2
+    _require_standard_approach(change_dir)
     tasks_md = change_dir / "tasks.md"
     number = tracking_issue(tasks_md)
 
