@@ -47,22 +47,16 @@ def _issue_number(create_output: str) -> int:
 
 
 _SECTION = "## Standard approach"
+_BODY = re.compile(rf"^{_SECTION}[ \t]*$(.*?)(?=^## |\Z)", re.M | re.S)
 _SOURCE = re.compile(r"https?://|none found:\s*\S")
 
 
 def _require_standard_approach(change_dir: Path) -> None:
     """A `## Standard approach` section, up to the next `##` heading, carries a source."""
-    for name in ("proposal.md", "design.md"):
-        path = change_dir / name
-        if not path.is_file():
-            continue
-        lines = path.read_text(encoding="utf-8").splitlines()
-        for i, heading in enumerate(lines):
-            if heading.strip() != _SECTION:
-                continue
-            end = next((j for j in range(i + 1, len(lines)) if lines[j].startswith("## ")), None)
-            if _SOURCE.search("\n".join(lines[i + 1 : end])):
-                return
+    for path in (change_dir / "proposal.md", change_dir / "design.md"):
+        text = path.read_text(encoding="utf-8") if path.is_file() else ""
+        if any(_SOURCE.search(body) for body in _BODY.findall(text)):
+            return
     raise ValueError(
         f"{_SECTION} missing or empty in proposal.md and design.md: add it with each source's "
         "URL or `none found:` with what was searched, then review again (no issue created)"
