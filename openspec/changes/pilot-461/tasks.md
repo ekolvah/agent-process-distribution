@@ -12,11 +12,11 @@
 
 ## 2. Standard approach gate
 
-- [ ] 2.1 In `create_tracking_issue.py`, after the verdict check, refuse with exit 2 per design.md "Form" (spec planning: Architect review is the last step of the propose run); extend the module docstring; verify both scenario tests
-- [ ] 2.2 Extend the `bespoke` description in `architect-review.schema.json` with the content judgement (design.md "Content is the `bespoke` class"); verify `test_departure_from_the_standard` and `test_over_long_rule_or_bespoke_check`
-- [ ] 2.3 Open § Proposal of `skills/agent-process/SKILL.md` with the standard-approach step; verify `test_departure_from_the_standard`
-- [ ] 2.4 Add the bullet to ADR 0027 after the `additions` removal (design.md "Unlike the removed `additions` regex"); verify `tests/agent_process/test_adr_records.py`
-- [ ] 2.5 Commit the group with its ticks
+- [x] 2.1 In `create_tracking_issue.py`, after the verdict check, refuse with exit 2 per design.md "Form" (spec planning: Architect review is the last step of the propose run); extend the module docstring; verify both scenario tests
+- [x] 2.2 Extend the `bespoke` description in `architect-review.schema.json` with the content judgement (design.md "Content is the `bespoke` class"); verify `test_departure_from_the_standard` and `test_over_long_rule_or_bespoke_check`
+- [x] 2.3 Open § Proposal of `skills/agent-process/SKILL.md` with the standard-approach step; verify `test_departure_from_the_standard`
+- [x] 2.4 Add the bullet to ADR 0027 after the `additions` removal (design.md "Unlike the removed `additions` regex"); verify `tests/agent_process/test_adr_records.py`
+- [x] 2.5 Commit the group with its ticks
 
 ## 3. Verify
 

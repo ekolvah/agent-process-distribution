@@ -5,7 +5,10 @@ Usage: python skills/agent-process/scripts/create_tracking_issue.py <change> [--
 
 A release drift exits 2 first, as in `start_change`. The architect review is validated
 next, as `start_change` reads it: an invalid file or a
-verdict other than approve is exit 2 and nothing is created. Then `tasks.md` of the change
+verdict other than approve is exit 2 and nothing is created. So is a plan whose `design.md` and
+`proposal.md` both lack `## Standard approach` in form: the section, up to the next `#` or `##`
+heading, holds a URL or `none found:` followed by text on its line; the message says to review
+again, since the approve never judged it. Then `tasks.md` of the change
 decides the branch through its `tracking issue <N>` token (Group 0;
 the same read as `start_change`): while it carries the placeholder, `--area` is required (its
 refusal lists the Project's `Area` options for the planner to choose from) and is resolved against the Project's `Area` options first (a missing field or option is exit 2
@@ -34,6 +37,9 @@ from session_binding import PLACEHOLDER, bind, ledger_path, tracking_issue
 from set_status import Gh, area_options, check_area, run_gh, set_status
 from start_change import ROOT, SCRIPT_DIR, verdict
 
+_STANDARD = re.compile(r"^## Standard approach[^\S\n]*$(.*?)(?=^##? |\Z)", re.M | re.S)
+_SOURCE = re.compile(r"https?://|none found:[^\S\n]*\S")
+
 
 def _issue_number(create_output: str) -> int:
     """`gh issue create` prints the issue URL; its last path segment is the number."""
@@ -42,6 +48,17 @@ def _issue_number(create_output: str) -> int:
     if not tail.isdigit():
         raise RuntimeError(f"`gh issue create` printed no issue URL: {create_output!r}")
     return int(tail)
+
+
+def _standard_approach(change_dir: Path) -> bool:
+    """`## Standard approach` in `design.md` or `proposal.md` carries a URL or `none found:` and
+    what was searched."""
+    return any(
+        _SOURCE.search(section)
+        for name in ("design.md", "proposal.md")
+        if (change_dir / name).is_file()
+        for section in _STANDARD.findall((change_dir / name).read_text(encoding="utf-8"))
+    )
 
 
 def create_tracking_issue(
@@ -55,6 +72,14 @@ def create_tracking_issue(
     if line != "approve":
         print(
             f"verdict: {line} — apply the findings, re-review (no issue created)", file=sys.stderr
+        )
+        return 2
+    if not _standard_approach(change_dir):
+        print(
+            "`## Standard approach` missing or out of form in design.md and proposal.md — record "
+            "the industry-standard approach with its source (a URL, or `none found:` and what was "
+            "searched), then review again (no issue created or moved)",
+            file=sys.stderr,
         )
         return 2
     tasks_md = change_dir / "tasks.md"

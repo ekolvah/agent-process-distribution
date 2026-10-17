@@ -66,7 +66,7 @@
         },
         "bespoke": {
           "$ref": "#/$defs/class",
-          "description": "Each script or check the plan adds and its design.md decision: the problem it closes and the standard for its job and why it does not fit; a missing or unconvincing decision is a finding."
+          "description": "Each script or check the plan adds and its design.md decision: the problem it closes and the standard for its job and why it does not fit; a missing or unconvincing decision is a finding. For every plan, its `## Standard approach`: a missing section is a finding, otherwise whether the source is the standard approach to the problem and why the design follows or departs from it."
         }
       }
     },

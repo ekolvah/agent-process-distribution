@@ -28,6 +28,10 @@ The token tactics are in [`always-on.md`](always-on.md#claude-harness).
 
 ## Proposal
 
+- Before designing, read the usage guidance of each external tool, model or API the task
+  touches, and record the industry-standard approach to the problem under
+  `## Standard approach` in `design.md` or `proposal.md` with its source: a URL, or
+  `none found:` and what was searched.
 - Read the code and prior art before writing. Ask the person when a scope decision is theirs.
 - For a bug, record the reproduction — the failing test, or the exact observation when a test
   needs project-specific capture — and the root cause under **Why** before any design.

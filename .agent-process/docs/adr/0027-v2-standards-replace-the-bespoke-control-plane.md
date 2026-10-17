@@ -663,6 +663,11 @@ questions of #114 in its order:
   unrelated one (sandbox issue 117 step 7a cited `#1`). The problem and the standard weighed
   are a `design.md` decision, the MADR "Considered Options" form, which the `bespoke` class
   judges for each script or check. No script.
+* Every plan records `## Standard approach` in `design.md` or `proposal.md`, and
+  `create_tracking_issue.py` refuses a section without a URL or `none found:` and what was
+  searched. Unlike the removed `additions` regex, `none found:` is a valid outcome, so no plan
+  must cite an unrelated source, and the scope is one section, not every non-test file; whether
+  the source is the standard approach is the `bespoke` judgement.
 * The v1 review control plane is deleted (`v2-4a-review-protection`, tracking issue 172,
   issue 114). Observed 2026-09-24: `is_valid_branch_name` printed `False False True` for
   `review-bespoke-standard`, `v2-2j-remove-v1-quality-caller` and
