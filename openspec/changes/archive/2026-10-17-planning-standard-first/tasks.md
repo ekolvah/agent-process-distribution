@@ -24,7 +24,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change planning-standard-first`, then `gh pr create --title "feat: planning-standard-first" --body-file <report>`; the report names tracking issue 451 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §IV, §VII, Scripts over instructions)
+- [x] 4.1 Run `agent-process archive_change planning-standard-first`, then `gh pr create --title "feat: planning-standard-first" --body-file <report>`; the report names tracking issue 451 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §IV, §VII, Scripts over instructions)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
