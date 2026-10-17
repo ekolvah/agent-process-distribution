@@ -16,11 +16,11 @@
 
 - [x] 3.1 Run `/simplify` without an argument and commit its edits
 - [x] 3.2 Run `openspec validate --strict --all`
-- [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares; then, with the person's confirmation, re-import `aqxk4q` from `agent-process dashboard ekolvah/agent-process-distribution` over its UID and record in the PR body the `per 100 requests` value the `compactions` panel shows for PR 401 (expected 1.46%)
+- [x] 3.3 Run the `test` that `.github/agent-process-quality.json` declares; then, with the person's confirmation, re-import `aqxk4q` from `agent-process dashboard ekolvah/agent-process-distribution` over its UID and record in the PR body the `per 100 requests` value the `compactions` panel shows for PR 401 (expected 1.46%) — the test passed; the live re-import was skipped by the person's decision, recorded in the PR body
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change per-task-rates-pilot`, then `gh pr create --title "feat: per-task-rates-pilot" --body-file <report>`. The report names the tracking issue as a plain reference, the principles the change interacts with, and the scenario-to-test map
+- [x] 4.1 Run `agent-process archive_change per-task-rates-pilot`, then `gh pr create --title "feat: per-task-rates-pilot" --body-file <report>`. The report names the tracking issue as a plain reference, the principles the change interacts with, and the scenario-to-test map
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
