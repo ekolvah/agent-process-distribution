@@ -50,37 +50,34 @@ def _issue_number(create_output: str) -> int:
     return int(tail)
 
 
-def _standard_approach(change_dir: Path) -> bool:
-    """`## Standard approach` in `design.md` or `proposal.md` carries a URL or `none found:` and
-    what was searched."""
-    return any(
+def _refusal(change_dir: Path, root: Path) -> str | None:
+    """Why the plan may not become `Planned`: release drift, a verdict other than approve, or no
+    `## Standard approach` with a URL or `none found:` and what was searched."""
+    if drift := release_drift(root, SCRIPT_DIR):
+        return drift
+    line = verdict(change_dir)
+    if line != "approve":
+        return f"verdict: {line} — apply the findings, re-review (no issue created)"
+    if not any(
         _SOURCE.search(section)
-        for name in ("design.md", "proposal.md")
-        if (change_dir / name).is_file()
-        for section in _STANDARD.findall((change_dir / name).read_text(encoding="utf-8"))
-    )
+        for path in (change_dir / "design.md", change_dir / "proposal.md")
+        if path.is_file()
+        for section in _STANDARD.findall(path.read_text(encoding="utf-8"))
+    ):
+        return (
+            "`## Standard approach` missing or out of form in design.md and proposal.md — record "
+            "the industry-standard approach with its source (a URL, or `none found:` and what was "
+            "searched), then review again (no issue created or moved)"
+        )
+    return None
 
 
 def create_tracking_issue(
     change: str, *, area: str | None, gh: Gh = run_gh, root: Path = ROOT
 ) -> int:
-    if drift := release_drift(root, SCRIPT_DIR):
-        print(drift, file=sys.stderr)
-        return 2
     change_dir = root / "openspec" / "changes" / change
-    line = verdict(change_dir)
-    if line != "approve":
-        print(
-            f"verdict: {line} — apply the findings, re-review (no issue created)", file=sys.stderr
-        )
-        return 2
-    if not _standard_approach(change_dir):
-        print(
-            "`## Standard approach` missing or out of form in design.md and proposal.md — record "
-            "the industry-standard approach with its source (a URL, or `none found:` and what was "
-            "searched), then review again (no issue created or moved)",
-            file=sys.stderr,
-        )
+    if refusal := _refusal(change_dir, root):
+        print(refusal, file=sys.stderr)
         return 2
     tasks_md = change_dir / "tasks.md"
     number = tracking_issue(tasks_md)
