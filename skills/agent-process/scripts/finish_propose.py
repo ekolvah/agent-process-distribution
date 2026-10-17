@@ -63,9 +63,7 @@ def _require_standard_approach(change_dir: Path) -> None:
     )
 
 
-def finish_propose(
-    change: str, *, area: str | None, gh: Gh = run_gh, root: Path = ROOT
-) -> int:
+def finish_propose(change: str, *, area: str | None, gh: Gh = run_gh, root: Path = ROOT) -> int:
     if drift := release_drift(root, SCRIPT_DIR):
         print(drift, file=sys.stderr)
         return 2
