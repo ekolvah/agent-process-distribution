@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The round-1 map finding is resolved: the refusal now amends 'Architect review is the last step of the propose run', so the spec states one consistent set of create_tracking_issue exits, and every class is ok.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simpler design: the SKILL.md § Proposal step plus the `bespoke` clause alone, with no script gate. The scenario 'Standard approach missing' rejects it, and issue 461 Scope item 2 is the person's decision for two layers (form in the script, content in the review). The other option, gating in start_change, is rejected in design.md Decisions because the plan is already reported ready by then. Folding the check into the schema would not be simpler.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Every scenario has an entry in the map. From the ADDED requirement, 'Departure from the standard' maps to test_departure_from_the_standard. All 12 scenarios of the MODIFIED 'Architect review is the last step of the propose run' map to named tests: the two new ones to test_standard_approach_missing and test_standard_approach_recorded, and the ten existing ones to their current tests, all of which `pytest --co` collects. 'Validator scope' is n/a with a reason. Compared with the baseline, the MODIFIED delta changes only the exit-2 sentence (it now says 'or moving' and adds the section-form condition) and appends the two scenarios, so no baseline text is lost. `openspec validate --strict pilot-461` is valid.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1: 1.1 updates the fixture first, 1.2-1.4 add the tests, and 1.5 runs check_red on the two tests that fail before the gate. It correctly excludes test_standard_approach_recorded, which passes beforehand. RED is committed with its ticks on top of the plan commit. The fixture edit in 1.1 is now backed by the MODIFIED requirement's exit conditions.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "No design decision depends on a platform behaviour. The rejected standard, markdownlint MD043, is cited by its reference page. The claim that markdownlint is not in the toolchain was observed: .pre-commit-config.yaml lists ruff-check, ruff-format and the local no-issue-refs and quality hooks. The non-goal's claim was observed too: `grep -rni analysis skills/agent-process/SKILL.md openspec/specs/` prints nothing, so analysis-only issues have no propose-tail route.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. The change adds one refusal to create_tracking_issue, placed after the existing release-drift and verdict checks.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Missing section: the architect review's `bespoke` clause flags it in the propose round, and create_tracking_issue (the propose tail, after the verdict and before both branches) exits 2 as the backstop. An in-flight plan whose approve came before the upgrade hits the same exit 2 at its tail, and the message says to add the section and review again. A plan that already passed the tail is deliberately not caught by start_change (design.md Non-Goals). Every named catcher can be traced to the step where it runs.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Words added by the ADDED requirement 'Planning starts from the standard approach': sentence 1 has about 49 words. Tests 1.2/1.3 check the either-file location and the URL / `none found:` forms, and 1.4 checks the SKILL phrases 'usage guidance', 'industry-standard approach', '## Standard approach' and 'none found:'. Sentence 2 has 26 words, of which 1.4 checks 13 ('every plan', '## Standard approach', 'the standard approach', 'follows or departs from it'). The MODIFIED exit-2 sentence of 'Architect review is the last step' gains about 11 words ('or moving', 'or `## Standard approach` is missing or out of form'), all checked by the behaviour of 1.2. The 'Human approval is the gate' sentence has 21 words (+9); 'Validator scope' is n/a, as before. The SKILL step and the schema clause are bounded by the phrases 1.4 asserts.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Added check: the `## Standard approach` form refusal in create_tracking_issue.py. The problem it closes is issue 461, which builds on the #177 observation; issue 461 Scope item 2 asks for this gate explicitly. The standard is weighed in design.md 'Standard approach': markdownlint MD043 compares headings in a single file, so it cannot express 'either file' or the body form, and it is not in the toolchain. design.md also says how the check differs from the `additions` regex that ADR 0027 removed: `none found:` is valid and the scope is one section. The ADR 0027 objection that a form regex does not test relevance is answered by giving the content judgement to the `bespoke` class.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "planning",
+      "scenario": "Validator scope",
+      "reason": "n/a: the person judges content; no script can prove the absence of a judgement"
+    }
+  ]
+}
