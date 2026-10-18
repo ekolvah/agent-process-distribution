@@ -27,3 +27,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 455,readme-diagrams,issue-453,2026-10-17T07:52:57Z,2026-10-17T08:40:51Z,0.80,0.45,194,2,3,2.5480,66,2,1,0,
 458,rename-propose-tail,issue-456,2026-10-17T08:36:07Z,2026-10-17T09:19:29Z,0.72,0.57,424,1,1,4.4837,92,0,0,0,
 463,evaluate-ponytail,issue-9,2026-10-17T08:42:21Z,2026-10-17T12:38:19Z,3.93,1.47,472,5,1,20.2075,393,21,4,3,
+466,nightly-release-merge,issue-465,2026-10-17T13:29:42Z,2026-10-18T05:12:59Z,15.72,0.90,407,2,1,7.9723,152,1,0,1,
