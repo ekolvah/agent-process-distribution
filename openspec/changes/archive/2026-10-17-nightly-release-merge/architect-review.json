@@ -1,0 +1,57 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All round-1 findings are answered: one workflow uses the action's own `skip-github-pull-request` and `always-update`, so the run that produced the head still approves it, the behind-main stall is closed by a standard option, every platform behaviour is cited from source or carried as an explicit risk that fails visibly, and each scenario has a test or a named live check.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md Decision 1 adopts the smallest design. It adds a `schedule` trigger and one action input; the existing approve and auto-merge steps stay and skip on push because `prs_created` is false. The rejected alternative (the issue's second nightly workflow with find, judge and approve) is recorded with its reason and the person's choice of 2026-10-17. The proposal states the departure from the issue. `always-update` (Decision 2) is still needed under this design: a release PR left open after a red night is not pushed again by a docs/chore night when its notes are unchanged.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md Scenario → test map has one entry per delta scenario. Version places agree → test_plugin.py::test_version_drift. Release PR opened or updated and No release PR change → test_release_workflow_approves_and_enables_auto_merge (unchanged, `prs_created` guards) plus the first nightly run. Push to main → test_push_to_main. Release PR behind main → test_release_pr_behind_main plus a live update. Release PR merged → n/a with reason.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1: 1.1 test_push_to_main (trigger set, cron, `skip-github-pull-request` expression, no `skip-github-release`) and 1.2 test_release_pr_behind_main (`always-update: true`) both fail on today's release-please.yml and release-please-config.json. 1.3 runs check_red with their node ids and commits RED before Group 2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Cited from reference or source in design.md Standard approach and Decisions. Schedule semantics: GitHub docs sentences. `skip-github-pull-request`: action.yml@v4, and src/index.ts skips `createPullRequests()`. `always-update`: release-please 16.15.0, config schema, action v4 depends on ^17.3.0, and manifest.ts `maybeUpdateExistingPullRequest`. Ruleset dismiss_stale_reviews_on_push: read 2026-10-17. Checked in this review: manifest.ts takes `updateExistingPullRequest` when `alwaysUpdate` is set. github.ts `updatePullRequest` pushes with `primary: targetBranch, force: true`, which bears out 'onto the current main'. index.ts sets `prs_created` to `prs.length > 0`, and `createPullRequests` pushes an updated PR into `prs`. Unobserved and labelled as such in Risks: `gh pr merge --auto` on a PR whose auto-merge is already enabled. The evidence of absence is the last 100 runs; the stated symptom is a red run; the first PR open past one night is the live check. Optional, not a finding: the `prs_created`-on-update half of that risk is settled by the index.ts and manifest.ts lines above.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No project-declared input is replaced and no guard is dropped. Goals keep 'only the run that produced the head approves it': the approve step still reads the PR from `steps.release.outputs.pr` of the same run. The push run's PR update is removed as a behaviour (spec 'Push to main'), not as a guard.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "These are the cases design.md Risks names. A dropped scheduled run is picked up by the next night's run (the PR is opened or merged then). Red checks: the next nightly run force-pushes the PR (always-update), the checks re-run and the same run re-approves; the ruleset dismissal removes the stale approval. A failing repeat-enable fails the release-please run red (step without continue-on-error, as test_release_workflow_approves_and_enables_auto_merge pins). Behind main: closed by `always-update` (test_release_pr_behind_main), and the live check is the first nightly update of an open PR.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The edited requirement is 214 words, up from about 173. The two added sentences are about 33 words: 'update … onto the current main even when its release notes are unchanged' is asserted by test_release_pr_behind_main, and 'A run started by a push … neither open nor update' by test_push_to_main. The schedule clause '00:17 UTC' is asserted by the cron check in test_push_to_main. The two new scenarios are 86 words; each THEN is asserted by its test, and the approve and re-enable clauses by the unchanged test of the guarded steps. Round-1 finding: the overlap between the two push-run scenarios is gone. 'No release PR change' stays as an unchanged scenario because OpenSpec refuses to drop it, and the new 'Push to main' has a distinct outcome.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design.md Standard approach cites schedule (GitHub docs), `skip-github-pull-request` (release-please-action action.yml@v4 and src/index.ts) and `always-update` (release-please schema, manifest.ts) with sources. It states that the design follows both options, and defers a merge queue to the separate re-review change. The plan adds no script or check of its own: two tests on configuration and no new workflow.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "distribution",
+      "scenario": "Release PR opened or updated",
+      "reason": "The test pins the guarded steps only. That the scheduled run's `github-actions` approval counts and auto-merge is enabled is proved by the first nightly run after merge, which tasks.md names as the live check."
+    },
+    {
+      "capability": "distribution",
+      "scenario": "Release PR behind main",
+      "reason": "The test asserts the `always-update` setting only. The push onto the current `main` and the re-approval of an open PR are proved by the first nightly run that updates an open PR, as tasks.md states."
+    },
+    {
+      "capability": "distribution",
+      "scenario": "Release PR merged",
+      "reason": "Platform behaviour of release-please on merge, unchanged; tasks.md: observed on every release since ADR 0031."
+    }
+  ]
+}

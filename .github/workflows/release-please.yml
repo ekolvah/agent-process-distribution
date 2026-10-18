@@ -6,9 +6,13 @@ name: Release Please
 # merges itself once its required contexts are green and `github-actions` approved it
 # (ADR 0031, ADR 0040).
 # A created release fast-forwards `stable`, the consumers' marketplace channel.
+# Only the nightly run opens or updates the release PR, so it merges once a day outside
+# the person's hours; a push run still creates the release of a merged PR (ADR 0047).
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 0 * * *"
 
 permissions:
   contents: write
@@ -23,6 +27,7 @@ jobs:
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          skip-github-pull-request: ${{ github.event_name == 'push' }}
 
       # The PR's author is the PAT's person, so the approval of `github-actions` counts for
       # the required approval; the repository allows Actions to approve, or the run fails.

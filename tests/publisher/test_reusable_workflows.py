@@ -845,13 +845,17 @@ def test_agent_review_skips_the_review_on_a_release_pr() -> None:
     assert steps["Enforce unresolved P0/P1 threads"]["if"] == "always()"
 
 
+def _release_action(steps: list[dict[str, Any]]) -> dict[str, Any]:
+    return next(s for s in steps if s.get("uses", "").startswith("googleapis/release-please"))
+
+
 def test_release_workflow_approves_and_enables_auto_merge() -> None:
     """ADR 0031 D4, design D5 of agent-identity: the release workflow approves the PR it
     created or updated with `GITHUB_TOKEN`, then enables auto-merge on it with the PAT that
     opened it; the required checks and the approval decide the merge."""
     (job,) = _workflow("release-please.yml")["jobs"].values()
     raw = job["steps"]
-    action = next(s for s in raw if s.get("uses", "").startswith("googleapis/release-please"))
+    action = _release_action(raw)
     assert action["id"] == "release"
 
     approve, merge = raw[raw.index(action) + 1 : raw.index(action) + 3]
@@ -894,3 +898,24 @@ def test_release_workflow_moves_stable() -> None:
     assert "--force" not in run and "force=true" not in run
     assert "continue-on-error" not in move
     assert "|| true" not in run and "set +e" not in run
+
+
+def test_push_to_main() -> None:
+    """Scenario: Push to main — only the nightly run opens or updates the release PR; a
+    push run still creates the release of a merged release PR (ADR 0047)."""
+    document = _workflow("release-please.yml")
+    assert _trigger(document) == {
+        "push": {"branches": ["main"]},
+        "schedule": [{"cron": "17 0 * * *"}],
+    }
+    (job,) = document["jobs"].values()
+    action = _release_action(job["steps"])
+    assert action["with"]["skip-github-pull-request"] == "${{ github.event_name == 'push' }}"
+    assert "skip-github-release" not in action["with"]
+
+
+def test_release_pr_behind_main() -> None:
+    """Scenario: Release PR behind main — the nightly run pushes an open release PR onto
+    the current `main` even when its release notes are unchanged."""
+    config = json.loads((ROOT / "release-please-config.json").read_text(encoding="utf-8"))
+    assert config["always-update"] is True
