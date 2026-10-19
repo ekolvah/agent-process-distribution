@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.29.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.28.0...v3.29.0) (2026-10-19)
+
+
+### Features
+
+* nightly-release-merge ([#466](https://github.com/ekolvah/agent-process-distribution/issues/466)) ([0ea9a91](https://github.com/ekolvah/agent-process-distribution/commit/0ea9a91a56940642069ed000eb2cae6074461a36))
+
 ## [3.28.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.27.0...v3.28.0) (2026-10-17)
 
 
