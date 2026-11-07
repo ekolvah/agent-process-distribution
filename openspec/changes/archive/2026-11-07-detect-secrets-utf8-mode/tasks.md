@@ -22,7 +22,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change detect-secrets-utf8-mode`, then `gh pr create --title "fix: detect-secrets-utf8-mode" --body-file <report>`. The report names tracking issue 471 as a plain reference, carries the scenario-to-test map, gives the consumer migration of design's Migration Plan, and states the principles it interacts with (goal 1, §I, §IV, §VII)
+- [x] 4.1 Run `agent-process archive_change detect-secrets-utf8-mode`, then `gh pr create --title "fix: detect-secrets-utf8-mode" --body-file <report>`. The report names tracking issue 471 as a plain reference, carries the scenario-to-test map, gives the consumer migration of design's Migration Plan, and states the principles it interacts with (goal 1, §I, §IV, §VII)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
