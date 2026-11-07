@@ -180,3 +180,20 @@ def test_setup_write_fails(sandbox: Sandbox, capfd: pytest.CaptureFixture[str], 
     (error,) = [ln for ln in err.splitlines() if ln.startswith("error: ")]
     assert step in error and failure in error, err
     _no_token(runner, out, err)
+
+
+def test_empty_token_file_is_not_found(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """Scenario: Setup not possible — an empty token file is no token: no step, the row names
+    the file."""
+    token_file = tmp_path / "grafana-token"
+    token_file.write_text(" \n", encoding="utf-8")
+    grafana_config(sandbox.home, token_file=token_file)
+    init, runner, grafana = _setup(sandbox)
+    assert install(init, sandbox, "--dry-run", runner=runner) == 0
+    out = capfd.readouterr().out
+    assert not [label for label in STEPS if label in transitions(out)], out
+    (row,) = _rows(out)
+    assert row.endswith(f"(not found: {token_file})"), row
+    assert grafana.opened == []

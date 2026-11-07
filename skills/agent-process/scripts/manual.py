@@ -333,11 +333,13 @@ def _mcp_grafana(home: Path) -> tuple[str, str, str] | str:
         return f"{GRAFANA_TOKEN} of the {MCP}"
     file = Path(str(name)).expanduser()
     try:
-        return url, file.read_text(encoding="utf-8").strip(), str(file)
+        token = file.read_text(encoding="utf-8").strip()
     except FileNotFoundError:
-        return str(file)
+        token = ""
     except (OSError, UnicodeDecodeError) as exc:
         raise Unreadable(f"{file}: {exc}") from None
+    # An empty file holds no token, as an empty inline value does.
+    return (url, token, str(file)) if token else str(file)
 
 
 def _readings_row(t: Target, secrets: dict[str, str] | Unreadable, row: str) -> list[str]:
