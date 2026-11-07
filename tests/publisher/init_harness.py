@@ -206,10 +206,9 @@ class FakeGitHub:
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
 
     def _list(self, args: list[str]) -> subprocess.CompletedProcess[str]:
-        """`gh secret list --json name` and `gh variable list --json name[,value]`."""
-        fields = ["name"] if args[0] == "secret" else ["name", "name,value"]
-        assert args[2:5] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json"], args
-        assert args[5:] in [[f] for f in fields], args
+        """`gh secret list --json name` and `gh variable list --json name,value`."""
+        fields = "name" if args[0] == "secret" else "name,value"
+        assert args[2:] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json", fields], args
         if f"{args[0]}-list" in self.faults:
             return _done(args, code=1, err=list_403(args[0]))
         if args[0] == "secret":
@@ -585,8 +584,7 @@ class Runner:
                     text = "schema: spec-driven\n" if rel == "openspec/config.yaml" else "x\n"
                     path.write_text(text, encoding="utf-8")
             return subprocess.CompletedProcess(cmd, 0, "", "")
-        given = {} if input is None else {"input": input}
-        return self.init.run(cmd, cwd=cwd, env=env, capture=capture, **given)
+        return self.init.run(cmd, cwd=cwd, env=env, capture=capture, input=input)
 
     def state_changing(self) -> list[str]:
         """One key per command that changes persistent state."""

@@ -114,6 +114,7 @@ def rows(t: Target) -> list[str]:
         ),
         *_readings_row(
             t,
+            secrets,
             f"manual task-readings: https://github.com/{t.repo}/settings/variables/actions -- "
             f"gh variable set {GRAFANA_URL} -R {t.repo} with this repository's Grafana URL, "
             f"then gh secret set {GRAFANA_TOKEN} -R {t.repo} with a service account token of "
@@ -277,13 +278,16 @@ class Readings:
     blocked: str | None = None
 
 
-def readings(t: Target) -> Readings:
-    """The names, then the MCP config, then — unless the variable names another stack — the
-    stack's dashboard and, when that is missing, its Infinity datasource."""
+def readings(t: Target, secrets: dict[str, str] | Unreadable | None = None) -> Readings:
+    """The names (`secrets` when already read), then the MCP config, then — unless the
+    variable names another stack, which leaves `url` and `token` unset — the stack's dashboard
+    and, when that is missing, its Infinity datasource."""
     r = Readings(dashboard.render([t.repo])["title"])
     try:
         r.variable = _names(t, "variable").get(GRAFANA_URL)
-        r.secret = GRAFANA_TOKEN in _names(t, "secret")
+        r.secret = _has(
+            _names_or_unreadable(t, "secret") if secrets is None else secrets, GRAFANA_TOKEN
+        )
         config = _mcp_grafana(t.home)
     except Unreadable as exc:
         r.blocked = f"cannot read: {exc}"
@@ -291,10 +295,10 @@ def readings(t: Target) -> Readings:
     if isinstance(config, str):
         r.blocked = f"not found: {config}"
         return r
-    r.url, r.token, r.source = config
-    if r.variable not in (None, r.url):
+    if r.variable not in (None, config[0]):
         r.blocked = f"another stack: {r.variable}"
         return r
+    r.url, r.token, r.source = config
     try:
         stack = t.grafana(r.url, r.token)
         r.dashboard = r.title in stack.dashboard_titles(r.title)
@@ -336,10 +340,10 @@ def _mcp_grafana(home: Path) -> tuple[str, str, str] | str:
         raise Unreadable(f"{file}: {exc}") from None
 
 
-def _readings_row(t: Target, row: str) -> list[str]:
+def _readings_row(t: Target, secrets: dict[str, str] | Unreadable, row: str) -> list[str]:
     """The row while the variable, the secret or the dashboard is missing and no step sets it
     up; with another stack named, only while the secret is missing."""
-    r = readings(t)
+    r = readings(t, secrets)
     done = r.variable is not None and r.secret and r.dashboard is not False
     return [f"{row} ({r.blocked})"] if r.blocked and not done else []
 

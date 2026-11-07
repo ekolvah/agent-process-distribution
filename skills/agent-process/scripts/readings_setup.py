@@ -63,59 +63,57 @@ class Client:
 def steps(t: manual.Target) -> list[Step]:
     """The three steps while the config names a stack the repository does not contradict."""
     r = manual.readings(t)
-    if r.url is None or r.token is None or r.variable not in (None, r.url):
+    if r.url is None or r.token is None:
         return []
-    url, token = r.url, r.token
 
-    def write(label: str, *args: str, input: str | None = None) -> bool:
-        try:
-            t.gh_write(*args, input=input)
-        except InstallError as exc:
-            raise InstallError(f"{label}: {exc}") from None
-        return True
+    def gh_step(
+        label: str, done: bool, detail: str, args: list[str], input: str | None = None
+    ) -> Step:
+        def write() -> bool:
+            try:
+                t.gh_write(*args, input=input)
+            except InstallError as exc:
+                raise InstallError(f"{label}: {exc}") from None
+            return True
+
+        return Step(label, "unchanged" if done else "planned", detail, write)
 
     found = [
-        Step(
+        gh_step(
             "task-readings-url",
-            "unchanged" if r.variable == url else "planned",
-            f"{manual.GRAFANA_URL} = {url}",
-            lambda: write(
-                "task-readings-url",
-                *("variable", "set", manual.GRAFANA_URL, "--body", url, "--repo", t.repo),
-            ),
+            r.variable == r.url,
+            f"{manual.GRAFANA_URL} = {r.url}",
+            ["variable", "set", manual.GRAFANA_URL, "--body", r.url, "--repo", t.repo],
         ),
-        Step(
+        gh_step(
             "task-readings-token",
-            "unchanged" if r.secret else "planned",
+            r.secret,
             f"{manual.GRAFANA_TOKEN} from {r.source}",
-            lambda: write(
-                "task-readings-token",
-                *("secret", "set", manual.GRAFANA_TOKEN, "--repo", t.repo),
-                input=token,
-            ),
+            ["secret", "set", manual.GRAFANA_TOKEN, "--repo", t.repo],
+            r.token,
         ),
     ]
     if r.dashboard or r.datasource is not None:
-        found.append(_dashboard_step(t, r.title, url, r.datasource, token))
+        found.append(_dashboard_step(t, r.title, r.url, r.datasource, r.token))
     return found
 
 
 def _dashboard_step(
     t: manual.Target, title: str, url: str, datasource: str | None, token: str
 ) -> Step:
-    step = Step("task-readings-dashboard", "unchanged", f"{title} in {url}")
+    label, detail = "task-readings-dashboard", f"{title} in {url}"
     if datasource is None:
-        return step
+        return Step(label, "unchanged", detail)
 
     def post() -> bool:
         text = json.dumps(dashboard.render([t.repo])).replace("${DS_INFINITY}", datasource)
         try:
             step.detail += f" at {t.grafana(url, token).post_dashboard(json.loads(text))}"
         except manual.Unreadable as exc:
-            raise InstallError(f"task-readings-dashboard: {exc}") from None
+            raise InstallError(f"{label}: {exc}") from None
         return True
 
-    step.status, step.detail, step.apply = "planned", f"{step.detail} with {datasource}", post
+    step = Step(label, "planned", f"{detail} with {datasource}", post)
     return step
 
 
