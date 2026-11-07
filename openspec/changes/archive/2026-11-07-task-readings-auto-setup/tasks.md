@@ -27,7 +27,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 Run `agent-process archive_change task-readings-auto-setup`, then `gh pr create --title "fix: task-readings-auto-setup" --body-file <report>`. The report names tracking issue 473 as a plain reference, carries the scenario-to-test map, the token-copy risk, and the principles it interacts with (goal 1, goal 3, §II, §III, §IV, §VII)
+- [x] 5.1 Run `agent-process archive_change task-readings-auto-setup`, then `gh pr create --title "fix: task-readings-auto-setup" --body-file <report>`. The report names tracking issue 473 as a plain reference, carries the scenario-to-test map, the token-copy risk, and the principles it interacts with (goal 1, goal 3, §II, §III, §IV, §VII)
 - [ ] 5.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
