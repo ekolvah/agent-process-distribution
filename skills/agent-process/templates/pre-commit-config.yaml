@@ -30,10 +30,14 @@ repos:
       - id: pylint
         args: [--disable=all, --enable=too-many-lines, --max-module-lines=1000]
         stages: [pre-commit, manual]
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+  # `-X utf8`: without it the scanner silently skips a file the locale encoding cannot decode.
+  - repo: local
     hooks:
       - id: detect-secrets
+        name: detect-secrets
+        entry: python -X utf8 -m detect_secrets.pre_commit_hook
+        language: python
+        additional_dependencies: [detect-secrets==1.5.0]
         stages: [pre-commit, manual]
   - repo: https://github.com/pypa/pip-audit
     rev: v2.10.0

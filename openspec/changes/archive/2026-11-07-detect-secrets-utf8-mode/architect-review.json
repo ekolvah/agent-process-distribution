@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Round 1's ADR finding is answered (task 2.2 and the design Risks bullet now cover ADR 0035's Decision Outcome, D2, D3, Consequences and Confirmation); reproduction, root cause, fix and RED are observed and sound.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 weighs keeping the remote hook with an `entry` override (one line, keeps `rev` and autoupdate) and rejects it because `entry` is not a documented config-hook key, so a pre-commit change could regress silently into a secret miss; per-hook PYTHONUTF8 is impossible (no per-hook env key) and a global one is a remember-to rule. A structure-only test (no D4) would leave the silent miss unproven, against goal 1. The chosen local hook is the smallest documented form.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md map covers all four scenarios of specs/distribution/spec.md: Created config -> test_created_config_carries_the_baseline (expected updated), Tests run once they exist -> test_baseline_runs_tests_once_they_exist (on the extracted helper; task 1.2 selects by hook id, needed because the template will hold two `repo: local` entries and the current `[local] = ...` unpack at tests/publisher/test_init_config.py:332 would raise), Secret in a file the locale cannot decode -> test_seeded_secret_scan_decodes_utf8, Existing config keeps its hooks -> unchanged test.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 updates _baseline() (fails against the current Yelp remote entry) and adds test_seeded_secret_scan_decodes_utf8, run through check_red (task 1.4). In RED the new test fails on the missing local detect-secrets hook rather than on the skipped file; the discriminating behaviour (old entry `Passed`, new entry `Failed ... ru2.md:1` under the same variables) is observed in design.md D4, which is sufficient.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "UTF-8 mode overriding the locale and `-X utf8` taking precedence over PYTHONUTF8=0: Python os docs cited plus the Windows run in proposal.md. Local `language: python` hook with additional_dependencies and `python` in entry resolving to the hook env: pre-commit docs quoted plus the proposal.md reproduction table. Root cause: detect_secrets/core/scan.py 1.5.0 lines 261-270 cited. Manifest-key merge for the rejected alternative: pre_commit/clientlib.py 4.6.0 lines 444-451. ASCII locale on POSIX under PYTHONUTF8=0 PYTHONCOERCECLOCALE=0 LC_ALL=C: PEP 538/540 cited, not run on Linux; it only governs whether the CI run (ubuntu, quality.yml) also discriminates the old entry, not whether the new entry passes, which CI will observe.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Replaced input: the remote hook `rev` becomes an `additional_dependencies` pin (design D2). For this repository the lost autoupdate bump is caught by test_created_config_carries_the_baseline via pins(). For consumers, task 2.2 now records in ADR 0035 Consequences that `pre-commit autoupdate` does not move that pin, qualifies the Decision Outcome sentence for detect-secrets and adds the new test to Confirmation; design.md Risks matches.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Pin drift (D2): a requirements-dev.txt bump that misses the template fails test_created_config_carries_the_baseline in the declared `test` (ci_check.py -> pytest testpaths tests/publisher) on that PR head in quality.yml (ubuntu-latest, Python 3.12). Loss of `-X utf8`: test_seeded_secret_scan_decodes_utf8 fails in the same job. The `language: python` install path has no catcher by design (network), observed once in proposal.md; accepted as stated in D4.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec delta edits: hook clause \"a local hook `detect-secrets` that runs detect-secrets in Python UTF-8 mode\" (13 words) - all asserted by _baseline (repo local, id, entry with -X utf8) and the D4 test; pin clause \"and the `detect-secrets` hook's pinned dependency\" (6) - asserted via pin['detect-secrets']; Created config THEN \"each pin\" (1 word changed) - asserted; new scenario WHEN (~38) and THEN (12) - variables, file line, non-zero exit and `ru2.md:1` all asserted by task 1.3. Template comment one line, not a rule.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design.md `## Standard approach` cites Python UTF-8 mode / PEP 686, pre-commit local hooks and additional_dependencies docs, prior art ci_check.py::_secrets_cmd (same command), and a searched `none found` upstream; the design follows the standard (local hook) and departs from the upstream remote hook only for the observed decode miss, with a deletion condition. The plan adds no script or check; the new test reuses an extracted helper of an existing test.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

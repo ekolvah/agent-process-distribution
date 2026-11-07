@@ -28,7 +28,7 @@ Python, `pip` lockfiles, `pytest`, `pre-commit`.
 Chosen: **a run that creates `.pre-commit-config.yaml` writes the baseline outside the marker
 block and seeds the declaration that runs it**, in line with
 [ADR 0027](0027-v2-standards-replace-the-bespoke-control-plane.md): every check is a standard
-tool through its own hook repository; no script is added.
+tool through its own hook repository (one exception: D2); no script is added.
 
 * D1 — Content outside the block is written once, when `init` creates the file, and owned by
   the repository afterwards, which may extend or narrow it; an existing config is untouched.
@@ -38,7 +38,13 @@ tool through its own hook repository; no script is added.
   `minimum_pre_commit_version: "4.4.0"`) at `manual` only. mypy without
   `--ignore-missing-imports`: a library the hook environment lacks fails visibly until the
   repository lists its types in `additional_dependencies`, instead of becoming `Any`.
-* D3 — Each `rev` equals this repository's pin, asserted by
+  `detect-secrets` is a local `language: python` hook running
+  `python -X utf8 -m detect_secrets.pre_commit_hook`: detect-secrets 1.5.0 opens files in the
+  locale encoding and silently skips a file it cannot decode, so on Windows (`cp1252`) a secret
+  in a UTF-8 Cyrillic file went unreported. When detect-secrets reads files as
+  UTF-8, or Python 3.15 (PEP 686) is the floor, the upstream hook repository returns.
+* D3 — Each `rev`, and the `detect-secrets==` line of that hook's `additional_dependencies`,
+  equals this repository's pin, asserted by
   `tests/publisher/test_init_config.py`. The seed pins no tool: the project's requirements own
   every version they pin.
 * D4 — The `quality` step seeds `{"setup": <one install of pre-commit and pytest, unpinned,
@@ -61,13 +67,15 @@ tool through its own hook repository; no script is added.
   (observed 73 s, inside ADR 0034's 120 s timeout).
 * Bad, because each stub-less library fails mypy until it is listed, and that list partly
   duplicates the requirements.
-* Bad, because consumers' revisions age; `pre-commit autoupdate` is theirs to run.
+* Bad, because consumers' revisions age; `pre-commit autoupdate` is theirs to run, and it does
+  not move the `detect-secrets` pin, which is bumped by hand.
 
 ### Confirmation
 
 `tests/publisher/test_init.py::test_quality_command_marker`,
 `tests/publisher/test_init_config.py::test_created_config_carries_the_baseline`,
-`::test_existing_config_keeps_its_hooks` and `::test_baseline_runs_tests_once_they_exist`.
+`::test_existing_config_keeps_its_hooks`, `::test_baseline_runs_tests_once_they_exist` and
+`::test_seeded_secret_scan_decodes_utf8`.
 
 ## Native alternatives considered
 
@@ -75,6 +83,8 @@ tool through its own hook repository; no script is added.
 | --- | --- | --- |
 | none | The tools' own pre-commit hook repositories, staged by `stages` | Adopted: no script is added |
 | none | mypy's hook default `--ignore-missing-imports` | Turns every unseen library into `Any` silently |
+| none | detect-secrets' own hook with `entry` overridden to `-X utf8` | `entry` is not a documented override key; a silent regression is a silent secret miss |
+| none | `PYTHONUTF8=1` for the hook | pre-commit has no per-hook environment; a global setting is a "remember to" rule |
 
 ## Deletion condition
 
