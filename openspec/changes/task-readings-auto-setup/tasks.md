@@ -23,7 +23,7 @@
 
 - [x] 4.1 Run `/simplify` without an argument and commit its edits
 - [x] 4.2 Run `openspec validate --strict --all`
-- [ ] 4.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 4.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 5. Deliver
 

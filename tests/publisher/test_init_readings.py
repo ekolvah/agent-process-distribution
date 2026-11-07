@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -27,7 +28,7 @@ from tests.publisher.init_harness import (
 )
 
 CONSUMER = f"{OWNER}/{REPO_NAME}"
-TOKEN = "glsa_readings-token-0123456789"
+TOKEN = "glsa_readings-token-0123456789"  # pragma: allowlist secret
 OTHER = "https://other.grafana.net"
 ROW = "manual task-readings: "
 STEPS = ("task-readings-url", "task-readings-token", "task-readings-dashboard")
@@ -35,7 +36,7 @@ TEMPLATE = PACKAGE / "templates" / "per-task-dashboard.json"
 TITLE = f"{json.loads(TEMPLATE.read_text(encoding='utf-8'))['title']}: {CONSUMER}"
 
 
-def _setup(sb: Sandbox) -> tuple[object, Runner, FakeGrafana]:
+def _setup(sb: Sandbox) -> tuple[ModuleType, Runner, FakeGrafana]:
     init = load_init()
     sb.grafana = FakeGrafana(init.manual.Unreadable)
     return init, Runner(init, HOST, sb.github), sb.grafana
