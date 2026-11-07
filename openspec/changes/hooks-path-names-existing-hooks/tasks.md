@@ -10,8 +10,8 @@
 
 ## 2. Reason names the hooks
 
-- [ ] 2.1 `skills/agent-process/scripts/manual.py` (design D1–D3): in `pre_push`, with `core.hooksPath` set, list `hook.parent` without `*.sample` names (a missing directory gives none, another `OSError` raises `Unreadable`) and return the reworded reason when any remain; the `PrePush.blocked` docstring stays true. Verify `python -m pytest tests/publisher/test_init_remote.py -q` is green
-- [ ] 2.2 `skills/agent-process/templates/skill_check.py` (design D1, D2, D4): in `_pre_push`, read `--git-path hooks/pre-push` before the `core.hooksPath` branch and return the same reworded reason from `hook.parent`. Verify `python -m pytest tests/publisher/test_skill_check.py tests/publisher/test_plugin.py -q` is green, then commit the group with its ticks
+- [x] 2.1 `skills/agent-process/scripts/manual.py` (design D1–D3): in `pre_push`, with `core.hooksPath` set, list `hook.parent` without `*.sample` names (a missing directory gives none, another `OSError` raises `Unreadable`) and return the reworded reason when any remain; the `PrePush.blocked` docstring stays true. Verify `python -m pytest tests/publisher/test_init_remote.py -q` is green
+- [x] 2.2 `skills/agent-process/templates/skill_check.py` (design D1, D2, D4): in `_pre_push`, read `--git-path hooks/pre-push` before the `core.hooksPath` branch and return the same reworded reason from `hook.parent`. Verify `python -m pytest tests/publisher/test_skill_check.py tests/publisher/test_plugin.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
