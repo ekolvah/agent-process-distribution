@@ -274,13 +274,13 @@ def pre_push(t: Target) -> PrePush:
             names = []
         except OSError as exc:
             raise Unreadable(f"{hook.parent}: {exc}") from None
-        blocked = "core.hooksPath is set"
+        reason = "core.hooksPath is set"
         if names:
-            blocked += (
+            reason += (
                 f" and {hook.parent} holds {', '.join(names)}: git stops running them once it is"
                 " unset, so port them to .pre-commit-config.yaml as repo: local hooks first"
             )
-        return PrePush(hook, False, False, blocked)
+        return PrePush(hook, False, False, reason)
     installed = text is not None and PRE_COMMIT_ID.encode() in text
     blocked = None if installed or t.pre_commit else "pre-commit is not on PATH"
     return PrePush(hook, installed, text is not None and not installed, blocked)
