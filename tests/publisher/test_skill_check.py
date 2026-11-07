@@ -247,18 +247,23 @@ UNSET = "git config --unset-all core.hooksPath"
 PRE_COMMIT = "pre-commit install --hook-type pre-push"
 
 
-def _clone(tmp_path: Path, *, hook: bool = False, hooks_path: bool = False) -> None:
+def _clone(
+    tmp_path: Path, *, hook: bool = False, hooks_path: bool = False, hooks: tuple[str, ...] = ()
+) -> None:
     project = tmp_path / "project"
     subprocess.run(["git", "init", "-q", str(project)], check=True)
     if hook:
-        hooks = project / ".git" / "hooks"
-        hooks.mkdir(exist_ok=True)
+        default = project / ".git" / "hooks"
+        default.mkdir(exist_ok=True)
         text = f"#!/usr/bin/env bash\n{_check().PRE_COMMIT_ID}\n"
-        (hooks / "pre-push").write_text(text, encoding="utf-8")
+        (default / "pre-push").write_text(text, encoding="utf-8")
     if hooks_path:
         subprocess.run(
             ["git", "-C", str(project), "config", "core.hooksPath", ".hooks"], check=True
         )
+    for name in hooks:
+        (project / ".hooks").mkdir(exist_ok=True)
+        (project / ".hooks" / name).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
 
 
 def _check() -> Any:
@@ -291,6 +296,23 @@ def test_pre_push_missing_is_marked(tmp_path: Path, case: str) -> None:
         assert PRE_COMMIT in text
         if case == "hooks-path":
             assert "core.hooksPath is set" in text
+            assert "repo: local" not in text
+
+
+def test_pre_push_names_existing_hooks(tmp_path: Path) -> None:
+    """Scenario: Hook missing over existing hooks."""
+    _clone(tmp_path, hook=True, hooks_path=True, hooks=("commit-msg",))
+    done = _run(tmp_path, _loaded(tmp_path), given=Project(config=BLOCK))
+    for text in _texts(done):
+        assert PRE_PUSH_MARKER in text
+        for part in (
+            str(tmp_path / "project" / ".hooks"),
+            "commit-msg",
+            "stops running",
+            ".pre-commit-config.yaml",
+            "repo: local",
+        ):
+            assert part in text, text
 
 
 @pytest.mark.parametrize("case", ["no-block", "installed"])
