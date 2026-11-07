@@ -29,3 +29,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 463,evaluate-ponytail,issue-9,2026-10-17T08:42:21Z,2026-10-17T12:38:19Z,3.93,1.47,472,5,1,20.2075,393,21,4,3,
 466,nightly-release-merge,issue-465,2026-10-17T13:29:42Z,2026-10-18T05:12:59Z,15.72,0.90,407,2,1,7.9723,152,1,0,1,
 478,edit-lint-gitfile-wording,issue-477,2026-11-07T13:11:43Z,2026-11-07T13:46:00Z,0.57,0.40,122,1,1,1.8061,51,1,2,0,
+476,seed-setup-yields-pins,issue-470,2026-11-07T12:10:36Z,2026-11-07T13:51:31Z,1.68,0.68,253,2,2,5.7390,127,1,1,0,
