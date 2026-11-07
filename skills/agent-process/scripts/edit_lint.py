@@ -22,7 +22,8 @@ from typing import cast
 
 # git's messages for a directory in no repository (`(or any of the parent directories)` and
 # `(or any parent up to mount point`) and for one inside a git directory. A `.git` file
-# naming a missing directory prints `not a git repository: <gitdir>` and is not matched.
+# naming a missing directory prints `not a git repository: <gitdir>` (from git 2.56,
+# `gitfile does not point to a valid repository: <gitdir>`) and is not matched.
 _NOT_REPOSITORY_CODE = (
     "fatal: not a git repository (or any ",
     "fatal: this operation must be run in a work tree",
