@@ -634,11 +634,12 @@ class _NoHookRunner(Runner):
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         capture: bool = True,
+        input: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         if _is([str(cmd[0])], "pre-commit"):
             self.log.append([str(part) for part in cmd])
             return subprocess.CompletedProcess(cmd, 0, "", "")
-        return super().__call__(cmd, cwd=cwd, env=env, capture=capture)
+        return super().__call__(cmd, cwd=cwd, env=env, capture=capture, input=input)
 
 
 def test_pre_push_install_leaves_no_hook(

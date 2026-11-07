@@ -44,6 +44,8 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 20. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
+21. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
+    the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
 
 Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
@@ -56,8 +58,8 @@ repository with none, a checkout with none of a repository with commits — is a
 The output ends with `manual` rows, read after the run's writes and printed only while their
 state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
-secret, and the task-readings caller's `GRAFANA_URL` variable and
-`GRAFANA_SERVICE_ACCOUNT_TOKEN` secret — that only a UI can change — the `plugin-channel`
+secret, and the task-readings variable, secret and dashboard step 21 cannot set up, with
+the reason — that only a UI can change — the `plugin-channel`
 row, the once-per-machine step that points the marketplace at `stable` with auto-update and
 installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
 this clone's hook (`core.hooksPath` is set, or `pre-commit` is not on PATH). A state `init`
@@ -65,8 +67,8 @@ cannot read keeps its row with `(cannot read: <reason>)` and never changes the e
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
 status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
-installation branch is otherwise the only push, and the Project copy and link, the issue and the
-PR the only other GitHub writes.
+installation branch is otherwise the only push, and the Project copy and link, the issue, the
+PR and step 21's variable and secret the only other GitHub writes.
 `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -89,7 +91,8 @@ from typing import Any, Callable
 import manual
 import onboarding
 import quality
-from steps import InstallError, Step
+import readings_setup
+from steps import InstallError, Step, run
 
 VERSION = "3.29.0"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
@@ -157,27 +160,6 @@ Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 class Conflict(Exception):
     """A target the installer does not own."""
-
-
-def run(
-    cmd: list[str],
-    *,
-    cwd: Path | None = None,
-    env: dict[str, str] | None = None,
-    capture: bool = True,
-) -> subprocess.CompletedProcess[str]:
-    """The process boundary. Captured output is UTF-8; uncaptured output goes to this
-    process's own streams and `stdout`/`stderr` stay `None`."""
-    return subprocess.run(
-        [str(part) for part in cmd],
-        cwd=cwd,
-        env=env,
-        capture_output=capture,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
 
 
 # --- rendering --------------------------------------------------------------------------
@@ -284,7 +266,7 @@ class Host:
     runner: Runner
     which: Callable[[str], str | None]
     on_write: Callable[[str], None]
-    grafana: Any = None  # RED stub of change task-readings-auto-setup
+    grafana: Callable[[str, str], manual.Grafana] = readings_setup.Client
 
 
 @dataclass
@@ -296,6 +278,7 @@ class Context:
     which: Callable[[str], str | None]
     repository: str
     version: str
+    grafana: Callable[[str, str], manual.Grafana] = readings_setup.Client
 
     @property
     def tag(self) -> str:
@@ -314,8 +297,9 @@ class Context:
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         check: bool = True,
+        input: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
-        done = self.runner([self.exe(name), *args], cwd=cwd, env=env)
+        done = self.runner([self.exe(name), *args], cwd=cwd, env=env, input=input)
         if check and done.returncode != 0:
             streams = [s.strip() for s in (done.stderr, done.stdout) if s is not None]
             output = "\n".join(s for s in streams if s) if streams else "output not captured"
@@ -822,6 +806,8 @@ def _target(ctx: Context, repo: str) -> manual.Target:
         root=ctx.root,
         home=ctx.home,
         gh=lambda *args: ctx.call("gh", *args, cwd=ctx.root, check=False),
+        gh_write=lambda *args, input=None: ctx.call("gh", *args, cwd=ctx.root, input=input),
+        grafana=ctx.grafana,
         git=lambda *args: ctx.git("-C", str(ctx.root), *args, check=False),
         template=(TEMPLATE_OWNER, TEMPLATE_PROJECT),
         source=GITHUB_REPO,
@@ -909,6 +895,7 @@ def install(argv: list[str], host: Host) -> int:
         which=host.which,
         repository=override or REPOSITORY,
         version=args.version,
+        grafana=host.grafana,
     )
     try:
         return _run(ctx, args, argv, host.on_write)
@@ -953,7 +940,8 @@ def _run(
         empty=empty,
     )
     before, after = onboarding.plan(to, planned)
-    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo)]
+    readings = readings_setup.steps(_target(ctx, repo))
+    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo), *readings]
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     conflict = any(step.status == "conflict" for step in steps)
