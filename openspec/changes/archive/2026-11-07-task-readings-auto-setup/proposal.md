@@ -4,7 +4,7 @@
 `GRAFANA_URL` variable and the `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret, render the per-task
 dashboard and import it with the Infinity datasource. Until the person notices it, every merged
 task PR of the adopter runs red with a `telemetry: unset …` gap
-([ADR 0041](../../../.agent-process/docs/adr/0041-adopters-record-task-readings-in-their-own-stack.md)
+([ADR 0041](../../../../.agent-process/docs/adr/0041-adopters-record-task-readings-in-their-own-stack.md)
 Consequences).
 
 **Reproduction** (observation recorded in the issue, 2026-11-06, `ekolvah/lampa-mediacenter`
