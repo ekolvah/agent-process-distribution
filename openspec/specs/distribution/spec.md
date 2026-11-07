@@ -512,8 +512,9 @@ its own declaration `.github/agent-process-quality.json`, a JSON object with a n
 `test` and optional string `setup` and `checks`, each on one line. When the declaration is
 absent and the run creates `.pre-commit-config.yaml`, the run SHALL classify a `quality`
 transition, printed before the `pre-commit` transition, whose write seeds the declaration with a
-`setup` that installs `pre-commit` and `pytest` at this repository's pins and then each of
-`requirements.txt` and `requirements-dev.txt` that exists, failing when an install fails, and the `test`
+`setup` that installs `pre-commit` and `pytest` without a version together with each of
+`requirements.txt` and `requirements-dev.txt` that exists, in one install that fails the
+command when it fails, and the `test`
 `pre-commit run --hook-stage manual --all-files --show-diff-on-failure`. `init` SHALL write the
 declaration in no other case and SHALL never change an existing one; while it exists, the run
 SHALL print the `quality` transition `unchanged`. While the declaration is
@@ -527,6 +528,10 @@ reported as `conflict` naming that input, and the run SHALL exit non-zero before
 #### Scenario: Fresh install seeds the declaration
 - **WHEN** a dry-run and then a confirmed run meet a repository with neither `.github/agent-process-quality.json` nor `.pre-commit-config.yaml`
 - **THEN** the dry-run prints `planned quality` before `planned pre-commit` and writes nothing, the confirmed run writes the declaration with that `setup` and `test`, and neither output carries a `quality: ` line
+
+#### Scenario: Project requirements own the tool versions
+- **WHEN** the seeded `setup` runs where `requirements-dev.txt` pins `pytest` at a version other than its latest release
+- **THEN** the installed `pytest` and each version the requirements pin are the pinned versions
 
 #### Scenario: Install without tests
 - **WHEN** a dry-run or confirmed run meets a repository with `.pre-commit-config.yaml` and without `.github/agent-process-quality.json`
