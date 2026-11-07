@@ -197,3 +197,19 @@ def test_empty_token_file_is_not_found(
     (row,) = _rows(out)
     assert row.endswith(f"(not found: {token_file})"), row
     assert grafana.opened == []
+
+
+def test_malformed_mcp_env_cannot_be_read(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Setup not possible — an `env` that is not a mapping keeps the row with
+    `(cannot read: …)`, not a traceback."""
+    config = {"mcpServers": {"grafana": {"command": "mcp-grafana", "env": [GRAFANA]}}}
+    (sandbox.home / ".claude.json").write_text(json.dumps(config), encoding="utf-8")
+    init, runner, grafana = _setup(sandbox)
+    assert install(init, sandbox, "--dry-run", runner=runner) == 0
+    out = capfd.readouterr().out
+    assert not [label for label in STEPS if label in transitions(out)], out
+    (row,) = _rows(out)
+    assert "(cannot read: " in row and "unexpected shape" in row, row
+    assert grafana.opened == []

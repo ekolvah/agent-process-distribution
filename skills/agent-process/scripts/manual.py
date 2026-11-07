@@ -320,7 +320,9 @@ def _mcp_grafana(home: Path) -> tuple[str, str, str] | str:
         server = None if config is None else (config.get("mcpServers") or {}).get("grafana")
         env = None if server is None else server.get("env") or {}
     except AttributeError:
-        raise Unreadable(f"{path} holds an mcpServers entry of an unexpected shape") from None
+        env = []
+    if not isinstance(env, (dict, type(None))):
+        raise Unreadable(f"{path} holds an mcpServers entry of an unexpected shape")
     if env is None:
         return MCP
     if not env.get(GRAFANA_URL):
