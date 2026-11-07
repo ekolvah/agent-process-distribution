@@ -11,8 +11,8 @@
 
 ## 2. Template
 
-- [ ] 2.1 Apply design D1 to `skills/agent-process/templates/pre-commit-config.yaml`: put the local hook where the `Yelp/detect-secrets` repository was, with a one-line comment that `-X utf8` stops the scanner from skipping files the locale cannot decode (spec distribution: Init seeds the baseline toolchain); verify `python -m pytest tests/publisher/test_init_config.py -q` is green
-- [ ] 2.2 Amend in place `.agent-process/docs/adr/0035-init-seeds-a-baseline-quality-toolchain.md`. Decision Outcome: "every check is a standard tool through its own hook repository" gets the detect-secrets exception. D2: `detect-secrets` is a local `language: python` hook under `-X utf8`, with the deletion condition of design D1. D3: its pin is the `additional_dependencies` line. Consequences: `pre-commit autoupdate` does not move that pin. Confirmation: add `test_seeded_secret_scan_decodes_utf8`. Verify `python -m pytest tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
+- [x] 2.1 Apply design D1 to `skills/agent-process/templates/pre-commit-config.yaml`: put the local hook where the `Yelp/detect-secrets` repository was, with a one-line comment that `-X utf8` stops the scanner from skipping files the locale cannot decode (spec distribution: Init seeds the baseline toolchain); verify `python -m pytest tests/publisher/test_init_config.py -q` is green
+- [x] 2.2 Amend in place `.agent-process/docs/adr/0035-init-seeds-a-baseline-quality-toolchain.md`. Decision Outcome: "every check is a standard tool through its own hook repository" gets the detect-secrets exception. D2: `detect-secrets` is a local `language: python` hook under `-X utf8`, with the deletion condition of design D1. D3: its pin is the `additional_dependencies` line. Consequences: `pre-commit autoupdate` does not move that pin. Confirmation: add `test_seeded_secret_scan_decodes_utf8`. Verify `python -m pytest tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
