@@ -21,7 +21,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change hooks-path-names-existing-hooks`, then `gh pr create --title "fix: hooks-path-names-existing-hooks" --body-file <report>`. The report names tracking issue 472 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §I, §IV, §VII)
+- [x] 4.1 Run `agent-process archive_change hooks-path-names-existing-hooks`, then `gh pr create --title "fix: hooks-path-names-existing-hooks" --body-file <report>`. The report names tracking issue 472 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §I, §IV, §VII)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map

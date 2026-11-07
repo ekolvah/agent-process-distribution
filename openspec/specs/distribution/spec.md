@@ -629,7 +629,10 @@ it then reads is not one pre-commit installed. A planned `pre-push` transition a
 make a branch, commit, issue, push, or PR. When this clone has `core.hooksPath` set or
 `pre-commit` is not on `PATH`, the run SHALL print no `pre-push` transition and SHALL print a
 `manual pre-push` row naming that reason, `git config --unset-all core.hooksPath` where it is
-set, and then `pre-commit install --hook-type pre-push`.
+set, and then `pre-commit install --hook-type pre-push`. When `core.hooksPath` is set and the
+hooks directory git uses holds entries other than `*.sample`, the reason SHALL name that
+directory and those entries, say that git stops running them once `core.hooksPath` is unset,
+and say to port them to `.pre-commit-config.yaml` as `repo: local` hooks first.
 
 #### Scenario: Consumer render
 - **WHEN** a confirmed run installs release `<version>`
@@ -652,8 +655,12 @@ set, and then `pre-commit install --hook-type pre-push`.
 - **THEN** it prints `written pre-push`, and creates no branch, commit, issue, push, or PR
 
 #### Scenario: Per-clone row
-- **WHEN** a dry-run or confirmed run completes in a clone that has `core.hooksPath` set, or where `pre-commit` is not on `PATH`
-- **THEN** it prints no `pre-push` transition, writes no hook, and its output carries one `manual pre-push` row naming that reason and both commands
+- **WHEN** a dry-run or confirmed run completes in a clone that has `core.hooksPath` set to a directory that does not exist, or where `pre-commit` is not on `PATH`
+- **THEN** it prints no `pre-push` transition, writes no hook, and its output carries one `manual pre-push` row naming that reason and both commands, and no `repo: local`
+
+#### Scenario: Per-clone row over existing hooks
+- **WHEN** a dry-run or confirmed run completes in a clone whose `core.hooksPath` directory holds `commit-msg` and `pre-push.sample`
+- **THEN** the directory is unchanged, and the one `manual pre-push` row names the directory, `commit-msg`, that git stops running it once `core.hooksPath` is unset, `.pre-commit-config.yaml`, `repo: local` and both commands, and not `pre-push.sample`
 
 ### Requirement: Manual rows follow observed state
 A dry-run and a confirmed run SHALL end their output with the `manual` rows, classified after
@@ -675,13 +682,19 @@ and this clone has `core.hooksPath` set or has no pre-push hook that pre-commit 
 installed skill check SHALL exit 0 with a `systemMessage` for the person and an
 `additionalContext` for the agent, each naming `agent-process pre-push hook not installed`, the
 reason, `git config --unset-all core.hooksPath` where it is set, and
-`pre-commit install --hook-type pre-push`. A state it cannot read SHALL print the same marker
-naming that reason. Without that line, or with the hook installed, it SHALL add nothing for the
-hook; a skill marker it prints SHALL stay in the same output.
+`pre-commit install --hook-type pre-push`. When `core.hooksPath` is set and the hooks directory
+git uses holds entries other than `*.sample`, the reason SHALL name them as the `init` row does.
+A state it cannot read SHALL print the same marker naming that reason. Without that line, or
+with the hook installed, it SHALL add nothing for the hook; a skill marker it prints SHALL stay
+in the same output.
 
 #### Scenario: Hook missing
 - **WHEN** a Claude session starts in a clone whose `.pre-commit-config.yaml` carries the agent-process block and that has no pre-push hook pre-commit installed, or has `core.hooksPath` set
 - **THEN** the check exits 0 and its output names `agent-process pre-push hook not installed`, the reason, and both commands, to the person and to the agent
+
+#### Scenario: Hook missing over existing hooks
+- **WHEN** a Claude session starts in a clone whose `.pre-commit-config.yaml` carries the agent-process block and whose `core.hooksPath` directory holds `commit-msg`
+- **THEN** the check's output names the directory, `commit-msg`, that git stops running it once `core.hooksPath` is unset, `.pre-commit-config.yaml` and `repo: local`, to the person and to the agent
 
 #### Scenario: Hook installed or not rendered
 - **WHEN** the skill is loaded and the clone's `.pre-commit-config.yaml` has no agent-process block, or the clone runs pre-commit's pre-push hook
