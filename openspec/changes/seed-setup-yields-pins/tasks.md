@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_init.py` set `_seeded()["setup"]` to the rendered seed of design D1 (`$$` rendered as `$`) and remove the `pins` import, which only `_seeded` used
-- [ ] 1.2 Run `agent-process check_red "tests/publisher/test_init.py::test_quality_command_marker[fresh]"` and commit RED with these ticks
+- [x] 1.1 In `tests/publisher/test_init.py` set `_seeded()["setup"]` to the rendered seed of design D1 (`$$` rendered as `$`) and remove the `pins` import, which only `_seeded` used
+- [x] 1.2 Run `agent-process check_red "tests/publisher/test_init.py::test_quality_command_marker[fresh]"` and commit RED with these ticks
 
 ## 2. Seed
 

@@ -40,7 +40,6 @@ from tests.publisher.init_harness import (
     home_baseline,
     install,
     load_init,
-    pins,
     relative,
     snapshot,
     transitions,
@@ -343,12 +342,11 @@ BLOCK_ONLY = (
 
 
 def _seeded() -> dict[str, str]:
-    pin = pins()
     return {
         "setup": (
-            f"python -m pip install pre-commit=={pin['pre-commit']} pytest=={pin['pytest']}"
-            ' && for f in requirements.txt requirements-dev.txt; do if [ -f "$f" ];'
-            ' then python -m pip install -r "$f" || exit 1; fi; done'
+            "set --; for f in requirements.txt requirements-dev.txt;"
+            ' do if [ -f "$f" ]; then set -- "$@" -r "$f"; fi; done;'
+            ' python -m pip install pre-commit pytest "$@"'
         ),
         "test": "pre-commit run --hook-stage manual --all-files --show-diff-on-failure",
     }
