@@ -30,3 +30,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 466,nightly-release-merge,issue-465,2026-10-17T13:29:42Z,2026-10-18T05:12:59Z,15.72,0.90,407,2,1,7.9723,152,1,0,1,
 478,edit-lint-gitfile-wording,issue-477,2026-11-07T13:11:43Z,2026-11-07T13:46:00Z,0.57,0.40,122,1,1,1.8061,51,1,2,0,
 476,seed-setup-yields-pins,issue-470,2026-11-07T12:10:36Z,2026-11-07T13:51:31Z,1.68,0.68,253,2,2,5.7390,127,1,1,0,
+479,detect-secrets-utf8-mode,issue-471,2026-11-07T13:53:19Z,2026-11-07T14:53:21Z,1.00,0.74,356,2,1,7.8856,148,2,0,0,
