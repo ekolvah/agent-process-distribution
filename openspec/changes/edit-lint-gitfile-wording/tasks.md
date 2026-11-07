@@ -4,13 +4,13 @@
 
 ## 1. RED
 
-- [ ] 1.1 no RED: test-only fix; the RED is CI run 42374569845 on git 2.56.0, local git is older
+- [x] 1.1 no RED: test-only fix; the RED is CI run 42374569845 on git 2.56.0, local git is older
 
 ## 2. Test expectation
 
-- [ ] 2.1 In the gitfile case of `test_git_failure_inside_a_repository_is_visible`, expect `edit-time lint is not active: fatal: ` and update its comment; verify `python -m pytest tests/publisher/test_edit_lint.py` passes
-- [ ] 2.2 Update the comment above `_NOT_REPOSITORY_CODE` in `skills/agent-process/scripts/edit_lint.py` to name both git wordings of a missing gitdir
-- [ ] 2.3 Commit the group with its ticks as `test: expect git's fatal prefix, not its wording, for a missing gitdir`
+- [x] 2.1 In the gitfile case of `test_git_failure_inside_a_repository_is_visible`, expect `edit-time lint is not active: fatal: ` and update its comment; verify `python -m pytest tests/publisher/test_edit_lint.py` passes
+- [x] 2.2 Update the comment above `_NOT_REPOSITORY_CODE` in `skills/agent-process/scripts/edit_lint.py` to name both git wordings of a missing gitdir
+- [x] 2.3 Commit the group with its ticks as `test: expect git's fatal prefix, not its wording, for a missing gitdir`
 
 ## 3. Verify
 

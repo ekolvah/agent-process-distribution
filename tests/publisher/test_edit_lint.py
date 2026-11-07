@@ -138,8 +138,10 @@ def test_git_failure_inside_a_repository_is_visible(tmp_path: Path, case: str) -
         gitfile.parent.mkdir()
         gitfile.write_text(f"gitdir: {(tmp_path / 'missing').as_posix()}\n", encoding="utf-8")
         payload = _edit_in(repo / "removed" / "a.py")
-        # git for Windows names the missing gitdir; git on Linux prints `(null)` in its place.
-        expected = "fatal: not a git repository: "
+        # git words a missing gitdir differently by version (`not a git repository:` up to
+        # 2.55, `gitfile does not point to a valid repository:` from 2.56); the marker is
+        # followed by git's `fatal: ` prefix in each.
+        expected = "edit-time lint is not active: fatal: "
     result = _run(["post-edit"], repo, payload, env)
     assert result.returncode == 2, result.stderr
     assert "edit-time lint is not active:" in result.stderr
