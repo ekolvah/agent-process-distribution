@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import string
 import subprocess
 import sys
 from collections.abc import Callable
@@ -26,6 +27,7 @@ from tests.publisher.init_harness import (
     CURRENT,
     HOST,
     MARKETPLACE,
+    PACKAGE,
     PLUGIN,
     Runner,
     Sandbox,
@@ -333,15 +335,15 @@ def test_existing_config_keeps_its_hooks(sandbox: Sandbox) -> None:
 
 
 def _seeded_hook(
-    sandbox: Sandbox, work: Path, hook_id: str
-) -> Callable[..., subprocess.CompletedProcess[str]]:
+    tmp_path: Path, hook_id: str
+) -> tuple[Path, Callable[..., subprocess.CompletedProcess[str]]]:
     """Write the created config's `repo: local` hook `hook_id` alone into a fresh git
-    repository at `work`, run by the test interpreter from `PATH` (`language: unsupported`,
-    no `additional_dependencies`, so no network), and return a `run(**env)` that commits
-    and runs the manual stage."""
-    init = load_init()
-    _installed(init, sandbox)
-    config = yaml.safe_load((sandbox.root / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    repository, run by the test interpreter from `PATH` (`language: unsupported`, no
+    `additional_dependencies`, so no network), and return that repository and a `run(**env)`
+    that commits and runs the manual stage. The created config is the template, as
+    `test_created_config_carries_the_baseline` asserts."""
+    text = (PACKAGE / "templates" / "pre-commit-config.yaml").read_text(encoding="utf-8")
+    config = yaml.safe_load(string.Template(text).substitute(version=CURRENT))
     [hook] = [
         hook
         for repo in config["repos"]
@@ -351,6 +353,7 @@ def _seeded_hook(
     ]
     hook = {**hook, "language": "unsupported"}
     hook.pop("additional_dependencies", None)
+    work = tmp_path / "work"
     work.mkdir()
     git("init", "-q", str(work))
     (work / ".pre-commit-config.yaml").write_text(
@@ -374,14 +377,13 @@ def _seeded_hook(
             check=False,
         )
 
-    return run
+    return work, run
 
 
-def test_baseline_runs_tests_once_they_exist(sandbox: Sandbox, tmp_path: Path) -> None:
+def test_baseline_runs_tests_once_they_exist(tmp_path: Path) -> None:
     """Scenario: Tests run once they exist — the created config's `pytest` hook is skipped
     with no tracked test file and runs a tracked failing test (design D2)."""
-    work = tmp_path / "work"
-    run = _seeded_hook(sandbox, work, "pytest")
+    work, run = _seeded_hook(tmp_path, "pytest")
     (work / "a.py").write_text("A = 1\n", encoding="utf-8")
     skipped = run()
     assert skipped.returncode == 0, (skipped.stdout, skipped.stderr)
@@ -396,12 +398,11 @@ def test_baseline_runs_tests_once_they_exist(sandbox: Sandbox, tmp_path: Path) -
     assert "test_fails_on_purpose" in failed.stdout, failed.stdout
 
 
-def test_seeded_secret_scan_decodes_utf8(sandbox: Sandbox, tmp_path: Path) -> None:
+def test_seeded_secret_scan_decodes_utf8(tmp_path: Path) -> None:
     """Scenario: Secret in a file the locale cannot decode — the created config's
     `detect-secrets` entry reports a secret on a Cyrillic line under an ASCII or cp1252
     locale (design D4)."""
-    work = tmp_path / "work"
-    run = _seeded_hook(sandbox, work, "detect-secrets")
+    work, run = _seeded_hook(tmp_path, "detect-secrets")
     (work / "ru2.md").write_text(
         'ключ сервиса: aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"\n',  # pragma: allowlist secret
         encoding="utf-8",

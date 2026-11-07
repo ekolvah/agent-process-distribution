@@ -28,8 +28,7 @@ Python, `pip` lockfiles, `pytest`, `pre-commit`.
 Chosen: **a run that creates `.pre-commit-config.yaml` writes the baseline outside the marker
 block and seeds the declaration that runs it**, in line with
 [ADR 0027](0027-v2-standards-replace-the-bespoke-control-plane.md): every check is a standard
-tool through its own hook repository, except `detect-secrets`, a local hook of the same tool
-(D2); no script is added.
+tool through its own hook repository (one exception: D2); no script is added.
 
 * D1 — Content outside the block is written once, when `init` creates the file, and owned by
   the repository afterwards, which may extend or narrow it; an existing config is untouched.
@@ -42,8 +41,7 @@ tool through its own hook repository, except `detect-secrets`, a local hook of t
   `detect-secrets` is a local `language: python` hook running
   `python -X utf8 -m detect_secrets.pre_commit_hook`: detect-secrets 1.5.0 opens files in the
   locale encoding and silently skips a file it cannot decode, so on Windows (`cp1252`) a secret
-  in a UTF-8 Cyrillic file went unreported. Overriding `entry` of the upstream hook is
-  undocumented, and pre-commit has no per-hook environment. When detect-secrets reads files as
+  in a UTF-8 Cyrillic file went unreported. When detect-secrets reads files as
   UTF-8, or Python 3.15 (PEP 686) is the floor, the upstream hook repository returns.
 * D3 — Each `rev`, and the `detect-secrets==` line of that hook's `additional_dependencies`,
   equals this repository's pin, asserted by
@@ -85,6 +83,8 @@ tool through its own hook repository, except `detect-secrets`, a local hook of t
 | --- | --- | --- |
 | none | The tools' own pre-commit hook repositories, staged by `stages` | Adopted: no script is added |
 | none | mypy's hook default `--ignore-missing-imports` | Turns every unseen library into `Any` silently |
+| none | detect-secrets' own hook with `entry` overridden to `-X utf8` | `entry` is not a documented override key; a silent regression is a silent secret miss |
+| none | `PYTHONUTF8=1` for the hook | pre-commit has no per-hook environment; a global setting is a "remember to" rule |
 
 ## Deletion condition
 
