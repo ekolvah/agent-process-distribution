@@ -284,6 +284,7 @@ class Host:
     runner: Runner
     which: Callable[[str], str | None]
     on_write: Callable[[str], None]
+    grafana: Any = None  # RED stub of change task-readings-auto-setup
 
 
 @dataclass

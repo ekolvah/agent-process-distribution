@@ -140,9 +140,11 @@ class FakeGitHub:
     one numbering, as on GitHub; `pr create` needs its head and base pushed to `origin`.
     `default_branch` is the settings' name; `empty` makes `repo view` print the empty
     `defaultBranchRef.name` of a repository with no commits (change init-empty-repository).
-    `secrets` and `variables` are the consumer's secret and variable names;
+    `secrets` are the consumer's secret names and `variables` its variables by name;
     `faults["secret-list"]`, `faults["variable-list"]` and `faults["project-read"]` make
-    those reads exit 1 (change manual-rows-from-state)."""
+    those reads exit 1 (change manual-rows-from-state). `gh secret set` takes the value from
+    standard input into `secret_values`; `faults["secret-set"]` makes it exit 1 (change
+    task-readings-auto-setup)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process", public=True)
@@ -150,7 +152,8 @@ class FakeGitHub:
         template.repositories.add(PUBLISHER)
         self.projects = [template]
         self.secrets: set[str] = set()
-        self.variables: set[str] = set()
+        self.variables: dict[str, str] = {}
+        self.secret_values: dict[str, str] = {}
         self.faults: dict[str, str] = {}
         self.hidden = 0  # Projects the owner has beyond the first page
         self.issues: list[dict[str, Any]] = []
@@ -191,18 +194,44 @@ class FakeGitHub:
         assert self.origin is not None
         return bool(git("ls-remote", "--heads", str(self.origin), branch))
 
-    def __call__(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+    def __call__(
+        self, args: list[str], input: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
         if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
             return _done(args, {"name": REPO_NAME, "default_branch": self.default_branch})
-        if args[0] in {"secret", "variable"} and args[1] == "list":
-            assert args[2:] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json", "name"], args
-            if f"{args[0]}-list" in self.faults:
-                return _done(args, code=1, err=list_403(args[0]))
-            names = self.secrets if args[0] == "secret" else self.variables
-            return _done(args, [{"name": name} for name in sorted(names)])
+        if args[0] in {"secret", "variable"}:
+            return self._list(args) if args[1] == "list" else self._set(args, input)
         if args[:2] == ["api", "graphql"] and "projectV2(number:" in args[3]:
             return self._project_read(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
+
+    def _list(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """`gh secret list --json name` and `gh variable list --json name[,value]`."""
+        fields = ["name"] if args[0] == "secret" else ["name", "name,value"]
+        assert args[2:5] == ["--repo", f"{OWNER}/{REPO_NAME}", "--json"], args
+        assert args[5:] in [[f] for f in fields], args
+        if f"{args[0]}-list" in self.faults:
+            return _done(args, code=1, err=list_403(args[0]))
+        if args[0] == "secret":
+            return _done(args, [{"name": name} for name in sorted(self.secrets)])
+        values = sorted(self.variables.items())
+        return _done(args, [{"name": name, "value": value} for name, value in values])
+
+    def _set(self, args: list[str], input: str | None) -> subprocess.CompletedProcess[str]:
+        """`gh variable set NAME --body V --repo R` and `gh secret set NAME --repo R`, the
+        secret's value on standard input."""
+        name, flags = args[2], dict(zip(args[3::2], args[4::2]))
+        assert flags.pop("--repo") == f"{OWNER}/{REPO_NAME}", args
+        if args[0] == "variable":
+            assert set(flags) == {"--body"} and input is None, args
+            self.variables[name] = flags["--body"]
+            return _done(args, out=f"Created variable {name}\n")
+        assert not flags and input is not None, args
+        if "secret-set" in self.faults:
+            return _done(args, code=1, err="failed to set secret: HTTP 422\n")
+        self.secrets.add(name)
+        self.secret_values[name] = input
+        return _done(args, out=f"Set Actions secret {name}\n")
 
     def _items(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         """Issues and PRs in the observed shapes of design D4 (install-links-an-issue)."""
@@ -328,13 +357,78 @@ class FakeGitHub:
         return _done(args, {"data": data})
 
 
+GRAFANA = "https://stack.grafana.net"
+
+
+class FakeGrafana:
+    """The stack behind `manual.Grafana`, and its factory: `opened` records each `(url,
+    token)` it is opened with, `log` each request. `sources` lists a Prometheus datasource
+    before the Infinity one (uid `infinity-uid`); `titles` are the stack's dashboards;
+    `faults["datasources"]` or `faults["post"]` makes that request raise `error` with the
+    fault as its message (change task-readings-auto-setup)."""
+
+    def __init__(self, error: type[Exception]) -> None:
+        self.error = error
+        self.sources: list[dict[str, str]] = [
+            {"name": "grafanacloud-prom", "type": "prometheus", "uid": "prom-uid"},
+            {
+                "name": "grafanacloud-infinity",
+                "type": "yesoreyeram-infinity-datasource",
+                "uid": "infinity-uid",
+            },
+        ]
+        self.titles: list[str] = []
+        self.faults: dict[str, str] = {}
+        self.posted: list[dict[str, Any]] = []
+        self.opened: list[tuple[str, str]] = []
+        self.log: list[str] = []
+
+    def __call__(self, url: str, token: str) -> FakeGrafana:
+        self.opened.append((url, token))
+        return self
+
+    def _request(self, name: str) -> None:
+        self.log.append(name)
+        if name in self.faults:
+            raise self.error(self.faults[name])
+
+    def datasources(self) -> list[dict[str, str]]:
+        self._request("datasources")
+        return self.sources
+
+    def dashboard_titles(self, query: str) -> list[str]:
+        self._request("search")
+        return [title for title in self.titles if query in title]
+
+    def post_dashboard(self, dashboard: dict[str, Any]) -> str:
+        self._request("post")
+        self.posted.append(dashboard)
+        self.titles.append(dashboard["title"])
+        return f"{GRAFANA}/d/new/per-task-delivery"
+
+
+def grafana_config(
+    home: Path, url: str = GRAFANA, *, token: str | None = None, token_file: Path | None = None
+) -> None:
+    """`~/.claude.json` configuring the `grafana` MCP server as mcp-grafana documents it."""
+    env = {"GRAFANA_URL": url}
+    if token is not None:
+        env["GRAFANA_SERVICE_ACCOUNT_TOKEN"] = token
+    if token_file is not None:
+        env["GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE"] = str(token_file)
+    config = {"mcpServers": {"grafana": {"command": "mcp-grafana", "args": [], "env": env}}}
+    (home / ".claude.json").write_text(json.dumps(config), encoding="utf-8")
+
+
 def which(name: str) -> str | None:
     return shutil.which(name) or name
 
 
 @dataclass
 class Sandbox:
-    """`which` is the installer's PATH lookup; a test replaces it to report a tool absent."""
+    """`which` is the installer's PATH lookup; a test replaces it to report a tool absent.
+    `grafana`, when set, is the Grafana the installer opens; only the tests of change
+    task-readings-auto-setup set it."""
 
     root: Path
     home: Path
@@ -342,6 +436,7 @@ class Sandbox:
     other: Path
     github: FakeGitHub = field(default_factory=FakeGitHub)
     which: Callable[[str], str | None] = which
+    grafana: FakeGrafana | None = None
 
     @property
     def link(self) -> Path:
@@ -475,11 +570,12 @@ class Runner:
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         capture: bool = True,
+        input: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         self.log.append([str(part) for part in cmd])
         name = Path(cmd[0]).name.lower()
         if is_gh(cmd):
-            return self.github([str(part) for part in cmd[1:]])
+            return self.github([str(part) for part in cmd[1:]], input)
         if name.startswith("npx") and not self.real_npx:
             assert cwd is not None
             for rel in self.init.OPENSPEC_OUTPUT:
@@ -489,7 +585,8 @@ class Runner:
                     text = "schema: spec-driven\n" if rel == "openspec/config.yaml" else "x\n"
                     path.write_text(text, encoding="utf-8")
             return subprocess.CompletedProcess(cmd, 0, "", "")
-        return self.init.run(cmd, cwd=cwd, env=env, capture=capture)
+        given = {} if input is None else {"input": input}
+        return self.init.run(cmd, cwd=cwd, env=env, capture=capture, **given)
 
     def state_changing(self) -> list[str]:
         """One key per command that changes persistent state."""
@@ -527,6 +624,7 @@ def install(
     runner: Runner | None = None,
     on_write: Callable[[str], None] | None = None,
 ) -> int:
+    injected = {} if sb.grafana is None else {"grafana": sb.grafana}
     host = init.Host(
         root=sb.root,
         home=sb.home,
@@ -534,6 +632,7 @@ def install(
         runner=runner or Runner(init, platform, sb.github),
         which=sb.which,
         on_write=on_write or (lambda label: None),
+        **injected,
     )
     return init.install(list(args), host)
 
