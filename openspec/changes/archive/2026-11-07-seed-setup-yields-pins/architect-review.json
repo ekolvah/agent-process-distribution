@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "D1 is now a single pip resolution, so the project's pins hold for the tools and their dependencies; this is observed, the artifacts agree, and the unobserved risk bullet is gone.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simplest option, dropping the tools from `setup`, is rejected because a fresh repository then has no `pre-commit` (ADR 0035). The separate unpinned install is rejected with an observation (pluggy silently upgraded). The `pip show` branch and the grep parser are rejected as second owners or bespoke parsers. D1 is one loop that builds arguments plus one pip call, the same size as the round-1 seed.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Five delta scenarios, five rows in tasks.md `## Scenario → test map`. Fresh install maps to test_quality_command_marker[fresh], whose expected `_seeded()` changes. Project requirements own the tool versions maps to the same test (single install, tools unpinned) plus the D1 and Standard approach observations (listed in scenario_coverage). Install without tests maps to [existing-config], Declared to [declared], Upgrade to test_init_conflicts.py::test_upgrade_over_passed_test_conflicts, all unchanged.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 sets `_seeded()` (test_init.py:345) to the rendered D1 seed and removes the `pins` import, whose only use in that file is :346; init_harness.pins stays for test_init_config.py:222. Task 1.2's check_red on test_quality_command_marker[fresh] fails on the current template, because :390 compares the whole declaration.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Satisfied requirement kept: design.md Standard approach (pip reference page plus output). One resolution keeps a dependency pin while a second install replaces it: D1 (pluggy 1.4.0 / 1.7.0 venv runs). Shell form: D1 records the argument growth and exit 3. I re-observed it: string.Template(D1 text).substitute({}), as init.py:188 does, renders `$$` to `$`; under `bash -ec` with requirements.txt present and a `python` function returning 3, `eval \"$SETUP\"` printed `ARGS: -m pip install pre-commit pytest -r requirements.txt` and exited 3. CI runs `eval \"$SETUP\"` in the step at .github/workflows/quality.yml:135-138. The pre-commit minimum-version claim was removed.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Replaced input: the template's pins become the project's requirements plus the current PyPI release for what they leave open. Failure modes listed: the floating release for a repository without requirements (Risks) and a dependency override by a second resolution, which D1 removes by design and records with an observation. Lost proof: test_init.py no longer asserts the seed equals this repository's pins; task 2.2 drops that claim from ADR 0035 D3. A repository pinning pre-commit below the config's 4.4.0 minimum was already possible before this change and is not introduced by it.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Failed install: pip's status is the status of the eval'd command, so the bash -e step at quality.yml:138 fails on the PR head (observed exit 3 above). Floating latest release: it surfaces as a red quality run, not silently. Conflicting project pins: pip's resolver fails the single install loudly, through the same step.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Edited spec clause ('a `setup` that installs `pre-commit` and `pytest` without a version together with each of `requirements.txt` and `requirements-dev.txt` that exists, in one install that fails the command when it fails'): 29 words, all fixed by the exact equality of `_seeded()` at test_init.py:390. Its exit behaviour is observed in D1, not tested. Edited scenario: WHEN 16 words and THEN 13 words. The test asserts the seed string; the THEN rests on the pip observations (scenario_coverage). ADR 0035 D3/D4 amendment: format checked by test_adr_records.py.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Standard approach cites pip's install reference with observed runs. A project owning its tool versions in its own requirements, installed in one resolution, is the standard way and the design follows it. No script, check or dependency is added; the edit is template text, one test helper and the ADR.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "distribution",
+      "scenario": "Project requirements own the tool versions",
+      "reason": "Tasks.md maps it to test_quality_command_marker[fresh], which asserts only the seeded string (one install, tools unpinned). The installed versions follow from pip's single-resolution behaviour, which is observed in design.md D1 and Standard approach rather than tested, because a test would need a networked pip install."
+    }
+  ]
+}

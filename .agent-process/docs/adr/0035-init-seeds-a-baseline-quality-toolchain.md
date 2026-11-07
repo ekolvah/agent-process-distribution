@@ -38,10 +38,11 @@ tool through its own hook repository; no script is added.
   `minimum_pre_commit_version: "4.4.0"`) at `manual` only. mypy without
   `--ignore-missing-imports`: a library the hook environment lacks fails visibly until the
   repository lists its types in `additional_dependencies`, instead of becoming `Any`.
-* D3 — Each `rev` and the seeded `pre-commit` and `pytest` pins equal this repository's pins,
-  asserted by `tests/publisher/test_init_config.py` and `tests/publisher/test_init.py`.
-* D4 — The `quality` step seeds `{"setup": <install pre-commit, pytest and each present
-  requirements file>, "test": "pre-commit run --hook-stage manual --all-files
+* D3 — Each `rev` equals this repository's pin, asserted by
+  `tests/publisher/test_init_config.py`. The seed pins no tool: the project's requirements own
+  every version they pin.
+* D4 — The `quality` step seeds `{"setup": <one install of pre-commit and pytest, unpinned,
+  with each present requirements file>, "test": "pre-commit run --hook-stage manual --all-files
   --show-diff-on-failure"}` only when neither file exists; an existing declaration is
   `unchanged`; with an existing config and no declaration the `quality:` status line stays.
   This supersedes issue 249's "the installer writes no declaration".
