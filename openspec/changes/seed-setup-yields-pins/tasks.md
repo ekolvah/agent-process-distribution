@@ -9,8 +9,8 @@
 
 ## 2. Seed
 
-- [ ] 2.1 Apply design D1 to `skills/agent-process/templates/agent-process-quality.json` (spec distribution: Init asks for no quality command); verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_config.py -q` is green
-- [ ] 2.2 Amend in place D3 and D4 of `.agent-process/docs/adr/0035-init-seeds-a-baseline-quality-toolchain.md`: the seed installs `pre-commit` and `pytest` unpinned in one install with the requirements, so the project's requirements own every version they pin, and D3 no longer claims `test_init.py` checks seeded pins; verify `python -m pytest tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
+- [x] 2.1 Apply design D1 to `skills/agent-process/templates/agent-process-quality.json` (spec distribution: Init asks for no quality command); verify `python -m pytest tests/publisher/test_init.py tests/publisher/test_init_config.py -q` is green
+- [x] 2.2 Amend in place D3 and D4 of `.agent-process/docs/adr/0035-init-seeds-a-baseline-quality-toolchain.md`: the seed installs `pre-commit` and `pytest` unpinned in one install with the requirements, so the project's requirements own every version they pin, and D3 no longer claims `test_init.py` checks seeded pins; verify `python -m pytest tests/agent_process/test_adr_records.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
