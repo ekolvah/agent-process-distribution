@@ -20,7 +20,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change edit-lint-gitfile-wording`, then `gh pr create --title "test: edit-lint-gitfile-wording" --body-file <report>`; the report names the tracking issue as a plain reference, carries the scenario-to-test map and states the principles it interacts with (§I, §V)
+- [x] 4.1 Run `agent-process archive_change edit-lint-gitfile-wording`, then `gh pr create --title "test: edit-lint-gitfile-wording" --body-file <report>`; the report names the tracking issue as a plain reference, carries the scenario-to-test map and states the principles it interacts with (§I, §V)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
