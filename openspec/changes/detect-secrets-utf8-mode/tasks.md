@@ -6,7 +6,7 @@
 
 - [x] 1.1 In `tests/publisher/test_init_config.py::_baseline()` replace the `Yelp/detect-secrets` entry with the local hook of design D1 (`name: detect-secrets`, `stages: EDIT_AND_GATE`, the pin from `pin['detect-secrets']`)
 - [x] 1.2 Extract from `test_baseline_runs_tests_once_they_exist` a module-level helper. It takes the seeded `repo: local` entry by hook id, writes it alone into a fresh git repository, and returns a `run()` that commits and runs `pre-commit run --hook-stage manual --all-files` with extra environment. The `pytest` test calls it, and it keeps passing
-- [x] 1.3 Add `test_seeded_secret_scan_decodes_utf8` (design D4) on that helper. Its file `ru2.md` holds `ключ сервиса: aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"`; mark the test line `pragma: allowlist secret`. It asserts a non-zero exit and `ru2.md:1` in stdout
+- [x] 1.3 Add `test_seeded_secret_scan_decodes_utf8` (design D4) on that helper. Its file `ru2.md` holds `ключ сервиса: ` followed by an `aws_secret_access_key` assignment of the AWS documentation example key; mark the test line `pragma: allowlist secret`. It asserts a non-zero exit and `ru2.md:1` in stdout
 - [x] 1.4 Run `agent-process check_red tests/publisher/test_init_config.py::test_created_config_carries_the_baseline tests/publisher/test_init_config.py::test_seeded_secret_scan_decodes_utf8` and commit RED with these ticks
 
 ## 2. Template
@@ -18,7 +18,7 @@
 
 - [x] 3.1 Run `/simplify` without an argument and commit its edits
 - [x] 3.2 Run `openspec validate --strict --all`
-- [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 4. Deliver
 

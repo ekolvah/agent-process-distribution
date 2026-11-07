@@ -7,8 +7,8 @@ silently skip a whole file that contains a secret.
 **Reproduction** (Windows 11, pre-commit 4.6.0, `PYTHONUTF8=0`, files tracked in a fresh git
 repository, `pre-commit run -c <config> --hook-stage manual --all-files`):
 
-- `ru.md`: `# Заметка про кириллицу` on line 1 and `aws_secret_access_key = "wJalr…EXAMPLEKEY"` on line 2
-- `ru2.md`: `ключ сервиса: aws_secret_access_key = "wJalr…EXAMPLEKEY"` on line 1
+- `ru.md`: `# Заметка про кириллицу` on line 1 and an `aws_secret_access_key` assignment of the AWS documentation example key on line 2
+- `ru2.md`: `ключ сервиса: ` followed by the same assignment on line 1
 
 | Config | `ru.md:2` | `ru2.md:1` |
 |---|---|---|
