@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -260,9 +261,17 @@ def _baseline() -> list[dict[str, Any]]:
             ],
         },
         {
-            "repo": "https://github.com/Yelp/detect-secrets",
-            "rev": f"v{pin['detect-secrets']}",
-            "hooks": [{"id": "detect-secrets", "stages": EDIT_AND_GATE}],
+            "repo": "local",
+            "hooks": [
+                {
+                    "id": "detect-secrets",
+                    "name": "detect-secrets",
+                    "entry": "python -X utf8 -m detect_secrets.pre_commit_hook",
+                    "language": "python",
+                    "additional_dependencies": [f"detect-secrets=={pin['detect-secrets']}"],
+                    "stages": EDIT_AND_GATE,
+                }
+            ],
         },
         {
             "repo": "https://github.com/pypa/pip-audit",
@@ -323,38 +332,57 @@ def test_existing_config_keeps_its_hooks(sandbox: Sandbox) -> None:
     assert ids == {"mine", "quality"}
 
 
-def test_baseline_runs_tests_once_they_exist(sandbox: Sandbox, tmp_path: Path) -> None:
-    """Scenario: Tests run once they exist — the created config's `pytest` hook is skipped
-    with no tracked test file and runs a tracked failing test (design D2)."""
+def _seeded_hook(
+    sandbox: Sandbox, work: Path, hook_id: str
+) -> Callable[..., subprocess.CompletedProcess[str]]:
+    """Write the created config's `repo: local` hook `hook_id` alone into a fresh git
+    repository at `work`, run by the test interpreter from `PATH` (`language: unsupported`,
+    no `additional_dependencies`, so no network), and return a `run(**env)` that commits
+    and runs the manual stage."""
     init = load_init()
     _installed(init, sandbox)
     config = yaml.safe_load((sandbox.root / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
-    [local] = [repo for repo in config["repos"] if repo["repo"] == "local"]
-    work = tmp_path / "work"
+    [hook] = [
+        hook
+        for repo in config["repos"]
+        if repo["repo"] == "local"
+        for hook in repo["hooks"]
+        if hook["id"] == hook_id
+    ]
+    hook = {**hook, "language": "unsupported"}
+    hook.pop("additional_dependencies", None)
     work.mkdir()
     git("init", "-q", str(work))
     (work / ".pre-commit-config.yaml").write_text(
-        yaml.safe_dump({"repos": [local]}), encoding="utf-8"
+        yaml.safe_dump({"repos": [{"repo": "local", "hooks": [hook]}]}), encoding="utf-8"
     )
-    (work / "a.py").write_text("A = 1\n", encoding="utf-8")
-    env = {
+    base = {
         **os.environ,
         "PATH": os.pathsep.join([str(Path(sys.executable).parent), os.environ["PATH"]]),
     }
-    env.pop("PYTEST_ADDOPTS", None)
+    base.pop("PYTEST_ADDOPTS", None)
 
-    def run() -> subprocess.CompletedProcess[str]:
+    def run(**env: str) -> subprocess.CompletedProcess[str]:
         git("add", "-A", cwd=work)
         git("commit", "-q", "-m", "x", cwd=work)
         return subprocess.run(
             [sys.executable, "-m", "pre_commit", "run", "--hook-stage", "manual", "--all-files"],
             cwd=work,
-            env=env,
+            env={**base, **env},
             capture_output=True,
             encoding="utf-8",
             check=False,
         )
 
+    return run
+
+
+def test_baseline_runs_tests_once_they_exist(sandbox: Sandbox, tmp_path: Path) -> None:
+    """Scenario: Tests run once they exist — the created config's `pytest` hook is skipped
+    with no tracked test file and runs a tracked failing test (design D2)."""
+    work = tmp_path / "work"
+    run = _seeded_hook(sandbox, work, "pytest")
+    (work / "a.py").write_text("A = 1\n", encoding="utf-8")
     skipped = run()
     assert skipped.returncode == 0, (skipped.stdout, skipped.stderr)
     [line] = [ln for ln in skipped.stdout.splitlines() if ln.startswith("pytest")]
@@ -366,6 +394,21 @@ def test_baseline_runs_tests_once_they_exist(sandbox: Sandbox, tmp_path: Path) -
     failed = run()
     assert failed.returncode != 0, failed.stdout
     assert "test_fails_on_purpose" in failed.stdout, failed.stdout
+
+
+def test_seeded_secret_scan_decodes_utf8(sandbox: Sandbox, tmp_path: Path) -> None:
+    """Scenario: Secret in a file the locale cannot decode — the created config's
+    `detect-secrets` entry reports a secret on a Cyrillic line under an ASCII or cp1252
+    locale (design D4)."""
+    work = tmp_path / "work"
+    run = _seeded_hook(sandbox, work, "detect-secrets")
+    (work / "ru2.md").write_text(
+        'ключ сервиса: aws_secret_access_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"\n',  # pragma: allowlist secret
+        encoding="utf-8",
+    )
+    done = run(PYTHONUTF8="0", PYTHONCOERCECLOCALE="0", LC_ALL="C")
+    assert done.returncode != 0, (done.stdout, done.stderr)
+    assert "ru2.md:1" in done.stdout, done.stdout
 
 
 def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:
