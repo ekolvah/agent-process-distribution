@@ -120,10 +120,20 @@ def _pre_push(project: Path) -> tuple[str, str] | None:
     git = shutil.which("git")
     if git is None:
         return PRE_PUSH_MARKER, "cannot check: `git` is not on PATH"
-    if _git(git, project, (0, 1), "config", "--get", "core.hooksPath").returncode == 0:
-        return PRE_PUSH_MARKER, "core.hooksPath is set"
     done = _git(git, project, (0,), "rev-parse", "--git-path", "hooks/pre-push")
     hook = project / done.stdout.strip()
+    if _git(git, project, (0, 1), "config", "--get", "core.hooksPath").returncode == 0:
+        try:
+            names = sorted(p.name for p in hook.parent.iterdir() if p.suffix != ".sample")
+        except FileNotFoundError:
+            names = []
+        reason = "core.hooksPath is set"
+        if names:
+            reason += (
+                f" and {hook.parent} holds {', '.join(names)}: git stops running them once it is"
+                " unset, so port them to .pre-commit-config.yaml as repo: local hooks first"
+            )
+        return PRE_PUSH_MARKER, reason
     try:
         installed = PRE_COMMIT_ID.encode() in hook.read_bytes()
     except FileNotFoundError:

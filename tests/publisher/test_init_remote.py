@@ -678,6 +678,39 @@ def test_pre_push_blocked_is_manual(
         "pre-commit install --hook-type pre-push",
     ):
         assert part in row, row
+    assert "repo: local" not in row, row
+
+
+@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+def test_pre_push_names_existing_hooks(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
+) -> None:
+    """Scenario: Per-clone row over existing hooks."""
+    git("config", "core.hooksPath", ".hooks", cwd=sandbox.root)
+    hooks = sandbox.root / ".hooks"
+    hooks.mkdir()
+    (hooks / "commit-msg").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    (hooks / "pre-push.sample").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    git("add", ".hooks", cwd=sandbox.root)
+    git("commit", "-q", "-m", "ship hooks", cwd=sandbox.root)
+    init = load_init()
+    assert install(init, sandbox, mode) == 0
+    out = capfd.readouterr().out
+    assert "pre-push" not in transitions(out), out
+    assert sorted(p.name for p in hooks.iterdir()) == ["commit-msg", "pre-push.sample"]
+    assert not _hook(sandbox).exists()
+    row = _row(_manual_rows(out), "pre-push")
+    for part in (
+        str(hooks),
+        "commit-msg",
+        "stops running",
+        ".pre-commit-config.yaml",
+        "repo: local",
+        "git config --unset-all core.hooksPath",
+        "pre-commit install --hook-type pre-push",
+    ):
+        assert part in row, row
+    assert "pre-push.sample" not in row, row
 
 
 def test_foreign_pre_push_is_migrated(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
