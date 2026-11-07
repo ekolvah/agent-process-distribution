@@ -17,7 +17,7 @@
 
 ## 3. Docs
 
-- [ ] 3.1 Add `.agent-process/docs/adr/0048-init-sets-up-task-readings-from-the-grafana-mcp-config.md` (D1–D3, the token-copy risk; Confirmation names `test_init_readings.py`); point ADR 0041 D4 at it; in `skills/agent-process/SKILL.md` Install step 4 say the `task-readings` row appears only when `init` could not set it up and names why; update the row text in `.agent-process/docs/telemetry-measurement-setup.md`. Verify `grep -rn "manual task-readings" skills .agent-process/docs` shows only consistent wording, then commit with the ticks
+- [x] 3.1 Add `.agent-process/docs/adr/0048-init-sets-up-task-readings-from-the-grafana-mcp-config.md` (D1–D3, the token-copy risk; Confirmation names `test_init_readings.py`); point ADR 0041 D4 at it; in `skills/agent-process/SKILL.md` Install step 4 say the `task-readings` row appears only when `init` could not set it up and names why; update the row text in `.agent-process/docs/telemetry-measurement-setup.md`. Verify `grep -rn "manual task-readings" skills .agent-process/docs` shows only consistent wording, then commit with the ticks
 
 ## 4. Verify
 
