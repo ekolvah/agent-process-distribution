@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.29.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.29.0...v3.29.1) (2026-11-08)
+
+
+### Bug Fixes
+
+* detect-secrets-utf8-mode ([#479](https://github.com/ekolvah/agent-process-distribution/issues/479)) ([910de56](https://github.com/ekolvah/agent-process-distribution/commit/910de565db61ad9eb02696e71eef9543b10bf924))
+* hooks-path-names-existing-hooks ([#480](https://github.com/ekolvah/agent-process-distribution/issues/480)) ([72f419c](https://github.com/ekolvah/agent-process-distribution/commit/72f419cbab07f8a0a794fc6aa81109ee45bf50f6))
+* seed-setup-yields-pins ([#476](https://github.com/ekolvah/agent-process-distribution/issues/476)) ([e3c0e9b](https://github.com/ekolvah/agent-process-distribution/commit/e3c0e9bbcbe7161a7c93f1f7b86f567baa6a773f))
+
 ## [3.29.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.28.0...v3.29.0) (2026-10-19)
 
 
