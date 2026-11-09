@@ -32,3 +32,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 476,seed-setup-yields-pins,issue-470,2026-11-07T12:10:36Z,2026-11-07T13:51:31Z,1.68,0.68,253,2,2,5.7390,127,1,1,0,
 479,detect-secrets-utf8-mode,issue-471,2026-11-07T13:53:19Z,2026-11-07T14:53:21Z,1.00,0.74,356,2,1,7.8856,148,2,0,0,
 480,hooks-path-names-existing-hooks,issue-472,2026-11-07T14:54:55Z,2026-11-07T18:54:57Z,4.00,0.59,396,2,1,5.4611,102,1,0,0,
+481,task-readings-auto-setup,issue-473,2026-11-07T18:56:12Z,2026-11-09T05:16:18Z,34.33,1.62,1136,3,4,17.3059,301,6,3,2,
