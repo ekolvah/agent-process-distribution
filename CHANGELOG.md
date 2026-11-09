@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.29.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.29.1...v3.29.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* task-readings-auto-setup ([#481](https://github.com/ekolvah/agent-process-distribution/issues/481)) ([ff81895](https://github.com/ekolvah/agent-process-distribution/commit/ff8189517c80b4853b11e1152d85d7fd8501025b))
+
 ## [3.29.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.29.0...v3.29.1) (2026-11-08)
 
 
