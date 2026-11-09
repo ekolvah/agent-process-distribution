@@ -36,7 +36,10 @@ the recording, not data routing, and `aqxk4q` keeps reading only this repository
 * **D3 — the branch.** The first run of a repository without `task-readings` creates it as an
   orphan holding only `task-readings.csv`, header first.
 * **D4 — the manual row.** `init` prints `manual task-readings` while either credential is
-  absent, from the one secret-names read it shares with `review-secret`.
+  absent, from the one secret-names read it shares with `review-secret`. Amended by
+  [ADR 0048](0048-init-sets-up-task-readings-from-the-grafana-mcp-config.md): `init` sets
+  both up, and the dashboard, from the `grafana` MCP config, and prints the row with the
+  reason only for what it cannot.
 
 ### Consequences
 

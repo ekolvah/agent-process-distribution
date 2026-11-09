@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 3,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Both round-2 findings are answered: RED now covers only tests that change behaviour, the guard runs green, and every task-readings write goes through a checked, stdin-carrying gh_write or the import, both of which reach InstallError and exit 1, with a test for each.",
+  "classes": {
+    "simpler": {
+      "evidence": "Unchanged since round 2. D3 rejects a separate command and D7 rejects /api/dashboards/import. D4's cycle-free layout still holds. The line budget was rechecked: init.py is 1000 lines; run (init.py:162-181) plus its blank lines leaves for steps.py (-21); the +10 touch points are the import, the Host field (init.py:280), the Context field (:290) and its construction (:903), main's Host (:990), grafana= and gh_write= in _target (:818-830), the steps list (:955) and input on Context.call (:309-322). That gives about 989, and the wc check in 2.2 enforces it.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "All eight delta scenarios map to named tests. Setup write fails now covers both of its WHEN branches through test_setup_write_fails, parametrized as secret-set and post 403. test_observed_manual_rows_are_omitted (test_init_remote.py:508) still holds after the change: the sandbox home has no ~/.claude.json, and both names exist, so no row and no task-readings step.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Round-2 finding answered. In 1.4, check_red receives the node ids of 1.2 without test_another_stack_already_set, plus test_readings_prerequisites_are_printed. Each of those fails on missing behaviour: no task-readings transitions, no exit 1, no reason suffix. The guard is green on today's code, because Observed done omits the row when both names exist and 1.1 keeps `--json name` answered. Note only: 1.1 says the FakeGrafana is injected 'only by the new tests'. The guard has to pass no Grafana factory, or it hits a TypeError on today's Host (init.py:280, no such field). 1.4's green run of the guard catches that at once.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Unchanged and observed: the mcpServers.grafana.env keys and the Infinity datasource by type (proposal Why, 2026-11-07); POST /api/dashboards/db -> 200 (observed in the issue); `gh variable list --json` with value (D5); the substring match of /api/search (D6); gh secret set reading stdin (the manual quoted in Standard approach). gh_write adds no new platform claim: subprocess input with text=True is the boundary `run` already uses. The Risks race wording now names a window that can occur.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Unchanged since round 2. The MODIFIED requirement still lists the dropped 'no secret or variable write' guard beside its replacements: token rights (Risks, ADR 0048), title as identity (Risks), and another stack, a missing datasource and an unreadable read (D5, D6, D8). Another stack keeps today's row criterion (Scenario: Another stack already set).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Round-2 finding answered. D4 adds Target.gh_write, built in _target as ctx.call(\"gh\", ..., input=..., check=True). Context.call raises InstallError on a non-zero exit (init.py:319-321). Its message carries argv and gh's output; the token goes on stdin, so neither contains it. Inside _perform (init.py:976-982) that error propagates to install (init.py:913-916), which prints `error: ...` and returns 1, before any `written task-readings-token` line. The readings steps are last (D3), so no earlier step is skipped. The dashboard import takes the same route through D8. Note only: Context.call names the gh command, not the step. To meet D8 and the stderr assertion of test_setup_write_fails, the step's apply has to add `task-readings-token` or `task-readings-dashboard` to the error, and that test drives it. gh variable set shares gh_write, so the secret-set case covers the class.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The added sentence 'A failed task-readings write SHALL print an error naming its step and exit 1.' is 14 words. test_setup_write_fails asserts the step name, the failure, the absence of the token and exit 1. Other counts are unchanged since round 2: the MODIFIED requirement is 75 words, and every clause of the ADDED requirement is asserted by the planned, performed, observed, not_possible, another_stack_already_set, write_fails and readings_prerequisites tests.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Standard approach is unchanged: mcp-grafana's README, Grafana's HTTP API pages and the gh secret set manual are the documented path for each job. gh_write is a checked call through the existing Context.call, not a new mechanism. readings_setup.py keeps its D3/D4 decision. No check or dependency is added.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

@@ -282,12 +282,15 @@ the caller `.github/workflows/task-readings.yml`, pinned to the release. The per
   `~/.claude/settings.json`, as in [What exports what](#what-exports-what);
 - sets `OTEL_RESOURCE_ATTRIBUTES` in the repository's `.claude/settings.json` by hand, as in
   [Which label carries the project](#which-label-carries-the-project);
-- does the `manual task-readings` row of `init`: the `GRAFANA_URL` variable and the
-  `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret of that stack;
-- runs `agent-process dashboard <owner/repo> > per-task.json` for a per-project dashboard,
-  or lists several repositories for one dashboard holding all their tasks, and imports the
-  file in that stack's Grafana (Dashboards → New → Import), choosing its Infinity datasource.
-  Every panel gets one query per listed repository and a `repository` column.
+- does the `manual task-readings` row of `init`, printed only for what `init` could not set
+  up from the machine's `grafana` MCP server, with the reason
+  ([ADR 0048](adr/0048-init-sets-up-task-readings-from-the-grafana-mcp-config.md)): the
+  `GRAFANA_URL` variable and the `GRAFANA_SERVICE_ACCOUNT_TOKEN` secret of that stack, and the
+  per-task dashboard;
+- for one dashboard holding several repositories' tasks, runs
+  `agent-process dashboard <owner/repo> <owner/repo>… > per-task.json` and imports the file in
+  that stack's Grafana (Dashboards → New → Import), choosing its Infinity datasource. Every
+  panel gets one query per listed repository and a `repository` column.
 
 The script queries the datasource UIDs `grafanacloud-prom` and `grafanacloud-logs` of Grafana
 Cloud; another stack gets a `telemetry: Grafana query failed: …` gap. Recording works in a

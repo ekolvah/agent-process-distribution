@@ -10,7 +10,9 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
+
+import dashboard
 
 # The built-in workflows of the template by API name, with their targets (the `state` spec's
 # template requirement); the API exposes only a workflow's name and whether it is enabled.
@@ -33,6 +35,8 @@ QUERY = (
 REVIEW_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 GRAFANA_URL = "GRAFANA_URL"
 GRAFANA_TOKEN = "GRAFANA_SERVICE_ACCOUNT_TOKEN"
+INFINITY = "yesoreyeram-infinity-datasource"
+MCP = "grafana MCP server in ~/.claude.json"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 
@@ -43,17 +47,31 @@ class Unreadable(Exception):
     """A row's state `init` cannot read; the row is printed with this reason."""
 
 
+class Grafana(Protocol):
+    """A Grafana stack's HTTP API; every call raises `Unreadable` when it fails."""
+
+    def datasources(self) -> list[dict[str, Any]]: ...
+
+    def dashboard_titles(self, query: str) -> list[str]: ...
+
+    def post_dashboard(self, model: dict[str, Any]) -> str: ...
+
+
 @dataclass
 class Target:
     """The consumer `owner/name` and the reads the rows need: `gh` and `git` (in the clone)
     return a completion whatever its exit code. `source` is the process repository whose
     `marketplace` and `plugin` the machine should follow; `template` is the template Project's
-    owner and number; `pre_commit` is the `pre-commit` on PATH, if any."""
+    owner and number; `pre_commit` is the `pre-commit` on PATH, if any. `gh_write` is a `gh`
+    write that raises `InstallError` on a non-zero exit; `grafana` opens a stack by URL and
+    token."""
 
     repo: str
     root: Path
     home: Path
     gh: Read
+    gh_write: Read
+    grafana: Callable[[str, str], Grafana]
     git: Read
     template: tuple[str, str]
     source: str
@@ -94,10 +112,9 @@ def rows(t: Target) -> list[str]:
             f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
             "token at its prompt; the review caller passes it to the review",
         ),
-        *_outstanding(
-            # No short circuit: an absent secret still reads the variables, so either read
-            # being unreadable marks the row.
-            lambda: all([_has(secrets, GRAFANA_TOKEN), GRAFANA_URL in _names(t, "variable")]),
+        *_readings_row(
+            t,
+            secrets,
             f"manual task-readings: https://github.com/{t.repo}/settings/variables/actions -- "
             f"gh variable set {GRAFANA_URL} -R {t.repo} with this repository's Grafana URL, "
             f"then gh secret set {GRAFANA_TOKEN} -R {t.repo} with a service account token of "
@@ -187,7 +204,7 @@ def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str],
     return public, missing, areas is None or areas == template
 
 
-def _names_or_unreadable(t: Target, kind: str) -> set[str] | Unreadable:
+def _names_or_unreadable(t: Target, kind: str) -> dict[str, str] | Unreadable:
     """One read shared by several rows, each of which `_has` marks when it failed."""
     try:
         return _names(t, kind)
@@ -195,18 +212,19 @@ def _names_or_unreadable(t: Target, kind: str) -> set[str] | Unreadable:
         return exc
 
 
-def _has(names: set[str] | Unreadable, name: str) -> bool:
+def _has(names: dict[str, str] | Unreadable, name: str) -> bool:
     if isinstance(names, Unreadable):
         raise names
     return name in names
 
 
-def _names(t: Target, kind: str) -> set[str]:
-    """The repository's Actions `secret` or `variable` names."""
-    data = _gh_read(t, kind, "list", "--repo", t.repo, "--json", "name")
+def _names(t: Target, kind: str) -> dict[str, str]:
+    """The repository's Actions `secret` names, or `variable` names with their values."""
+    fields = "name,value" if kind == "variable" else "name"
+    data = _gh_read(t, kind, "list", "--repo", t.repo, "--json", fields)
     try:
-        return {str(item["name"]) for item in data}
-    except (KeyError, TypeError):
+        return {str(item["name"]): str(item.get("value", "")) for item in data}
+    except (AttributeError, KeyError, TypeError):
         raise Unreadable(f"`gh {kind} list` printed an unexpected shape: {data}") from None
 
 
@@ -239,6 +257,99 @@ def _plugin_channel(t: Target) -> bool:
     except (AttributeError, KeyError, TypeError):
         raise Unreadable(f"{plugins} holds plugin files of an unexpected shape") from None
     return bool(channel) and user
+
+
+@dataclass
+class Readings:
+    """The task-readings state: the `grafana` MCP server's `url` and `token` (read from
+    `source`), the repository's `GRAFANA_URL` (`variable`, `None` when unset) and whether its
+    token `secret` is set, whether the stack holds the rendered `title` (`dashboard`, `None`
+    when not read), its Infinity `datasource` uid, and why `init` cannot set all up
+    (`blocked`)."""
+
+    title: str
+    url: str | None = None
+    token: str | None = None
+    source: str = ""
+    variable: str | None = None
+    secret: bool = False
+    datasource: str | None = None
+    dashboard: bool | None = None
+    blocked: str | None = None
+
+
+def readings(t: Target, secrets: dict[str, str] | Unreadable | None = None) -> Readings:
+    """The names (`secrets` when already read), then the MCP config, then — unless the
+    variable names another stack, which leaves `url` and `token` unset — the stack's dashboard
+    and, when that is missing, its Infinity datasource."""
+    r = Readings(dashboard.render([t.repo])["title"])
+    try:
+        r.variable = _names(t, "variable").get(GRAFANA_URL)
+        r.secret = _has(
+            _names_or_unreadable(t, "secret") if secrets is None else secrets, GRAFANA_TOKEN
+        )
+        config = _mcp_grafana(t.home)
+    except Unreadable as exc:
+        r.blocked = f"cannot read: {exc}"
+        return r
+    if isinstance(config, str):
+        r.blocked = f"not found: {config}"
+        return r
+    if r.variable not in (None, config[0]):
+        r.blocked = f"another stack: {r.variable}"
+        return r
+    r.url, r.token, r.source = config
+    try:
+        stack = t.grafana(r.url, r.token)
+        r.dashboard = r.title in stack.dashboard_titles(r.title)
+        if not r.dashboard:
+            found = [s.get("uid") for s in stack.datasources() if s.get("type") == INFINITY]
+            r.datasource = str(found[0]) if found else None
+            if r.datasource is None:
+                r.blocked = f"not found: Infinity datasource in {r.url}"
+    except Unreadable as exc:
+        r.dashboard, r.blocked = False, f"cannot read: {exc}"
+    return r
+
+
+def _mcp_grafana(home: Path) -> tuple[str, str, str] | str:
+    """The `grafana` MCP server's URL, token and the token's source, or what is missing."""
+    path = home / ".claude.json"
+    config = _plugin_file(path)
+    try:
+        server = None if config is None else (config.get("mcpServers") or {}).get("grafana")
+        env = None if server is None else server.get("env") or {}
+    except AttributeError:
+        env = []
+    if not isinstance(env, (dict, type(None))):
+        raise Unreadable(f"{path} holds an mcpServers entry of an unexpected shape")
+    if env is None:
+        return MCP
+    if not env.get(GRAFANA_URL):
+        return f"{GRAFANA_URL} of the {MCP}"
+    url = str(env[GRAFANA_URL])
+    if env.get(GRAFANA_TOKEN):
+        return url, str(env[GRAFANA_TOKEN]), f"{GRAFANA_TOKEN} of the {MCP}"
+    name = env.get(f"{GRAFANA_TOKEN}_FILE")
+    if not name:
+        return f"{GRAFANA_TOKEN} of the {MCP}"
+    file = Path(str(name)).expanduser()
+    try:
+        token = file.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        token = ""
+    except (OSError, UnicodeDecodeError) as exc:
+        raise Unreadable(f"{file}: {exc}") from None
+    # An empty file holds no token, as an empty inline value does.
+    return (url, token, str(file)) if token else str(file)
+
+
+def _readings_row(t: Target, secrets: dict[str, str] | Unreadable, row: str) -> list[str]:
+    """The row while the variable, the secret or the dashboard is missing and no step sets it
+    up; with another stack named, only while the secret is missing."""
+    r = readings(t, secrets)
+    done = r.variable is not None and r.secret and r.dashboard is not False
+    return [f"{row} ({r.blocked})"] if r.blocked and not done else []
 
 
 @dataclass

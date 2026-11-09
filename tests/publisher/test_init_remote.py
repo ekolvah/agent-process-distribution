@@ -486,6 +486,7 @@ def test_readings_prerequisites_are_printed(
     assert f"gh secret set GRAFANA_SERVICE_ACCOUNT_TOKEN -R {CONSUMER}" in row
     assert f"agent-process dashboard {CONSUMER}" in row
     assert "Dashboards → New → Import" in row
+    assert row.endswith("(not found: grafana MCP server in ~/.claude.json)"), row
     # `_gh_kind` fails on any `gh` command but the reads, the copy and the link: no write.
     for args in runner.gh():
         _gh_kind(args)
@@ -510,7 +511,7 @@ def test_observed_manual_rows_are_omitted(
 ) -> None:
     """Scenario: Observed done."""
     sandbox.github.secrets.update({"CLAUDE_CODE_OAUTH_TOKEN", "GRAFANA_SERVICE_ACCOUNT_TOKEN"})
-    sandbox.github.variables.add("GRAFANA_URL")
+    sandbox.github.variables["GRAFANA_URL"] = "https://stack.grafana.net"
     project = sandbox.github.add(linked=CONSUMER)
     project.public, project.areas = True, ["Alpha"]
     project.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
@@ -633,11 +634,12 @@ class _NoHookRunner(Runner):
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         capture: bool = True,
+        input: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         if _is([str(cmd[0])], "pre-commit"):
             self.log.append([str(part) for part in cmd])
             return subprocess.CompletedProcess(cmd, 0, "", "")
-        return super().__call__(cmd, cwd=cwd, env=env, capture=capture)
+        return super().__call__(cmd, cwd=cwd, env=env, capture=capture, input=input)
 
 
 def test_pre_push_install_leaves_no_hook(
