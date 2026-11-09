@@ -103,10 +103,8 @@ def _gh_kind(args: list[str]) -> str:
     )
     if args[:2] in reads:
         return "read"
-    if args in (
-        ["api", f"repos/{OWNER}/{REPO_NAME}"],
-        ["api", f"repos/{OWNER}/{REPO_NAME}/rules/branches/main"],
-    ):
+    if args[0] == "api" and args[1:2] != ["graphql"] and len(args) == 2:
+        assert args[1].startswith(f"repos/{OWNER}/{REPO_NAME}"), args
         return "read"
     if args[:2] == ["api", "graphql"] and not any("mutation" in part for part in args):
         return "read"

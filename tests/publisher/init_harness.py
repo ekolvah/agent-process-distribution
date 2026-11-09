@@ -443,9 +443,12 @@ def grafana_config(
 
 
 def local_settings(sb: Sandbox, token: str) -> Path:
-    """This clone's `.claude/settings.local.json` carrying the agent's `env.GH_TOKEN`."""
+    """This clone's `.claude/settings.local.json` carrying the agent's `env.GH_TOKEN`, ignored
+    by git as Claude Code ignores it."""
     path = sb.root / ".claude" / "settings.local.json"
     path.parent.mkdir(parents=True, exist_ok=True)
+    with (sb.root / ".git" / "info" / "exclude").open("a", encoding="utf-8") as exclude:
+        exclude.write("\n/.claude/settings.local.json\n")
     path.write_text(json.dumps({"env": {"GH_TOKEN": token}}), encoding="utf-8")
     return path
 

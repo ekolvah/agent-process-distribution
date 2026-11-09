@@ -182,8 +182,10 @@ Run from the consumer's root:
    the `project-*` rows in the Project's UI, the `task-readings` row, printed only when `init`
    could not set it up from the machine's `grafana` MCP server and naming why, the
    `plugin-channel` row, once
-   per machine and outside any project, and the `pre-push` row, printed only when `init` could
-   not install the hook in this clone and naming why — then to review and merge the PR, switch
+   per machine and outside any project, the `pre-push` row, printed only when `init` could
+   not install the hook in this clone and naming why, and the `auto-merge` row; the
+   `protection` row is done in step 5 and the `agent-identity` row in step 6, after the merge —
+   then to review and merge the PR, switch
    to the default branch and pull. In another clone, each
    Claude session start reports the missing pre-push hook until its person runs the two
    commands it names.
