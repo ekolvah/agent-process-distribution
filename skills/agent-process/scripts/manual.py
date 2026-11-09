@@ -223,7 +223,9 @@ def _identity_set(t: Target) -> bool:
     """This clone's settings carry the agent's `env.GH_TOKEN`; a missing `env` is `{}`."""
     path = t.root / SETTINGS
     data = _plugin_file(path)
-    env = {} if data is None else data.get("env", {}) if isinstance(data, dict) else None
+    if data is None:
+        return False
+    env = data.get("env", {}) if isinstance(data, dict) else None
     if not isinstance(env, dict):
         raise Unreadable(f"{path} is not an object whose `env` is an object")
     return bool(env.get("GH_TOKEN"))
@@ -305,7 +307,8 @@ def _names(t: Target, kind: str) -> dict[str, str]:
 
 
 def _plugin_file(path: Path) -> Any:
-    """A plugin file's JSON; `None` when it is absent (no plugin was ever installed)."""
+    """A plugin or settings file's JSON; `None` when it is absent (no plugin was ever
+    installed, no setting was ever written)."""
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:

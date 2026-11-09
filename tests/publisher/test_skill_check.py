@@ -19,6 +19,8 @@ from typing import Any
 
 import pytest
 
+from tests.publisher.delivery_fakes import load_script
+
 ROOT = Path(__file__).resolve().parents[2]
 CHECK = ROOT / "skills" / "agent-process" / "templates" / "skill_check.py"
 PLUGIN = "agent-process@agent-process-marketplace"
@@ -343,24 +345,12 @@ def test_pre_push_and_skill_markers_share_output(tmp_path: Path) -> None:
 
 def test_pre_push_id_matches_installer() -> None:
     """Scenario: Hook missing — the check reads the ID `init` reads."""
-    spec = importlib.util.spec_from_file_location(
-        "manual", ROOT / "skills" / "agent-process" / "scripts" / "manual.py"
-    )
-    assert spec is not None and spec.loader is not None
-    manual = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(manual)
-    assert _check().PRE_COMMIT_ID == manual.PRE_COMMIT_ID
+    assert _check().PRE_COMMIT_ID == load_script("manual").PRE_COMMIT_ID
 
 
 def test_identity_fix_is_one_text() -> None:
     """Scenario: Identity missing — the marker names the fix the `agent-identity` row names."""
-    spec = importlib.util.spec_from_file_location(
-        "manual", ROOT / "skills" / "agent-process" / "scripts" / "manual.py"
-    )
-    assert spec is not None and spec.loader is not None
-    manual = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(manual)
-    assert _check().IDENTITY_FIX == manual.IDENTITY_FIX
+    assert _check().IDENTITY_FIX == load_script("manual").IDENTITY_FIX
 
 
 IDENTITY_MARKER = "agent-process agent identity not set"

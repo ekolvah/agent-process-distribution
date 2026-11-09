@@ -103,7 +103,7 @@ def _gh_kind(args: list[str]) -> str:
     )
     if args[:2] in reads:
         return "read"
-    if args[0] == "api" and args[1:2] != ["graphql"] and len(args) == 2:
+    if args[0] == "api" and len(args) == 2:
         assert args[1].startswith(f"repos/{OWNER}/{REPO_NAME}"), args
         return "read"
     if args[:2] == ["api", "graphql"] and not any("mutation" in part for part in args):
@@ -516,7 +516,7 @@ def test_agent_identity_pending_is_manual(
     """Scenario: Identity pending."""
     sandbox.github.allow_auto_merge = True
     if settings is not None:
-        local_settings(sandbox, "").write_text(json.dumps(settings), encoding="utf-8")
+        local_settings(sandbox, text=json.dumps(settings))
     init = load_init()
     assert install(init, sandbox, mode) == 0
     row = _row(_manual_rows(capfd.readouterr().out), "agent-identity")
@@ -580,17 +580,32 @@ def test_observed_manual_rows_are_omitted(
     assert transitions(out)["pre-push"] == "unchanged", out
 
 
-UNREADABLE = {
-    "secret-403": ("--dry-run", "secret-list", ["review-secret", "task-readings"]),
-    "variable-403": ("--dry-run", "variable-list", ["task-readings"]),
-    "plugin-malformed": ("--dry-run", "", ["plugin-channel"]),
-    "project-read": ("--confirm", "project-read", list(PROJECT_ROWS)),
-    "repo-read": ("--dry-run", "repo-read", ["protection", "auto-merge"]),
-    "rules-read": ("--dry-run", "rules-read", ["protection"]),
-    "settings-malformed": ("--dry-run", "", ["agent-identity"]),
-    "settings-shape": ("--dry-run", "", ["agent-identity"]),
+def _fault(name: str) -> Callable[[Sandbox], None]:
+    return lambda sb: sb.github.faults.update({name: "fail"})
+
+
+def _malformed_plugin(sb: Sandbox) -> None:
+    (_plugin_files(sb) / "known_marketplaces.json").write_text("not json", encoding="utf-8")
+
+
+UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], None], list[str]]] = {
+    "secret-403": ("--dry-run", _fault("secret-list"), ["review-secret", "task-readings"]),
+    "variable-403": ("--dry-run", _fault("variable-list"), ["task-readings"]),
+    "plugin-malformed": ("--dry-run", _malformed_plugin, ["plugin-channel"]),
+    "project-read": ("--confirm", _fault("project-read"), list(PROJECT_ROWS)),
+    "repo-read": ("--dry-run", _fault("repo-read"), ["protection", "auto-merge"]),
+    "rules-read": ("--dry-run", _fault("rules-read"), ["protection"]),
+    "settings-malformed": (
+        "--dry-run",
+        lambda sb: local_settings(sb, text="not json"),
+        ["agent-identity"],
+    ),
+    "settings-shape": (
+        "--dry-run",
+        lambda sb: local_settings(sb, text='{"env": []}'),
+        ["agent-identity"],
+    ),
 }
-SETTINGS_TEXT = {"settings-malformed": "not json", "settings-shape": '{"env": []}'}
 
 
 @pytest.mark.parametrize("case", list(UNREADABLE))
@@ -600,15 +615,8 @@ def test_unreadable_manual_state_is_printed(
     """Scenario: Unreadable state — the row stays with its reason and the exit code is the
     run's own. The sandbox is not an empty repository, so `init` itself never reads
     `repos/<owner>/<name>`."""
-    mode, fault, labels = UNREADABLE[case]
-    if fault:
-        sandbox.github.faults[fault] = "fail"
-    elif case in SETTINGS_TEXT:
-        local_settings(sandbox, "agent-token").write_text(SETTINGS_TEXT[case], encoding="utf-8")
-    else:
-        (_plugin_files(sandbox) / "known_marketplaces.json").write_text(
-            "not json", encoding="utf-8"
-        )
+    mode, arrange, labels = UNREADABLE[case]
+    arrange(sandbox)
     init = load_init()
     assert install(init, sandbox, mode) == 0
     manual = _manual_rows(capfd.readouterr().out)
