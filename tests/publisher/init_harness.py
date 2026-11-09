@@ -105,6 +105,10 @@ TEMPLATE_AREAS = [
 ]
 
 
+# GitHub's error body, which `gh api` prints on stdout before exiting 1.
+NOT_FOUND = {"message": "Not Found", "status": "404"}
+
+
 def list_403(kind: str) -> str:
     """`gh secret list` or `gh variable list` refused, as observed."""
     return (
@@ -144,7 +148,10 @@ class FakeGitHub:
     `faults["secret-list"]`, `faults["variable-list"]` and `faults["project-read"]` make
     those reads exit 1 (change manual-rows-from-state). `gh secret set` takes the value from
     standard input into `secret_values`; `faults["secret-set"]` makes it exit 1 (change
-    task-readings-auto-setup)."""
+    task-readings-auto-setup). The `repos/<owner>/<name>` read carries `allow_auto_merge`, and
+    the default branch's rules require `required_checks`; `faults["repo-read"]` and
+    `faults["rules-read"]` make those reads print GitHub's error body and exit 1 (change
+    install-reports-post-merge-steps)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process", public=True)
@@ -161,6 +168,8 @@ class FakeGitHub:
         self.origin: Path | None = None
         self.default_branch = "main"
         self.empty = False
+        self.allow_auto_merge = False
+        self.required_checks: list[str] = []
 
     def issue(self, title: str, state: str = "OPEN") -> dict[str, Any]:
         issue = {"number": self._item(), "title": title, "state": state, "body": ""}
@@ -197,13 +206,27 @@ class FakeGitHub:
     def __call__(
         self, args: list[str], input: str | None = None
     ) -> subprocess.CompletedProcess[str]:
-        if args == ["api", f"repos/{OWNER}/{REPO_NAME}"]:
-            return _done(args, {"name": REPO_NAME, "default_branch": self.default_branch})
+        if args[0] == "api" and args[1].startswith(f"repos/{OWNER}/{REPO_NAME}"):
+            return self._repo_read(args)
         if args[0] in {"secret", "variable"}:
             return self._list(args) if args[1] == "list" else self._set(args, input)
         if args[:2] == ["api", "graphql"] and "projectV2(number:" in args[3]:
             return self._project_read(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
+
+    def _repo_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """`gh api repos/<owner>/<name>` and `.../rules/branches/<default>`."""
+        repo = f"repos/{OWNER}/{REPO_NAME}"
+        rules = args == ["api", f"{repo}/rules/branches/{self.default_branch}"]
+        assert rules or args == ["api", repo], args
+        if ("rules-read" if rules else "repo-read") in self.faults:
+            return _done(args, NOT_FOUND, code=1, err="gh: Not Found (HTTP 404)\n")
+        if not rules:
+            read = {"name": REPO_NAME, "default_branch": self.default_branch}
+            return _done(args, {**read, "allow_auto_merge": self.allow_auto_merge})
+        checks = [{"context": context} for context in self.required_checks]
+        rule = {"type": "required_status_checks", "parameters": {"required_status_checks": checks}}
+        return _done(args, [rule] if checks else [])
 
     def _list(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         """`gh secret list --json name` and `gh variable list --json name,value`."""
@@ -417,6 +440,14 @@ def grafana_config(
         env["GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE"] = str(token_file)
     config = {"mcpServers": {"grafana": {"command": "mcp-grafana", "args": [], "env": env}}}
     (home / ".claude.json").write_text(json.dumps(config), encoding="utf-8")
+
+
+def local_settings(sb: Sandbox, token: str) -> Path:
+    """This clone's `.claude/settings.local.json` carrying the agent's `env.GH_TOKEN`."""
+    path = sb.root / ".claude" / "settings.local.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"env": {"GH_TOKEN": token}}), encoding="utf-8")
+    return path
 
 
 def which(name: str) -> str | None:
