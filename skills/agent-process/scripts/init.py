@@ -94,7 +94,7 @@ import quality
 import readings_setup
 from steps import InstallError, Step, run
 
-VERSION = "3.29.2"  # x-release-please-version
+VERSION = "3.30.0"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
 REPOSITORY_ENV = "AGENT_PROCESS_REPOSITORY"
 GITHUB_REPO = "ekolvah/agent-process-distribution"
