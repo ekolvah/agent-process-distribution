@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.30.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.29.2...v3.30.0) (2026-11-10)
+
+
+### Features
+
+* install-continues-past-pr ([#494](https://github.com/ekolvah/agent-process-distribution/issues/494)) ([9f43a41](https://github.com/ekolvah/agent-process-distribution/commit/9f43a41e50d939a3a65ed6b322bbe71ff5d1582f))
+
+
+### Bug Fixes
+
+* install-reports-post-merge-steps ([#490](https://github.com/ekolvah/agent-process-distribution/issues/490)) ([4058112](https://github.com/ekolvah/agent-process-distribution/commit/405811274ce6c300e5b652e7edf9e24394af682a))
+
 ## [3.29.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.29.1...v3.29.2) (2026-11-09)
 
 
