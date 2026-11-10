@@ -1102,10 +1102,13 @@ other state show the person the state and stop install.
 `init` SHALL take a repeatable `--area <name>`; an empty name, a name holding `"`, or a repeated
 name SHALL exit 2 before any command. With `--area`, a `project-areas` transition SHALL be
 `planned` while the linked Project — or the copy the run makes — has the template's `Area`
-options, and `unchanged` otherwise. A confirmed run SHALL give each given name one view of that
-name with the filter `-status:Done area:"<name>"`, SHALL delete the other views named after a
-template option, and SHALL then set the `Area` options to exactly the given names; other views
-SHALL be unchanged.
+options and no view named after a given area other than an area view, and `unchanged`
+otherwise; an area view is named after a template option or carries no filter or the filter
+below. The copy's views are read only at the write, where such a view SHALL fail the step
+before any write. A confirmed run SHALL give each given name one view of that name with the
+filter `-status:Done area:"<name>"`, SHALL delete the other views named after a template
+option, and SHALL then set the `Area` options to exactly the given names; other views SHALL be
+unchanged.
 
 #### Scenario: Copy gets the consumer's areas
 - **WHEN** a confirmed run with `--area Alpha --area "Beta Two"` copies and links the template Project
@@ -1116,8 +1119,12 @@ SHALL be unchanged.
 - **THEN** the transition is `planned`, and the run ends with one view `Alpha` with its filter and no `Distribution` view
 
 #### Scenario: Areas not replaced
-- **WHEN** a run with `--area Alpha` meets a linked Project whose options differ from the template's, that is the template, or that has no `Area` field
+- **WHEN** a run with `--area Alpha` meets a linked Project whose options differ from the template's, that is the template, that has no `Area` field, or that has a view `Alpha` with another filter
 - **THEN** the transition is `unchanged` and the run issues no Project write
+
+#### Scenario: Copy keeps its other views
+- **WHEN** a confirmed run with `--area Bugs` copies and links the template Project
+- **THEN** the run exits 1 naming `Bugs`, and the copy keeps the template's options and views
 
 #### Scenario: Invalid area
 - **WHEN** `--area` is given an empty name, a name holding `"`, or the same name twice
