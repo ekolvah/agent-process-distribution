@@ -629,6 +629,19 @@ def test_areas_replace_the_template(sandbox: Sandbox, capfd: pytest.CaptureFixtu
     assert "manual project-areas: " not in out, out
 
 
+def test_areas_spare_a_non_area_view_of_the_copy(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Copy keeps its other views — the copy's views are read only when the step
+    writes, so a given area named after one of its other views fails the step."""
+    init = load_init()
+    assert install(init, sandbox, "--confirm", "--area", "Bugs") == 1
+    err = capfd.readouterr().err
+    assert "project-areas: " in err and "not area views: Bugs" in err, err
+    views = {**BASE_VIEWS, **{name: area_filter(name) for name in TEMPLATE_AREAS}}
+    assert _areas_of(sandbox) == (TEMPLATE_AREAS, views, len(views))
+
+
 def test_areas_retry_completes_views(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
     """Scenario: Retry completes the views — a run that wrote the view `Alpha` but not its
     filter, the other views or the options."""

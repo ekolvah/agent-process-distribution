@@ -51,7 +51,7 @@ SHALL be unchanged.
 - **THEN** the transition is `planned`, and the run ends with one view `Alpha` with its filter and no `Distribution` view
 
 #### Scenario: Areas not replaced
-- **WHEN** a run with `--area Alpha` meets a linked Project whose options differ from the template's, that is the template, that has no `Area` field, or that has a view `Alpha` other than an area view
+- **WHEN** a run with `--area Alpha` meets a linked Project whose options differ from the template's, that is the template, or that has no `Area` field
 - **THEN** the transition is `unchanged` and the run issues no Project write
 
 #### Scenario: Invalid area
