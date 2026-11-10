@@ -34,3 +34,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 480,hooks-path-names-existing-hooks,issue-472,2026-11-07T14:54:55Z,2026-11-07T18:54:57Z,4.00,0.59,396,2,1,5.4611,102,1,0,0,
 481,task-readings-auto-setup,issue-473,2026-11-07T18:56:12Z,2026-11-09T05:16:18Z,34.33,1.62,1136,3,4,17.3059,301,6,3,2,
 490,install-reports-post-merge-steps,issue-474,2026-11-09T05:18:00Z,2026-11-10T05:27:35Z,24.16,1.03,556,3,2,14.9800,267,2,1,2,
+494,install-continues-past-pr,issue-483,2026-11-10T05:29:27Z,2026-11-10T06:26:37Z,0.95,0.59,217,4,1,6.5358,119,0,1,0,
