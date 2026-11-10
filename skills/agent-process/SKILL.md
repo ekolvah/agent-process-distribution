@@ -184,11 +184,16 @@ Run from the consumer's root:
    `plugin-channel` row, once
    per machine and outside any project, the `pre-push` row, printed only when `init` could
    not install the hook in this clone and naming why, and the `auto-merge` row; the
-   `protection` row is done in step 5 and the `agent-identity` row in step 6, after the merge —
-   then to review and merge the PR, switch
-   to the default branch and pull. In another clone, each
-   Claude session start reports the missing pre-push hook until its person runs the two
-   commands it names.
+   `protection` row is done in step 5 and the `agent-identity` row in step 6, after the merge.
+   In another clone, each Claude session start reports the missing pre-push hook until its
+   person runs the two commands it names. Then run `agent-process wait_for_pr <PR>`. On a
+   first exit 3 rerun once; fix a failing `agent-process / quality` by a commit on the PR and
+   wait again; show the person review threads and any other failure, a second exit 3
+   included. The PR carries installer-managed files, so a P0/P1 thread on one is proposed as
+   an issue in `ekolvah/agent-process-distribution`, where the template is fixed. Once the
+   checks are green, ask the person to review and merge the PR; then, or on exit 4, read
+   `gh pr view <PR> --json state`. On `MERGED` switch to the default branch, pull, and run
+   steps 5 and 6 in the same session; on another state show the person the state and stop.
 5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and
    the person has merged it, run `agent-process activate_protection --pr <N> --dry-run` with
    its number (admin rights on
