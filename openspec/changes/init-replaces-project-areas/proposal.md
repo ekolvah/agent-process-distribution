@@ -52,7 +52,8 @@ the REST Project views reference (https://docs.github.com/en/rest/projects/views
 
 ## Impact
 
-- Edited: `skills/agent-process/scripts/init.py` (flag, step, docstring),
+- New: `skills/agent-process/scripts/project_areas.py` (the step and the `--area` action).
+- Edited: `skills/agent-process/scripts/init.py` (flag, step order, docstring),
   `skills/agent-process/scripts/manual.py` (the shared areas read, row text),
   `skills/agent-process/SKILL.md` (Install step 2), `commands/init.md` (argument hint),
   `tests/publisher/init_harness.py` (the fake Project's views and mutations),

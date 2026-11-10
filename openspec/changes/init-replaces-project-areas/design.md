@@ -59,8 +59,10 @@ found by name, so the same command completes a failed run with no second view.
 leave the state `own` and the views stranded; batching the view writes as aliased mutations —
 rejected: a handful of calls once per install.
 
-**D5 — The step sits in `init.py` after `pre-push`, before task-readings,** beside
-`_pre_push_step`: as ADR 0048 D3, a failed Project write cannot stop the installation PR.
+**D5 — The step runs after `pre-push`, before task-readings,** as ADR 0048 D3, so a failed
+Project write cannot stop the installation PR. It and the `--area` action live in
+`project_areas.py`, as task-readings in `readings_setup.py`: `init.py` is at its module-size
+limit.
 
 ## Risks / Trade-offs
 

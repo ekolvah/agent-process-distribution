@@ -45,8 +45,7 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
 21. project-areas  with `--area`, while the linked Project's `Area` options are the template's:
-                   each name's view with its filter, the other template area views deleted,
-                   then the options set to exactly the names
+                   each name's view and filter, then the options; other template views deleted
 22. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
     the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
 
@@ -94,6 +93,7 @@ from typing import Any, Callable
 
 import manual
 import onboarding
+import project_areas
 import quality
 import readings_setup
 from steps import InstallError, Step, run
@@ -851,119 +851,6 @@ def _pre_push_step(ctx: Context, repo: str) -> list[Step]:
     return [Step("pre-push", "planned", detail, apply)]
 
 
-def _areas_step(
-    ctx: Context, repo: str, linked: list[dict[str, Any]], names: list[str]
-) -> list[Step]:
-    """With `--area`, the linked Project's — or the copy's — `Area` options and area views
-    become `names` while its options are the template's. A state `init` cannot read has no
-    step: its `manual project-areas` row says why."""
-    if not names or len(linked) > 1:
-        return []
-    target = _target(ctx, repo)
-    project = None
-    try:
-        if not linked:
-            where, template = "the copy", manual.template_options(target)
-        else:
-            owner, number, url = repo.split("/")[0], int(linked[0]["number"]), linked[0].get("url")
-            project = (owner, number, url)
-            state = manual.areas(target, project)
-            where, template = url or "the linked Project", state.template
-            if state.state != "template":
-                why = "has no Area field" if state.state == "none" else "has its own Area options"
-                return [Step("project-areas", "unchanged", f"{where} {why}")]
-    except manual.Unreadable:
-        return []
-    dropped = ", ".join(name for name in template if name not in names) or "none"
-    detail = f"{where}: Area options and area views {', '.join(names)}; dropping {dropped}"
-    return [
-        Step(
-            "project-areas", "planned", detail, lambda: _replace_areas(ctx, target, project, names)
-        )
-    ]
-
-
-def _replace_areas(
-    ctx: Context,
-    target: manual.Target,
-    project: tuple[str, int, str | None] | None,
-    names: list[str],
-) -> bool:
-    """The views first, found by name so that a retry completes a failed run, then the
-    options, which end the `template` state; with no `project`, the copy linked by now."""
-    try:
-        now = manual.areas(target, project)
-    except manual.Unreadable as exc:
-        raise InstallError(f"project-areas: cannot read: {exc}") from None
-    if now.state != "template":
-        raise InstallError(f"project-areas: {now.url} no longer has the template's Area options")
-    _replace_views(ctx, now, names)
-    options: list[str] = []
-    for name in names:
-        if name in now.options:
-            options.append(f"options[][id]={now.options[name]}")
-        options += [f"options[][name]={name}", "options[][color]=GRAY", "options[][description]="]
-    _project_write(
-        ctx,
-        "($field:ID!,$options:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field("
-        "input:{fieldId:$field,singleSelectOptions:$options}){clientMutationId}}",
-        f"field={now.field}",
-        *options,
-    )
-    return True
-
-
-def _replace_views(ctx: Context, now: manual.Areas, names: list[str]) -> None:
-    """Each name's view gets its filter: the view of that name, else a view named after a
-    dropped template option, renamed to keep its fields, else a new one. The views named after
-    a dropped template option that remain are deleted."""
-    by_name = {view["name"]: view for view in now.views}
-    spare = [
-        view for view in now.views if view["name"] in now.template and view["name"] not in names
-    ]
-    for name in names:
-        found = by_name.get(name)
-        if found is None and spare:
-            found = spare.pop(0)
-        elif found is None:
-            made = _project_write(
-                ctx,
-                "($project:ID!,$name:String!){createProjectV2View(input:"
-                "{projectId:$project,name:$name,layout:BOARD_LAYOUT}){projectV2View{id}}}",
-                f"project={now.project}",
-                f"name={name}",
-            )
-            found = {"id": made["data"]["createProjectV2View"]["projectV2View"]["id"]}
-        if (found.get("name"), found.get("filter")) != (name, _area_filter(name)):
-            _project_write(
-                ctx,
-                "($view:ID!,$name:String!,$filter:String!){updateProjectV2View(input:"
-                "{viewId:$view,name:$name,filter:$filter}){clientMutationId}}",
-                f"view={found['id']}",
-                f"name={name}",
-                f"filter={_area_filter(name)}",
-            )
-    for view in spare:
-        _project_write(
-            ctx,
-            "($view:ID!){deleteProjectV2View(input:{viewId:$view}){clientMutationId}}",
-            f"view={view['id']}",
-        )
-
-
-def _area_filter(name: str) -> str:
-    return f'-status:Done area:"{name}"'
-
-
-def _project_write(ctx: Context, mutation: str, *fields: str) -> Any:
-    """One GraphQL mutation with its variables as `-f` fields; its error names the step."""
-    args = [arg for part in fields for arg in ("-f", part)]
-    try:
-        return _gh_json(ctx, "api", "graphql", "-f", f"query=mutation{mutation}", *args)
-    except InstallError as exc:
-        raise InstallError(f"project-areas: {exc}") from None
-
-
 def _installed(target: manual.Target) -> bool:
     try:
         return manual.pre_push(target).installed
@@ -980,38 +867,20 @@ def _version(value: str) -> str:
     return value
 
 
-def _area(value: str) -> str:
-    # The name goes into a view filter between double quotes.
-    if not value or '"' in value:
-        raise argparse.ArgumentTypeError(f"expected a non-empty name without '\"': {value!r}")
-    return value
-
-
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="init.py", description=__doc__.splitlines()[0])
     parser.add_argument("--version", type=_version, default=VERSION, help="release to install")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="print the plan and write nothing")
     mode.add_argument("--confirm", action="store_true", help="perform the plan")
-    parser.add_argument(
-        "--area",
-        type=_area,
-        action="append",
-        default=[],
-        metavar="NAME",
-        help="an area of this repository, for the linked Project's Area options and views",
-    )
+    parser.add_argument("--area", action=project_areas.Names, default=[], help="a repo area")
     parser.add_argument("--selected-release", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
 def install(argv: list[str], host: Host) -> int:
-    parser = _parser()
     try:
-        args = parser.parse_args(argv)
-        repeated = sorted({name for name in args.area if args.area.count(name) > 1})
-        if repeated:
-            parser.error(f"argument --area: given more than once: {', '.join(repeated)}")
+        args = _parser().parse_args(argv)
     except SystemExit as exc:
         return int(exc.code or 0)
     override = os.environ.get(REPOSITORY_ENV)
@@ -1077,7 +946,7 @@ def _run(
         empty=empty,
     )
     before, after = onboarding.plan(to, planned)
-    areas = _areas_step(ctx, repo, linked, args.area)
+    areas = project_areas.steps(_target(ctx, repo), linked, args.area)
     readings = readings_setup.steps(_target(ctx, repo))
     steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo), *areas, *readings]
     for step in steps:
