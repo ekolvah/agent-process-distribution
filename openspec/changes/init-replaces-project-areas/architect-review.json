@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All three round-1 findings are answered in the artifacts: the rename was observed live, the dry-run catcher is specified and tested, and the areas row names `--area` only where `--area` acts.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simpler designs considered in design D1 (a declared consumer file, areas from specs, keep the row manual: rejected by the person) and D4 (options first, aliased batching). The three-valued `manual.areas` state reuses the existing QUERY read (manual.py:29-35, 253-282) as `manual.pre_push` does for `_pre_push_step` (init.py:820); the step sits after the PR as `pre-push` does, so a failed write raises `InstallError` after `onboarding-pr` (init.py:944, 964-970). Nothing simpler meets the Retry scenario. The rename-vs-create question is under `platform`.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "All seven delta scenarios (Confirmed run, Dry-run, Manual actions, Copy gets the consumer's areas, Retry completes the views, Areas not replaced, Invalid area) have an entry in tasks.md's map that names a test in tests/publisher/test_init_remote.py. The existing ones are at :126, :143, :432; the new ones are specified in task 1.2.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 extends the fake (init_harness.py:125-133 `Project`, :359-379 `_project_read`, `_gh_kind` at test_init_remote.py:95). Task 1.2 writes the four new tests and the two edits. Task 1.3 runs check_red on all six node ids and commits RED before Group 2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "proposal.md Why lists the observations (gh 2.87.3, 2026-11-10). The views and options were seen on a scratch copy of Project 4; `updateProjectV2Field`, `createProjectV2View` (`filter: null`), `updateProjectV2View(filter:)` and `deleteProjectV2View` were run there. On a second scratch copy, `updateProjectV2View(name:, filter:)` renamed `Distribution` and kept its fields and Status columns, while a created view showed neither `Labels` nor `Area`. That observation now sits beside D4 ('keeping its fields') and in Risks (a created view is needed only past five areas; accepted). The agent identity was seen refused `CopyProjectV2`. Every behaviour the design rests on was observed.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D1 adds a caller-supplied input; there was no project-declared one before. Beside the decision it lists the failure mode (misspelt names reach the Project), the catcher (the dry-run line, shown whole by Install step 2, SKILL.md:169-177) and the lost proof (none). No guard is dropped: the row still prints while the options are the template's.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The catcher D1 names is the dry-run's `planned project-areas` line, shown whole by Install step 2 before `--confirm` (SKILL.md:169-177). D2 now reads the copy case's dropped options from the template half of `manual.QUERY`. In task 1.2, `test_dry_run_writes_nothing_remote[--area Alpha]` asserts that the line names `Alpha` and each `TEMPLATE_AREAS` option as dropped. A failed view or option write raises `InstallError` after `onboarding-pr` (init.py:964-970, D5), and options are written last, so a retry with the same flags completes the run (test_areas_retry_completes_views).",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Word counts: the ADDED requirement 'Init replaces the template's areas' (~95 words) is asserted by the four new tests and the `--area Alpha` dry-run case. The clause added to 'Init's remote writes' (~22 words) is asserted by test_areas_replace_the_template's write kinds. The edits to 'Project UI actions are printed, not performed' (~25 new words: 'other than the template', 'naming `--area` for the template's options', 'without `--area`') are asserted by test_manual_actions_are_printed (row names `--area`) and test_areas_not_replaced (no row for `Own` or the template linked; a row without `--area` for no Area field). The Install step 2 sentence (task 3.1, ~30 words) is procedure prose with no test, like the surrounding Install steps. A nit, not a finding: proposal What Changes still says 'The row names `--area`' without 'for the template's options'.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The `## Standard approach` in proposal.md cites GitHub's GraphQL Projects reference and the REST Project views reference. D3 explains why GraphQL is used and not `gh project` (no option or view commands in gh 2.87.3) or REST (owner-typed path, not run). That is the standard API for the job. The plan adds no script or check beyond argparse validation of `--area` inside the existing `init.py` (§VI). The validation rejects `\"` because the filter `area:\"<name>\"` cannot hold it.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
