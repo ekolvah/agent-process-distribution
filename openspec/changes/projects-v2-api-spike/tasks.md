@@ -4,12 +4,12 @@
 
 ## 1. RED
 
-- [ ] 1.1 no RED: docs-only (a comment and a remote issue; `skip_specs: true`, no scenario)
+- [x] 1.1 no RED: docs-only (a comment and a remote issue; `skip_specs: true`, no scenario)
 
 ## 2. Record and follow-up
 
-- [ ] 2.1 `skills/agent-process/scripts/manual.py` `WORKFLOWS` comment (design D1): add that enabling a built-in workflow is UI only — the API reads `name` and `enabled` and can delete a workflow, with no mutation that enables one — citing https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations, and that the row becomes a transition once such a mutation appears. Verify `python -m ruff check skills/agent-process/scripts/manual.py` passes
-- [ ] 2.2 Create the follow-up issue (design D3) with `gh issue create --title "init replaces the Area options and the area views" --body-file <body>`, the body as design D3 lists it, with issue 486 as its source. Then run `agent-process set_status <new N> --area Distribution`. Verify `gh issue view <new N> --json projectItems` shows it on the Project; commit 2.1 with the ticks as `docs: built-in workflows are UI only`
+- [x] 2.1 `skills/agent-process/scripts/manual.py` `WORKFLOWS` comment (design D1): add that enabling a built-in workflow is UI only — the API reads `name` and `enabled` and can delete a workflow, with no mutation that enables one — citing https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations, and that the row becomes a transition once such a mutation appears. Verify `python -m ruff check skills/agent-process/scripts/manual.py` passes
+- [x] 2.2 Create the follow-up issue (design D3) with `gh issue create --title "init replaces the Area options and the area views" --body-file <body>`, the body as design D3 lists it, with issue 486 as its source. Then run `agent-process set_status <new N> --area Distribution`. Verify `gh issue view <new N> --json projectItems` shows it on the Project; commit 2.1 with the ticks as `docs: built-in workflows are UI only`
 
 ## 3. Verify
 
