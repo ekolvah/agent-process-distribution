@@ -118,6 +118,7 @@ def _launcher_commands(text: str) -> list[str]:
         and not span.startswith("agent-process skill not loaded")
         and not span.startswith("agent-process project-scope install applies")
         and not span.startswith("agent-process plugin environment not installed")
+        and not span.startswith("agent-process release drift")
         and not span.startswith("agent-process agent identity not set")
     ]
 
@@ -615,6 +616,7 @@ def test_install_names_the_skill_marker() -> None:
     install = _section("Install")
     assert "agent-process skill not loaded" in install
     assert "agent-process project-scope install applies" in install
+    assert "agent-process release drift" in install and "/agent-process:init" in install
     assert "claude plugin install agent-process@agent-process-marketplace" in install
     assert "claude plugin uninstall" in install
     assert "trusts the folder" not in install

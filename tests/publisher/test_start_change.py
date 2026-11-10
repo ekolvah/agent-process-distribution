@@ -892,7 +892,7 @@ def _mixed_line_endings() -> bytes:
 
 
 _SCRIPTS = {"start_change": START, "finish_propose": [CHANGE]}
-_INSTALL_FIX = "re-run Install"
+_INSTALL_FIX = "/agent-process:init"
 _SKILL_FIX = "claude plugin update agent-process@agent-process-marketplace --scope"
 # case -> (config: a release to record, `None` for no release line, or a bytes factory;
 #          the release the message names for the project; the fix it names)
