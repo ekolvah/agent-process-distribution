@@ -19,7 +19,7 @@ from typing import Callable
 import pytest
 import yaml
 
-from tests.publisher.init_harness import load_init
+from tests.publisher.init_harness import CURRENT, load_init
 from tests.publisher.lint_harness import ADOPTION_MARKER, FINDING, edit_payload, lint_repo
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -636,10 +636,9 @@ DRIFT_MARKER = "agent-process release drift"
 def _config_block(recorded: str) -> str:
     """The installer's config block with the release line `recorded`."""
     init = load_init()
-    lines = init.render_config_block().splitlines()
-    kept = [line for line in lines if not line.startswith(init.RELEASE)]
-    assert len(kept) == len(lines) - 1, "the rendered block records no release"
-    return "\n".join([kept[0], init.RELEASE + recorded, *kept[1:]]) + "\n"
+    block, line = init.render_config_block(), init.RELEASE + CURRENT
+    assert line in block, "the rendered block records no release"
+    return block.replace(line, init.RELEASE + recorded)
 
 
 def _start_in_project(
@@ -684,7 +683,7 @@ def test_session_start_reports_release_drift(
     config.write_text(_config_block("3.29.0"), encoding="utf-8")
     stdout = _start_in_project(tmp_path, monkeypatch, capsys, via_cwd)
     for text in _texts(stdout):
-        for named in (DRIFT_MARKER, "3.29.0", load_init().VERSION, "/agent-process:init"):
+        for named in (DRIFT_MARKER, "3.29.0", CURRENT, "/agent-process:init"):
             assert named in text, text
 
 
@@ -699,7 +698,7 @@ def test_session_start_silent_on_release(
     path = tmp_path / "project" / "openspec" / "config.yaml"
     if config != "no-config":
         path.parent.mkdir(parents=True)
-        text = _config_block(load_init().VERSION) if config == "current" else "schema: x\n"
+        text = _config_block(CURRENT) if config == "current" else "schema: x\n"
         path.write_text(text, encoding="utf-8")
     stdout = _start_in_project(tmp_path, monkeypatch, capsys)
     for text in _texts(stdout):

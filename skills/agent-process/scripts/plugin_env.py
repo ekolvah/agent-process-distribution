@@ -148,15 +148,14 @@ def release_drift() -> str | None:
     agent-process block or records this plugin's release."""
     project = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
     try:
-        try:
-            text = (project / "openspec" / "config.yaml").read_text(encoding="utf-8")
-        except FileNotFoundError:
-            return None
+        text = (project / "openspec" / "config.yaml").read_text(encoding="utf-8")
         if BEGIN not in (line.strip() for line in text.splitlines()):
             return None
         import init  # after the gate: a project without the block never pays for the import
 
         drift = init.release_drift(project, Path(__file__).resolve().parent)
+    except FileNotFoundError:
+        return None
     except (OSError, UnicodeError, ImportError) as error:  # a visible degraded marker
         return f"{DRIFT_MARKER}, cannot check: {error}"
     return None if drift is None else f"agent-process {drift}"
