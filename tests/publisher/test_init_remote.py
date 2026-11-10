@@ -23,6 +23,7 @@ from typing import Any, Callable
 import pytest
 
 from tests.publisher.init_harness import (
+    BASE_VIEWS,
     BRANCH,
     CHECK_GROUP,
     CONSUMER_FILES,
@@ -33,12 +34,14 @@ from tests.publisher.init_harness import (
     OWNER,
     PLUGIN,
     REPO_NAME,
+    TEMPLATE_AREAS,
     TEMPLATE_WORKFLOWS,
     TITLE,
     FakeGitHub,
     Runner,
     Sandbox,
     _installed,
+    area_filter,
     empty_origin,
     empty_repository,
     git,
@@ -47,6 +50,7 @@ from tests.publisher.init_harness import (
     local_settings,
     snapshot,
     transitions,
+    view,
     which,
 )
 
@@ -92,8 +96,17 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
     }
 
 
+AREA_WRITES = (
+    "updateProjectV2Field(",
+    "createProjectV2View(",
+    "updateProjectV2View(",
+    "deleteProjectV2View(",
+)
+
+
 def _gh_kind(args: list[str]) -> str:
-    """`read`, `copy`, `link`, `issue` or `pr`; any other `gh` command fails the test."""
+    """`read`, `copy`, `link`, `issue`, `pr` or `areas`; any other `gh` command fails the
+    test."""
     reads = (
         ["repo", "view"],
         ["issue", "list"],
@@ -116,6 +129,8 @@ def _gh_kind(args: list[str]) -> str:
     }
     if tuple(args[:2]) in kinds:
         return kinds[args[0], args[1]]
+    if args[:2] == ["api", "graphql"] and any(write in args[3] for write in AREA_WRITES):
+        return "areas"
     raise AssertionError(f"gh command that is not a read or an allowed write: {args}")
 
 
@@ -140,15 +155,23 @@ def test_remote_writes_are_project_and_pr(sandbox: Sandbox) -> None:
     assert git("rev-list", "--count", "main", cwd=sandbox.root) == "1"
 
 
-def test_dry_run_writes_nothing_remote(sandbox: Sandbox) -> None:
+@pytest.mark.parametrize("areas", [[], ["--area", "Alpha"]], ids=["no-area", "area"])
+def test_dry_run_writes_nothing_remote(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], areas: list[str]
+) -> None:
     """Scenario: Dry-run."""
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     before = sandbox.github.state(), _git_state(sandbox)
-    assert install(init, sandbox, "--dry-run", runner=runner) == 0
+    assert install(init, sandbox, "--dry-run", *areas, runner=runner) == 0
     assert runner.gh("repo", "view") and runner.gh("api", "graphql")
     assert {_gh_kind(args) for args in runner.gh()} == {"read"}
     assert (sandbox.github.state(), _git_state(sandbox)) == before
+    if areas:
+        (line,) = [ln for ln in capfd.readouterr().out.splitlines() if "project-areas:" in ln]
+        assert line.startswith("planned project-areas: "), line
+        _, dropped = line.split("Alpha", 1)
+        assert all(name in dropped for name in TEMPLATE_AREAS), line
 
 
 # --- the installation PR ----------------------------------------------------------------
@@ -439,7 +462,7 @@ def test_manual_actions_are_printed(
     assert install(init, sandbox, mode, runner=runner) == 0
     manual = _manual_rows(capfd.readouterr().out)
     visibility, workflows, areas = (_row(manual, label) for label in PROJECT_ROWS)
-    assert "visibility" in visibility and "Area" in areas
+    assert "visibility" in visibility and "Area" in areas and "--area" in areas
     if mode == "--confirm":
         assert "Auto-add to project" in workflows, workflows
         assert not [name for name in KEPT if name in workflows], workflows
@@ -578,6 +601,95 @@ def test_observed_manual_rows_are_omitted(
     manual = _manual_rows(out)
     assert manual == [], manual
     assert transitions(out)["pre-push"] == "unchanged", out
+
+
+# --- the areas transition ---------------------------------------------------------------
+
+
+def _areas_of(sb: Sandbox) -> tuple[list[str] | None, dict[str, str | None], int]:
+    """The linked Project's `Area` options, its views' filters by name, and its view count."""
+    (project,) = [p for p in sb.github.projects if CONSUMER in p.repositories]
+    filters = {v["name"]: v["filter"] for v in project.views}
+    return project.areas, filters, len(project.views)
+
+
+def test_areas_replace_the_template(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Copy gets the consumer's areas."""
+    init = load_init()
+    runner = Runner(init, HOST, sandbox.github)
+    flags = ["--area", "Alpha", "--area", "Beta Two"]
+    assert install(init, sandbox, "--confirm", *flags, runner=runner) == 0
+    out = capfd.readouterr().out
+    areas = {name: area_filter(name) for name in ("Alpha", "Beta Two")}
+    assert _areas_of(sandbox) == (["Alpha", "Beta Two"], {**BASE_VIEWS, **areas}, 5)
+    kinds = sorted(_gh_kind(args) for args in runner.gh())
+    writes = [kind for kind in kinds if kind not in {"read", "areas"}]
+    assert writes == ["copy", "issue", "link", "pr"] and "areas" in kinds, kinds
+    assert transitions(out)["project-areas"] == "written", out
+    assert not [ln for ln in _manual_rows(out) if ln.startswith("manual project-areas: ")]
+
+
+def test_areas_retry_completes_views(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
+    """Scenario: Retry completes the views — a run that wrote the view `Alpha` but not its
+    filter, the other views or the options."""
+    project = sandbox.github.add(linked=CONSUMER)
+    project.views.append(view("Alpha", None))
+    init = load_init()
+    assert install(init, sandbox, "--confirm", "--area", "Alpha") == 0
+    out = capfd.readouterr().out
+    assert "planned project-areas: " in out, out
+    assert _areas_of(sandbox) == (["Alpha"], {**BASE_VIEWS, "Alpha": area_filter("Alpha")}, 4)
+
+
+def _own(sb: Sandbox) -> None:
+    sb.github.add(linked=CONSUMER).areas = ["Own"]
+
+
+def _template_linked(sb: Sandbox) -> None:
+    sb.github.projects[0].repositories.add(CONSUMER)
+
+
+def _no_area_field(sb: Sandbox) -> None:
+    sb.github.add(linked=CONSUMER).areas = None
+
+
+@pytest.mark.parametrize(
+    "arrange", [_own, _template_linked, _no_area_field], ids=["own", "template", "no-field"]
+)
+def test_areas_not_replaced(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], arrange: Callable[[Sandbox], None]
+) -> None:
+    """Scenario: Areas not replaced."""
+    arrange(sandbox)
+    before = _areas_of(sandbox)
+    init = load_init()
+    runner = Runner(init, HOST, sandbox.github)
+    assert install(init, sandbox, "--confirm", "--area", "Alpha", runner=runner) == 0
+    out = capfd.readouterr().out
+    assert transitions(out)["project-areas"] == "unchanged", out
+    assert "areas" not in {_gh_kind(args) for args in runner.gh()}
+    assert _areas_of(sandbox) == before
+    rows = [ln for ln in _manual_rows(out) if ln.startswith("manual project-areas: ")]
+    if arrange is _no_area_field:
+        (row,) = rows
+        assert "--area" not in row, row
+    else:
+        assert rows == [], rows
+
+
+@pytest.mark.parametrize(
+    "names", [[""], ['a"b'], ["Alpha", "Alpha"]], ids=["empty", "quote", "repeated"]
+)
+def test_invalid_area_exits_2(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], names: list[str]
+) -> None:
+    """Scenario: Invalid area — argparse names `--area`, not an unrecognized argument."""
+    init = load_init()
+    runner = Runner(init, HOST, sandbox.github)
+    flags = [part for name in names for part in ("--area", name)]
+    assert install(init, sandbox, "--dry-run", *flags, runner=runner) == 2
+    assert "error: argument --area: " in capfd.readouterr().err
+    assert runner.log == []
 
 
 def _fault(name: str) -> Callable[[Sandbox], None]:
