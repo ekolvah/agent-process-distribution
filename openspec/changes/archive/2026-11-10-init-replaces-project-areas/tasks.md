@@ -26,7 +26,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 Run `agent-process archive_change init-replaces-project-areas`, then `gh pr create --title "feat: init-replaces-project-areas" --body-file <report>`. The report names tracking issue 493 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §I, §II, §III, §VI, §VII)
+- [x] 5.1 Run `agent-process archive_change init-replaces-project-areas`, then `gh pr create --title "feat: init-replaces-project-areas" --body-file <report>`. The report names tracking issue 493 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, §I, §II, §III, §VI, §VII)
 - [ ] 5.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
