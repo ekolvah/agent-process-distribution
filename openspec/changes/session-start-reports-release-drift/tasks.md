@@ -11,7 +11,7 @@
 
 ## 2. Release drift at session start
 
-- [ ] 2.1 Per design D2–D5: `plugin_env.py` gains the gated, guarded drift reader and joins its marker with the environment marker in one JSON; `init.release_drift` names `/agent-process:init` beside the `SKILL.md#install` path; update both docstrings; `SKILL.md` Install's session-start paragraph names `agent-process release drift` and its fix. Verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_start_change.py tests/publisher/test_planning_workflow.py -q` is green, then commit the group with its ticks
+- [x] 2.1 Per design D2–D5: `plugin_env.py` gains the gated, guarded drift reader and joins its marker with the environment marker in one JSON; `init.release_drift` names `/agent-process:init` beside the `SKILL.md#install` path; update both docstrings; `SKILL.md` Install's session-start paragraph names `agent-process release drift` and its fix. Verify `python -m pytest tests/publisher/test_plugin.py tests/publisher/test_start_change.py tests/publisher/test_planning_workflow.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
