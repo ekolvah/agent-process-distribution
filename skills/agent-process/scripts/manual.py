@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
+import activate_protection
 import dashboard
 
 # The built-in workflows of the template by API name, with their targets (the `state` spec's
@@ -39,6 +40,12 @@ INFINITY = "yesoreyeram-infinity-datasource"
 MCP = "grafana MCP server in ~/.claude.json"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
+# The fix the session-start identity marker names; the template's copy is asserted equal.
+IDENTITY_FIX = (
+    "agent-process agent_identity --bot <login> --dry-run, then with --confirm, then "
+    "gh repo edit --enable-auto-merge, then restart Claude Code"
+)
+SETTINGS = Path(".claude") / "settings.local.json"
 
 Read = Callable[..., "subprocess.CompletedProcess[str]"]
 
@@ -104,6 +111,7 @@ def rows(t: Target) -> list[str]:
             f"views with this repository's own{why}"
         )
     secrets = _names_or_unreadable(t, "secret")
+    repo = _repository(t)
     return [
         *found,
         *_outstanding(
@@ -130,6 +138,24 @@ def rows(t: Target) -> list[str]:
             f"Enable auto-update for {t.marketplace}, then claude plugin install {t.plugin}",
         ),
         *_pre_push_row(t),
+        *_outstanding(
+            lambda: _protected(t, repo),
+            "manual protection: once the installation PR has merged with both process checks "
+            "green -- agent-process activate_protection --pr <N> --dry-run with its number, then "
+            "with --confirm instead of --dry-run, so the default branch requires "
+            f"{' and '.join(activate_protection.contexts())}",
+        ),
+        *_outstanding(
+            lambda: _identity_set(t),
+            "manual agent-identity: in this clone, once the installation PR has merged -- create "
+            "the agent's GitHub account, gh auth login -s project,workflow as it, then "
+            f"gh auth switch --user <person>; then {IDENTITY_FIX}",
+        ),
+        *_outstanding(
+            lambda: _field(repo, "allow_auto_merge") is True,
+            f"manual auto-merge: https://github.com/{t.repo}/settings -- "
+            "gh repo edit --enable-auto-merge, so gh pr merge --auto merges an approved PR",
+        ),
     ]
 
 
@@ -151,6 +177,58 @@ def _gh_read(t: Target, *args: str) -> Any:
         raise Unreadable(
             lines[0] if lines else f"`gh {args[0]} {args[1]}` printed no JSON"
         ) from None
+
+
+def _repository(t: Target) -> dict[str, Any] | Unreadable:
+    """`repos/<owner>/<name>`, one read for the `protection` and `auto-merge` rows; `gh api`
+    prints GitHub's error object on a 4xx, which names neither field."""
+    try:
+        data = _gh_read(t, "api", f"repos/{t.repo}")
+    except Unreadable as exc:
+        return exc
+    if (
+        isinstance(data, dict)
+        and isinstance(data.get("default_branch"), str)
+        and "allow_auto_merge" in data
+    ):
+        return data
+    return Unreadable(f"`gh api repos/{t.repo}` printed an unexpected shape: {data}")
+
+
+def _field(repo: dict[str, Any] | Unreadable, name: str) -> Any:
+    if isinstance(repo, Unreadable):
+        raise repo
+    return repo[name]
+
+
+def _protected(t: Target, repo: dict[str, Any] | Unreadable) -> bool:
+    """The default branch's rules require both process checks."""
+    branch = _field(repo, "default_branch")
+    rules = _gh_read(t, "api", f"repos/{t.repo}/rules/branches/{branch}")
+    try:
+        if not isinstance(rules, list):
+            raise TypeError
+        required = {
+            str(check["context"])
+            for rule in rules
+            if rule["type"] == "required_status_checks"
+            for check in rule["parameters"]["required_status_checks"]
+        }
+    except (KeyError, TypeError):
+        raise Unreadable(f"the rules of {branch} read as {rules}") from None
+    return set(activate_protection.contexts()) <= required
+
+
+def _identity_set(t: Target) -> bool:
+    """This clone's settings carry the agent's `env.GH_TOKEN`; a missing `env` is `{}`."""
+    path = t.root / SETTINGS
+    data = _plugin_file(path)
+    if data is None:
+        return False
+    env = data.get("env", {}) if isinstance(data, dict) else None
+    if not isinstance(env, dict):
+        raise Unreadable(f"{path} is not an object whose `env` is an object")
+    return bool(env.get("GH_TOKEN"))
 
 
 def _linked(t: Target) -> tuple[str, int, str | None]:
@@ -229,7 +307,8 @@ def _names(t: Target, kind: str) -> dict[str, str]:
 
 
 def _plugin_file(path: Path) -> Any:
-    """A plugin file's JSON; `None` when it is absent (no plugin was ever installed)."""
+    """A plugin or settings file's JSON; `None` when it is absent (no plugin was ever
+    installed, no setting was ever written)."""
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:

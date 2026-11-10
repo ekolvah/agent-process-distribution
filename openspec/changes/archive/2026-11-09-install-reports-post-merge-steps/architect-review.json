@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 3,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Every finding from rounds 1 and 2 is answered. The plan is the minimum design: three one-state rows on the existing manual mechanism, one shared repository read, imported contexts and one fix text. Each new read turns an unexpected shape into `Unreadable`, and a test pins every realistic failure shape and the pending-but-readable settings case.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simpler options and why they lose. (a) Prose in SKILL.md only: this is the root cause in proposal Why, since the prose was skipped. (b) One combined post-merge row: D1 rejects it because each row is one state. (c) `allow_auto_merge` in `manual.QUERY`: D1 rejects it because the row would be unreadable whenever the Project read fails. (d) Calling `wait_for_pr._required`: D1 rejects it because it takes a PR and prints a note. (e) Taking `default_branch` from `_linked`'s `gh repo view` (manual.py:158, which already reads `defaultBranchRef`) would tie the protection row to the Project read's failure; D1 reuses the `repos/<repo>` read the auto-merge row needs anyway, so the row costs no call of its own.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Every spec-delta scenario has an entry in the Scenario → test map. `Identity set` now points at `tests/publisher/test_skill_check.py::test_identity_set` (unchanged; test_skill_check.py:380), and the other six name tests that 1.1 or 1.2 add or extend.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 adds or extends failing tests for every new behaviour, and 1.3's `check_red` lists each of them, including `settings-shape`. Failure shapes are realistic: `repo-read` and `rules-read` print GitHub's 4xx error body and exit 1, and `settings-malformed` and `settings-shape` cover a settings file that is not JSON and one whose `env` is a list. `test_agent_identity_pending_is_manual` is parametrized over no settings file and `{\"permissions\": {}}`, and asserts no `(cannot read: `. That pins D1's and 2.1's corrected guard (an `env` that is present and not an object is `Unreadable`; a missing `env` is `{}`, as in agent_identity.py:123).",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Each platform behaviour the design rests on has an observation beside it in design.md `## Standard approach`. `allow_auto_merge` is readable without admin: `gh api repos/ekolvah/lampa-mediacenter -q ...` printed `{\"allow_auto_merge\":true,\"perm\":false}`. `rules/branches/main` is readable without admin and names `required_status_checks`: observed on the same repository, and `wait_for_pr._required` already reads it. `gh repo edit --enable-auto-merge` is shown in `gh repo edit --help` output. The design's own reasoning shows a ruleset, not classic protection, is what `activate_protection` writes (activate_protection.py docstring), so rules-only is the right observed state. The failure shape of `gh api` is covered by the `red` finding.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Replaced input: `IDENTITY_FIX` (skill_check.py:42) grows from the dry-run alone to the dry-run, `--confirm`, `gh repo edit --enable-auto-merge` and the restart. The advice sentence (skill_check.py:182-185) drops what the fix now names. D2 lists both, and 2.2 updates the module docstring, which names only the `agent_identity` command. The test's local `IDENTITY_FIX` (test_skill_check.py:356) stays a prefix of the new text, so `test_identity_missing` keeps holding. No guard is dropped.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Every named catcher reaches a delivery step. D1: the contexts are imported from `activate_protection.CONTEXT`/`REVIEW_CONTEXT`, a structural catcher; activate_protection imports only stdlib and `set_status`, both in the scripts directory `init` already puts on the path for `dashboard`. D2: `test_identity_fix_is_one_text` (1.2) catches drift between the template and `manual.IDENTITY_FIX` and runs in 3.3's declared `test` and in PR CI. Drift between SKILL.md step 6 prose and the scripted text stays uncaught, and D2 correctly limits its claim to \"the two scripted copies\".",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Word counts against the words the tests assert:\n- `Install reports inactive protection`: about 33 words, all asserted. 1.1 now asserts `activate_protection --pr`, `--dry-run` and `--confirm`, and the condition is asserted in Protection inactive and Observed done.\n- `Install reports a pending agent identity`: about 37 words, all asserted.\n- `Install reports disallowed auto-merge`: about 20 words, all asserted.\n- `Manual rows follow observed state`: its three new Observed-done states are asserted.\n- `A Claude session start reports a missing agent identity`: about 25 edited words, all asserted by 1.2 plus the existing dry-run assertion.\n- The SKILL.md step 4 prose (2.3) has no test, like the rest of that step, and is needed for the order of steps 5 and 6.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "`## Standard approach` names the repository's own mechanism for work only a person can do (the `manual` row, used unchanged) and the GitHub REST pages for both reads, each observed. That is the standard approach, and the design follows it. The plan adds no script, hook or check of its own: three rows inside `manual.rows`, one constant, and test-harness fakes. Non-Goals keeps out the bot-login suggestion and the session-start auto-merge read, both of which would add bespoke code.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
