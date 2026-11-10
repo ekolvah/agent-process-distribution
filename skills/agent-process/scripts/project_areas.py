@@ -48,8 +48,8 @@ def steps(target: manual.Target, linked: list[dict[str, Any]], names: list[str])
             project = (target.repo.split("/")[0], int(linked[0]["number"]), url)
             state = manual.areas(target, project)
             where, template = url or "the linked Project", state.template
-            if state.state != "template":
-                why = "has no Area field" if state.state == "none" else "has its own Area options"
+            why = _unchanged(state, names)
+            if why:
                 return [Step("project-areas", "unchanged", f"{where} {why}")]
     except manual.Unreadable:
         return []
@@ -65,8 +65,9 @@ def _replace(target: manual.Target, project: Project | None, names: list[str]) -
         now = manual.areas(target, project)
     except manual.Unreadable as exc:
         raise InstallError(f"project-areas: cannot read: {exc}") from None
-    if now.state != "template":
-        raise InstallError(f"project-areas: {now.url} no longer has the template's Area options")
+    why = _unchanged(now, names)
+    if why:
+        raise InstallError(f"project-areas: {now.url} {why}")
     _replace_views(target, now, names)
     options: list[str] = []
     for name in names:
@@ -81,6 +82,23 @@ def _replace(target: manual.Target, project: Project | None, names: list[str]) -
         *options,
     )
     return True
+
+
+def _unchanged(state: manual.Areas, names: list[str]) -> str | None:
+    """Why the step leaves the Project alone: options other than the template's, or a view
+    named after a given area that is not an area view, whose filter the step would replace."""
+    if state.state == "none":
+        return "has no Area field"
+    if state.state != "template":
+        return "has its own Area options"
+    foreign = [
+        view["name"]
+        for view in state.views
+        if view["name"] in names
+        and view["name"] not in state.template
+        and view["filter"] not in (None, "", _filter(view["name"]))
+    ]
+    return f"has views that are not area views: {', '.join(foreign)}" if foreign else None
 
 
 def _replace_views(target: manual.Target, now: manual.Areas, names: list[str]) -> None:
