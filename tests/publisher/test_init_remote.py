@@ -653,8 +653,14 @@ def _no_area_field(sb: Sandbox) -> None:
     sb.github.add(linked=CONSUMER).areas = None
 
 
+def _foreign_view(sb: Sandbox) -> None:
+    sb.github.add(linked=CONSUMER).views.append(view("Alpha", "label:bug"))
+
+
 @pytest.mark.parametrize(
-    "arrange", [_own, _template_linked, _no_area_field], ids=["own", "template", "no-field"]
+    "arrange",
+    [_own, _template_linked, _no_area_field, _foreign_view],
+    ids=["own", "template", "no-field", "foreign-view"],
 )
 def test_areas_not_replaced(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], arrange: Callable[[Sandbox], None]
@@ -669,11 +675,11 @@ def test_areas_not_replaced(
     assert transitions(out)["project-areas"] == "unchanged", out
     assert "areas" not in {_gh_kind(args) for args in runner.gh()}
     assert _areas_of(sandbox) == before
-    if arrange is _no_area_field:
-        row = _row(_manual_rows(out), "project-areas")
-        assert "--area" not in row, row
-    else:
+    if arrange in (_own, _template_linked):
         assert "manual project-areas: " not in out, out
+    else:
+        row = _row(_manual_rows(out), "project-areas")
+        assert ("--area" in row) is (arrange is _foreign_view), row
 
 
 @pytest.mark.parametrize(
