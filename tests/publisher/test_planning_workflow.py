@@ -627,3 +627,18 @@ def test_install_names_the_skill_marker() -> None:
     assert "pinned per repository" not in install
     manual_step = install.split(" 4. ", 1)[1].split(" 5. ", 1)[0]
     assert "plugin-channel" in manual_step
+
+
+def test_install_continues_past_the_installation_pr() -> None:
+    step = _section("Install").split(" 4. ", 1)[1].split(" 5. ", 1)[0]
+    for phrase in (
+        "agent-process wait_for_pr <PR>",
+        "exit 3",
+        "rerun once",
+        "show the person",
+        "ekolvah/agent-process-distribution",
+        "gh pr view <PR> --json state",
+        "MERGED",
+        "same session",
+    ):
+        assert phrase in step, phrase

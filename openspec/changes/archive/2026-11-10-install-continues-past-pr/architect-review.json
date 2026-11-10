@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 4,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The round-3 finding is answered: a first exit 3 is rerun once and a second is shown, exit 4 goes straight to the state read, and a state other than MERGED is shown and stops install. All of this is in the requirement, D2b and tasks, and test 1.1 asserts it.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 rejects a finish_install script: the person still has to merge, so the script would only wrap existing commands. D2 rejects rerunning wait_for_pr to read the merge, for two reasons. Its exit-4 line ends with Delivery's stop, 'report to the person' (wait_for_pr.py:183). And on a PR that is still open it waits again and exits 0 or 1, which the agent would have to read as 'not merged'. The one-shot `gh pr view --json state` is simpler for this read.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "distribution / Installation PR merged -> tests/publisher/test_planning_workflow.py::test_install_continues_past_the_installation_pr (tasks.md map). The test checks the procedure text; this is the level the repository already uses for skill procedures (design Risks).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 asserts eight phrases in the step-4 slice; SKILL.md's step 4 has none of them today. `rerun once` is not in SKILL.md at all, and `ekolvah/agent-process-distribution` appears only at SKILL.md:232, outside the slice. check_red in task 1.2 therefore fails as intended. Task 2.1 requires the asserted phrases verbatim and rules out a step-4 sentence ending in `5.`.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "PullRequestState values OPEN/CLOSED/MERGED: GitHub GraphQL enum reference, plus the observation `gh pr view 490 --json state` -> MERGED (proposal Why, design Standard approach). The exit-4 wording D2 relies on: wait_for_pr.py:183. The meanings of exits 2 and 3: wait_for_pr.py docstring. activate_protection refuses without a `success` run of each process check on the PR head: activate_protection.py:5-11.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Step 5 keeps its condition, both checks green and the PR merged, with activate_protection's exit 2 as the second enforcement (D2a). Reading the merge with gh pr view drops no guard, because wait_for_pr still settles the checks before the merge request. No project-declared input is replaced.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Every case of the requirement now reaches a named step. Checks not green at merge: the step-5 condition, then activate_protection exits 2 (D2a). Session ends before the merge: the next `init` run's manual rows and the session-start identity marker (D4). Failing quality: a fix commit and a rerun. First exit 3: one rerun. A second exit 3 (for example Actions disabled), exit 2, review threads and other failures: shown to the person, with a P0/P1 thread on an installer-managed file proposed upstream (D2b). Exit 4: straight to the state read. Any state other than MERGED: shown to the person, install stops, and the manual rows report the rest (D2b, D4).",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec requirement: 126 words; test 1.1 asserts 19 (`agent-process wait_for_pr <PR>`, `exit 3`, `rerun once`, `show the person`, `ekolvah/agent-process-distribution`, `gh pr view <PR> --json state`, `MERGED`, `same session`). Scenario: 39 words, covered by the same asserts. Every new exit-handling rule has an asserted marker except two. 'A failing quality is fixed by a commit' restates Install step 1 (SKILL.md:164-167). 'Install stops' on a non-MERGED state shares the asserted `show the person`. The merge request and the switch-and-pull (D3) were already person-facing instructions in today's step 4.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "The Standard approach section names wait_for_pr, Delivery's tool, for the checks, and `gh pr view --json state` (cli.github.com manual, GitHub's PullRequestState enum) for the merge. Both are standard tools, used unwrapped. The plan adds no script or check (D1; proposal Impact: 'Added: none'). The upstream-issue route in D2b uses the existing tracker.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
