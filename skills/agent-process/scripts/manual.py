@@ -98,7 +98,7 @@ def rows(t: Target) -> list[str]:
     url, why = None, ""
     try:
         owner, number, url = _linked(t)
-        public, missing, areas = _project_state(t, owner, number)
+        public, missing, areas = _project_state(t, owner, number, url)
         state = areas.state
     except Unreadable as exc:
         public, missing, state, why = False, list(WORKFLOWS), "template", f" (cannot read: {exc})"
@@ -270,12 +270,10 @@ class Areas:
     template: list[str]
 
 
-def areas(t: Target) -> Areas:
-    """The linked Project's `Area` state; `Unreadable` unless exactly one Project is linked."""
-    owner, number, url = _linked(t)
-    found = _project_state(t, owner, number)[2]
-    found.url = url
-    return found
+def areas(t: Target, project: tuple[str, int, str | None] | None = None) -> Areas:
+    """The `Area` state of `project` (owner, number, url), else of the linked Project;
+    `Unreadable` unless exactly one Project is linked."""
+    return _project_state(t, *(project or _linked(t)))[2]
 
 
 def template_options(t: Target) -> list[str]:
@@ -294,7 +292,9 @@ def _options(field: Any) -> dict[str, str]:
     return {str(option["name"]): str(option["id"]) for option in field["options"]}
 
 
-def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str], Areas]:
+def _project_state(
+    t: Target, owner: str, number: int, url: str | None
+) -> tuple[bool, list[str], Areas]:
     """Whether the Project is public, the template's workflows it lacks or has disabled, and
     its `Area` state."""
     template_owner, template_number = t.template
@@ -324,15 +324,17 @@ def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str],
             for v in project["views"]["nodes"]
         ]
         field_id = None if field is None else str(field["id"])
-        found = Areas("own", None, str(project["id"]), field_id, options, views, template)
         public = project["public"] is True
+        project_id = str(project["id"])
     except (KeyError, TypeError):
         errors = data.get("errors") if isinstance(data, dict) else None
         raise Unreadable(f"the Project #{number} of {owner} reads as {errors or data}") from None
+    state = "own"
     if field is None:
-        found.state = "none"
+        state = "none"
     elif set(options) == set(template) and (owner, str(number)) != t.template:
-        found.state = "template"
+        state = "template"
+    found = Areas(state, url, project_id, field_id, options, views, template)
     missing = [name for name in WORKFLOWS if name not in enabled]
     return public, missing, found
 

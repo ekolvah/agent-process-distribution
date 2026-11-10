@@ -857,42 +857,54 @@ def _areas_step(
     """With `--area`, the linked Project's — or the copy's — `Area` options and area views
     become `names` while its options are the template's. A state `init` cannot read has no
     step: its `manual project-areas` row says why."""
-    if not names:
+    if not names or len(linked) > 1:
         return []
     target = _target(ctx, repo)
+    project = None
     try:
-        if linked:
-            state = manual.areas(target)
-            where, template = state.url or "the linked Project", state.template
+        if not linked:
+            where, template = "the copy", manual.template_options(target)
         else:
-            state, where, template = None, "the copy", manual.template_options(target)
+            owner, number, url = repo.split("/")[0], int(linked[0]["number"]), linked[0].get("url")
+            project = (owner, number, url)
+            state = manual.areas(target, project)
+            where, template = url or "the linked Project", state.template
+            if state.state != "template":
+                why = "has no Area field" if state.state == "none" else "has its own Area options"
+                return [Step("project-areas", "unchanged", f"{where} {why}")]
     except manual.Unreadable:
         return []
-    if state is not None and state.state != "template":
-        why = "has no Area field" if state.state == "none" else "has its own Area options"
-        return [Step("project-areas", "unchanged", f"{where} {why}")]
     dropped = ", ".join(name for name in template if name not in names) or "none"
     detail = f"{where}: Area options and area views {', '.join(names)}; dropping {dropped}"
-    return [Step("project-areas", "planned", detail, lambda: _replace_areas(target, names))]
+    return [
+        Step(
+            "project-areas", "planned", detail, lambda: _replace_areas(ctx, target, project, names)
+        )
+    ]
 
 
-def _replace_areas(target: manual.Target, names: list[str]) -> bool:
+def _replace_areas(
+    ctx: Context,
+    target: manual.Target,
+    project: tuple[str, int, str | None] | None,
+    names: list[str],
+) -> bool:
     """The views first, found by name so that a retry completes a failed run, then the
-    options, which end the `template` state."""
+    options, which end the `template` state; with no `project`, the copy linked by now."""
     try:
-        now = manual.areas(target)
+        now = manual.areas(target, project)
     except manual.Unreadable as exc:
         raise InstallError(f"project-areas: cannot read: {exc}") from None
     if now.state != "template":
         raise InstallError(f"project-areas: {now.url} no longer has the template's Area options")
-    _replace_views(target, now, names)
+    _replace_views(ctx, now, names)
     options: list[str] = []
     for name in names:
         if name in now.options:
             options.append(f"options[][id]={now.options[name]}")
         options += [f"options[][name]={name}", "options[][color]=GRAY", "options[][description]="]
     _project_write(
-        target,
+        ctx,
         "($field:ID!,$options:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field("
         "input:{fieldId:$field,singleSelectOptions:$options}){clientMutationId}}",
         f"field={now.field}",
@@ -901,7 +913,7 @@ def _replace_areas(target: manual.Target, names: list[str]) -> bool:
     return True
 
 
-def _replace_views(target: manual.Target, now: manual.Areas, names: list[str]) -> None:
+def _replace_views(ctx: Context, now: manual.Areas, names: list[str]) -> None:
     """Each name's view gets its filter: the view of that name, else a view named after a
     dropped template option, renamed to keep its fields, else a new one. The views named after
     a dropped template option that remain are deleted."""
@@ -915,7 +927,7 @@ def _replace_views(target: manual.Target, now: manual.Areas, names: list[str]) -
             found = spare.pop(0)
         elif found is None:
             made = _project_write(
-                target,
+                ctx,
                 "($project:ID!,$name:String!){createProjectV2View(input:"
                 "{projectId:$project,name:$name,layout:BOARD_LAYOUT}){projectV2View{id}}}",
                 f"project={now.project}",
@@ -924,7 +936,7 @@ def _replace_views(target: manual.Target, now: manual.Areas, names: list[str]) -
             found = {"id": made["data"]["createProjectV2View"]["projectV2View"]["id"]}
         if (found.get("name"), found.get("filter")) != (name, _area_filter(name)):
             _project_write(
-                target,
+                ctx,
                 "($view:ID!,$name:String!,$filter:String!){updateProjectV2View(input:"
                 "{viewId:$view,name:$name,filter:$filter}){clientMutationId}}",
                 f"view={found['id']}",
@@ -933,7 +945,7 @@ def _replace_views(target: manual.Target, now: manual.Areas, names: list[str]) -
             )
     for view in spare:
         _project_write(
-            target,
+            ctx,
             "($view:ID!){deleteProjectV2View(input:{viewId:$view}){clientMutationId}}",
             f"view={view['id']}",
         )
@@ -943,19 +955,13 @@ def _area_filter(name: str) -> str:
     return f'-status:Done area:"{name}"'
 
 
-def _project_write(target: manual.Target, mutation: str, *fields: str) -> Any:
+def _project_write(ctx: Context, mutation: str, *fields: str) -> Any:
     """One GraphQL mutation with its variables as `-f` fields; its error names the step."""
-    args = ["api", "graphql", "-f", f"query=mutation{mutation}"]
-    for part in fields:
-        args += ["-f", part]
+    args = [arg for part in fields for arg in ("-f", part)]
     try:
-        done = target.gh_write(*args)
+        return _gh_json(ctx, "api", "graphql", "-f", f"query=mutation{mutation}", *args)
     except InstallError as exc:
         raise InstallError(f"project-areas: {exc}") from None
-    try:
-        return json.loads(done.stdout)
-    except (TypeError, json.JSONDecodeError):
-        raise InstallError("project-areas: `gh api graphql` printed no JSON") from None
 
 
 def _installed(target: manual.Target) -> bool:

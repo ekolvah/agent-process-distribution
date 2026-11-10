@@ -626,7 +626,7 @@ def test_areas_replace_the_template(sandbox: Sandbox, capfd: pytest.CaptureFixtu
     writes = [kind for kind in kinds if kind not in {"read", "areas"}]
     assert writes == ["copy", "issue", "link", "pr"] and "areas" in kinds, kinds
     assert transitions(out)["project-areas"] == "written", out
-    assert not [ln for ln in _manual_rows(out) if ln.startswith("manual project-areas: ")]
+    assert "manual project-areas: " not in out, out
 
 
 def test_areas_retry_completes_views(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
@@ -669,12 +669,11 @@ def test_areas_not_replaced(
     assert transitions(out)["project-areas"] == "unchanged", out
     assert "areas" not in {_gh_kind(args) for args in runner.gh()}
     assert _areas_of(sandbox) == before
-    rows = [ln for ln in _manual_rows(out) if ln.startswith("manual project-areas: ")]
     if arrange is _no_area_field:
-        (row,) = rows
+        row = _row(_manual_rows(out), "project-areas")
         assert "--area" not in row, row
     else:
-        assert rows == [], rows
+        assert "manual project-areas: " not in out, out
 
 
 @pytest.mark.parametrize(
