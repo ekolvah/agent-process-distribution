@@ -35,3 +35,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 481,task-readings-auto-setup,issue-473,2026-11-07T18:56:12Z,2026-11-09T05:16:18Z,34.33,1.62,1136,3,4,17.3059,301,6,3,2,
 490,install-reports-post-merge-steps,issue-474,2026-11-09T05:18:00Z,2026-11-10T05:27:35Z,24.16,1.03,556,3,2,14.9800,267,2,1,2,
 494,install-continues-past-pr,issue-483,2026-11-10T05:29:27Z,2026-11-10T06:26:37Z,0.95,0.59,217,4,1,6.5358,119,0,1,0,
+496,session-start-reports-release-drift,issue-484,2026-11-10T05:31:54Z,2026-11-10T15:08:34Z,9.61,1.07,403,3,2,9.8898,196,7,0,0,
