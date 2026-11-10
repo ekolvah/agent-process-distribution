@@ -16,11 +16,10 @@ import activate_protection
 import dashboard
 
 # The built-in workflows of the template by API name, with their targets (the `state` spec's
-# template requirement); the API exposes only a workflow's name and whether it is enabled.
-# Enabling one is UI only: the API reads `name` and `enabled` and can delete a workflow, but
-# no mutation enables one (https://docs.github.com/en/issues/planning-and-tracking-with-projects/
-# automating-your-project/using-the-built-in-automations). The row becomes a transition once
-# such a mutation appears.
+# template requirement); the API exposes only a workflow's name and whether it is enabled,
+# and can delete one. Enabling one is UI only: no mutation does it, see
+# https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations
+# The row becomes a transition once such a mutation appears.
 WORKFLOWS = {
     "Auto-add to project": "Auto-add to project (this repository)",
     "Item added to project": "Item added -> Todo",
