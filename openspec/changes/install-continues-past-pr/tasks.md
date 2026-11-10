@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_planning_workflow.py` add `test_install_continues_past_the_installation_pr`: in the Install section's step 4 (between ` 4. ` and ` 5. `, as `test_install_names_the_skill_marker` cuts it) assert `agent-process wait_for_pr <PR>`, `exit 3`, `rerun once`, `show the person`, `ekolvah/agent-process-distribution`, `gh pr view <PR> --json state`, `MERGED` and `same session`
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_planning_workflow.py::test_install_continues_past_the_installation_pr` and commit RED with these ticks
+- [x] 1.1 In `tests/publisher/test_planning_workflow.py` add `test_install_continues_past_the_installation_pr`: in the Install section's step 4 (between ` 4. ` and ` 5. `, as `test_install_names_the_skill_marker` cuts it) assert `agent-process wait_for_pr <PR>`, `exit 3`, `rerun once`, `show the person`, `ekolvah/agent-process-distribution`, `gh pr view <PR> --json state`, `MERGED` and `same session`
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_planning_workflow.py::test_install_continues_past_the_installation_pr` and commit RED with these ticks
 
 ## 2. Install continues past the PR
 
