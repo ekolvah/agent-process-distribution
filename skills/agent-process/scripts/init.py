@@ -344,7 +344,8 @@ def _recorded(text: str | None, prefix: str) -> str | None:
 
 def release_drift(root: Path, script_dir: Path) -> str | None:
     """`None` when `root` records this skill's release or `script_dir` is the publisher's
-    source checkout of `root`; otherwise the message naming both releases and the fix."""
+    source checkout of `root`; otherwise the message naming both releases and the fix:
+    `/agent-process:init` for a project behind, the plugin update for a skill behind."""
     publisher = root / "skills" / "agent-process" / "scripts"
     if os.path.normcase(script_dir.resolve()) == os.path.normcase(publisher.resolve()):
         return None
@@ -363,7 +364,7 @@ def release_drift(root: Path, script_dir: Path) -> str | None:
             "(the scope `claude plugin list` shows for this project); then restart the session"
         )
     install = TEMPLATES.parent / "SKILL.md"
-    return f"{head} — re-run Install with this skill ({install}#install)"
+    return f"{head} — re-run Install with this skill: `/agent-process:init` ({install}#install)"
 
 
 def _release(version: str) -> tuple[int, ...]:

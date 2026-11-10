@@ -9,6 +9,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import threading
 import tomllib
 from pathlib import Path
@@ -18,7 +19,7 @@ from typing import Callable
 import pytest
 import yaml
 
-from tests.publisher.init_harness import load_init
+from tests.publisher.init_harness import CURRENT, load_init
 from tests.publisher.lint_harness import ADOPTION_MARKER, FINDING, edit_payload, lint_repo
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -627,6 +628,101 @@ def test_session_start_reports_a_missing_environment(
             assert ENV_MARKER in text and named in text, text
         assert interpreter is None
         assert not list((tmp_path / "data").glob("venv-*/.complete"))
+
+
+DRIFT_MARKER = "agent-process release drift"
+
+
+def _config_block(recorded: str) -> str:
+    """The installer's config block with the release line `recorded`."""
+    init = load_init()
+    block, line = init.render_config_block(), init.RELEASE + CURRENT
+    assert line in block, "the rendered block records no release"
+    return block.replace(line, init.RELEASE + recorded)
+
+
+def _start_in_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    via_cwd: bool = False,
+) -> str:
+    """`plugin_env.main` for `session-start` in-process at the project `tmp_path/project`, named
+    by `CLAUDE_PROJECT_DIR` or, `via_cwd`, by the current directory; without
+    `CLAUDE_PLUGIN_DATA`, so nothing installs. Returns its stdout."""
+    module, _ = _plugin_env(tmp_path, lambda *_: None)
+    project = tmp_path / "project"
+    project.mkdir(exist_ok=True)
+    monkeypatch.syspath_prepend(str(SCRIPTS))  # as `python plugin_env.py` puts its directory first
+    monkeypatch.delenv("CLAUDE_PLUGIN_DATA", raising=False)
+    monkeypatch.setattr(sys, "argv", ["plugin_env.py", "session-start"])
+    if via_cwd:
+        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+        monkeypatch.chdir(project)
+    else:
+        monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project))
+    assert module.main() == 0
+    return capsys.readouterr().out
+
+
+def _texts(stdout: str) -> tuple[str, str]:
+    output = json.loads(stdout)
+    return output["systemMessage"], output["hookSpecificOutput"]["additionalContext"]
+
+
+@pytest.mark.parametrize("via_cwd", [False, True], ids=["project-dir", "cwd"])
+def test_session_start_reports_release_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    via_cwd: bool,
+) -> None:
+    """Scenario: Repository behind the plugin."""
+    config = tmp_path / "project" / "openspec" / "config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text(_config_block("3.29.0"), encoding="utf-8")
+    stdout = _start_in_project(tmp_path, monkeypatch, capsys, via_cwd)
+    for text in _texts(stdout):
+        for named in (DRIFT_MARKER, "3.29.0", CURRENT, "/agent-process:init"):
+            assert named in text, text
+
+
+@pytest.mark.parametrize("config", ["current", "no-block", "no-config"])
+def test_session_start_silent_on_release(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    config: str,
+) -> None:
+    """Scenario: Release current or not installed."""
+    path = tmp_path / "project" / "openspec" / "config.yaml"
+    if config != "no-config":
+        path.parent.mkdir(parents=True)
+        text = _config_block(CURRENT) if config == "current" else "schema: x\n"
+        path.write_text(text, encoding="utf-8")
+    stdout = _start_in_project(tmp_path, monkeypatch, capsys)
+    for text in _texts(stdout):
+        assert ENV_MARKER in text and DRIFT_MARKER not in text, text
+
+
+def test_session_start_release_undecidable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Release undecidable."""
+    (tmp_path / "project" / "openspec" / "config.yaml").mkdir(parents=True)
+    stdout = _start_in_project(tmp_path, monkeypatch, capsys)
+    for text in _texts(stdout):
+        assert DRIFT_MARKER in text and "cannot check" in text, text
+
+
+def test_init_imports_without_site_packages() -> None:
+    """Design D2: `init` imports with the standard library alone, as the session-start hook
+    imports it before the plugin environment exists."""
+    code = f"import sys; sys.path.insert(0, {str(SCRIPTS)!r}); import init"
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", code], capture_output=True, encoding="utf-8", check=False
+    )
+    assert result.returncode == 0, result.stderr
 
 
 Command = tuple[str, ...]

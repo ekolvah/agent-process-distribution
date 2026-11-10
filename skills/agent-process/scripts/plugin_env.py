@@ -14,6 +14,12 @@ and `bin/agent-process` runs scripts with it.
 A failure, or a hook run without either variable, prints the session-start marker JSON and
 writes nothing, so the launcher falls back to `python` and the next session retries.
 
+In a project whose `openspec/config.yaml` holds the agent-process block (`CLAUDE_PROJECT_DIR`,
+else the current directory), the hook also runs `init.release_drift`, the check of
+`start_change`, and prints `agent-process release drift` with its message, or with `cannot
+check` and the reason. `init` imports only the standard library, so it runs before the
+environment exists. Both markers share one JSON, a `systemMessage` line each.
+
 The plugin's `hooks/hooks.json` runs it as `python <plugin>/.../plugin_env.py session-start`.
 """
 
@@ -42,6 +48,8 @@ else:
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST = PLUGIN_ROOT / ".agent-process" / "requirements.txt"
 MARKER = "agent-process plugin environment not installed"
+DRIFT_MARKER = "agent-process release drift"
+BEGIN = "# agent-process:begin"  # the first line of the installer's config block
 LOCK_WAIT = 240  # seconds; below the hook's timeout of 300, so the marker reaches the session
 
 
@@ -135,16 +143,42 @@ def session_start() -> str | None:
     return None
 
 
+def release_drift() -> str | None:
+    """The drift marker of the project's recorded release, or None when the project has no
+    agent-process block or records this plugin's release."""
+    project = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+    try:
+        text = (project / "openspec" / "config.yaml").read_text(encoding="utf-8")
+        if BEGIN not in (line.strip() for line in text.splitlines()):
+            return None
+        import init  # after the gate: a project without the block never pays for the import
+
+        drift = init.release_drift(project, Path(__file__).resolve().parent)
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeError, ImportError) as error:  # a visible degraded marker
+        return f"{DRIFT_MARKER}, cannot check: {error}"
+    return None if drift is None else f"agent-process {drift}"
+
+
 def main() -> int:
     if sys.argv[1:] != ["session-start"]:
         print("usage: plugin_env.py session-start", file=sys.stderr)
         return 2
+    texts = []
     cause = session_start()
     if cause is not None:
-        text = f"{MARKER}: {cause}. Scripts run under `python` until a session installs it."
+        texts.append(f"{MARKER}: {cause}. Scripts run under `python` until a session installs it.")
+    drift = release_drift()
+    if drift is not None:
+        texts.append(drift)
+    if texts:
         output = {
-            "systemMessage": text,
-            "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text},
+            "systemMessage": "\n".join(texts),
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": " ".join(texts),
+            },
         }
         print(json.dumps(output))  # ASCII escapes: a Windows console encoding cannot fail
     return 0
