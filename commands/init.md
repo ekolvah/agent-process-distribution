@@ -1,6 +1,6 @@
 ---
 description: Install or upgrade the agent process in this repository (dry-run, then confirm).
-argument-hint: "[--version <x.y.z>]"
+argument-hint: "[--version <x.y.z>] [--area <name>]..."
 ---
 
 Follow the `## Install` section of the `agent-process` skill from this repository's root.

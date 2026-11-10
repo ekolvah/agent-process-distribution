@@ -16,7 +16,7 @@
 
 ## 3. Docs
 
-- [ ] 3.1 `skills/agent-process/SKILL.md` Install step 2: the agent picks the consumer's areas from the repository's content and passes one `--area <name>` per area to both runs; `commands/init.md` argument hint gains `[--area <name>]...`. Verify `python -m pytest tests/publisher -q -k "skill or plugin or planning"` is green, then commit with the ticks
+- [x] 3.1 `skills/agent-process/SKILL.md` Install step 2: the agent picks the consumer's areas from the repository's content and passes one `--area <name>` per area to both runs; `commands/init.md` argument hint gains `[--area <name>]...`. Verify `python -m pytest tests/publisher -q -k "skill or plugin or planning"` is green, then commit with the ticks
 
 ## 4. Verify
 
