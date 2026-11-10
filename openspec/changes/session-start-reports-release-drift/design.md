@@ -32,8 +32,8 @@ already holds the comparison, both fix texts and the publisher-checkout exemptio
    `.github/workflows/agent-process.yml`, and `release_drift`'s own exemption does not fire from
    the plugin cache. A block without a release line is an old install and is reported.
 4. **The drift message names `/agent-process:init`.** The issue asks for it; changing the text
-   in `release_drift` keeps the session marker and `start_change` one text. The path to
-   `SKILL.md#install` stays for a runner without the command.
+   in `release_drift` keeps the session marker and `start_change` one text. The path to the
+   Install anchor of `SKILL.md` stays for a runner without the command.
 5. **One output JSON.** The environment marker and the drift marker are joined as the skill
    check joins its markers: one `systemMessage` line each, `additionalContext` concatenated. A
    failure of the drift reader is caught and printed as the marker with `cannot check: <reason>`
