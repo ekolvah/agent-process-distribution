@@ -10,9 +10,9 @@
 
 ## 2. The areas transition
 
-- [ ] 2.1 `skills/agent-process/scripts/init.py`: a repeatable `--area` whose argparse type rejects an empty name or one holding `"`, and `parser.error` on a repeated name. Verify `python -m pytest tests/publisher/test_init_remote.py -q -k invalid_area` passes
-- [ ] 2.2 `skills/agent-process/scripts/manual.py` (design D2): extend `QUERY`/`AREA`, add `Areas` and `areas(t)` with the three states, and have `rows` print the `project-areas` row for `template` as `... -- re-run init with one --area <name> per area of this repository, or replace the Area options and the area views in the UI{why}` and for `none` with the UI wording only. Verify `python -m pytest tests/publisher/test_init_remote.py -q -k manual` is green
-- [ ] 2.3 `init.py` (design D2, D4, D5): `_areas_step(ctx, repo, linked, areas)` after `_pre_push_step`, before `readings`, its detail naming the given and the dropped options; the apply per D4. Renumber the docstring's step list with `project-areas` and name its writes among the GitHub writes. Verify `python -m pytest tests/publisher/test_init_remote.py -q` is green, then commit the group with its ticks
+- [x] 2.1 `skills/agent-process/scripts/init.py`: a repeatable `--area` whose argparse type rejects an empty name or one holding `"`, and `parser.error` on a repeated name. Verify `python -m pytest tests/publisher/test_init_remote.py -q -k invalid_area` passes
+- [x] 2.2 `skills/agent-process/scripts/manual.py` (design D2): extend `QUERY`/`AREA`, add `Areas` and `areas(t)` with the three states, and have `rows` print the `project-areas` row for `template` as `... -- re-run init with one --area <name> per area of this repository, or replace the Area options and the area views in the UI{why}` and for `none` with the UI wording only. Verify `python -m pytest tests/publisher/test_init_remote.py -q -k manual` is green
+- [x] 2.3 `init.py` (design D2, D4, D5): `_areas_step(ctx, repo, linked, areas)` after `_pre_push_step`, before `readings`, its detail naming the given and the dropped options; the apply per D4. Renumber the docstring's step list with `project-areas` and name its writes among the GitHub writes. Verify `python -m pytest tests/publisher/test_init_remote.py -q` is green, then commit the group with its ticks
 
 ## 3. Docs
 

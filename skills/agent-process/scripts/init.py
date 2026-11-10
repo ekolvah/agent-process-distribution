@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Install the agent process into the consumer repository at the current directory.
 
-Usage: python init.py [--version <x.y.z>] (--dry-run | --confirm)
+Usage: python init.py [--version <x.y.z>] [--area <name>]... (--dry-run | --confirm)
 
 The requested release owns its run. With `--version` equal to `VERSION` this file runs
 itself; otherwise it clones the requested tag into a temporary directory, removed afterwards,
@@ -44,7 +44,10 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 20. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
-21. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
+21. project-areas  with `--area`, while the linked Project's `Area` options are the template's:
+                   each name's view with its filter, the other template area views deleted,
+                   then the options set to exactly the names
+22. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
     the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
 
 Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
@@ -58,7 +61,7 @@ repository with none, a checkout with none of a repository with commits — is a
 The output ends with `manual` rows, read after the run's writes and printed only while their
 state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
-secret, and the task-readings variable, secret and dashboard step 21 cannot set up, with
+secret, and the task-readings variable, secret and dashboard step 22 cannot set up, with
 the reason — that only a UI can change — the `plugin-channel`
 row, the once-per-machine step that points the marketplace at `stable` with auto-update and
 installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
@@ -67,8 +70,9 @@ cannot read keeps its row with `(cannot read: <reason>)` and never changes the e
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
 status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
-installation branch is otherwise the only push, and the Project copy and link, the issue, the
-PR and step 21's variable and secret the only other GitHub writes.
+installation branch is otherwise the only push, and the Project copy and link, step 21's
+`Area` options and views, the issue, the PR and step 22's variable and secret the only other
+GitHub writes.
 `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -847,6 +851,113 @@ def _pre_push_step(ctx: Context, repo: str) -> list[Step]:
     return [Step("pre-push", "planned", detail, apply)]
 
 
+def _areas_step(
+    ctx: Context, repo: str, linked: list[dict[str, Any]], names: list[str]
+) -> list[Step]:
+    """With `--area`, the linked Project's — or the copy's — `Area` options and area views
+    become `names` while its options are the template's. A state `init` cannot read has no
+    step: its `manual project-areas` row says why."""
+    if not names:
+        return []
+    target = _target(ctx, repo)
+    try:
+        if linked:
+            state = manual.areas(target)
+            where, template = state.url or "the linked Project", state.template
+        else:
+            state, where, template = None, "the copy", manual.template_options(target)
+    except manual.Unreadable:
+        return []
+    if state is not None and state.state != "template":
+        why = "has no Area field" if state.state == "none" else "has its own Area options"
+        return [Step("project-areas", "unchanged", f"{where} {why}")]
+    dropped = ", ".join(name for name in template if name not in names) or "none"
+    detail = f"{where}: Area options and area views {', '.join(names)}; dropping {dropped}"
+    return [Step("project-areas", "planned", detail, lambda: _replace_areas(target, names))]
+
+
+def _replace_areas(target: manual.Target, names: list[str]) -> bool:
+    """The views first, found by name so that a retry completes a failed run, then the
+    options, which end the `template` state."""
+    try:
+        now = manual.areas(target)
+    except manual.Unreadable as exc:
+        raise InstallError(f"project-areas: cannot read: {exc}") from None
+    if now.state != "template":
+        raise InstallError(f"project-areas: {now.url} no longer has the template's Area options")
+    _replace_views(target, now, names)
+    options: list[str] = []
+    for name in names:
+        if name in now.options:
+            options.append(f"options[][id]={now.options[name]}")
+        options += [f"options[][name]={name}", "options[][color]=GRAY", "options[][description]="]
+    _project_write(
+        target,
+        "($field:ID!,$options:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field("
+        "input:{fieldId:$field,singleSelectOptions:$options}){clientMutationId}}",
+        f"field={now.field}",
+        *options,
+    )
+    return True
+
+
+def _replace_views(target: manual.Target, now: manual.Areas, names: list[str]) -> None:
+    """Each name's view gets its filter: the view of that name, else a view named after a
+    dropped template option, renamed to keep its fields, else a new one. The views named after
+    a dropped template option that remain are deleted."""
+    by_name = {view["name"]: view for view in now.views}
+    spare = [
+        view for view in now.views if view["name"] in now.template and view["name"] not in names
+    ]
+    for name in names:
+        found = by_name.get(name)
+        if found is None and spare:
+            found = spare.pop(0)
+        elif found is None:
+            made = _project_write(
+                target,
+                "($project:ID!,$name:String!){createProjectV2View(input:"
+                "{projectId:$project,name:$name,layout:BOARD_LAYOUT}){projectV2View{id}}}",
+                f"project={now.project}",
+                f"name={name}",
+            )
+            found = {"id": made["data"]["createProjectV2View"]["projectV2View"]["id"]}
+        if (found.get("name"), found.get("filter")) != (name, _area_filter(name)):
+            _project_write(
+                target,
+                "($view:ID!,$name:String!,$filter:String!){updateProjectV2View(input:"
+                "{viewId:$view,name:$name,filter:$filter}){clientMutationId}}",
+                f"view={found['id']}",
+                f"name={name}",
+                f"filter={_area_filter(name)}",
+            )
+    for view in spare:
+        _project_write(
+            target,
+            "($view:ID!){deleteProjectV2View(input:{viewId:$view}){clientMutationId}}",
+            f"view={view['id']}",
+        )
+
+
+def _area_filter(name: str) -> str:
+    return f'-status:Done area:"{name}"'
+
+
+def _project_write(target: manual.Target, mutation: str, *fields: str) -> Any:
+    """One GraphQL mutation with its variables as `-f` fields; its error names the step."""
+    args = ["api", "graphql", "-f", f"query=mutation{mutation}"]
+    for part in fields:
+        args += ["-f", part]
+    try:
+        done = target.gh_write(*args)
+    except InstallError as exc:
+        raise InstallError(f"project-areas: {exc}") from None
+    try:
+        return json.loads(done.stdout)
+    except (TypeError, json.JSONDecodeError):
+        raise InstallError("project-areas: `gh api graphql` printed no JSON") from None
+
+
 def _installed(target: manual.Target) -> bool:
     try:
         return manual.pre_push(target).installed
@@ -863,19 +974,38 @@ def _version(value: str) -> str:
     return value
 
 
+def _area(value: str) -> str:
+    # The name goes into a view filter between double quotes.
+    if not value or '"' in value:
+        raise argparse.ArgumentTypeError(f"expected a non-empty name without '\"': {value!r}")
+    return value
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="init.py", description=__doc__.splitlines()[0])
     parser.add_argument("--version", type=_version, default=VERSION, help="release to install")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="print the plan and write nothing")
     mode.add_argument("--confirm", action="store_true", help="perform the plan")
+    parser.add_argument(
+        "--area",
+        type=_area,
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="an area of this repository, for the linked Project's Area options and views",
+    )
     parser.add_argument("--selected-release", action="store_true", help=argparse.SUPPRESS)
     return parser
 
 
 def install(argv: list[str], host: Host) -> int:
+    parser = _parser()
     try:
-        args = _parser().parse_args(argv)
+        args = parser.parse_args(argv)
+        repeated = sorted({name for name in args.area if args.area.count(name) > 1})
+        if repeated:
+            parser.error(f"argument --area: given more than once: {', '.join(repeated)}")
     except SystemExit as exc:
         return int(exc.code or 0)
     override = os.environ.get(REPOSITORY_ENV)
@@ -941,8 +1071,9 @@ def _run(
         empty=empty,
     )
     before, after = onboarding.plan(to, planned)
+    areas = _areas_step(ctx, repo, linked, args.area)
     readings = readings_setup.steps(_target(ctx, repo))
-    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo), *readings]
+    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo), *areas, *readings]
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     conflict = any(step.status == "conflict" for step in steps)

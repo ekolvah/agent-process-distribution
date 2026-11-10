@@ -24,15 +24,20 @@ WORKFLOWS = {
     "Item closed": "Item closed -> Done",
     "Pull request merged": "Pull request merged -> Done",
 }
-AREA = 'field(name:"Area"){... on ProjectV2SingleSelectField{options{name}}}'
-# The linked Project's state the rows depend on, and the template's `Area` options.
+AREA = 'field(name:"Area"){... on ProjectV2SingleSelectField{id options{id name}}}'
+TEMPLATE = (
+    "template:repositoryOwner(login:$template){... on ProjectV2Owner{projectV2(number:$source){"
+    f"{AREA}}}}}}}"
+)
+# The linked Project's state the rows and the areas step depend on, and the template's `Area`
+# options; `TEMPLATE_QUERY` is the template's half alone, for a run with no linked Project.
 QUERY = (
     "query($owner:String!,$number:Int!,$template:String!,$source:Int!){"
     "linked:repositoryOwner(login:$owner){... on ProjectV2Owner{projectV2(number:$number){"
-    f"public workflows(first:50){{nodes{{name enabled}}}} {AREA}}}}}}}"
-    "template:repositoryOwner(login:$template){... on ProjectV2Owner{projectV2(number:$source){"
-    f"{AREA}}}}}}}}}"
+    "id public workflows(first:50){nodes{name enabled}} views(first:100){nodes{id name filter}} "
+    f"{AREA}}}}}}}{TEMPLATE}}}"
 )
+TEMPLATE_QUERY = f"query($template:String!,$source:Int!){{{TEMPLATE}}}"
 REVIEW_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 GRAFANA_URL = "GRAFANA_URL"
 GRAFANA_TOKEN = "GRAFANA_SERVICE_ACCOUNT_TOKEN"
@@ -93,9 +98,10 @@ def rows(t: Target) -> list[str]:
     url, why = None, ""
     try:
         owner, number, url = _linked(t)
-        public, missing, same = _project_state(t, owner, number)
+        public, missing, areas = _project_state(t, owner, number)
+        state = areas.state
     except Unreadable as exc:
-        public, missing, same, why = False, list(WORKFLOWS), True, f" (cannot read: {exc})"
+        public, missing, state, why = False, list(WORKFLOWS), "template", f" (cannot read: {exc})"
     where = url or "the new copy"
     if not public:
         found.append(
@@ -105,11 +111,14 @@ def rows(t: Target) -> list[str]:
     if missing:
         enable = ", ".join(WORKFLOWS[name] for name in missing)
         found.append(f"manual project-workflows: {where}/workflows -- enable {enable}{why}")
-    if same:
+    replace = "replace the Area options and the area views in the UI"
+    if state == "template":
         found.append(
-            f"manual project-areas: {where}/settings -- replace the Area options and the area "
-            f"views with this repository's own{why}"
+            f"manual project-areas: {where}/settings -- re-run init with one --area <name> per "
+            f"area of this repository, or {replace}{why}"
         )
+    elif state == "none":
+        found.append(f"manual project-areas: {where}/settings -- {replace}")
     secrets = _names_or_unreadable(t, "secret")
     repo = _repository(t)
     return [
@@ -245,14 +254,49 @@ def _linked(t: Target) -> tuple[str, int, str | None]:
         raise Unreadable(f"`gh repo view` printed an unexpected shape: {data}") from None
 
 
-def _areas(field: Any) -> set[str] | None:
-    """The `Area` option names; `None` when the Project has no `Area` field."""
-    return None if field is None else {str(option["name"]) for option in field["options"]}
+@dataclass
+class Areas:
+    """The linked Project's `Area` state: `template` while its options are the template's and
+    it is not the template, `none` with no `Area` field, `own` otherwise. `project` and
+    `field` are node ids, `options` the option ids by name, `views` each view's `id`, `name`
+    and `filter`, `template` the template's option names."""
+
+    state: str
+    url: str | None
+    project: str
+    field: str | None
+    options: dict[str, str]
+    views: list[dict[str, Any]]
+    template: list[str]
 
 
-def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str], bool]:
+def areas(t: Target) -> Areas:
+    """The linked Project's `Area` state; `Unreadable` unless exactly one Project is linked."""
+    owner, number, url = _linked(t)
+    found = _project_state(t, owner, number)[2]
+    found.url = url
+    return found
+
+
+def template_options(t: Target) -> list[str]:
+    """The template's `Area` option names, for a run that has not linked a Project yet."""
+    owner, number = t.template
+    query, template, source = f"query={TEMPLATE_QUERY}", f"template={owner}", f"source={number}"
+    data = _gh_read(t, "api", "graphql", "-f", query, "-f", template, "-F", source)
+    try:
+        return list(_options(data["data"]["template"]["projectV2"]["field"]))
+    except (KeyError, TypeError):
+        errors = data.get("errors") if isinstance(data, dict) else None
+        raise Unreadable(f"the template Project reads as {errors or data}") from None
+
+
+def _options(field: Any) -> dict[str, str]:
+    return {str(option["name"]): str(option["id"]) for option in field["options"]}
+
+
+def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str], Areas]:
     """Whether the Project is public, the template's workflows it lacks or has disabled, and
-    whether its `Area` options are still the template's (or it has no `Area` field)."""
+    its `Area` state."""
     template_owner, template_number = t.template
     data = _gh_read(
         t,
@@ -272,14 +316,25 @@ def _project_state(t: Target, owner: str, number: int) -> tuple[bool, list[str],
     try:
         project = data["data"]["linked"]["projectV2"]
         enabled = {w["name"] for w in project["workflows"]["nodes"] if w["enabled"]}
-        areas = _areas(project["field"])
-        template = _areas(data["data"]["template"]["projectV2"]["field"])
+        field = project["field"]
+        options = {} if field is None else _options(field)
+        template = list(_options(data["data"]["template"]["projectV2"]["field"]))
+        views = [
+            {"id": str(v["id"]), "name": str(v["name"]), "filter": v["filter"]}
+            for v in project["views"]["nodes"]
+        ]
+        field_id = None if field is None else str(field["id"])
+        found = Areas("own", None, str(project["id"]), field_id, options, views, template)
         public = project["public"] is True
     except (KeyError, TypeError):
         errors = data.get("errors") if isinstance(data, dict) else None
         raise Unreadable(f"the Project #{number} of {owner} reads as {errors or data}") from None
+    if field is None:
+        found.state = "none"
+    elif set(options) == set(template) and (owner, str(number)) != t.template:
+        found.state = "template"
     missing = [name for name in WORKFLOWS if name not in enabled]
-    return public, missing, areas is None or areas == template
+    return public, missing, found
 
 
 def _names_or_unreadable(t: Target, kind: str) -> dict[str, str] | Unreadable:

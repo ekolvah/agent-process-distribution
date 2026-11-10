@@ -168,8 +168,8 @@ def test_dry_run_writes_nothing_remote(
     assert {_gh_kind(args) for args in runner.gh()} == {"read"}
     assert (sandbox.github.state(), _git_state(sandbox)) == before
     if areas:
-        (line,) = [ln for ln in capfd.readouterr().out.splitlines() if "project-areas:" in ln]
-        assert line.startswith("planned project-areas: "), line
+        lines = capfd.readouterr().out.splitlines()
+        (line,) = [ln for ln in lines if ln.startswith("planned project-areas: ")]
         _, dropped = line.split("Alpha", 1)
         assert all(name in dropped for name in TEMPLATE_AREAS), line
 
