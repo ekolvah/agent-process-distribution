@@ -287,9 +287,7 @@ def _options(field: Any) -> dict[str, str]:
     return {str(option["name"]): str(option["id"]) for option in field["options"]}
 
 
-def _project_state(
-    t: Target, owner: str, number: int, url: str | None
-) -> tuple[list[str], Areas]:
+def _project_state(t: Target, owner: str, number: int, url: str | None) -> tuple[list[str], Areas]:
     """The template's workflows the Project lacks or has disabled, and its `Area` state."""
     template_owner, template_number = t.template
     data = _gh_read(
