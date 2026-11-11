@@ -5,6 +5,7 @@ and the `conftest.py` fixtures."""
 from __future__ import annotations
 
 import importlib.util
+import itertools
 import json
 import os
 import re
@@ -121,8 +122,30 @@ def _copied_workflows() -> dict[str, bool]:
     return {name: True for name in TEMPLATE_WORKFLOWS if name != "Auto-add to project"}
 
 
+_VIEW_IDS = itertools.count(1)
+# The template's views other than its area views (change init-replaces-project-areas, proposal
+# Why); their filters are not observed and only need to stay unchanged.
+BASE_VIEWS = {"Open": "-status:Done", "Bugs": "label:bug", "Empty": "no:area"}
+
+
+def area_filter(name: str) -> str:
+    return f'-status:Done area:"{name}"'
+
+
+def view(name: str, filter: str | None) -> dict[str, Any]:
+    """A view in the observed shape, with a fresh node id."""
+    return {"id": f"PVTV_{next(_VIEW_IDS)}", "name": name, "filter": filter}
+
+
+def _template_views() -> list[dict[str, Any]]:
+    areas = {name: area_filter(name) for name in TEMPLATE_AREAS}
+    return [view(name, filter) for name, filter in {**BASE_VIEWS, **areas}.items()]
+
+
 @dataclass
 class Project:
+    """A Project; `areas` are its `Area` options, `None` when it has no `Area` field."""
+
     owner: str
     number: int
     title: str
@@ -130,11 +153,20 @@ class Project:
     repositories: set[str] = field(default_factory=set)
     public: bool = False
     workflows: dict[str, bool] = field(default_factory=_copied_workflows)
-    areas: list[str] = field(default_factory=lambda: list(TEMPLATE_AREAS))
+    areas: list[str] | None = field(default_factory=lambda: list(TEMPLATE_AREAS))
+    views: list[dict[str, Any]] = field(default_factory=_template_views)
 
     @property
     def url(self) -> str:
         return f"https://github.com/users/{self.owner}/projects/{self.number}"
+
+    @property
+    def id(self) -> str:
+        return f"PVT_{self.owner}_{self.number}"
+
+    @property
+    def field_id(self) -> str:
+        return f"PVTSSF_{self.owner}_{self.number}"
 
 
 class FakeGitHub:
@@ -151,7 +183,8 @@ class FakeGitHub:
     task-readings-auto-setup). The `repos/<owner>/<name>` read carries `allow_auto_merge`, and
     the default branch's rules require `required_checks`; `faults["repo-read"]` and
     `faults["rules-read"]` make those reads print GitHub's error body and exit 1 (change
-    install-reports-post-merge-steps)."""
+    install-reports-post-merge-steps). The `Area` options and views mutations apply to a
+    Project by node id (change init-replaces-project-areas)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process", public=True)
@@ -212,6 +245,8 @@ class FakeGitHub:
             return self._list(args) if args[1] == "list" else self._set(args, input)
         if args[:2] == ["api", "graphql"] and "projectV2(number:" in args[3]:
             return self._project_read(args)
+        if args[:2] == ["api", "graphql"] and args[3].startswith("query=mutation"):
+            return self._areas_write(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
 
     def _repo_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -357,9 +392,9 @@ class FakeGitHub:
         raise AssertionError(f"unexpected gh command: {args}")
 
     def _project_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
-        """The linked Project's visibility, workflows and `Area` options and the template's
-        `Area` options, from the `owner`/`number` and `template`/`source` variables, in the
-        observed shape."""
+        """The linked Project's id, visibility, workflows, views and `Area` field and the
+        template's `Area` field, from the `owner`/`number` and `template`/`source` variables, in
+        the observed shape; without `owner` only the template's half."""
         if "project-read" in self.faults:
             return _done(args, code=1, err="gh: Could not resolve to a ProjectV2\n")
         variables = dict(part.split("=", 1) for part in args[3::2])
@@ -368,15 +403,71 @@ class FakeGitHub:
             (found,) = [p for p in self.projects if (p.owner, p.number) == (owner, int(number))]
             return found
 
-        def area(p: Project) -> dict[str, Any]:
-            return {"options": [{"name": name} for name in p.areas]}
+        def area(p: Project) -> dict[str, Any] | None:
+            if p.areas is None:
+                return None
+            options = [{"id": f"{p.field_id}:{name}", "name": name} for name in p.areas]
+            return {"id": p.field_id, "options": options}
 
-        linked = project(variables["owner"], variables["number"])
         template = project(variables["template"], variables["source"])
-        workflows = [{"name": name, "enabled": on} for name, on in linked.workflows.items()]
-        node = {"public": linked.public, "workflows": {"nodes": workflows}, "field": area(linked)}
-        data = {"linked": {"projectV2": node}, "template": {"projectV2": {"field": area(template)}}}
+        data: dict[str, Any] = {"template": {"projectV2": {"field": area(template)}}}
+        if "owner" in variables:
+            linked = project(variables["owner"], variables["number"])
+            workflows = [{"name": name, "enabled": on} for name, on in linked.workflows.items()]
+            data["linked"] = {
+                "projectV2": {
+                    "id": linked.id,
+                    "public": linked.public,
+                    "workflows": {"nodes": workflows},
+                    "views": {"nodes": [dict(v) for v in linked.views]},
+                    "field": area(linked),
+                }
+            }
         return _done(args, {"data": data})
+
+    def _areas_write(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """`updateProjectV2Field`, `createProjectV2View`, `updateProjectV2View` and
+        `deleteProjectV2View` by node id, their variables as `-f` fields; repeated
+        `options[][<key>]` fields make a new option when the key repeats, as `gh` does."""
+        query = args[3].removeprefix("query=")
+        fields: dict[str, str] = {}
+        options: list[dict[str, str]] = []
+        for flag, part in zip(args[4::2], args[5::2]):
+            assert flag == "-f", args
+            key, value = part.split("=", 1)
+            if key.startswith("options[]["):
+                sub = key.removeprefix("options[][").removesuffix("]")
+                if not options or sub in options[-1]:
+                    options.append({})
+                options[-1][sub] = value
+            else:
+                fields[key] = value
+
+        def by(attribute: str, value: str) -> Project:
+            (found,) = [p for p in self.projects if getattr(p, attribute) == value]
+            return found
+
+        def find(view_id: str) -> tuple[Project, dict[str, Any]]:
+            (found,) = [(p, v) for p in self.projects for v in p.views if v["id"] == view_id]
+            return found
+
+        if "updateProjectV2Field(" in query:
+            assert all(o["color"] == "GRAY" and o["description"] == "" for o in options), args
+            by("field_id", fields["field"]).areas = [o["name"] for o in options]
+            return _done(args, {"data": {"updateProjectV2Field": {"clientMutationId": None}}})
+        if "createProjectV2View(" in query:
+            assert "layout:BOARD_LAYOUT" in query, args
+            made = view(fields["name"], None)
+            by("id", fields["project"]).views.append(made)
+            payload = {"createProjectV2View": {"projectV2View": {"id": made["id"]}}}
+            return _done(args, {"data": payload})
+        if "updateProjectV2View(" in query:
+            find(fields["view"])[1].update(name=fields["name"], filter=fields["filter"])
+            return _done(args, {"data": {"updateProjectV2View": {"clientMutationId": None}}})
+        assert "deleteProjectV2View(" in query, args
+        project, gone = find(fields["view"])
+        project.views.remove(gone)
+        return _done(args, {"data": {"deleteProjectV2View": {"clientMutationId": None}}})
 
 
 GRAFANA = "https://stack.grafana.net"

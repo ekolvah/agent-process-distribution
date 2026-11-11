@@ -51,6 +51,7 @@ MOVED_SCRIPTS = {
     "navigation_policy.py",
     "onboarding.py",
     "plugin_env.py",
+    "project_areas.py",
     "quality.py",
     "readings_setup.py",
     "resolve_review_thread.py",
