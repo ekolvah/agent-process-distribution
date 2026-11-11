@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_planning_workflow.py` add `test_upgrade_approval_is_its_consent`, slicing `_section("Install")` with the `split(" N. ", 1)` idiom of `test_install_continues_past_the_installation_pr`: step 3 names `Ask once`, `manual agent-identity`, `project-copy`, `project-link`, `pre-push`, `task-readings-url`, `task-readings-token` and `task-readings-dashboard`; step 4 names `gh pr merge <PR> --auto --squash`, `approve` and `manual protection`
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_planning_workflow.py::test_upgrade_approval_is_its_consent` and commit RED with these ticks
+- [x] 1.1 In `tests/publisher/test_planning_workflow.py` add `test_upgrade_approval_is_its_consent`, slicing `_section("Install")` with the `split(" N. ", 1)` idiom of `test_install_continues_past_the_installation_pr`: step 3 names `Ask once`, `manual agent-identity`, `project-copy`, `project-link`, `pre-push`, `task-readings-url`, `task-readings-token` and `task-readings-dashboard`; step 4 names `gh pr merge <PR> --auto --squash`, `approve` and `manual protection`
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_planning_workflow.py::test_upgrade_approval_is_its_consent` and commit RED with these ticks
 
 ## 2. Unasked upgrade
 
