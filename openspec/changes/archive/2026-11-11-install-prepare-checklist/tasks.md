@@ -19,7 +19,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change install-prepare-checklist`, then `gh pr create --title "docs: install-prepare-checklist" --body-file <report>`. The report names tracking issue 488 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 3, §VII)
+- [x] 4.1 Run `agent-process archive_change install-prepare-checklist`, then `gh pr create --title "docs: install-prepare-checklist" --body-file <report>`. The report names tracking issue 488 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 3, §VII)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
