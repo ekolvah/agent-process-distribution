@@ -3,8 +3,10 @@
 See proposal.md — Why. The Install procedure (SKILL.md `## Install`) is prose the agent follows.
 `init --dry-run` is reads only; `init --confirm` reports `conflict` and exits non-zero before any
 write. Besides the PR's files and its `onboarding-*` steps, a confirmed run writes outside the PR
-(`init.py` docstring, steps 1, 14, 15, 20, 21): `onboarding-root` (only in a repository with no
-commits), `project-copy`, `project-link`, the clone's `pre-push` hook, and the `GRAFANA_URL`
+(`init.py` docstring, steps 1, 14, 15, 20, 21, 22): `onboarding-root` (only in a repository with
+no commits), `project-copy`, `project-link`, the clone's `pre-push` hook, the Project's `Area`
+options of `project-areas` (planned on an upgrade of a repository installed before
+`init-replaces-project-areas`), and the `GRAFANA_URL`
 variable, the token secret and the dashboard import of `task-readings-url`, `-token`,
 `-dashboard`.
 

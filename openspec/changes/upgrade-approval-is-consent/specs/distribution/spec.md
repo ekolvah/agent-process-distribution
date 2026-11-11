@@ -3,7 +3,7 @@
 ### Requirement: An upgrade's PR approval is its consent
 The Install procedure of the shared skill SHALL, after showing the dry-run, run `--confirm`
 without asking when the dry-run plans no `project-copy`, `project-link`, `pre-push`,
-`task-readings-url`, `task-readings-token` or `task-readings-dashboard` transition and prints no
+`project-areas`, `task-readings-url`, `task-readings-token` or `task-readings-dashboard` transition and prints no
 `manual agent-identity` row; it SHALL then run `gh pr merge <PR> --auto --squash` on the PR the
 run opened and ask the person to approve it. Otherwise it SHALL ask once before `--confirm`.
 
@@ -12,7 +12,7 @@ run opened and ask the person to approve it. Otherwise it SHALL ask once before 
 - **THEN** the agent runs `--confirm` unasked, runs `gh pr merge <PR> --auto --squash` on the PR it opened, and asks the person to approve it
 
 #### Scenario: Write outside the PR or no agent identity
-- **WHEN** the dry-run plans a `project-copy`, `project-link`, `pre-push` or `task-readings-*` transition, or prints a `manual agent-identity` row
+- **WHEN** the dry-run plans a `project-copy`, `project-link`, `pre-push`, `project-areas` or `task-readings-*` transition, or prints a `manual agent-identity` row
 - **THEN** the agent asks once before `--confirm`
 
 ## MODIFIED Requirements

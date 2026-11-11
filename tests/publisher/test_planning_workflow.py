@@ -653,6 +653,7 @@ def test_upgrade_approval_is_its_consent() -> None:
         "project-copy",
         "project-link",
         "pre-push",
+        "project-areas",
         "task-readings-url",
         "task-readings-token",
         "task-readings-dashboard",
