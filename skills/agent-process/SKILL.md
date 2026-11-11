@@ -167,7 +167,8 @@ Run from the consumer's root:
    `additional_dependencies`, or fixing the findings. `gh` must be authenticated with the
    `project` scope: even the dry-run reads the repository's Projects.
 2. Run `agent-process init --dry-run` (add `--version <x.y.z>` when given) and show its
-   whole output. A
+   whole output. Pick the repository's areas from its content, as for an issue's area, and
+   pass one `--area <name>` per area to both runs. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
 3. When the dry-run prints the `review-secret` row, have the person do it before asking, so

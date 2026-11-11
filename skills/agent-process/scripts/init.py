@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Install the agent process into the consumer repository at the current directory.
 
-Usage: python init.py [--version <x.y.z>] (--dry-run | --confirm)
+Usage: python init.py [--version <x.y.z>] [--area <name>]... (--dry-run | --confirm)
 
 The requested release owns its run. With `--version` equal to `VERSION` this file runs
 itself; otherwise it clones the requested tag into a temporary directory, removed afterwards,
@@ -44,7 +44,9 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 20. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
-21. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
+21. project-areas  with `--area`, while the linked Project's `Area` options are the template's:
+                   each name's view and filter, then the options; other template views deleted
+22. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
     the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
 
 Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
@@ -58,7 +60,7 @@ repository with none, a checkout with none of a repository with commits — is a
 The output ends with `manual` rows, read after the run's writes and printed only while their
 state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
-secret, and the task-readings variable, secret and dashboard step 21 cannot set up, with
+secret, and the task-readings variable, secret and dashboard step 22 cannot set up, with
 the reason — that only a UI can change — the `plugin-channel`
 row, the once-per-machine step that points the marketplace at `stable` with auto-update and
 installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
@@ -67,8 +69,9 @@ cannot read keeps its row with `(cannot read: <reason>)` and never changes the e
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
 status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
-installation branch is otherwise the only push, and the Project copy and link, the issue, the
-PR and step 21's variable and secret the only other GitHub writes.
+installation branch is otherwise the only push, and the Project copy and link, step 21's
+`Area` options and views, the issue, the PR and step 22's variable and secret the only other
+GitHub writes.
 `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -90,6 +93,7 @@ from typing import Any, Callable
 
 import manual
 import onboarding
+import project_areas
 import quality
 import readings_setup
 from steps import InstallError, Step, run
@@ -869,6 +873,7 @@ def _parser() -> argparse.ArgumentParser:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="print the plan and write nothing")
     mode.add_argument("--confirm", action="store_true", help="perform the plan")
+    parser.add_argument("--area", action=project_areas.Names, default=[], help="a repo area")
     parser.add_argument("--selected-release", action="store_true", help=argparse.SUPPRESS)
     return parser
 
@@ -941,8 +946,9 @@ def _run(
         empty=empty,
     )
     before, after = onboarding.plan(to, planned)
+    areas = project_areas.steps(_target(ctx, repo), linked, args.area)
     readings = readings_setup.steps(_target(ctx, repo))
-    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo), *readings]
+    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo), *areas, *readings]
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     conflict = any(step.status == "conflict" for step in steps)
