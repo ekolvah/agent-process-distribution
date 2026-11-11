@@ -10,8 +10,8 @@
 
 ## 2. The row
 
-- [ ] 2.1 Extend `manual._identity_set` per design D1, make the row name the failed condition and Install step 6 instead of inline commands, and set `IDENTITY_FIX` in `manual.py` and `templates/skill_check.py` (and its docstring) to "Install step 6 of the agent-process skill, then restart Claude Code"; verify `python -m pytest tests/publisher/test_init_remote.py tests/publisher/test_skill_check.py -q` is green
-- [ ] 2.2 Delete `skills/agent-process/scripts/agent_identity.py` and `tests/publisher/test_agent_identity.py`, moving `test_approval_ruleset_body` and the `activate_protection` half of `test_a_clone_with_the_agent_identity` into `tests/publisher/test_activate_protection.py`; drop `agent_identity.py` from the script lists of `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`; verify `python -m pytest tests/publisher -q` is green, then commit the group with its ticks
+- [x] 2.1 Extend `manual._identity_set` per design D1, make the row name the failed condition and Install step 6 instead of inline commands, and set `IDENTITY_FIX` in `manual.py` and `templates/skill_check.py` (and its docstring) to "Install step 6 of the agent-process skill, then restart Claude Code"; verify `python -m pytest tests/publisher/test_init_remote.py tests/publisher/test_skill_check.py -q` is green
+- [x] 2.2 Delete `skills/agent-process/scripts/agent_identity.py` and `tests/publisher/test_agent_identity.py`, moving `test_approval_ruleset_body` and the `activate_protection` half of `test_a_clone_with_the_agent_identity` into `tests/publisher/test_activate_protection.py`; drop `agent_identity.py` from the script lists of `tests/publisher/test_plugin.py` and `tests/publisher/test_start_change.py`; verify `python -m pytest tests/publisher -q` is green, then commit the group with its ticks
 
 ## 3. Runbook and records
 

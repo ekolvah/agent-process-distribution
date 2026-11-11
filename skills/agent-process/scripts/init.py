@@ -810,7 +810,7 @@ def _target(ctx: Context, repo: str) -> manual.Target:
         repo=repo,
         root=ctx.root,
         home=ctx.home,
-        gh=lambda *args: ctx.call("gh", *args, cwd=ctx.root, check=False),
+        gh=lambda *args, env=None: ctx.call("gh", *args, cwd=ctx.root, env=env, check=False),
         gh_write=lambda *args, input=None: ctx.call("gh", *args, cwd=ctx.root, input=input),
         grafana=ctx.grafana,
         git=lambda *args: ctx.git("-C", str(ctx.root), *args, check=False),

@@ -32,7 +32,6 @@ ALWAYS_ON = PACKAGE / "always-on.md"
 SCRIPTS = PACKAGE / "scripts"
 MOVED_SCRIPTS = {
     "activate_protection.py",
-    "agent_identity.py",
     "archive_change.py",
     "check_red.py",
     "dashboard.py",

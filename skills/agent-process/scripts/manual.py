@@ -6,6 +6,7 @@ and no read writes or fails the run."""
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -46,9 +47,11 @@ MCP = "grafana MCP server in ~/.claude.json"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 # The fix the session-start identity marker names; the template's copy is asserted equal.
-IDENTITY_FIX = (
-    "agent-process agent_identity --bot <login> --dry-run, then with --confirm, then "
-    "gh repo edit --enable-auto-merge, then restart Claude Code"
+IDENTITY_FIX = "Install step 6 of the agent-process skill, then restart Claude Code"
+# The agent's permission: it writes and merges through the ruleset, but cannot change it.
+AGENT_PERMISSIONS = {"WRITE", "MAINTAIN"}
+PERMISSION_QUERY = (
+    "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){viewerPermission}}"
 )
 SETTINGS = Path(".claude") / "settings.local.json"
 
@@ -149,12 +152,7 @@ def rows(t: Target) -> list[str]:
             "with --confirm instead of --dry-run, so the default branch requires "
             f"{' and '.join(activate_protection.contexts())}",
         ),
-        *_outstanding(
-            lambda: _identity_set(t),
-            "manual agent-identity: in this clone, once the installation PR has merged -- create "
-            "the agent's GitHub account, gh auth login -s project,workflow as it, then "
-            f"gh auth switch --user <person>; then {IDENTITY_FIX}",
-        ),
+        *_identity_row(t),
         *_outstanding(
             lambda: _field(repo, "allow_auto_merge") is True,
             f"manual auto-merge: https://github.com/{t.repo}/settings -- "
@@ -170,10 +168,10 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
         return [f"{row} (cannot read: {exc})"]
 
 
-def _gh_read(t: Target, *args: str) -> Any:
+def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
     """A `gh` read's JSON whatever its exit code (a GraphQL error beside `data` exits 1), or
-    `Unreadable` with its stderr."""
-    done = t.gh(*args)
+    `Unreadable` with its stderr; `env` replaces the environment of that call."""
+    done = t.gh(*args) if env is None else t.gh(*args, env=env)
     try:
         return json.loads(done.stdout)
     except (TypeError, json.JSONDecodeError):
@@ -223,16 +221,47 @@ def _protected(t: Target, repo: dict[str, Any] | Unreadable) -> bool:
     return set(activate_protection.contexts()) <= required
 
 
-def _identity_set(t: Target) -> bool:
-    """This clone's settings carry the agent's `env.GH_TOKEN`; a missing `env` is `{}`."""
+def _identity_row(t: Target) -> list[str]:
+    row = "manual agent-identity: in this clone, once the installation PR has merged"
+    try:
+        pending = _identity_pending(t)
+    except Unreadable as exc:
+        return [f"{row} -- {IDENTITY_FIX} (cannot read: {exc})"]
+    return [] if pending is None else [f"{row}, {pending} -- {IDENTITY_FIX}"]
+
+
+def _identity_pending(t: Target) -> str | None:
+    """Why this clone's `env.GH_TOKEN` is not the agent's, or `None` when its permission on the
+    repository, read with that token whatever the session's, is write or maintain. A missing
+    `env` is `{}`."""
     path = t.root / SETTINGS
     data = _plugin_file(path)
-    if data is None:
-        return False
-    env = data.get("env", {}) if isinstance(data, dict) else None
+    env = {} if data is None else data.get("env", {}) if isinstance(data, dict) else None
     if not isinstance(env, dict):
         raise Unreadable(f"{path} is not an object whose `env` is an object")
-    return bool(env.get("GH_TOKEN"))
+    token = env.get("GH_TOKEN")
+    if not token:
+        return f"{SETTINGS.as_posix()} sets no env.GH_TOKEN"
+    owner, name = t.repo.split("/")
+    read = _gh_read(
+        t,
+        "api",
+        "graphql",
+        "-f",
+        f"owner={owner}",
+        "-f",
+        f"name={name}",
+        "-f",
+        f"query={PERMISSION_QUERY}",
+        env={**os.environ, "GH_TOKEN": str(token)},
+    )
+    try:
+        permission = read["data"]["repository"]["viewerPermission"]
+    except (KeyError, TypeError):
+        raise Unreadable(f"the permission of env.GH_TOKEN read as {read}") from None
+    if permission in AGENT_PERMISSIONS:
+        return None
+    return f"env.GH_TOKEN has {permission} permission on {t.repo}, not WRITE or MAINTAIN"
 
 
 def _linked(t: Target) -> tuple[str, int, str | None]:

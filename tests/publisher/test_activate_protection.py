@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,7 @@ from urllib.parse import unquote
 
 import pytest
 
-from tests.publisher.delivery_fakes import load_script
+from tests.publisher.delivery_fakes import ROOT, load_script
 
 REPO = "owner/repo"
 HEAD = "f" * 40
@@ -476,3 +477,37 @@ def test_read_back_reordered(capsys: pytest.CaptureFixture[str]) -> None:
     code, out = _activate(rerun, "--dry-run", capsys)
     assert code == 0, out
     assert f"unchanged {LIVE_ID}" in out.splitlines()
+
+
+APPROVAL = ROOT / "skills" / "agent-process" / "templates" / "approval_ruleset.json"
+
+
+def test_approval_ruleset_body() -> None:
+    """Scenario: Merge from Claude Code — the rule that refuses an unapproved merge."""
+    body = json.loads(APPROVAL.read_text(encoding="utf-8"))
+    assert body["name"] == "agent-process person approves"
+    assert (body["target"], body["enforcement"], body["bypass_actors"]) == (
+        "branch",
+        "active",
+        [],
+    )
+    assert body["conditions"] == {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}}
+    (rule,) = body["rules"]
+    assert rule["type"] == "pull_request"
+    assert rule["parameters"] == {
+        "dismiss_stale_reviews_on_push": True,
+        "require_code_owner_review": False,
+        "require_last_push_approval": False,
+        "required_approving_review_count": 1,
+        "required_review_thread_resolution": False,
+    }
+
+
+PROBE = "import os; print(os.environ.get('GH_TOKEN'), os.environ.get('GITHUB_TOKEN'))"
+
+
+def test_a_clone_with_the_agent_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GH_TOKEN", "session-token")
+    monkeypatch.setenv("GITHUB_TOKEN", "actions-token")
+    person = load_script("activate_protection").main.__kwdefaults__["gh"]
+    assert person([sys.executable, "-c", PROBE]).split() == ["None", "None"]
