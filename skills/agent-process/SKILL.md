@@ -236,5 +236,6 @@ plugin uninstall` command per project-level install of the project, each run fro
 install's path spelling; the person runs them once. A machine still on a
 release tag migrates once, outside any project: set the `ref` of `agent-process-marketplace`
 in `~/.claude/settings.json` to `stable`, run `claude plugin marketplace add
-"ekolvah/agent-process-distribution#stable"`, turn on Enable auto-update for it under
-`/plugin` → Marketplaces, then re-run Install in each repository.
+"ekolvah/agent-process-distribution#stable"`, run `claude plugin install
+agent-process@agent-process-marketplace`, then set `"autoUpdate": true` on its entry in
+`~/.claude/settings.json`, then re-run Install in each repository.
