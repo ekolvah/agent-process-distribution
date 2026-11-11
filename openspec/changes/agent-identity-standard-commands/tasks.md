@@ -4,9 +4,9 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_init_remote.py` extend `test_agent_identity_pending_is_manual` with tokens reading `ADMIN` and `READ` (row names the permission and `IDENTITY_FIX`), and add `test_agent_identity_holds`, run with another `GH_TOKEN` in the environment (no row; the fake `gh` saw exactly one call carrying the settings token as `GH_TOKEN`, the GraphQL read); extend the fake `gh` of `tests/publisher/init_harness.py` as these need
-- [ ] 1.2 In `tests/publisher/test_skill_check.py` set `IDENTITY_FIX` to name `Install step 6` and assert `agent_identity` is absent from the marker in `test_identity_missing`
-- [ ] 1.3 Run `agent-process check_red tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual tests/publisher/test_init_remote.py::test_agent_identity_holds tests/publisher/test_skill_check.py::test_identity_missing` and commit RED with these ticks
+- [x] 1.1 In `tests/publisher/test_init_remote.py` extend `test_agent_identity_pending_is_manual` with tokens reading `ADMIN` and `READ` (row names the permission and `IDENTITY_FIX`), and add `test_agent_identity_holds`, run with another `GH_TOKEN` in the environment (no row; the fake `gh` saw exactly one call carrying the settings token as `GH_TOKEN`, the GraphQL read); extend the fake `gh` of `tests/publisher/init_harness.py` as these need
+- [x] 1.2 In `tests/publisher/test_skill_check.py` set `IDENTITY_FIX` to name `Install step 6` and assert `agent_identity` is absent from the marker in `test_identity_missing`
+- [x] 1.3 Run `agent-process check_red tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual tests/publisher/test_init_remote.py::test_agent_identity_holds tests/publisher/test_skill_check.py::test_identity_missing` and commit RED with these ticks
 
 ## 2. The row
 

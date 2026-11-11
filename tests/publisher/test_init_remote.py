@@ -533,21 +533,45 @@ def test_protection_inactive_is_manual(
     assert "--dry-run" in row and "--confirm" in row, row
 
 
-@pytest.mark.parametrize("settings", [None, {"permissions": {}}], ids=["absent", "no-env"])
+@pytest.mark.parametrize(
+    ("settings", "named"),
+    [
+        (None, "GH_TOKEN"),
+        ({"permissions": {}}, "GH_TOKEN"),
+        ({"env": {"GH_TOKEN": "person-token"}}, "ADMIN"),
+        ({"env": {"GH_TOKEN": "stranger-token"}}, "READ"),
+    ],
+    ids=["absent", "no-env", "admin", "read"],
+)
 @pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
 def test_agent_identity_pending_is_manual(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str, settings: Any
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str, settings: Any, named: str
 ) -> None:
     """Scenario: Identity pending."""
     sandbox.github.allow_auto_merge = True
+    sandbox.github.permissions.update({"person-token": "ADMIN", "stranger-token": "READ"})
     if settings is not None:
         local_settings(sandbox, text=json.dumps(settings))
     init = load_init()
     assert install(init, sandbox, mode) == 0
     row = _row(_manual_rows(capfd.readouterr().out), "agent-identity")
     assert "(cannot read: " not in row, row
-    assert "gh auth login -s project,workflow" in row and "gh auth switch --user" in row, row
-    assert init.manual.IDENTITY_FIX in row, row
+    assert named in row and init.manual.IDENTITY_FIX in row, row
+
+
+def test_agent_identity_holds(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Scenario: Identity holds — read with the settings' token, not the session's."""
+    monkeypatch.setenv("GH_TOKEN", "person-token")
+    local_settings(sandbox, "agent-token")
+    init = load_init()
+    assert install(init, sandbox, "--dry-run") == 0
+    manual = _manual_rows(capfd.readouterr().out)
+    assert not [ln for ln in manual if ln.startswith("manual agent-identity: ")], manual
+    tokened = [args for token, args in sandbox.github.tokened if token == "agent-token"]
+    assert len(tokened) == 1 and tokened[0][:2] == ["api", "graphql"], tokened
+    assert "viewerPermission" in tokened[0][-1] and "mutation" not in tokened[0][-1], tokened
 
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])

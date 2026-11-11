@@ -354,7 +354,7 @@ def test_identity_fix_is_one_text() -> None:
 
 
 IDENTITY_MARKER = "agent-process agent identity not set"
-IDENTITY_FIX = "agent-process agent_identity --bot <login> --dry-run"
+IDENTITY_FIX = "Install step 6 of the agent-process skill, then restart Claude Code"
 
 
 @pytest.mark.parametrize(
@@ -374,8 +374,7 @@ def test_identity_missing(tmp_path: Path, session_token: str | None, settings: s
     for text in _texts(done):
         assert IDENTITY_MARKER in text
         assert IDENTITY_FIX in text
-        for command in ("--confirm", "gh repo edit --enable-auto-merge", "restart Claude Code"):
-            assert command in text, text
+        assert "agent_identity" not in text, text
         assert MARKER not in text
         assert TOKEN not in text and "person-token" not in text
 
