@@ -1,6 +1,6 @@
 ## Context
 
-Install (`skills/agent-process/SKILL.md#install`) has six numbered steps. Tests pin text by
+`## Install` of `skills/agent-process/SKILL.md` has six numbered steps. Tests pin text by
 step: `test_install_names_the_skill_marker` and `test_install_continues_past_the_installation_pr`
 split the section on ` 4. ` / ` 5. `, and the requirement *Install continues past the
 installation PR* names "steps 5 and 6". `init`'s `manual` rows (`manual.py`) keep naming each
