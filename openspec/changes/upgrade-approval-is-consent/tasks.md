@@ -9,7 +9,7 @@
 
 ## 2. Unasked upgrade
 
-- [ ] 2.1 `skills/agent-process/SKILL.md` Install steps 3 and 4 per design D1–D4. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` is green, then commit the group with its ticks
+- [x] 2.1 `skills/agent-process/SKILL.md` Install steps 3 and 4 per design D1–D4. Verify `python -m pytest tests/publisher/test_planning_workflow.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
