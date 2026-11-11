@@ -180,8 +180,8 @@ Then run from the consumer's root:
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
 3. When the dry-run still prints the `review-secret` row, have the person set Prepare's
-   secret before `--confirm`, so the first pushed head's `agent-review` runs with it. A
-   dry-run that plans no
+   secret before `--confirm`, so the first pushed head's `agent-review` runs with it.
+   A dry-run that plans no
    `project-copy`, `project-link`, `pre-push`, `project-areas`, `task-readings-url`,
    `task-readings-token` or `task-readings-dashboard` and prints no `manual agent-identity` row
    writes only through a PR the agent opens: run the same command with `--confirm` instead of
