@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All three round-1 findings are answered in the artifacts: README is in Impact with D5 and task 2.2, D2 grounds the person's `workflow` scope in an observation, and D4 keeps the plugin out of Prepare with task 2.1 bounding the section's growth.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 rejects step 0 / renumbering for the step-split tests (tests/publisher/test_planning_workflow.py:628,633) and the spec's 'steps 5 and 6' (openspec/specs/distribution/spec.md:1091). D5 makes Install's Prepare the one prerequisites source and README's Requires line (README.md:44-45) a pointer to it, keeping README's plugin block, which must precede the skill; proposal Impact lists README.md.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "skip_specs: true; no spec delta, so no scenario. tasks.md map row 'none -> n/a: docs-only' is consistent; 'Install continues past the installation PR' (spec.md:1084-1096) is preserved by D1.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "tasks.md 1.1 'no RED: docs-only (skip_specs: true)'; §I exempts docs-only.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "D2: `gh auth login --help` / `gh auth switch --help` (gh 2.87.3) observed; agent_identity.py:109 reads the bot token with `gh auth token --user`, so the bot need only be logged in. The person's `workflow` scope now rests on `onboarding.py` `_push_step` (onboarding.py:234) pushing the branch with `.github/workflows/*`, the quoted docs.github.com OAuth-scopes sentence, and `gh auth login --help`'s minimum `repo`, `read:org`, `gist`. D3: `gh secret set --help` observed.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No input replaced and no guard dropped: D6 leaves every `manual` row (manual.py:119-153) and script untouched; steps 1, 3, 6 still point at their rows and step 4 is unchanged.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Risk 'init runs as the bot' names `gh auth status`; independently, the bot is no collaborator before `agent_identity` (agent_identity.py:156-180), so a confirmed `init` as the bot fails at the installation push (onboarding.py:234) with a non-zero exit. A skipped Prepare item is caught by `init`'s `manual review-secret` / `agent-identity` rows, still handled in steps 3 and 6.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Numbered steps today 628 words (step 1 114, step 3 64, step 6 81), closing paragraph 395. Prepare carries three items (bot login, person login, review secret); D4 drops the third copy of the plugin commands. No test asserts Prepare's words (docs-only, §I exempt); task 2.1 bounds the section's net growth with `wc -w` against the text trimmed from steps 1, 3 and 6, and keeps the step-4 and whole-section strings the Install tests assert. README's change is one line replaced by a pointer.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "`## Standard approach` says 'none found' without a search but follows the standard install-doc form, a prerequisites list before the first command, now in one place (D5). No script or check is added (D6).",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

@@ -41,8 +41,9 @@ flowchart LR
 
 ## Install
 
-Requires: Claude Code, `gh` logged in with the `project` scope, admin rights on the repository,
-and a bot GitHub account for the agent. The default quality baseline is a Python toolchain.
+Requires: Claude Code, admin rights on the repository, and the person-only actions of
+[Install's Prepare](skills/agent-process/SKILL.md#install). The default quality baseline is a
+Python toolchain.
 
 Once per machine, outside any project:
 
