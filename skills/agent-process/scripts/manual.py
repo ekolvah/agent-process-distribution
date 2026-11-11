@@ -171,7 +171,7 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
 def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
     """A `gh` read's JSON whatever its exit code (a GraphQL error beside `data` exits 1), or
     `Unreadable` with its stderr; `env` replaces the environment of that call."""
-    done = t.gh(*args) if env is None else t.gh(*args, env=env)
+    done = t.gh(*args, env=env)
     try:
         return json.loads(done.stdout)
     except (TypeError, json.JSONDecodeError):
@@ -236,7 +236,8 @@ def _identity_pending(t: Target) -> str | None:
     `env` is `{}`."""
     path = t.root / SETTINGS
     data = _plugin_file(path)
-    env = {} if data is None else data.get("env", {}) if isinstance(data, dict) else None
+    data = {} if data is None else data
+    env = data.get("env", {}) if isinstance(data, dict) else None
     if not isinstance(env, dict):
         raise Unreadable(f"{path} is not an object whose `env` is an object")
     token = env.get("GH_TOKEN")

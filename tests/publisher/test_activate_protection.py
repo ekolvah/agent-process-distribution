@@ -18,7 +18,8 @@ from urllib.parse import unquote
 
 import pytest
 
-from tests.publisher.delivery_fakes import ROOT, load_script
+from tests.publisher.delivery_fakes import load_script
+from tests.publisher.init_harness import PACKAGE
 
 REPO = "owner/repo"
 HEAD = "f" * 40
@@ -479,7 +480,7 @@ def test_read_back_reordered(capsys: pytest.CaptureFixture[str]) -> None:
     assert f"unchanged {LIVE_ID}" in out.splitlines()
 
 
-APPROVAL = ROOT / "skills" / "agent-process" / "templates" / "approval_ruleset.json"
+APPROVAL = PACKAGE / "templates" / "approval_ruleset.json"
 
 
 def test_approval_ruleset_body() -> None:
@@ -507,6 +508,7 @@ PROBE = "import os; print(os.environ.get('GH_TOKEN'), os.environ.get('GITHUB_TOK
 
 
 def test_a_clone_with_the_agent_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Scenario: A clone with the agent's identity."""
     monkeypatch.setenv("GH_TOKEN", "session-token")
     monkeypatch.setenv("GITHUB_TOKEN", "actions-token")
     person = load_script("activate_protection").main.__kwdefaults__["gh"]

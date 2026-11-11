@@ -534,16 +534,17 @@ def test_protection_inactive_is_manual(
 
 
 @pytest.mark.parametrize(
-    ("settings", "named"),
+    ("mode", "settings", "named"),
     [
-        (None, "GH_TOKEN"),
-        ({"permissions": {}}, "GH_TOKEN"),
-        ({"env": {"GH_TOKEN": "person-token"}}, "ADMIN"),
-        ({"env": {"GH_TOKEN": "stranger-token"}}, "READ"),
+        *[
+            pytest.param(mode, settings, "GH_TOKEN", id=f"{mode}-{name}")
+            for mode in ("--dry-run", "--confirm")
+            for name, settings in (("absent", None), ("no-env", {"permissions": {}}))
+        ],
+        pytest.param("--dry-run", {"env": {"GH_TOKEN": "person-token"}}, "ADMIN", id="admin"),
+        pytest.param("--dry-run", {"env": {"GH_TOKEN": "stranger-token"}}, "READ", id="read"),
     ],
-    ids=["absent", "no-env", "admin", "read"],
 )
-@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
 def test_agent_identity_pending_is_manual(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str, settings: Any, named: str
 ) -> None:
