@@ -34,7 +34,7 @@ TEMPLATE = (
 QUERY = (
     "query($owner:String!,$number:Int!,$template:String!,$source:Int!){"
     "linked:repositoryOwner(login:$owner){... on ProjectV2Owner{projectV2(number:$number){"
-    "id public workflows(first:50){nodes{name enabled}} views(first:100){nodes{id name filter}} "
+    "id workflows(first:50){nodes{name enabled}} views(first:100){nodes{id name filter}} "
     f"{AREA}}}}}}}{TEMPLATE}}}"
 )
 TEMPLATE_QUERY = f"query($template:String!,$source:Int!){{{TEMPLATE}}}"
@@ -98,16 +98,11 @@ def rows(t: Target) -> list[str]:
     url, why = None, ""
     try:
         owner, number, url = _linked(t)
-        public, missing, areas = _project_state(t, owner, number, url)
+        missing, areas = _project_state(t, owner, number, url)
         state = areas.state
     except Unreadable as exc:
-        public, missing, state, why = False, list(WORKFLOWS), "template", f" (cannot read: {exc})"
+        missing, state, why = list(WORKFLOWS), "template", f" (cannot read: {exc})"
     where = url or "the new copy"
-    if not public:
-        found.append(
-            f"manual project-visibility: {where}/settings -- a copy is private; "
-            f"set its visibility as intended{why}"
-        )
     if missing:
         enable = ", ".join(WORKFLOWS[name] for name in missing)
         found.append(f"manual project-workflows: {where}/workflows -- enable {enable}{why}")
@@ -273,7 +268,7 @@ class Areas:
 def areas(t: Target, project: tuple[str, int, str | None] | None = None) -> Areas:
     """The `Area` state of `project` (owner, number, url), else of the linked Project;
     `Unreadable` unless exactly one Project is linked."""
-    return _project_state(t, *(project or _linked(t)))[2]
+    return _project_state(t, *(project or _linked(t)))[1]
 
 
 def template_options(t: Target) -> list[str]:
@@ -292,11 +287,8 @@ def _options(field: Any) -> dict[str, str]:
     return {str(option["name"]): str(option["id"]) for option in field["options"]}
 
 
-def _project_state(
-    t: Target, owner: str, number: int, url: str | None
-) -> tuple[bool, list[str], Areas]:
-    """Whether the Project is public, the template's workflows it lacks or has disabled, and
-    its `Area` state."""
+def _project_state(t: Target, owner: str, number: int, url: str | None) -> tuple[list[str], Areas]:
+    """The template's workflows the Project lacks or has disabled, and its `Area` state."""
     template_owner, template_number = t.template
     data = _gh_read(
         t,
@@ -324,7 +316,6 @@ def _project_state(
             for v in project["views"]["nodes"]
         ]
         field_id = None if field is None else str(field["id"])
-        public = project["public"] is True
         project_id = str(project["id"])
     except (KeyError, TypeError):
         errors = data.get("errors") if isinstance(data, dict) else None
@@ -336,7 +327,7 @@ def _project_state(
         state = "template"
     found = Areas(state, url, project_id, field_id, options, views, template)
     missing = [name for name in WORKFLOWS if name not in enabled]
-    return public, missing, found
+    return missing, found
 
 
 def _names_or_unreadable(t: Target, kind: str) -> dict[str, str] | Unreadable:

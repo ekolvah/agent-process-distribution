@@ -85,7 +85,7 @@ def _done(
 
 
 # The template's built-in workflows and `Area` options, and what `gh project copy` leaves of
-# them: a private copy without `Auto-add to project` (observed 2026-09-30, change
+# them: a copy without `Auto-add to project` (observed 2026-09-30, change
 # manual-rows-from-state).
 TEMPLATE_WORKFLOWS = [
     "Auto-add sub-issues to project",
@@ -151,7 +151,6 @@ class Project:
     title: str
     closed: bool = False
     repositories: set[str] = field(default_factory=set)
-    public: bool = False
     workflows: dict[str, bool] = field(default_factory=_copied_workflows)
     areas: list[str] | None = field(default_factory=lambda: list(TEMPLATE_AREAS))
     views: list[dict[str, Any]] = field(default_factory=_template_views)
@@ -187,7 +186,7 @@ class FakeGitHub:
     Project by node id (change init-replaces-project-areas)."""
 
     def __init__(self) -> None:
-        template = Project(OWNER, 4, "agent-process-distribution agent process", public=True)
+        template = Project(OWNER, 4, "agent-process-distribution agent process")
         template.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
         template.repositories.add(PUBLISHER)
         self.projects = [template]
@@ -392,7 +391,7 @@ class FakeGitHub:
         raise AssertionError(f"unexpected gh command: {args}")
 
     def _project_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
-        """The linked Project's id, visibility, workflows, views and `Area` field and the
+        """The linked Project's id, workflows, views and `Area` field and the
         template's `Area` field, from the `owner`/`number` and `template`/`source` variables, in
         the observed shape; without `owner` only the template's half."""
         if "project-read" in self.faults:
@@ -417,7 +416,6 @@ class FakeGitHub:
             data["linked"] = {
                 "projectV2": {
                     "id": linked.id,
-                    "public": linked.public,
                     "workflows": {"nodes": workflows},
                     "views": {"nodes": [dict(v) for v in linked.views]},
                     "field": area(linked),

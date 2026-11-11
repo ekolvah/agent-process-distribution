@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 1,
+  "reviewer": "architect-reviewer",
+  "reasoning": "A pure removal whose root cause (public treated as a target nothing needs) is observed by grep and an on-record template observation, test-first via the Observed done test, with no new script, input or catcher.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects an opt-out flag and a persisted 'private on purpose' marker; deleting the row and the `public` read (manual.py:37, :101-110, :327) is already the minimum, so no simpler design exists.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md map covers all three delta scenarios: Manual actions -> test_manual_actions_are_printed, Observed done -> test_observed_manual_rows_are_omitted, Unreadable state -> test_unreadable_manual_state_is_printed (its project-read case takes list(PROJECT_ROWS), test_init_remote.py:763, so it follows task 1.1). All three match `-k manual` in task 2.1.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 stops setting project.public in test_observed_manual_rows_are_omitted (test_init_remote.py:590); the harness default is public=False (init_harness.py:154), so manual.py:106 prints the row and `manual == []` fails before group 2; task 1.2 runs check_red on that node id.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Proposal Why: the template-public requirement is on record (archive/2026-09-16-v2-2a-board-template/design.md:10, 'a consumer under another owner needs Project 4 public'); 'no workflow reads a Project' is the output of `grep -rn \"projectV2\\|project \" .github/workflows/*.yml` (re-run: no match, exit 1). No other platform behaviour is relied on.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No input is replaced. The dropped check is the visibility row; design.md 'Dropped proof' names what stops being reported and why nothing downstream needs it (proposal Why: owner-token reads only, no workflow reads a Project, `public` read only at manual.py:327).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The plan names no catcher and says why none is needed. D2 makes the fake answer omit `public`, so a leftover `project[\"public\"]` read raises KeyError -> Unreadable (manual.py:328-330), prints `(cannot read: ...)` rows and fails test_observed_manual_rows_are_omitted in group 2's pytest run and the Verify `test`.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Requirement 'Project UI actions are printed, not performed' statement: 77 words (visibility clause removed), asserted except the fields/views clause, which is unchanged. Manual actions THEN: 40 words ('three' -> named two rows), all asserted by test_manual_actions_are_printed. Observed done WHEN: 68 words ('public' -> 'private'), asserted by the full arrangement plus `manual == []`; 'private' holds because the fake has no visibility at all after D2, which is stronger than arranging it. Nothing is added beyond the issue's scope.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "`## Standard approach`: 'none found: a removal of an unneeded check; no external tool or API is added' is convincing for a deletion. The plan adds no script or check.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
