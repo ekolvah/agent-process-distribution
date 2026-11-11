@@ -21,11 +21,11 @@
 ## 4. Verify
 
 - [x] 4.1 Run `/simplify` without an argument and commit its edits
-- [ ] 4.2 Run `openspec validate --strict --all` and the `test` that `.github/agent-process-quality.json` declares
+- [x] 4.2 Run `openspec validate --strict --all` and the `test` that `.github/agent-process-quality.json` declares
 
 ## 5. Deliver
 
-- [ ] 5.1 Run `agent-process archive_change agent-identity-standard-commands`, then `gh pr create --title "feat: agent-identity-standard-commands" --body-file <report>`. The report names tracking issue 412 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, goal 2, §IV for the dropped re-plan, §VII)
+- [x] 5.1 Run `agent-process archive_change agent-identity-standard-commands`, then `gh pr create --title "feat: agent-identity-standard-commands" --body-file <report>`. The report names tracking issue 412 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, goal 2, §IV for the dropped re-plan, §VII)
 - [ ] 5.2 Run `gh pr merge <PR> --auto --squash`, then `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map

@@ -191,9 +191,12 @@ fail and name the missing value. It SHALL NOT check out the PR's ref instead.
 - **THEN** the job fails before the trusted checkout, and its log names the missing value
 
 ### Requirement: The person approves
-Where `agent_identity` has run, GitHub SHALL refuse to merge a PR into the default branch until
-someone other than its author approves it, whatever the command or API and whoever merges. A
-push after the approval SHALL dismiss it. The release PR gets its approval from the release
+The plugin SHALL ship `templates/approval_ruleset.json`: one repository ruleset named
+`agent-process person approves` on the default branch, with no bypass actor, whose only rule is
+`pull_request` with one required approving review and stale reviews dismissed on push. Where
+that ruleset exists, GitHub SHALL refuse to merge a PR into the default branch until someone
+other than its author approves it, whatever the command or API and whoever merges. A push
+after the approval SHALL dismiss it. The release PR gets its approval from the release
 workflow ("Releases go through release-please").
 
 #### Scenario: Merge from Claude Code
