@@ -216,10 +216,19 @@ Then run from the consumer's root:
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.
 6. Give the agent Prepare's bot as its own GitHub identity, so the person's approval merges
-   the agent's PRs: run `agent-process agent_identity --bot <login> --dry-run` and show its
-   whole output. Ask once; on yes run it with `--confirm`. Then run
-   `gh repo edit --enable-auto-merge` and have the person restart Claude Code. Until then
-   each session start prints `agent-process agent identity not set`.
+   the agent's PRs. Show the person these commands, ask once, and on yes run the ones the
+   agent can, as the person, before the restart:
+   - per machine, after Prepare's logins: `gh auth setup-git`;
+   - per repository, once: `gh api -X PUT repos/{owner}/{repo}/collaborators/<bot> -f permission=push`,
+     then the bot accepts the invitation and the person adds it as Writer in the Project's
+     access settings; then
+     `gh api -X POST repos/{owner}/{repo}/rulesets --input <skill base directory>/templates/approval_ruleset.json`
+     and `gh repo edit --enable-auto-merge`;
+   - per clone: the person sets `env.GH_TOKEN` of `.claude/settings.local.json` to the output
+     of `gh auth token --user <bot>`, then `agent-process init --dry-run` prints no
+     `manual agent-identity` row, and the person restarts Claude Code.
+
+   Until then each session start prints `agent-process agent identity not set`.
 
 The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude
 plugin install agent-process@agent-process-marketplace`), and applies in every project with no

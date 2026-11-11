@@ -29,10 +29,14 @@ standard gate, which GitHub's own coding agent relies on.
 
 * **D1 — the bot.** The person creates a machine account and adds it to `gh`
   (`gh auth login -s project,workflow`, then `gh auth switch --user <person>`).
-  `agent-process agent_identity --bot <login>` reads its token with `gh auth token --user`, so
-  the token never passes through the chat, refuses an admin, makes the bot a write collaborator
-  and a writer of the linked Project, and plans and converges the rest of this record with
-  `--dry-run` and `--confirm`.
+  Install step 6 is a runbook of standard commands: the person invites the bot as a write
+  collaborator, adds it as Writer of the linked Project and creates the ruleset of D2. The one
+  observed failure is checked by `init`'s `manual agent-identity` row: it reads the
+  `viewerPermission` of the clone's token, with that token, and stays outstanding unless it is
+  `WRITE` or `MAINTAIN` — the person's token, which created the ruleset, is `ADMIN`; a
+  non-collaborator's is `READ`. The other steps fail visibly: a missing Project role at the
+  agent's first `set_status`; a missing ruleset is caught by nothing in a consumer, and a PR
+  there auto-merges on green checks.
 * **D2 — the gate.** The ruleset `agent-process person approves` on the default branch requires
   one approving review and dismisses stale reviews on push; its bypass list is empty. GitHub
   does not count the author's approval, so the bot cannot approve its own PR, and a bot push
@@ -43,9 +47,12 @@ standard gate, which GitHub's own coding agent relies on.
   last. Auto-merge may carry out the person's approval.
 * **D3 — the token in the clone.** `GH_TOKEN` goes into the clone's git-ignored
   `.claude/settings.local.json`, which Claude Code applies to the session's `Bash` calls; at
-  user scope it would replace the person's token in every repository. Git reaches it through
-  the clone's own config: `credential.https://github.com.helper` reset to the empty value, then
-  `!gh auth git-credential`. A session started inside a worktree under `.claude/worktrees/`
+  user scope it would replace the person's token in every repository; Claude Code git-ignores
+  the file when it creates it. The person copies the token from `gh auth token --user <bot>`,
+  so it never passes through the chat. Git reaches it through `gh auth setup-git`, run once
+  per machine: the global `credential.https://github.com.helper` reset to the empty value,
+  then `gh auth git-credential`, which answers with the session's `GH_TOKEN` and outside a
+  session with `gh`'s active account, the person. A session started inside a worktree under `.claude/worktrees/`
   does not read the clone's file and runs as the person; a session started in the clone keeps
   its environment when it enters a worktree.
 * **D4 — the release PR.** The release workflow approves the PR with `GITHUB_TOKEN` before it
@@ -58,12 +65,13 @@ standard gate, which GitHub's own coding agent relies on.
   agent's own branch, `git reset --hard` and `git branch -D` are no longer caught; the last was
   stopped by Claude Code's permission layer each time it was tried. Each session start whose
   `GH_TOKEN` is not the clone's prints `agent-process agent identity not set`.
-* **D6 — the admin steps run as the person.** `activate_protection` and `agent_identity` read
-  and write rulesets, which the bot cannot see: GitHub returns `bypass_actors: null` to a
-  non-admin. Their `gh` calls drop `GH_TOKEN` and `GITHUB_TOKEN` and run as `gh`'s stored
-  active account, the fallback the Consequences below accept, used on purpose behind
-  `--dry-run` and the person's yes to `--confirm`; the bot-side calls of `agent_identity` keep
-  the bot's token. In this repository the launcher runs the checkout's own scripts, so
+* **D6 — the admin steps run as the person.** `activate_protection` reads and writes rulesets,
+  which the bot cannot see: GitHub returns `bypass_actors: null` to a non-admin. Its `gh` calls
+  drop `GH_TOKEN` and `GITHUB_TOKEN` and run as `gh`'s stored active account, the fallback the
+  Consequences below accept, used on purpose behind `--dry-run` and the person's yes to
+  `--confirm`. The per-repository commands of Install step 6 run as the person because step 6
+  runs before the restart that gives the session the bot's token; run later, they fail with
+  403. In this repository the launcher runs the checkout's own scripts, so
   `.claude/settings.json` makes each `--confirm` run ask the person, auto mode included.
 * **D7 — the approval merges.** Right after `gh pr create` the agent runs
   `gh pr merge <PR> --auto --squash`; the approval ruleset holds the PR, so the person's
@@ -88,17 +96,19 @@ standard gate, which GitHub's own coding agent relies on.
 
 ### Deletion condition
 
-Remove the bot, its token and `agent_identity` when local Claude Code gets a session-scoped
+Remove the bot, its token and Install step 6 when local Claude Code gets a session-scoped
 GitHub credential, as cloud sessions do; the ruleset stays.
 
 ### Confirmation
 
-`tests/publisher/test_agent_identity.py` holds D1–D3,
-`tests/publisher/test_agent_identity.py::test_a_clone_with_the_agent_identity` D6,
+`tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual` and
+`::test_agent_identity_holds` hold the check of D1,
+`tests/publisher/test_activate_protection.py::test_approval_ruleset_body` D2,
+`tests/publisher/test_activate_protection.py::test_a_clone_with_the_agent_identity` D6,
 `tests/publisher/test_skill_check.py::test_identity_missing` the marker of D5, and
 `tests/publisher/test_reusable_workflows.py::test_release_workflow_approves_and_enables_auto_merge`
 D4, `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` and
-`tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` D7. Live: after `--confirm`, the
+`tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` D7. Live: after Install step 6, the
 agent's green PR reads `REVIEW_REQUIRED`, and the merge API
 called with the bot's token is refused.
 

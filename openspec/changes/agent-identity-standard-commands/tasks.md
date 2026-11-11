@@ -15,8 +15,8 @@
 
 ## 3. Runbook and records
 
-- [ ] 3.1 Rewrite Install step 6 of `skills/agent-process/SKILL.md` as the runbook of the proposal's **What Changes**, and remove the `Bash(*agent_identity* --confirm*)` ask rule from `.claude/settings.json`; verify `grep -rn "agent_identity" skills .claude/settings.json` prints nothing
-- [ ] 3.2 Amend ADR 0040 D1, D3, D6 and its Confirmation per design D1–D4 and its deletion condition (no script to remove); verify `grep -n "agent_identity" .agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md` prints nothing, then commit the group with its ticks
+- [x] 3.1 Rewrite Install step 6 of `skills/agent-process/SKILL.md` as the runbook of the proposal's **What Changes**, and remove the `Bash(*agent_identity* --confirm*)` ask rule from `.claude/settings.json`; verify `grep -rn "agent_identity" skills .claude/settings.json` prints nothing
+- [x] 3.2 Amend ADR 0040 D1, D3, D6 and its Confirmation per design D1–D4 and its deletion condition (no script to remove); verify `grep -n "agent_identity" .agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md` prints nothing, then commit the group with its ticks
 
 ## 4. Verify
 
