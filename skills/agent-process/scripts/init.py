@@ -58,7 +58,7 @@ worktree, the branch not checked out, a PR closed unmerged, a checkout with comm
 repository with none, a checkout with none of a repository with commits — is an
 `onboarding-branch` conflict naming the command that resolves it.
 The output ends with `manual` rows, read after the run's writes and printed only while their
-state is not observed done: the linked Project's visibility, built-in workflows and the `Area`
+state is not observed done: the linked Project's built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
 secret, and the task-readings variable, secret and dashboard step 22 cannot set up, with
 the reason — that only a UI can change — the `plugin-channel`

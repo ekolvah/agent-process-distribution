@@ -9,7 +9,7 @@
 
 ## 2. Drop the row
 
-- [ ] 2.1 Design D1, D2: in `skills/agent-process/scripts/manual.py` remove `public` from `QUERY`, from `_project_state` (docstring, return type and value) and its callers, and the `project-visibility` branch of `rows`; in `tests/publisher/init_harness.py` drop `Project.public`, `public=True` on the template, the `"public"` key of the linked answer and "visibility" from the `_project_read` docstring; in the `skills/agent-process/scripts/init.py` module docstring the `manual` rows no longer name the visibility. Verify `python -m pytest tests/publisher/test_init_remote.py -q -k manual` is green, then commit the group with its ticks
+- [x] 2.1 Design D1, D2: in `skills/agent-process/scripts/manual.py` remove `public` from `QUERY`, from `_project_state` (docstring, return type and value) and its callers, and the `project-visibility` branch of `rows`; in `tests/publisher/init_harness.py` drop `Project.public`, `public=True` on the template, the `"public"` key of the linked answer and "visibility" from the `_project_read` docstring; in the `skills/agent-process/scripts/init.py` module docstring the `manual` rows no longer name the visibility. Verify `python -m pytest tests/publisher/test_init_remote.py -q -k manual` is green, then commit the group with its ticks
 
 ## 3. Verify
 
