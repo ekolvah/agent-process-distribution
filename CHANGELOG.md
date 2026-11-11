@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.31.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.30.0...v3.31.0) (2026-11-11)
+
+
+### Features
+
+* init-replaces-project-areas ([#498](https://github.com/ekolvah/agent-process-distribution/issues/498)) ([5d2c18f](https://github.com/ekolvah/agent-process-distribution/commit/5d2c18f485a0ef07d364af99358f548a69c1e962))
+* session-start-reports-release-drift ([#496](https://github.com/ekolvah/agent-process-distribution/issues/496)) ([ba57c5c](https://github.com/ekolvah/agent-process-distribution/commit/ba57c5c13a92b6b1d2eb092fed067217aaab8198))
+
 ## [3.30.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.29.2...v3.30.0) (2026-11-10)
 
 
