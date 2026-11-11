@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All three round-1 findings are answered: the Why now rests on observed and quoted behaviour only, Risks names a catcher that is actually reached, and 1.2 pins the fallback for an entry without the key; the plan is the minimum for issue 487.",
+  "classes": {
+    "simpler": {
+      "evidence": "Simpler design: change only the row text and docs, keep `_plugin_channel` reading `known_marketplaces.json` (manual.py:320). A person following README starts Claude Code after the write, so the session-start sync (design decision 1) would close the row anyway. The scenario 'Auto-update read from user settings' rejects it: after the write, a confirmed run in the same session still prints the row, and the check would disagree with the precedence loading.md documents (design Context quote). The added code is one `_plugin_file` read and one lookup inside the existing try, so the cost is small.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Channel render -> tests/publisher/test_plugin.py::test_marketplace_follows_stable (exists, line 851, unchanged). Machine channel step -> test_init_remote.py::test_manual_actions_are_printed, re-asserted by 1.1: settings write, `~/.claude/settings.json`, no `/plugin`, order add < install < write. Auto-update read from user settings -> test_plugin_channel_reads_user_settings (1.2). (True, None, False) has the known key absent rather than `false`, which the check reads as off, so it still meets 'opposite'. 1.3 extends test_unreadable_manual_state_is_printed for the new Unreadable path. Each scenario has a named test, and 1.2 now also covers the fallback for an entry without the key.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 (1.1-1.3) fails on today's code. 1.1: the row still names `/plugin` and has no settings write. 1.2 (True, None, False): today's check reads the known file without the key and prints the row. 1.2 (False, True, True): today's check prints no row. 1.3: today's check never reads settings, so nothing reports 'cannot read'. 1.4 runs check_red on these node ids and commits RED on top of the plan commit.",
+      "result": "ok"
+    },
+    "platform": {
+      "result": "ok",
+      "evidence": "Observed (design decision 1, isolated CLAUDE_CONFIG_DIR, Claude Code 2.1.296, quoted output): `marketplace add` prints 'declared in user settings' and drops an existing `autoUpdate`. A user-settings `true` logs 'Synced autoUpdate=true from settings' and `known_marketplaces.json` then reads true. With no key, nothing syncs. A project-settings entry does not sync under `-p`. `--help` output shows no flag. Round 2: the proposal Why no longer claims an unobserved sync behaviour. It points the sync-at-start part to decision 1 and derives the settings `false` over a stale known `true` case from the quoted loading.md precedence. Every platform claim the design rests on is now observed or quoted."
+    },
+    "replaced": {
+      "evidence": "A new input is read alongside the known-marketplace file: `~/.claude/settings.json`, which the person writes. Design decision 3 lists its failure modes: missing file, entry or key falls back; malformed JSON or a bad shape raises Unreadable and prints '(cannot read: ...)' (1.3). What stops being proved: a closed row no longer shows that Claude Code applied auto-update in `known_marketplaces.json`. Its catcher is the session-start release-drift line; see `catcher`.",
+      "result": "ok"
+    },
+    "catcher": {
+      "result": "ok",
+      "evidence": "design Risks now names the session-start hook `plugin_env.py session-start` -> `init.release_drift` (init.py:345). Traced: in an adopted repository whose `openspec/config.yaml` records a release newer than the plugin's, `release_drift` returns 'update the skill to <X>: claude plugin update agent-process@agent-process-marketplace --scope ...', and the hook prints it as `agent-process release drift`. That reaches the person in the first session after the repository moves ahead of a machine whose auto-update stopped while the row stayed closed."
+    },
+    "length": {
+      "result": "ok",
+      "evidence": "Edited sentence 'A run SHALL print ... user-scope install' (56 words): 1.1 asserts the add/install/write order, the settings path and that `/plugin` is absent. The three conditions are asserted by test_manual_actions_are_printed, test_observed_manual_rows_are_omitted and 1.2 (False, True, True). New sentence 'Auto-update SHALL be read from ... known-marketplace entry' (24 words): 1.2 asserts that the settings value wins both ways, (True, None, False) and (False, True, True). It also asserts the fallback for an entry without the key, (None, True, False), the state `marketplace add` leaves. test_observed_manual_rows_are_omitted asserts the fallback with no settings file. 1.4 leaves out the already-passing case and 2.1's `-k plugin_channel` runs it. Every clause is asserted. The SKILL.md migration sentence and the README comment (about 20 words) are prose instructions, and the row's text is pinned by 1.1."
+    },
+    "bespoke": {
+      "evidence": "Proposal `## Standard approach` cites loading.md (precedence), host-marketplace.md and org.md (the documented ways to turn auto-update on: the UI toggle, managed settings, or a trusted project's settings). The design follows loading.md's precedence restricted to user settings. Design decision 3 explains the departure from the documented admin/managed route: the row addresses a person. Design decision 2 explains why the project route is not used: it was unobserved to sync and applies only in trusted folders. No script or check is added: decision 2 rejects a new `agent-process` subcommand (not on PATH outside Claude) and a `python -c` one-liner (shell quoting), and the existing `_plugin_channel` gains one input.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
