@@ -4,12 +4,12 @@
 
 ## 1. RED
 
-- [ ] 1.1 no RED: docs-only (`skip_specs: true`); no scenario changes
+- [x] 1.1 no RED: docs-only (`skip_specs: true`); no scenario changes
 
 ## 2. Prepare checklist
 
-- [ ] 2.1 Per design D1–D4, open `## Install` of `skills/agent-process/SKILL.md` with the unnumbered Prepare list the proposal names; trim steps 1, 3 and 6 to point back to Prepare when `init` still prints the row, keeping the step numbers and the texts the Install tests assert; step 4 stays. Verify with `wc -w` that the numbered steps plus Prepare grow by no more than Prepare's items net of what steps 1 (114 words), 3 (64) and 6 (81) lose, and that `python -m pytest tests/publisher/test_planning_workflow.py -q` is green
-- [ ] 2.2 Per design D5, point `README.md`'s `Requires:` line to Install's Prepare, keeping the plugin commands; verify `grep -n "Prepare" README.md` hits it, then commit the group with its ticks
+- [x] 2.1 Per design D1–D4, open `## Install` of `skills/agent-process/SKILL.md` with the unnumbered Prepare list the proposal names; trim steps 1, 3 and 6 to point back to Prepare when `init` still prints the row, keeping the step numbers and the texts the Install tests assert; step 4 stays. Verify with `wc -w` that the numbered steps plus Prepare grow by no more than Prepare's items net of what steps 1 (114 words), 3 (64) and 6 (81) lose, and that `python -m pytest tests/publisher/test_planning_workflow.py -q` is green
+- [x] 2.2 Per design D5, point `README.md`'s `Requires:` line to Install's Prepare, keeping the plugin commands; verify `grep -n "Prepare" README.md` hits it, then commit the group with its ticks
 
 ## 3. Verify
 

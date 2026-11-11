@@ -155,7 +155,16 @@ resume from `gh pr view <change>` — open the PR when there is none — not Ope
 
 ## Install
 
-Run from the consumer's root:
+Prepare: in one sitting before the first `init`, the person does what only they can do:
+
+- Create a bot GitHub account for the agent and run `gh auth login -s project,workflow` as the
+  bot, then as themselves, or `gh auth switch --user <person>` when already logged in;
+  `gh auth status` shows the person active. Even the dry-run reads the repository's Projects
+  (`project`), and the installation push carries `.github/workflows/*` (`workflow`).
+- Run `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and
+  paste the token at its prompt, which keeps the token out of the chat.
+
+Then run from the consumer's root:
 
 1. Ask for no quality command. A run that creates `.pre-commit-config.yaml` seeds a baseline
    Python toolchain there — ruff with complexity limits, mypy, a module-size limit,
@@ -164,17 +173,15 @@ Run from the consumer's root:
    code of its own the installation PR's `agent-process / quality` then runs the baseline over
    that code: tell the person before `--confirm` that a failure there is fixed by a commit on
    that PR — narrowing the baseline, listing a library's types in mypy's
-   `additional_dependencies`, or fixing the findings. `gh` must be authenticated with the
-   `project` scope: even the dry-run reads the repository's Projects.
+   `additional_dependencies`, or fixing the findings.
 2. Run `agent-process init --dry-run` (add `--version <x.y.z>` when given) and show its
    whole output. Pick the repository's areas from its content, as for an issue's area, and
    pass one `--area <name>` per area to both runs. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
-3. When the dry-run prints the `review-secret` row, have the person do it before `--confirm`,
-   so the first pushed head's `agent-review` runs with the secret: they run
-   `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and paste
-   the token at its prompt, which keeps the token out of the chat. A dry-run that plans no
+3. When the dry-run still prints the `review-secret` row, have the person set Prepare's
+   secret before `--confirm`, so the first pushed head's `agent-review` runs with it. A
+   dry-run that plans no
    `project-copy`, `project-link`, `pre-push`, `project-areas`, `task-readings-url`,
    `task-readings-token` or `task-readings-dashboard` and prints no `manual agent-identity` row
    writes only through a PR the agent opens: run the same command with `--confirm` instead of
@@ -208,10 +215,9 @@ Run from the consumer's root:
    the repository) and show its whole output. Ask once; on yes run it with `--confirm`
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.
-6. Have the person give the agent its own GitHub identity, so the person's approval merges
-   the agent's PRs: create a bot account, run `gh auth login -s project,workflow` as the bot,
-   then `gh auth switch --user <person>`. Run `agent-process agent_identity --bot <login>
-   --dry-run` and show its whole output. Ask once; on yes run it with `--confirm`. Then run
+6. Give the agent Prepare's bot as its own GitHub identity, so the person's approval merges
+   the agent's PRs: run `agent-process agent_identity --bot <login> --dry-run` and show its
+   whole output. Ask once; on yes run it with `--confirm`. Then run
    `gh repo edit --enable-auto-merge` and have the person restart Claude Code. Until then
    each session start prints `agent-process agent identity not set`.
 
