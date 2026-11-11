@@ -448,9 +448,11 @@ def test_manual_actions_are_printed(
         assert all("(cannot read: " in row for row in (visibility, workflows, areas)), manual
     channel = [ln for ln in manual if ln.startswith("manual plugin-channel: ")]
     assert len(channel) == 1, channel
-    assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in channel[0]
-    assert "Enable auto-update" in channel[0]
-    assert f"claude plugin install {PLUGIN}" in channel[0]
+    add = 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"'
+    write = '"autoUpdate": true'
+    assert "~/.claude/settings.json" in channel[0] and "/plugin" not in channel[0], channel
+    steps = [channel[0].index(s) for s in (add, f"claude plugin install {PLUGIN}", write)]
+    assert steps == sorted(steps), channel
     assert not [cmd for cmd in runner.log if Path(cmd[0]).stem.lower() == "claude"]
     for args in runner.gh():
         _gh_kind(args)
@@ -580,6 +582,46 @@ def test_observed_manual_rows_are_omitted(
     assert transitions(out)["pre-push"] == "unchanged", out
 
 
+def _user_settings(sb: Sandbox, text: str) -> None:
+    (sb.home / ".claude" / "settings.json").write_text(text, encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("settings", "known", "row"), [(True, None, False), (False, True, True), (None, True, False)]
+)
+def test_plugin_channel_reads_user_settings(
+    sandbox: Sandbox,
+    capfd: pytest.CaptureFixture[str],
+    settings: bool | None,
+    known: bool | None,
+    row: bool,
+) -> None:
+    """Scenario: Auto-update read from user settings. `None` drops the key, the state
+    `marketplace add` leaves."""
+    known_path = _plugin_files(sandbox) / "known_marketplaces.json"
+    entries = json.loads(known_path.read_text(encoding="utf-8"))
+    entries[MARKETPLACE].pop("autoUpdate")
+    if known is not None:
+        entries[MARKETPLACE]["autoUpdate"] = known
+    known_path.write_text(json.dumps(entries), encoding="utf-8")
+    source = {"source": "github", "repo": "ekolvah/agent-process-distribution", "ref": "stable"}
+    entry: dict[str, object] = {"source": source}
+    if settings is not None:
+        entry["autoUpdate"] = settings
+    _user_settings(sandbox, json.dumps({"extraKnownMarketplaces": {MARKETPLACE: entry}}))
+    init = load_init()
+    assert install(init, sandbox, "--dry-run") == 0
+    manual = _manual_rows(capfd.readouterr().out)
+    channel = [ln for ln in manual if ln.startswith("manual plugin-channel: ")]
+    assert bool(channel) is row, manual
+    assert not [ln for ln in channel if "(cannot read: " in ln], channel
+
+
+def _user_settings_malformed(sb: Sandbox) -> None:
+    _plugin_files(sb)
+    _user_settings(sb, "not json")
+
+
 def _fault(name: str) -> Callable[[Sandbox], None]:
     return lambda sb: sb.github.faults.update({name: "fail"})
 
@@ -592,6 +634,7 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], None], list[str]]] = {
     "secret-403": ("--dry-run", _fault("secret-list"), ["review-secret", "task-readings"]),
     "variable-403": ("--dry-run", _fault("variable-list"), ["task-readings"]),
     "plugin-malformed": ("--dry-run", _malformed_plugin, ["plugin-channel"]),
+    "user-settings-malformed": ("--dry-run", _user_settings_malformed, ["plugin-channel"]),
     "project-read": ("--confirm", _fault("project-read"), list(PROJECT_ROWS)),
     "repo-read": ("--dry-run", _fault("repo-read"), ["protection", "auto-merge"]),
     "rules-read": ("--dry-run", _fault("rules-read"), ["protection"]),

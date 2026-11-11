@@ -4,10 +4,10 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_init_remote.py::test_manual_actions_are_printed`, replace the `"Enable auto-update"` assertion on the `plugin-channel` row with: `'"autoUpdate": true'` and `~/.claude/settings.json` are in the row, `/plugin` is not, and the indices of `marketplace add` < `plugin install` < `"autoUpdate": true`
-- [ ] 1.2 Add `test_plugin_channel_reads_user_settings`, parametrized over `(settings, known, row)`: `(True, None, False)`, `(False, True, True)` and `(None, True, False)`. It writes `_plugin_files`, sets the known entry's `autoUpdate` to `known`, and writes `~/.claude/settings.json` of the sandbox home with the `agent-process-marketplace` entry's `autoUpdate` set to `settings`. `None` means the key is dropped, so the entry has no `autoUpdate`, which is the state `marketplace add` leaves. A `--dry-run` then carries a `manual plugin-channel` row exactly when `row` is true
-- [ ] 1.3 Add a `user-settings-malformed` case to `UNREADABLE`: `--dry-run`, `_plugin_files` written and `~/.claude/settings.json` of the sandbox home written as `not json`, the row `plugin-channel`
-- [ ] 1.4 Run `agent-process check_red` with the node ids of 1.1–1.3, leaving out the `(None, True, False)` case of 1.2 because it already passes; 2.1 verifies it. Commit RED with the group's ticks
+- [x] 1.1 In `tests/publisher/test_init_remote.py::test_manual_actions_are_printed`, replace the `"Enable auto-update"` assertion on the `plugin-channel` row with: `'"autoUpdate": true'` and `~/.claude/settings.json` are in the row, `/plugin` is not, and the indices of `marketplace add` < `plugin install` < `"autoUpdate": true`
+- [x] 1.2 Add `test_plugin_channel_reads_user_settings`, parametrized over `(settings, known, row)`: `(True, None, False)`, `(False, True, True)` and `(None, True, False)`. It writes `_plugin_files`, sets the known entry's `autoUpdate` to `known`, and writes `~/.claude/settings.json` of the sandbox home with the `agent-process-marketplace` entry's `autoUpdate` set to `settings`. `None` means the key is dropped, so the entry has no `autoUpdate`, which is the state `marketplace add` leaves. A `--dry-run` then carries a `manual plugin-channel` row exactly when `row` is true
+- [x] 1.3 Add a `user-settings-malformed` case to `UNREADABLE`: `--dry-run`, `_plugin_files` written and `~/.claude/settings.json` of the sandbox home written as `not json`, the row `plugin-channel`
+- [x] 1.4 Run `agent-process check_red` with the node ids of 1.1–1.3, leaving out the `(None, True, False)` case of 1.2 because it already passes; 2.1 verifies it. Commit RED with the group's ticks
 
 ## 2. Implementation
 
