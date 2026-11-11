@@ -85,7 +85,7 @@ def _done(
 
 
 # The template's built-in workflows and `Area` options, and what `gh project copy` leaves of
-# them: a private copy without `Auto-add to project` (observed 2026-09-30, change
+# them: a copy without `Auto-add to project` (observed 2026-09-30, change
 # manual-rows-from-state).
 TEMPLATE_WORKFLOWS = [
     "Auto-add sub-issues to project",
