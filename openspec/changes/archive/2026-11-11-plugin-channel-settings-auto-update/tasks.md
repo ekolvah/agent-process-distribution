@@ -23,7 +23,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change plugin-channel-settings-auto-update`, then `gh pr create --title "feat: plugin-channel-settings-auto-update" --body-file <report>`, then `gh pr merge <PR> --auto --squash`. The report names tracking issue 487 as a plain reference, carries the scenario-to-test map, and states the principles involved (goal 1, goal 3, §I, §IV, §V, §VII)
+- [x] 4.1 Run `agent-process archive_change plugin-channel-settings-auto-update`, then `gh pr create --title "feat: plugin-channel-settings-auto-update" --body-file <report>`, then `gh pr merge <PR> --auto --squash`. The report names tracking issue 487 as a plain reference, carries the scenario-to-test map, and states the principles involved (goal 1, goal 3, §I, §IV, §V, §VII)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
