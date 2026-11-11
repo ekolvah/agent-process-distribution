@@ -171,11 +171,15 @@ Run from the consumer's root:
    pass one `--area <name>` per area to both runs. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again.
-3. When the dry-run prints the `review-secret` row, have the person do it before asking, so
-   the first pushed head's `agent-review` runs with the secret: they run `claude setup-token`,
-   then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and paste the token at its
-   prompt, which keeps the token out of the chat. Ask once; on yes run the same command with
-   `--confirm` instead of `--dry-run`.
+3. When the dry-run prints the `review-secret` row, have the person do it before `--confirm`,
+   so the first pushed head's `agent-review` runs with the secret: they run
+   `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and paste
+   the token at its prompt, which keeps the token out of the chat. A dry-run that plans no
+   `project-copy`, `project-link`, `pre-push`, `project-areas`, `task-readings-url`,
+   `task-readings-token` or `task-readings-dashboard` and prints no `manual agent-identity` row
+   writes only through a PR the agent opens: run the same command with `--confirm` instead of
+   `--dry-run` without asking, since the person's approval of that PR is the consent. Ask once
+   otherwise; on yes run it with `--confirm`.
 4. The confirmed run commits the files on the installation branch, pushes it, and opens the
    installation PR, linked to its issue; it prints the PR and leaves the checkout on that
    branch. Its output ends with the `manual` rows still outstanding; a row with
@@ -187,13 +191,17 @@ Run from the consumer's root:
    not install the hook in this clone and naming why, and the `auto-merge` row; the
    `protection` row is done in step 5 and the `agent-identity` row in step 6.
    In another clone, each Claude session start reports the missing pre-push hook until its
-   person runs the two commands it names. Then run `agent-process wait_for_pr <PR>`. On exit 3
+   person runs the two commands it names. After a run without asking, run
+   `gh pr merge <PR> --auto --squash`. Then run `agent-process wait_for_pr <PR>`. On exit 3
    rerun once; fix a failing `agent-process / quality` by a commit on the PR and wait again;
    show the person review threads, any other failure and a second exit 3. A P0/P1 thread on
    an installer-managed file is proposed as an issue in `ekolvah/agent-process-distribution`.
-   Once the checks are green, ask the person to review and merge the PR; then, or on exit 4,
-   read `gh pr view <PR> --json state`. On `MERGED` switch to the default branch, pull, and run
-   steps 5 and 6 in the same session; on another state show the person the state and stop.
+   Once the checks are green, ask the person to review and merge the PR — after a run without
+   asking, to approve it for auto-merge; then, or on exit 4, read
+   `gh pr view <PR> --json state`. On `MERGED` switch to the default branch, pull, and run
+   steps 5 and 6 in the same session — after a run without asking, only step 5 and only when
+   that run printed the `manual protection` row; on another state show the person the state
+   and stop.
 5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and
    the person has merged it, run `agent-process activate_protection --pr <N> --dry-run` with
    its number (admin rights on

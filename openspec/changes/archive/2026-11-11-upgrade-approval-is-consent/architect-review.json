@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The skip now depends only on positive readings from the dry-run of the release being installed. Every write outside the PR, and any unreadable identity state, falls back to the question, so the PR approval is asked to consent only to what the PR carries.",
+  "classes": {
+    "simpler": {
+      "evidence": "The plan stays SKILL.md prose plus one test. design.md D1 rejects two alternatives: keying on the session markers, which fails open on an old or crashed consumer check, and an `init` summary line that would be new script surface with no observed misread (§VII). The dry-run already runs and is shown, so reading it costs no extra step.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md `## Scenario → test map` maps all four delta scenarios. Upgrade with the agent's identity, Write outside the PR or no agent identity, and Unasked upgrade PR merged -> `test_upgrade_approval_is_its_consent`, whose step-3 and step-4 tokens in task 1.1 cover each condition and action. Installation PR merged -> `test_install_continues_past_the_installation_pr`, unchanged; D4 keeps its ` 4. `/` 5. ` slice valid.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 task 1.1's step-3 tokens (`manual agent-identity`, `project-copy`, `task-readings-*`) and step-4 tokens (`gh pr merge <PR> --auto --squash`, `approve`, `manual protection`) are absent from those slices of SKILL.md:173-195 today. The test therefore fails before task 2.1. Task 1.2 runs check_red and commits RED.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Bot authorship is observed: `gh pr view 496 --json author,mergedBy` prints ekolvah-agent and ekolvah (re-run in this review), cited in proposal.md Why. That the dry-run prints the `manual` rows is read in code: init.py:944-962 prints `manual.rows` after the plan, whether or not `--dry-run` is set. The bot's write-role reads of secrets and variables are not observed, but no decision rests on them: the unasked path requires no `task-readings-*` planned, and an unreadable state keeps its `(cannot read)` row (manual.py:162-166), as design.md Risks records.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The dropped guard is the dry-run 'yes'. design.md Context lists every write outside the PR (init.py docstring steps 1, 14, 15, 20, 21). The ADDED requirement skips the question only when none of `project-copy`, `project-link`, `pre-push` or `task-readings-*` is planned. `onboarding-root` is left out with a reason (D1: a repository with no commits has no identity, so the row prints). What stops proving is the person's preview of the PR's files; the PR diff under the `agent-process person approves` ruleset proves it instead (ADR 0040 D2).",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Missing identity: `manual agent-identity` is read by the installed release's manual.py:222-232; an unreadable or bad-shape settings file keeps the row (manual.py:162-166) and leads to the question. Session started before the token: init runs as the person, and the approval ruleset holds a self-authored PR. Ruleset gone with the token set: `agent_identity --confirm` exits 1 while the ruleset is planned (agent_identity.py:22-23). That reliance is the same as every Delivery `--auto` (ADR 0040 D7) and predates this change; Risks records it.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The ADDED requirement is 65 words. Test 1.1 asserts about 20 words of SKILL.md tokens: the six transition names, `manual agent-identity`, `Ask once`, `gh pr merge <PR> --auto --squash` and `approve`. The MODIFIED requirement grows from 134 to 147 words; its new clause is asserted by `manual protection`. commands/init.md is no longer edited: the dry-run still runs, so 'dry-run, then confirm' and 'both runs' stay true.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design.md `## Standard approach` cites Dependabot version updates and Renovate automerge (the PR review or merge is the consent, gated by required review), which is the standard for upgrade consent. The design states its departure: it follows the pattern for the writes the PR carries and keeps the question for any write outside it. The plan adds no script or check.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}

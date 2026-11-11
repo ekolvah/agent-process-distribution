@@ -642,3 +642,23 @@ def test_install_continues_past_the_installation_pr() -> None:
         "same session",
     ):
         assert phrase in step, phrase
+
+
+def test_upgrade_approval_is_its_consent() -> None:
+    install = _section("Install")
+    ask = install.split(" 3. ", 1)[1].split(" 4. ", 1)[0]
+    for phrase in (
+        "Ask once",
+        "manual agent-identity",
+        "project-copy",
+        "project-link",
+        "pre-push",
+        "project-areas",
+        "task-readings-url",
+        "task-readings-token",
+        "task-readings-dashboard",
+    ):
+        assert phrase in ask, phrase
+    pr = install.split(" 4. ", 1)[1].split(" 5. ", 1)[0]
+    for phrase in ("gh pr merge <PR> --auto --squash", "approve", "manual protection"):
+        assert phrase in pr, phrase
