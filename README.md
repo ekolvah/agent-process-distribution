@@ -48,8 +48,8 @@ Once per machine, outside any project:
 
 ```sh
 claude plugin marketplace add "ekolvah/agent-process-distribution#stable"
-# then in Claude Code: /plugin -> Marketplaces -> Enable auto-update for agent-process-marketplace
 claude plugin install agent-process@agent-process-marketplace
+# then set "autoUpdate": true on the agent-process-marketplace entry in ~/.claude/settings.json
 ```
 
 Then, in Claude Code inside the repository to adopt, run `/agent-process:init`. It dry-runs and

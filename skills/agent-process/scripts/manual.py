@@ -143,8 +143,8 @@ def rows(t: Target) -> list[str]:
         *_outstanding(
             lambda: _plugin_channel(t),
             "manual plugin-channel: once per machine -- claude plugin marketplace add "
-            f'"{t.source}#stable", then /plugin -> Marketplaces -> '
-            f"Enable auto-update for {t.marketplace}, then claude plugin install {t.plugin}",
+            f'"{t.source}#stable", then claude plugin install {t.plugin}, then set '
+            f'"autoUpdate": true on its {t.marketplace} entry in ~/.claude/settings.json',
         ),
         *_pre_push_row(t),
         *_outstanding(
@@ -376,23 +376,34 @@ def _plugin_file(path: Path) -> Any:
 
 def _plugin_channel(t: Target) -> bool:
     """The machine's marketplace is at `stable` with auto-update and the plugin has a
-    user-scope install, from Claude Code's plugin files (its CLI prints no `autoUpdate`)."""
-    plugins = t.home / ".claude" / "plugins"
+    user-scope install, from Claude Code's plugin files (its CLI prints no `autoUpdate`).
+    Auto-update is the user-settings entry's `autoUpdate` when it sets one, else the known
+    entry's, the precedence Claude Code applies."""
+    claude = t.home / ".claude"
+    plugins = claude / "plugins"
     known = _plugin_file(plugins / "known_marketplaces.json")
     installed = _plugin_file(plugins / "installed_plugins.json")
     try:
-        entry = None if known is None else known.get(t.marketplace)
+        entry: Any = (known or {}).get(t.marketplace)
         channel = (
             entry is not None
             and entry["source"].get("repo") == t.source
             and entry["source"].get("ref") == "stable"
-            and entry.get("autoUpdate") is True
         )
         installs = [] if installed is None else installed["plugins"].get(t.plugin) or []
         user = any(install["scope"] == "user" for install in installs)
     except (AttributeError, KeyError, TypeError):
         raise Unreadable(f"{plugins} holds plugin files of an unexpected shape") from None
-    return bool(channel) and user
+    if not (channel and user):
+        return False
+    path = claude / "settings.json"
+    settings = _plugin_file(path)
+    try:
+        declared = (settings or {}).get("extraKnownMarketplaces") or {}
+        auto = (declared.get(t.marketplace) or {}).get("autoUpdate", entry.get("autoUpdate"))
+    except AttributeError:
+        raise Unreadable(f"{path} holds settings of an unexpected shape") from None
+    return auto is True
 
 
 @dataclass
