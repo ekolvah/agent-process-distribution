@@ -322,11 +322,12 @@ def _plugin_channel(t: Target) -> bool:
     user-scope install, from Claude Code's plugin files (its CLI prints no `autoUpdate`).
     Auto-update is the user-settings entry's `autoUpdate` when it sets one, else the known
     entry's, the precedence Claude Code applies."""
-    plugins = t.home / ".claude" / "plugins"
+    claude = t.home / ".claude"
+    plugins = claude / "plugins"
     known = _plugin_file(plugins / "known_marketplaces.json")
     installed = _plugin_file(plugins / "installed_plugins.json")
     try:
-        entry = None if known is None else known.get(t.marketplace)
+        entry: Any = (known or {}).get(t.marketplace)
         channel = (
             entry is not None
             and entry["source"].get("repo") == t.source
@@ -338,10 +339,10 @@ def _plugin_channel(t: Target) -> bool:
         raise Unreadable(f"{plugins} holds plugin files of an unexpected shape") from None
     if not (channel and user):
         return False
-    path = t.home / ".claude" / "settings.json"
+    path = claude / "settings.json"
     settings = _plugin_file(path)
     try:
-        declared = {} if settings is None else settings.get("extraKnownMarketplaces") or {}
+        declared = (settings or {}).get("extraKnownMarketplaces") or {}
         auto = (declared.get(t.marketplace) or {}).get("autoUpdate", entry.get("autoUpdate"))
     except AttributeError:
         raise Unreadable(f"{path} holds settings of an unexpected shape") from None

@@ -540,13 +540,16 @@ def test_auto_merge_disallowed_is_manual(
     assert not [ln for ln in manual if ln.startswith("manual agent-identity: ")], manual
 
 
-def _plugin_files(sb: Sandbox) -> Path:
+def _plugin_files(sb: Sandbox, auto_update: bool | None = True) -> Path:
     """The machine's plugin files in the observed shapes: the marketplace at `stable` with
-    auto-update, the plugin installed at user scope."""
+    `auto_update` (`None` leaves the key out), the plugin installed at user scope."""
     plugins = sb.home / ".claude" / "plugins"
     plugins.mkdir(parents=True)
     source = {"source": "github", "repo": "ekolvah/agent-process-distribution", "ref": "stable"}
-    known = {MARKETPLACE: {"source": source, "autoUpdate": True}}
+    entry: dict[str, object] = {"source": source}
+    if auto_update is not None:
+        entry["autoUpdate"] = auto_update
+    known = {MARKETPLACE: entry}
     (plugins / "known_marketplaces.json").write_text(json.dumps(known), encoding="utf-8")
     installed = {"version": 2, "plugins": {PLUGIN: [{"scope": "user", "version": CURRENT}]}}
     (plugins / "installed_plugins.json").write_text(json.dumps(installed), encoding="utf-8")
@@ -598,16 +601,8 @@ def test_plugin_channel_reads_user_settings(
 ) -> None:
     """Scenario: Auto-update read from user settings. `None` drops the key, the state
     `marketplace add` leaves."""
-    known_path = _plugin_files(sandbox) / "known_marketplaces.json"
-    entries = json.loads(known_path.read_text(encoding="utf-8"))
-    entries[MARKETPLACE].pop("autoUpdate")
-    if known is not None:
-        entries[MARKETPLACE]["autoUpdate"] = known
-    known_path.write_text(json.dumps(entries), encoding="utf-8")
-    source = {"source": "github", "repo": "ekolvah/agent-process-distribution", "ref": "stable"}
-    entry: dict[str, object] = {"source": source}
-    if settings is not None:
-        entry["autoUpdate"] = settings
+    _plugin_files(sandbox, auto_update=known)
+    entry = {} if settings is None else {"autoUpdate": settings}
     _user_settings(sandbox, json.dumps({"extraKnownMarketplaces": {MARKETPLACE: entry}}))
     init = load_init()
     assert install(init, sandbox, "--dry-run") == 0
