@@ -38,3 +38,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 496,session-start-reports-release-drift,issue-484,2026-11-10T05:31:54Z,2026-11-10T15:08:34Z,9.61,1.07,403,3,2,9.8898,196,7,0,0,
 498,init-replaces-project-areas,issue-493,2026-11-10T06:47:53Z,2026-11-11T05:17:02Z,22.49,6.52,951,2,3,17.6395,269,5,4,2,
 499,plugin-channel-settings-auto-update,issue-487,2026-11-10T06:48:23Z,2026-11-11T06:32:34Z,23.74,1.15,359,2,2,11.8689,225,3,2,1,
+501,upgrade-approval-is-consent,issue-485,2026-11-11T05:22:51Z,2026-11-11T06:51:44Z,1.48,0.58,284,2,2,5.5797,117,2,0,0,
