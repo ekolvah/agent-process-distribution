@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_init_remote.py`: `PROJECT_ROWS` becomes `("project-workflows", "project-areas")` and `test_manual_actions_are_printed` unpacks two rows without the `"visibility" in visibility` check; `test_observed_manual_rows_are_omitted` stops setting `project.public` (the fake's default is private), so its `manual == []` proves the row gone
-- [ ] 1.2 Run `agent-process check_red tests/publisher/test_init_remote.py::test_observed_manual_rows_are_omitted` and commit RED with these ticks
+- [x] 1.1 In `tests/publisher/test_init_remote.py`: `PROJECT_ROWS` becomes `("project-workflows", "project-areas")` and `test_manual_actions_are_printed` unpacks two rows without the `"visibility" in visibility` check; `test_observed_manual_rows_are_omitted` stops setting `project.public` (the fake's default is private), so its `manual == []` proves the row gone
+- [x] 1.2 Run `agent-process check_red tests/publisher/test_init_remote.py::test_observed_manual_rows_are_omitted` and commit RED with these ticks
 
 ## 2. Drop the row
 

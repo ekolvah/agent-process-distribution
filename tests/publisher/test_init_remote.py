@@ -434,7 +434,7 @@ def test_project_command_faults(
 
 # The required workflows a copy keeps enabled (the fake's copy lacks only `Auto-add to project`).
 KEPT = ["Item added", "Item reopened", "Item closed", "Pull request merged"]
-PROJECT_ROWS = ("project-visibility", "project-workflows", "project-areas")
+PROJECT_ROWS = ("project-workflows", "project-areas")
 PROCESS_CHECKS = ("agent-process / quality", "agent-review / agent-review")
 
 
@@ -461,14 +461,14 @@ def test_manual_actions_are_printed(
     runner = Runner(init, HOST, sandbox.github)
     assert install(init, sandbox, mode, runner=runner) == 0
     manual = _manual_rows(capfd.readouterr().out)
-    visibility, workflows, areas = (_row(manual, label) for label in PROJECT_ROWS)
-    assert "visibility" in visibility and "Area" in areas and "--area" in areas
+    workflows, areas = (_row(manual, label) for label in PROJECT_ROWS)
+    assert "Area" in areas and "--area" in areas
     if mode == "--confirm":
         assert "Auto-add to project" in workflows, workflows
         assert not [name for name in KEPT if name in workflows], workflows
-        assert "cannot read" not in visibility + workflows + areas
+        assert "cannot read" not in workflows + areas
     else:
-        assert all("(cannot read: " in row for row in (visibility, workflows, areas)), manual
+        assert all("(cannot read: " in row for row in (workflows, areas)), manual
     channel = [ln for ln in manual if ln.startswith("manual plugin-channel: ")]
     assert len(channel) == 1, channel
     add = 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"'
@@ -587,7 +587,7 @@ def test_observed_manual_rows_are_omitted(
     sandbox.github.secrets.update({"CLAUDE_CODE_OAUTH_TOKEN", "GRAFANA_SERVICE_ACCOUNT_TOKEN"})
     sandbox.github.variables["GRAFANA_URL"] = "https://stack.grafana.net"
     project = sandbox.github.add(linked=CONSUMER)
-    project.public, project.areas = True, ["Alpha"]
+    project.areas = ["Alpha"]
     project.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
     _plugin_files(sandbox)
     local_settings(sandbox, "agent-token")
