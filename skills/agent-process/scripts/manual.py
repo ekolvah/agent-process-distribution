@@ -54,6 +54,8 @@ PERMISSION_QUERY = (
     "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){viewerPermission}}"
 )
 SETTINGS = Path(".claude") / "settings.local.json"
+PROJECT_SETTINGS = Path(".claude") / "settings.json"
+ATTRIBUTION = "OTEL_RESOURCE_ATTRIBUTES"
 
 Read = Callable[..., "subprocess.CompletedProcess[str]"]
 
@@ -127,6 +129,7 @@ def rows(t: Target) -> list[str]:
             f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
             "token at its prompt; the review caller passes it to the review",
         ),
+        *_attribution_row(t),
         *_readings_row(
             t,
             secrets,
@@ -234,13 +237,7 @@ def _identity_pending(t: Target) -> str | None:
     """Why this clone's `env.GH_TOKEN` is not the agent's, or `None` when its permission on the
     repository, read with that token whatever the session's, is write or maintain. A missing
     `env` is `{}`."""
-    path = t.root / SETTINGS
-    data = _plugin_file(path)
-    data = {} if data is None else data
-    env = data.get("env", {}) if isinstance(data, dict) else None
-    if not isinstance(env, dict):
-        raise Unreadable(f"{path} is not an object whose `env` is an object")
-    token = env.get("GH_TOKEN")
+    token = (_settings_env(t.root / SETTINGS) or {}).get("GH_TOKEN")
     if not token:
         return f"{SETTINGS.as_posix()} sets no env.GH_TOKEN"
     owner, name = t.repo.split("/")
@@ -263,6 +260,88 @@ def _identity_pending(t: Target) -> str | None:
     if permission in AGENT_PERMISSIONS:
         return None
     return f"env.GH_TOKEN has {permission} permission on {t.repo}, not WRITE or MAINTAIN"
+
+
+def _settings_env(path: Path) -> dict[str, Any] | None:
+    """The `env` object of a settings file, `{}` without one, `None` when the file is absent."""
+    data = _plugin_file(path)
+    if data is None:
+        return None
+    env = data.get("env", {}) if isinstance(data, dict) else None
+    if not isinstance(env, dict):
+        raise Unreadable(f"{path} is not an object whose `env` is an object")
+    return env
+
+
+def json_text(data: dict[str, Any]) -> str:
+    """The form JSON settings are written in. Re-serialising is lossless only from this form; any
+    other form (spacing, key order, escapes, repeated keys) is the person's to edit."""
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
+@dataclass
+class Attribution:
+    """The consumer's `env.OTEL_RESOURCE_ATTRIBUTES`: the `value` it should carry, whether the
+    file's value names the repository, and why `init` leaves it (`None`: `init` writes it)."""
+
+    value: str
+    done: bool
+    blocked: str | None
+
+
+def _attribution_value(repo: str) -> str:
+    return f"vcs.repository.name={repo},vcs.repository.url.full=https://github.com/{repo}"
+
+
+def _attribution_of(path: Path) -> tuple[bool, str | None]:
+    """Whether the settings file exists, and its `env.OTEL_RESOURCE_ATTRIBUTES`."""
+    env = _settings_env(path)
+    value = (env or {}).get(ATTRIBUTION)
+    if value is not None and not isinstance(value, str):
+        raise Unreadable(f"env.{ATTRIBUTION} of {path} is not a string")
+    return env is not None, value
+
+
+def attribution(t: Target) -> Attribution:
+    """Done when the consumer's value carries the pair `vcs.repository.name=<repo>`; otherwise
+    blocked by a value `init` would replace (the file's own, or this machine's) or by a file
+    not in the form `init` writes (design D2–D4)."""
+    target = _attribution_value(t.repo)
+    path = t.root / PROJECT_SETTINGS
+    exists, value = _attribution_of(path)
+    pairs = [item.split("=", 1) for item in (value or "").split(",")]
+    if ["vcs.repository.name", t.repo] in [[part.strip() for part in pair] for pair in pairs]:
+        return Attribution(target, True, None)
+    if value is not None:
+        return Attribution(target, False, f"{PROJECT_SETTINGS.as_posix()} sets it to {value}")
+    home = t.home / ".claude" / "settings.json"
+    for where, machine in (
+        ("init's environment", os.environ.get(ATTRIBUTION)),
+        (str(home), _attribution_of(home)[1]),
+    ):
+        if machine:
+            return Attribution(target, False, f"this machine sets {machine} in {where}")
+    if exists and path.read_text(encoding="utf-8") != json_text(_plugin_file(path)):
+        blocked = f"{PROJECT_SETTINGS.as_posix()} is not in the form init writes"
+        return Attribution(target, False, blocked)
+    return Attribution(target, False, None)
+
+
+def _attribution_row(t: Target) -> list[str]:
+    """Printed while `init` leaves the value (design D6)."""
+    try:
+        state = attribution(t)
+        value, why = state.value, state.blocked
+    except Unreadable as exc:
+        value, why = _attribution_value(t.repo), f"cannot read: {exc}"
+    if why is None:
+        return []
+    return [
+        f"manual telemetry-attribution: {PROJECT_SETTINGS.as_posix()} of this repository -- set "
+        f"env.{ATTRIBUTION} to {value} and commit it; the settings value replaces this "
+        "machine's value of that variable in this repository's sessions; sessions before it "
+        f"carry no project label and record no task readings ({why})"
+    ]
 
 
 def _linked(t: Target) -> tuple[str, int, str | None]:

@@ -71,9 +71,11 @@ The decision and the gate readings are in
 vcs.repository.name=<owner>/<repository>,vcs.repository.url.full=https://github.com/<owner>/<repository>
 ```
 
-Each adoption carries its own value, never this repository's. An adopter sets
-the pairs by hand: telemetry left the v2 migration
-([ADR 0029](adr/0029-telemetry-leaves-the-v2-migration.md)).
+Each adoption carries its own value, never this repository's. `init`'s `settings` step
+writes it when nothing is lost: the file is absent, or is in the form `init` writes and sets
+no such variable, and neither `init`'s environment nor `~/.claude/settings.json` sets one.
+Otherwise, while the value does not name the repository, `init` prints a
+`manual telemetry-attribution` row with the value and the reason it left it.
 The URL pair is omitted when the repository has no canonical GitHub URL;
 a guessed one is worse than an absent one.
 
@@ -95,11 +97,6 @@ select on `service_name` first and filter on the project afterwards.
 
 The carrier is a **list from the first commit** on purpose. `OTEL_RESOURCE_ATTRIBUTES`
 is one string with no merge semantics.
-
-A tree with a `.claude/settings.json` that lacks the `env` key gets no attribution
-from the process: it gets the key by hand or it stays unlabelled. That is the safe
-direction — an unlabelled tree reads on the dashboard as "not this project" rather
-than being silently folded in.
 
 ## Which labels carry the task
 
@@ -280,7 +277,8 @@ the caller `.github/workflows/task-readings.yml`, pinned to the release. The per
 
 - exports the sessions to their own stack from the `env` block of their user-level
   `~/.claude/settings.json`, as in [What exports what](#what-exports-what);
-- sets `OTEL_RESOURCE_ATTRIBUTES` in the repository's `.claude/settings.json` by hand, as in
+- gets `OTEL_RESOURCE_ATTRIBUTES` in the repository's `.claude/settings.json` from `init`'s
+  installation PR, or does its `manual telemetry-attribution` row, as in
   [Which label carries the project](#which-label-carries-the-project);
 - does the `manual task-readings` row of `init`, printed only for what `init` could not set
   up from the machine's `grafana` MCP server, with the reason
