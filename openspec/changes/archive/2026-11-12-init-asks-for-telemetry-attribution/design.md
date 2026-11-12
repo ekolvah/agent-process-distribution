@@ -2,7 +2,7 @@
 
 The project label of every telemetry series comes from `env.OTEL_RESOURCE_ATTRIBUTES` of the
 consumer's `.claude/settings.json`
-([ADR 0026](../../../.agent-process/docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md));
+([ADR 0026](../../../../.agent-process/docs/adr/0026-project-attribution-rides-the-telemetry-resource-attributes.md));
 the task-readings recording filters on it. `init`'s `settings` step owns two keys of that file
 (`extraKnownMarketplaces` entry, `SessionStart` group) and copies every other key; `manual.rows()`
 prints what `init` cannot do, with the reason. Neither covers the attribution today
@@ -24,7 +24,7 @@ prints what `init` cannot do, with the reason. Neither covers the attribution to
   ordinary key and follows the levels above." Over the process environment, the settings value
   wins outright — observed (`telemetry-measurement-setup.md`, "Precedence is observed").
 - The set-up-or-print pattern is this repository's own:
-  [ADR 0048](../../../.agent-process/docs/adr/0048-init-sets-up-task-readings-from-the-grafana-mcp-config.md)
+  [ADR 0048](../../../../.agent-process/docs/adr/0048-init-sets-up-task-readings-from-the-grafana-mcp-config.md)
   (task readings) and the pre-push step (`manual.pre_push`, `_pre_push_row`).
 
 ## Goals / Non-Goals
