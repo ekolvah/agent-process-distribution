@@ -41,3 +41,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 501,upgrade-approval-is-consent,issue-485,2026-11-11T05:22:51Z,2026-11-11T06:51:44Z,1.48,0.58,284,2,2,5.5797,117,2,0,0,
 503,install-prepare-checklist,issue-488,2026-11-11T05:24:39Z,2026-11-11T07:44:24Z,2.33,0.52,201,2,1,2.6929,71,1,0,0,
 504,init-drops-project-visibility-row,issue-492,2026-11-11T07:03:29Z,2026-11-11T07:50:34Z,0.78,0.53,232,1,2,4.4302,94,1,0,0,
+505,agent-identity-standard-commands,issue-412,2026-11-11T07:15:57Z,2026-11-12T05:22:51Z,22.11,1.01,1220,2,1,11.9420,202,2,0,1,
