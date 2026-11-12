@@ -31,7 +31,7 @@ Every consumer `.claude/settings.json` a Group 1 test seeds is written in the fo
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change init-asks-for-telemetry-attribution`, then `gh pr create --title "fix: init-asks-for-telemetry-attribution" --body-file <report>`, then `gh pr merge <PR> --auto --squash`. The report names tracking issue 475 as a plain reference, carries the scenario-to-test map, and states the principles involved (goal 1, goal 3, §I, §IV, §VII)
+- [x] 4.1 Run `agent-process archive_change init-asks-for-telemetry-attribution`, then `gh pr create --title "fix: init-asks-for-telemetry-attribution" --body-file <report>`, then `gh pr merge <PR> --auto --squash`. The report names tracking issue 475 as a plain reference, carries the scenario-to-test map, and states the principles involved (goal 1, goal 3, §I, §IV, §VII)
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
