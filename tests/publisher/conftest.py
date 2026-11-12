@@ -91,5 +91,7 @@ def sandbox(tmp_path: Path, process_repo: Path, monkeypatch: pytest.MonkeyPatch)
 @pytest.fixture(autouse=True)
 def _no_session(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tests run inside a Claude Code session: its id would bind that real session in the
-    ledger of every clone a delivery script runs in."""
+    ledger of every clone a delivery script runs in, and a shell's `OTEL_RESOURCE_ATTRIBUTES`
+    would be a machine value to every `init` run."""
     monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)

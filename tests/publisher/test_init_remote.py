@@ -42,6 +42,7 @@ from tests.publisher.init_harness import (
     Sandbox,
     _installed,
     area_filter,
+    commit_seed,
     empty_origin,
     empty_repository,
     git,
@@ -81,7 +82,12 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
     changed = git("diff", "--name-only", "main..HEAD", cwd=sandbox.root)
     assert set(changed.splitlines()) == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
     settings = json.loads((sandbox.root / ".claude" / "settings.json").read_text(encoding="utf-8"))
-    assert settings == {
+    assert settings == {**_fresh_settings(), "env": {"OTEL_RESOURCE_ATTRIBUTES": ATTRIBUTION}}
+
+
+def _fresh_settings() -> dict[str, Any]:
+    """The owned keys a fresh install writes into `.claude/settings.json`."""
+    return {
         "extraKnownMarketplaces": {
             MARKETPLACE: {
                 "source": {
@@ -342,6 +348,9 @@ def test_unsafe_starting_point(
 # --- the Project phase ------------------------------------------------------------------
 
 CONSUMER = f"{OWNER}/{REPO_NAME}"
+ATTRIBUTION = (
+    f"vcs.repository.name={CONSUMER},vcs.repository.url.full=https://github.com/{CONSUMER}"
+)
 # Each row: arrange the fake, then (project-copy, project-link) of the plan, or the exit code
 # alone when the read itself refuses (design D2 and the truncated list of D1).
 PROJECT_STATES: dict[str, tuple[Callable[[FakeGitHub], Any], tuple[str, str] | int]] = {
@@ -609,6 +618,8 @@ def test_observed_manual_rows_are_omitted(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
 ) -> None:
     """Scenario: Observed done."""
+    attribution = f"service.version=1, vcs.repository.name={CONSUMER}"
+    _project_settings(sandbox, {"env": {"OTEL_RESOURCE_ATTRIBUTES": attribution}})
     sandbox.github.secrets.update({"CLAUDE_CODE_OAUTH_TOKEN", "GRAFANA_SERVICE_ACCOUNT_TOKEN"})
     sandbox.github.variables["GRAFANA_URL"] = "https://stack.grafana.net"
     project = sandbox.github.add(linked=CONSUMER)
@@ -634,6 +645,7 @@ def test_observed_manual_rows_are_omitted(
 
 
 def _user_settings(sb: Sandbox, text: str) -> None:
+    (sb.home / ".claude").mkdir(exist_ok=True)
     (sb.home / ".claude" / "settings.json").write_text(text, encoding="utf-8")
 
 
@@ -784,7 +796,11 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], None], list[str]]] = {
     "secret-403": ("--dry-run", _fault("secret-list"), ["review-secret", "task-readings"]),
     "variable-403": ("--dry-run", _fault("variable-list"), ["task-readings"]),
     "plugin-malformed": ("--dry-run", _malformed_plugin, ["plugin-channel"]),
-    "user-settings-malformed": ("--dry-run", _user_settings_malformed, ["plugin-channel"]),
+    "user-settings-malformed": (
+        "--dry-run",
+        _user_settings_malformed,
+        ["plugin-channel", "telemetry-attribution"],
+    ),
     "project-read": ("--confirm", _fault("project-read"), list(PROJECT_ROWS)),
     "repo-read": ("--dry-run", _fault("repo-read"), ["protection", "auto-merge"]),
     "rules-read": ("--dry-run", _fault("rules-read"), ["protection"]),
@@ -797,6 +813,16 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], None], list[str]]] = {
         "--dry-run",
         lambda sb: local_settings(sb, text='{"env": []}'),
         ["agent-identity"],
+    ),
+    "project-settings-shape": (
+        "--dry-run",
+        lambda sb: _project_settings(sb, {"env": []}),
+        ["telemetry-attribution"],
+    ),
+    "project-settings-value": (
+        "--dry-run",
+        lambda sb: _project_settings(sb, {"env": {"OTEL_RESOURCE_ATTRIBUTES": 1}}),
+        ["telemetry-attribution"],
     ),
 }
 
@@ -818,6 +844,114 @@ def test_unreadable_manual_state_is_printed(
     if case.endswith("-403"):
         for label in labels:
             assert "HTTP 403" in _row(manual, label)
+
+
+# --- the telemetry attribution (change init-asks-for-telemetry-attribution) --------------
+
+
+def _project_settings(sb: Sandbox, data: Any, text: str | None = None) -> Path:
+    """The consumer's `.claude/settings.json`, `data` in the form `init` writes unless `text`
+    is given, committed and pushed."""
+    path = sb.root / ".claude" / "settings.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(text or json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    commit_seed(sb)
+    return path
+
+
+def _no_attribution_row(out: str) -> None:
+    assert "manual telemetry-attribution" not in out, out
+
+
+@pytest.mark.parametrize(
+    "seed", [None, {"env": {"KEEP": "1"}, "permissions": {}}], ids=["absent", "other-keys"]
+)
+def test_attribution_is_written(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], seed: dict[str, Any] | None
+) -> None:
+    """Scenario: Attribution written."""
+    path = sandbox.root / ".claude" / "settings.json"
+    before = None if seed is None else _project_settings(sandbox, seed).read_text("utf-8")
+    init = load_init()
+    assert install(init, sandbox, "--dry-run") == 0
+    _no_attribution_row(capfd.readouterr().out)
+    assert (path.read_text("utf-8") if path.exists() else None) == before
+    assert install(init, sandbox, "--confirm") == 0
+    _no_attribution_row(capfd.readouterr().out)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data.get("env", {}).get("OTEL_RESOURCE_ATTRIBUTES") == ATTRIBUTION, data
+    for key, value in (seed or {}).items():
+        expected = {**value, "OTEL_RESOURCE_ATTRIBUTES": ATTRIBUTION} if key == "env" else value
+        assert data[key] == expected, data
+    assert install(init, sandbox, "--confirm") == 0
+    out = capfd.readouterr().out
+    _no_attribution_row(out)
+    assert transitions(out)["settings"] == "unchanged", out
+
+
+def _machine_env(sb: Sandbox, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OTEL_RESOURCE_ATTRIBUTES", "team=media")
+
+
+def _machine_settings(sb: Sandbox, monkeypatch: pytest.MonkeyPatch) -> None:
+    _user_settings(sb, json.dumps({"env": {"OTEL_RESOURCE_ATTRIBUTES": "team=media"}}))
+
+
+@pytest.mark.parametrize("arrange", [_machine_env, _machine_settings], ids=["env", "user"])
+def test_machine_attribution_is_kept(
+    sandbox: Sandbox,
+    capfd: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    arrange: Callable[[Sandbox, pytest.MonkeyPatch], None],
+) -> None:
+    """Scenario: Machine attribution kept."""
+    arrange(sandbox, monkeypatch)
+    init = load_init()
+    assert install(init, sandbox, "--confirm") == 0
+    data = json.loads((sandbox.root / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    assert "env" not in data, data
+    row = _row(_manual_rows(capfd.readouterr().out), "telemetry-attribution")
+    for named in (ATTRIBUTION, "replaces", "team=media"):
+        assert named in row, row
+
+
+def test_other_repository_attribution_is_manual(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Another repository's attribution."""
+    other = "vcs.repository.name=other/repo"
+    path = _project_settings(sandbox, {"env": {"OTEL_RESOURCE_ATTRIBUTES": other}})
+    init = load_init()
+    assert install(init, sandbox, "--confirm") == 0
+    assert json.loads(path.read_text(encoding="utf-8"))["env"]["OTEL_RESOURCE_ATTRIBUTES"] == other
+    row = _row(_manual_rows(capfd.readouterr().out), "telemetry-attribution")
+    assert ATTRIBUTION in row and "(cannot read: " not in row, row
+
+
+def test_hand_formatted_settings_is_manual(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Settings in another form — the `settings` step stays unchanged."""
+    data = {**_fresh_settings(), "model": "opus"}
+    _project_settings(sandbox, data, text=json.dumps(data, indent=4))
+    init = load_init()
+    assert install(init, sandbox, "--dry-run") == 0
+    out = capfd.readouterr().out
+    assert transitions(out)["settings"] == "unchanged", out
+    row = _row(_manual_rows(out), "telemetry-attribution")
+    assert "not in the form init writes" in row, row
+
+
+def test_malformed_project_settings_is_printed(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Unreadable state — a file that is not JSON is a `settings` conflict, so the
+    run exits 2 as it would without the row."""
+    _project_settings(sandbox, None, text="not json")
+    init = load_init()
+    assert install(init, sandbox, "--dry-run") == 2
+    row = _row(_manual_rows(capfd.readouterr().out), "telemetry-attribution")
+    assert "(cannot read: " in row, row
 
 
 # --- this clone's pre-push hook (change init-installs-pre-push-hook) ---------------------

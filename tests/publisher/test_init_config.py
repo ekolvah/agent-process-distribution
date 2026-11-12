@@ -412,9 +412,12 @@ def test_seeded_secret_scan_decodes_utf8(tmp_path: Path) -> None:
     assert "ru2.md:1" in done.stdout, done.stdout
 
 
-def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:
+def test_update_keeps_consumer_bytes(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
     """CRLF stays CRLF, a missing final newline stays missing, and a settings file in another
-    form that already holds both keys is not rewritten."""
+    form that already holds both keys and the attribution is not rewritten and prints no
+    `telemetry-attribution` row."""
     init = load_init()
     _installed(init, sandbox)
     config = sandbox.root / "openspec" / "config.yaml"
@@ -434,6 +437,7 @@ def test_update_keeps_consumer_bytes(sandbox: Sandbox) -> None:
     assert after.count(b"\n") == after.count(b"\r\n")
     assert after.endswith(b"\r\n# tail without newline")
     assert settings.read_text(encoding="utf-8") == four_spaces
+    assert "manual telemetry-attribution" not in capfd.readouterr().out
 
 
 def test_installed_consumer_gains_the_hook(
