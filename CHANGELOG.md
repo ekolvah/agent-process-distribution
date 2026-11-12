@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.32.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.31.0...v3.32.0) (2026-11-12)
+
+
+### Features
+
+* agent-identity-standard-commands ([#505](https://github.com/ekolvah/agent-process-distribution/issues/505)) ([bbaeaed](https://github.com/ekolvah/agent-process-distribution/commit/bbaeaed5a2aff67bec97f9c244f10e423fdae6a8))
+* init-drops-project-visibility-row ([#504](https://github.com/ekolvah/agent-process-distribution/issues/504)) ([8b81284](https://github.com/ekolvah/agent-process-distribution/commit/8b81284ea034c6af4a8d47b35a70565c2b382c13))
+* plugin-channel-settings-auto-update ([#499](https://github.com/ekolvah/agent-process-distribution/issues/499)) ([4d19bae](https://github.com/ekolvah/agent-process-distribution/commit/4d19bae9874251092b1193e1c2b9ebed49a3ec54))
+* upgrade-approval-is-consent ([#501](https://github.com/ekolvah/agent-process-distribution/issues/501)) ([02ee508](https://github.com/ekolvah/agent-process-distribution/commit/02ee508cc22d4f9d7b8e115da4ec68915f3a81dd))
+
 ## [3.31.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.30.0...v3.31.0) (2026-11-11)
 
 
