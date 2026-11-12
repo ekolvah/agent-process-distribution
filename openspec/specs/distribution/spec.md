@@ -904,65 +904,28 @@ other than `bin/openspec` SHALL write an OpenSpec version after `@fission-ai/ope
 - **WHEN** the publisher tests read the tracked files outside `openspec/changes/`
 - **THEN** `bin/openspec` names `@fission-ai/openspec@<pin>`, and any other file that writes a version after `@fission-ai/openspec@` fails naming the file
 
-### Requirement: Agent identity converges
-`agent-process agent_identity --bot <login>` SHALL run from a consumer root with `--dry-run`
-or `--confirm`. It SHALL refuse with exit 2 before any write when any of these holds:
-- `.claude/settings.local.json` is not git-ignored in this clone;
-- `gh auth token --user <login>` yields no token;
-- that token's `gh api user` login is not `<login>`;
-- `<login>` holds the admin permission on the repository.
-
-It SHALL print one line per transition, marked `planned` or `unchanged`. The transitions are:
-- the repository collaborator invitation of `<login>` and its acceptance with `<login>`'s token;
-- `<login>`'s write role on the Project linked to the repository;
-- `env.GH_TOKEN` of this clone's `.claude/settings.local.json` set to that token, every other
-  key of the file kept;
-- this clone's git config: the `https://github.com` credential helper list reset and routed to
-  `gh auth git-credential`;
-- one repository ruleset named `agent-process person approves` on the default branch, with no
-  bypass actor, whose only rule is `pull_request` with one required approving review and stale
-  reviews dismissed on push.
-
-A dry-run SHALL issue only reads. A confirmed run SHALL perform the `planned` transitions, then
-plan again and exit 1 naming the first transition that is not `unchanged`. A rerun after success
-SHALL report every transition `unchanged` and write nothing.
-
-#### Scenario: Confirmed run on a fresh repository
-- **WHEN** a confirmed run meets a bot token of `<login>` without admin permission, no invitation, no Project role, settings with other keys and no `GH_TOKEN`, no credential route, and no ruleset of that name
-- **THEN** `<login>` is a collaborator with write access and a Project writer, the clone's settings carry `GH_TOKEN` with every prior key kept, git routes `https://github.com` credentials to `gh`, and the ruleset exists with its required approval and no bypass
-
-#### Scenario: A precondition fails
-- **WHEN** `.claude/settings.local.json` is not ignored, or `gh` holds no token of `<login>`, or the token's login differs from `--bot`, or `<login>` is a repository admin
-- **THEN** the run names the condition, exits 2, and every command it issued is a read
-
-#### Scenario: Rerun
-- **WHEN** a confirmed run is repeated after it succeeded
-- **THEN** it reports every transition `unchanged` and issues no write
-
 ### Requirement: A Claude session start reports a missing agent identity
 The installed skill check SHALL stay silent on the identity only when the session's `GH_TOKEN`
 equals `env.GH_TOKEN` of the project's `.claude/settings.local.json`. Otherwise, including when
 it cannot read that file, it SHALL exit 0 and add a `systemMessage` for the person and an
 `additionalContext` for the agent. Each SHALL name `agent-process agent identity not set`, the
-reason, and the fix: `agent-process agent_identity --bot <login> --dry-run`, `--confirm`,
-`gh repo edit --enable-auto-merge`, and the restart of Claude Code.
+reason, and the fix: Install step 6 of the agent-process skill, then the restart of Claude Code.
 
 #### Scenario: Identity missing
 - **WHEN** a Claude session starts without `GH_TOKEN`, or with a `GH_TOKEN` that the project's settings do not hold
-- **THEN** the check exits 0 and its output names `agent-process agent identity not set` and every command of the fix, to the person and to the agent
+- **THEN** the check exits 0 and its output names `agent-process agent identity not set` and the fix, to the person and to the agent
 
 #### Scenario: Identity set
 - **WHEN** a Claude session starts with the `GH_TOKEN` of the project's settings
 - **THEN** the check adds nothing for the identity
 
 ### Requirement: Install's admin steps run as the person
-`activate_protection` and `agent_identity` SHALL run each of their `gh` calls without
-`GH_TOKEN` and `GITHUB_TOKEN` in its environment, except the bot-side calls of `agent_identity`, which SHALL carry the bot's token in
-`GH_TOKEN`.
+`activate_protection` SHALL run each of its `gh` calls without `GH_TOKEN` and `GITHUB_TOKEN`
+in its environment.
 
 #### Scenario: A clone with the agent's identity
-- **WHEN** `activate_protection` or `agent_identity` runs with a `GH_TOKEN` in its environment
-- **THEN** every `gh` call it issues runs without `GH_TOKEN` and `GITHUB_TOKEN`, except the bot-side calls of `agent_identity`, which carry the bot's token in `GH_TOKEN`
+- **WHEN** `activate_protection` runs with a `GH_TOKEN` in its environment
+- **THEN** every `gh` call it issues runs without `GH_TOKEN` and `GITHUB_TOKEN`
 
 ### Requirement: The task-readings caller runs at the release tag
 The installer SHALL render a managed `.github/workflows/task-readings.yml` whose one job
@@ -1051,13 +1014,18 @@ dashboard import, ending with the reason: `(not found: <what>)`, `(another stack
 
 ### Requirement: Install reports a pending agent identity
 `init` SHALL print a `manual agent-identity` row unless this clone's
-`.claude/settings.local.json` carries `env.GH_TOKEN`. The row SHALL name
-`gh auth login -s project,workflow` as the bot, `gh auth switch --user`, and the fix the
+`.claude/settings.local.json` carries an `env.GH_TOKEN` whose permission on the repository,
+read with that token in one `gh` call whatever the session's `GH_TOKEN`, is write or maintain.
+The row SHALL name the permission read, or that no token is set, and the fix the
 session-start identity marker names.
 
 #### Scenario: Identity pending
-- **WHEN** a run meets a clone whose settings carry no `env.GH_TOKEN`
-- **THEN** its output carries one `manual agent-identity` row naming every command above
+- **WHEN** a run meets a clone whose settings carry no `env.GH_TOKEN`, or a token whose permission on the repository is admin or read
+- **THEN** its output carries one `manual agent-identity` row naming the permission or the missing token, and the fix
+
+#### Scenario: Identity holds
+- **WHEN** a run meets a clone whose settings carry a token with write permission on the repository
+- **THEN** its output carries no `manual agent-identity` row, and the one `gh` call that carried that token as `GH_TOKEN` was a read
 
 ### Requirement: Install reports disallowed auto-merge
 `init` SHALL print a `manual auto-merge` row naming `gh repo edit --enable-auto-merge` unless
@@ -1101,11 +1069,11 @@ row — and on any other state show the person the state and stop install.
 
 #### Scenario: Installation PR merged
 - **WHEN** the agent follows the skill's Install procedure and the installation PR it opened is merged
-- **THEN** `activate_protection` and `agent_identity` run in the same session, without a new request from the person
+- **THEN** `activate_protection` runs and step 6 begins in the same session, without a new request from the person
 
 #### Scenario: Unasked upgrade PR merged
 - **WHEN** the PR of a confirm run without asking is merged and that run printed no `manual protection` row
-- **THEN** install stops without running `activate_protection` or `agent_identity`
+- **THEN** install stops without running `activate_protection` or step 6
 
 ### Requirement: Init replaces the template's areas
 `init` SHALL take a repeatable `--area <name>`; an empty name, a name holding `"`, or a repeated

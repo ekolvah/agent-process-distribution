@@ -183,7 +183,9 @@ class FakeGitHub:
     the default branch's rules require `required_checks`; `faults["repo-read"]` and
     `faults["rules-read"]` make those reads print GitHub's error body and exit 1 (change
     install-reports-post-merge-steps). The `Area` options and views mutations apply to a
-    Project by node id (change init-replaces-project-areas)."""
+    Project by node id (change init-replaces-project-areas). The `viewerPermission` read answers
+    by the `GH_TOKEN` of its environment from `permissions`; `tokened` logs every call whose
+    environment carries one (change agent-identity-standard-commands)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process")
@@ -202,6 +204,8 @@ class FakeGitHub:
         self.empty = False
         self.allow_auto_merge = False
         self.required_checks: list[str] = []
+        self.permissions = {"agent-token": "WRITE"}
+        self.tokened: list[tuple[str, list[str]]] = []
 
     def issue(self, title: str, state: str = "OPEN") -> dict[str, Any]:
         issue = {"number": self._item(), "title": title, "state": state, "body": ""}
@@ -236,8 +240,13 @@ class FakeGitHub:
         return bool(git("ls-remote", "--heads", str(self.origin), branch))
 
     def __call__(
-        self, args: list[str], input: str | None = None
+        self, args: list[str], input: str | None = None, env: dict[str, str] | None = None
     ) -> subprocess.CompletedProcess[str]:
+        token = (env or {}).get("GH_TOKEN")
+        if token:
+            self.tokened.append((token, args))
+        if args[:2] == ["api", "graphql"] and "viewerPermission" in args[-1]:
+            return self._permission(args, token)
         if args[0] == "api" and args[1].startswith(f"repos/{OWNER}/{REPO_NAME}"):
             return self._repo_read(args)
         if args[0] in {"secret", "variable"}:
@@ -247,6 +256,14 @@ class FakeGitHub:
         if args[:2] == ["api", "graphql"] and args[3].startswith("query=mutation"):
             return self._areas_write(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
+
+    def _permission(self, args: list[str], token: str | None) -> subprocess.CompletedProcess[str]:
+        """The token's `viewerPermission` on the consumer, as GitHub answers it."""
+        assert f"owner={OWNER}" in args and f"name={REPO_NAME}" in args, args
+        if token not in self.permissions:
+            return _done(args, None, code=1, err="HTTP 401: Bad credentials\n")
+        permission = self.permissions[token]
+        return _done(args, {"data": {"repository": {"viewerPermission": permission}}})
 
     def _repo_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         """`gh api repos/<owner>/<name>` and `.../rules/branches/<default>`."""
@@ -696,7 +713,7 @@ class Runner:
         self.log.append([str(part) for part in cmd])
         name = Path(cmd[0]).name.lower()
         if is_gh(cmd):
-            return self.github([str(part) for part in cmd[1:]], input)
+            return self.github([str(part) for part in cmd[1:]], input, env)
         if name.startswith("npx") and not self.real_npx:
             assert cwd is not None
             for rel in self.init.OPENSPEC_OUTPUT:

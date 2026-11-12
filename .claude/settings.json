@@ -15,8 +15,7 @@
       "Bash(sleep:*)"
     ],
     "ask": [
-      "Bash(*activate_protection* --confirm*)",
-      "Bash(*agent_identity* --confirm*)"
+      "Bash(*activate_protection* --confirm*)"
     ]
   },
   "hooks": {
