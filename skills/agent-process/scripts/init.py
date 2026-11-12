@@ -524,9 +524,9 @@ def _settings_text(ctx: Context, repo: str) -> tuple[str | None, str]:
     market = marketplaces.get(MARKETPLACE)
     if MARKETPLACE in marketplaces:
         source = market.get("source") if isinstance(market, dict) else None
-        repo = source.get("repo") if isinstance(source, dict) else None
-        if repo != GITHUB_REPO:
-            raise Conflict(f"`{MARKETPLACE}` names {repo!r}, not {GITHUB_REPO}")
+        named = source.get("repo") if isinstance(source, dict) else None
+        if named != GITHUB_REPO:
+            raise Conflict(f"`{MARKETPLACE}` names {named!r}, not {GITHUB_REPO}")
     if plugins.get(PLUGIN, True) is not True:
         raise Conflict(f"`{PLUGIN}` is set to {json.dumps(plugins[PLUGIN])}")
     entry = wanted["extraKnownMarketplaces"][MARKETPLACE]
@@ -554,7 +554,7 @@ def _attribution(ctx: Context, repo: str) -> str | None:
         state = manual.attribution(_target(ctx, repo))
     except manual.Unreadable:
         return None
-    return None if state.done or state.blocked else state.value
+    return None if state.done or state.blocked else manual.attribution_value(repo)
 
 
 def _without_plugin(data: dict[str, Any]) -> dict[str, Any]:

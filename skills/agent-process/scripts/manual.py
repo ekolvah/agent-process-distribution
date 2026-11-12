@@ -281,15 +281,15 @@ def json_text(data: dict[str, Any]) -> str:
 
 @dataclass
 class Attribution:
-    """The consumer's `env.OTEL_RESOURCE_ATTRIBUTES`: the `value` it should carry, whether the
-    file's value names the repository, and why `init` leaves it (`None`: `init` writes it)."""
+    """The consumer's `env.OTEL_RESOURCE_ATTRIBUTES`: whether its value names the repository,
+    and why `init` leaves it (`None`: `init` writes it)."""
 
-    value: str
     done: bool
     blocked: str | None
 
 
-def _attribution_value(repo: str) -> str:
+def attribution_value(repo: str) -> str:
+    """The value that labels the series of `repo`."""
     return f"vcs.repository.name={repo},vcs.repository.url.full=https://github.com/{repo}"
 
 
@@ -306,39 +306,40 @@ def attribution(t: Target) -> Attribution:
     """Done when the consumer's value carries the pair `vcs.repository.name=<repo>`; otherwise
     blocked by a value `init` would replace (the file's own, or this machine's) or by a file
     not in the form `init` writes (design D2–D4)."""
-    target = _attribution_value(t.repo)
     path = t.root / PROJECT_SETTINGS
     exists, value = _attribution_of(path)
-    pairs = [item.split("=", 1) for item in (value or "").split(",")]
-    if ["vcs.repository.name", t.repo] in [[part.strip() for part in pair] for pair in pairs]:
-        return Attribution(target, True, None)
+    pair = ["vcs.repository.name", t.repo]
+    if any([p.strip() for p in item.split("=", 1)] == pair for item in (value or "").split(",")):
+        return Attribution(True, None)
     if value is not None:
-        return Attribution(target, False, f"{PROJECT_SETTINGS.as_posix()} sets it to {value}")
+        return Attribution(False, f"{PROJECT_SETTINGS.as_posix()} sets it to {value}")
     home = t.home / ".claude" / "settings.json"
     for where, machine in (
         ("init's environment", os.environ.get(ATTRIBUTION)),
         (str(home), _attribution_of(home)[1]),
     ):
         if machine:
-            return Attribution(target, False, f"this machine sets {machine} in {where}")
-    if exists and path.read_text(encoding="utf-8") != json_text(_plugin_file(path)):
-        blocked = f"{PROJECT_SETTINGS.as_posix()} is not in the form init writes"
-        return Attribution(target, False, blocked)
-    return Attribution(target, False, None)
+            return Attribution(False, f"this machine sets {machine} in {where}")
+    if exists:
+        text = path.read_text(encoding="utf-8")
+        if text != json_text(json.loads(text)):
+            return Attribution(
+                False, f"{PROJECT_SETTINGS.as_posix()} is not in the form init writes"
+            )
+    return Attribution(False, None)
 
 
 def _attribution_row(t: Target) -> list[str]:
     """Printed while `init` leaves the value (design D6)."""
     try:
-        state = attribution(t)
-        value, why = state.value, state.blocked
+        why = attribution(t).blocked
     except Unreadable as exc:
-        value, why = _attribution_value(t.repo), f"cannot read: {exc}"
+        why = f"cannot read: {exc}"
     if why is None:
         return []
     return [
         f"manual telemetry-attribution: {PROJECT_SETTINGS.as_posix()} of this repository -- set "
-        f"env.{ATTRIBUTION} to {value} and commit it; the settings value replaces this "
+        f"env.{ATTRIBUTION} to {attribution_value(t.repo)} and commit it; the settings value replaces this "
         "machine's value of that variable in this repository's sessions; sessions before it "
         f"carry no project label and record no task readings ({why})"
     ]

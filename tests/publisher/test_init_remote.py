@@ -864,7 +864,9 @@ def _no_attribution_row(out: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "seed", [None, {"env": {"KEEP": "1"}, "permissions": {}}], ids=["absent", "other-keys"]
+    "seed",
+    [None, {"env": {"KEEP": "1"}, "permissions": {}}, _fresh_settings()],
+    ids=["absent", "other-keys", "installed"],
 )
 def test_attribution_is_written(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], seed: dict[str, Any] | None
