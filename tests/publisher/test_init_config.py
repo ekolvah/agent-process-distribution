@@ -412,9 +412,7 @@ def test_seeded_secret_scan_decodes_utf8(tmp_path: Path) -> None:
     assert "ru2.md:1" in done.stdout, done.stdout
 
 
-def test_update_keeps_consumer_bytes(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
-) -> None:
+def test_update_keeps_consumer_bytes(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
     """CRLF stays CRLF, a missing final newline stays missing, and a settings file in another
     form that already holds both keys and the attribution is not rewritten and prints no
     `telemetry-attribution` row."""
