@@ -27,7 +27,7 @@ Every consumer `.claude/settings.json` a Group 1 test seeds is written in the fo
 
 - [x] 3.1 Run `/simplify` without an argument and commit its edits
 - [x] 3.2 Run `openspec validate --strict --all`
-- [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 4. Deliver
 
@@ -36,9 +36,9 @@ Every consumer `.claude/settings.json` a Group 1 test seeds is written in the fo
 
 ## Scenario → test map
 
-- Attribution written: `tests/publisher/test_init_remote.py::test_attribution_is_written`, `::test_installed_footprint_is_closed`
-- Machine attribution kept: `tests/publisher/test_init_remote.py::test_machine_attribution_is_kept`
-- Another repository's attribution: `tests/publisher/test_init_remote.py::test_other_repository_attribution_is_manual`
-- Settings in another form: `tests/publisher/test_init_remote.py::test_hand_formatted_settings_is_manual`; guard `tests/publisher/test_init_config.py::test_update_keeps_consumer_bytes`
+- Attribution written: `tests/publisher/test_init_attribution.py::test_attribution_is_written`, `tests/publisher/test_init_remote.py::test_installed_footprint_is_closed`
+- Machine attribution kept: `tests/publisher/test_init_attribution.py::test_machine_attribution_is_kept`
+- Another repository's attribution: `tests/publisher/test_init_attribution.py::test_other_repository_attribution_is_manual`
+- Settings in another form: `tests/publisher/test_init_attribution.py::test_hand_formatted_settings_is_manual`; guard `tests/publisher/test_init_config.py::test_update_keeps_consumer_bytes`
 - Observed done: `tests/publisher/test_init_remote.py::test_observed_manual_rows_are_omitted` (guard)
-- Unreadable state: `tests/publisher/test_init_remote.py::test_unreadable_manual_state_is_printed` (cases `user-settings-malformed`, `project-settings-shape`, `project-settings-value`) and `::test_malformed_project_settings_is_printed`
+- Unreadable state: `tests/publisher/test_init_remote.py::test_unreadable_manual_state_is_printed` (cases `user-settings-malformed`, `project-settings-shape`, `project-settings-value`) and `tests/publisher/test_init_attribution.py::test_malformed_project_settings_is_printed`

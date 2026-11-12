@@ -530,7 +530,7 @@ def _settings_text(ctx: Context, repo: str) -> tuple[str | None, str]:
     if plugins.get(PLUGIN, True) is not True:
         raise Conflict(f"`{PLUGIN}` is set to {json.dumps(plugins[PLUGIN])}")
     entry = wanted["extraKnownMarketplaces"][MARKETPLACE]
-    attribution = _attribution(ctx, repo)
+    attribution = manual.pending_attribution(_target(ctx, repo))
     if market == entry and PLUGIN not in plugins and starts == new_starts and not attribution:
         return text, text or ""
     if text is not None and text != manual.json_text(data):
@@ -545,16 +545,6 @@ def _settings_text(ctx: Context, repo: str) -> tuple[str | None, str]:
     if attribution:
         updated["env"] = {**data.get("env", {}), manual.ATTRIBUTION: attribution}
     return text, manual.json_text(updated)
-
-
-def _attribution(ctx: Context, repo: str) -> str | None:
-    """The `env.OTEL_RESOURCE_ATTRIBUTES` to write, `None` when it is done or left: a value
-    `init` would replace, or one it cannot read, is the `manual telemetry-attribution` row's."""
-    try:
-        state = manual.attribution(_target(ctx, repo))
-    except manual.Unreadable:
-        return None
-    return None if state.done or state.blocked else manual.attribution_value(repo)
 
 
 def _without_plugin(data: dict[str, Any]) -> dict[str, Any]:

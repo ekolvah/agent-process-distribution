@@ -329,6 +329,16 @@ def attribution(t: Target) -> Attribution:
     return Attribution(False, None)
 
 
+def pending_attribution(t: Target) -> str | None:
+    """The value `init` writes, `None` when it is done or left: a value `init` would replace,
+    or one it cannot read, is the `manual telemetry-attribution` row's (design D5)."""
+    try:
+        state = attribution(t)
+    except Unreadable:
+        return None
+    return None if state.done or state.blocked else attribution_value(t.repo)
+
+
 def _attribution_row(t: Target) -> list[str]:
     """Printed while `init` leaves the value (design D6)."""
     try:
@@ -338,10 +348,10 @@ def _attribution_row(t: Target) -> list[str]:
     if why is None:
         return []
     return [
-        f"manual telemetry-attribution: {PROJECT_SETTINGS.as_posix()} of this repository -- set "
-        f"env.{ATTRIBUTION} to {attribution_value(t.repo)} and commit it; the settings value replaces this "
-        "machine's value of that variable in this repository's sessions; sessions before it "
-        f"carry no project label and record no task readings ({why})"
+        f"manual telemetry-attribution: {PROJECT_SETTINGS.as_posix()} of this repository -- "
+        f"set env.{ATTRIBUTION} to {attribution_value(t.repo)} and commit it; the settings "
+        "value replaces this machine's value of that variable in this repository's sessions; "
+        f"sessions before it carry no project label and record no task readings ({why})"
     ]
 
 
