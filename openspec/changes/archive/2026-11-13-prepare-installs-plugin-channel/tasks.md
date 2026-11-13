@@ -18,7 +18,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change prepare-installs-plugin-channel`, then `gh pr create --title "docs: prepare-installs-plugin-channel" --body-file <report>`. The report names tracking issue 509 as a plain reference, carries the scenario-to-test map, states that `init`'s row and the README block stay (design D1, D2), and names the principles it interacts with (goal 1, §I, §IV, §VII); then run `gh pr merge <PR> --auto --squash`
+- [x] 4.1 Run `agent-process archive_change prepare-installs-plugin-channel`, then `gh pr create --title "docs: prepare-installs-plugin-channel" --body-file <report>`. The report names tracking issue 509 as a plain reference, carries the scenario-to-test map, states that `init`'s row and the README block stay (design D1, D2), and names the principles it interacts with (goal 1, §I, §IV, §VII); then run `gh pr merge <PR> --auto --squash`
 - [ ] 4.2 Run `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
