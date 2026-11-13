@@ -625,8 +625,12 @@ def test_install_names_the_skill_marker() -> None:
     assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in install
     assert "/plugin marketplace update" not in install
     assert "pinned per repository" not in install
+    prepare = install.split(" 1. ", 1)[0]
+    assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in prepare
+    assert "claude plugin install agent-process@agent-process-marketplace" in prepare
+    assert '"autoUpdate": true' in prepare
     manual_step = install.split(" 4. ", 1)[1].split(" 5. ", 1)[0]
-    assert "plugin-channel" in manual_step
+    assert "plugin-channel" not in manual_step
 
 
 def test_install_continues_past_the_installation_pr() -> None:

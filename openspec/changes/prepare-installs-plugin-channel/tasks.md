@@ -4,7 +4,7 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_planning_workflow.py::test_install_names_the_skill_marker`, replace `assert "plugin-channel" in manual_step` with assertions that the Prepare part of the Install section (before ` 1. `) holds `claude plugin marketplace add "ekolvah/agent-process-distribution#stable"`, `claude plugin install agent-process@agent-process-marketplace` and `"autoUpdate": true`, and that `manual_step` holds no `plugin-channel`; verify `agent-process check_red tests/publisher/test_planning_workflow.py::test_install_names_the_skill_marker` reports it failing, then commit RED with the group 1 ticks
+- [x] 1.1 In `tests/publisher/test_planning_workflow.py::test_install_names_the_skill_marker`, replace `assert "plugin-channel" in manual_step` with assertions that the Prepare part of the Install section (before ` 1. `) holds `claude plugin marketplace add "ekolvah/agent-process-distribution#stable"`, `claude plugin install agent-process@agent-process-marketplace` and `"autoUpdate": true`, and that `manual_step` holds no `plugin-channel`; verify `agent-process check_red tests/publisher/test_planning_workflow.py::test_install_names_the_skill_marker` reports it failing, then commit RED with the group 1 ticks
 
 ## 2. Install text
 
