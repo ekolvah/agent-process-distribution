@@ -45,6 +45,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from activate_protection import required_contexts
+
 Gh = Callable[[list[str]], "subprocess.CompletedProcess[str]"]
 
 DEFAULT_TIMEOUT = 30 * 60
@@ -136,12 +138,7 @@ def _required(gh: Gh, pr: int) -> list[str]:
     that requires none is printed as a `note:`, not passed over in silence."""
     base = str(_json(gh, ["gh", "pr", "view", str(pr), "--json", "baseRefName"])["baseRefName"])
     rules = _json(gh, ["gh", "api", f"repos/{{owner}}/{{repo}}/rules/branches/{base}"])
-    contexts: list[str] = []
-    for rule in rules:
-        if rule.get("type") == "required_status_checks":
-            for check in rule["parameters"]["required_status_checks"]:
-                if str(check["context"]) not in contexts:
-                    contexts.append(str(check["context"]))
+    contexts = required_contexts(rules)
     if not contexts:
         print(f"note: {base} requires no status check; settling on the reported checks only")
     return contexts

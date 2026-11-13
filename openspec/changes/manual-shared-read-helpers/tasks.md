@@ -9,9 +9,9 @@
 
 ## 2. Shared helpers
 
-- [ ] 2.1 Per design D2, add `activate_protection.required_contexts(rules)` and make `wait_for_pr._required` and `manual._protected` call it; verify `grep -n "required_status_checks" skills/agent-process/scripts/wait_for_pr.py skills/agent-process/scripts/manual.py` hits no parsing loop
-- [ ] 2.2 Per design D1, replace `_names_or_unreadable`/`_has` and `_field` with `_kept`/`_ok` and make `_repository` raise its shape `Unreadable`; verify `grep -n "_names_or_unreadable\|def _has\|def _field" skills/agent-process/scripts/manual.py` is empty
-- [ ] 2.3 Per design D4, rename `_plugin_file` to `_json_file`; verify `grep -rn "_plugin_file" skills/` is empty and `python -m pytest tests/publisher -q` is green, then commit the group with its ticks
+- [x] 2.1 Per design D2, add `activate_protection.required_contexts(rules)` and make `wait_for_pr._required` and `manual._protected` call it; verify `grep -n "required_status_checks" skills/agent-process/scripts/wait_for_pr.py skills/agent-process/scripts/manual.py` hits no parsing loop
+- [x] 2.2 Per design D1, replace `_names_or_unreadable`/`_has` and `_field` with `_kept`/`_ok` and make `_repository` raise its shape `Unreadable`; verify `grep -n "_names_or_unreadable\|def _has\|def _field" skills/agent-process/scripts/manual.py` is empty
+- [x] 2.3 Per design D4, rename `_plugin_file` to `_json_file`; verify `grep -rn "_plugin_file" skills/` is empty and `python -m pytest tests/publisher -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
