@@ -91,7 +91,7 @@ def test_lifecycle(
         expected = "planned" if mode == "dry-run" else "written"
     else:
         expected = "unchanged"
-    assert seen == dict.fromkeys(LABELS, expected), out
+    assert seen == dict.fromkeys(LABELS, expected) | {"protection": "after-merge"}, out
     if expected != "written":
         assert after == before
 

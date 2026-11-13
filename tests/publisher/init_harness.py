@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
+from urllib.parse import unquote
 
 import yaml
 
@@ -25,7 +26,7 @@ PACKAGE = ROOT / "skills" / "agent-process"
 INIT = PACKAGE / "scripts" / "init.py"
 HOST = "win32" if sys.platform == "win32" else "linux"
 
-LINE = re.compile(r"^(planned|unchanged|written|conflict) ([a-z-]+):", re.MULTILINE)
+LINE = re.compile(r"^(planned|unchanged|written|conflict|after-merge) ([a-z-]+):", re.MULTILINE)
 GIT = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
 
 
@@ -108,6 +109,19 @@ TEMPLATE_AREAS = [
 
 # GitHub's error body, which `gh api` prints on stdout before exiting 1.
 NOT_FOUND = {"message": "Not Found", "status": "404"}
+# The installation PR's head commit, and the GitHub Actions app id of each process check run.
+HEAD_SHA = "c" * 40
+CHECK_APPS = {"agent-process / quality": 15368, "agent-review / agent-review": 15369}
+AGENT = "agent-bot"
+AGENT_TOKEN = "gho_agent_secret"
+
+
+def check_run(name: str, conclusion: str = "success") -> dict[str, Any]:
+    return {
+        "name": name,
+        "conclusion": conclusion,
+        "app": {"slug": "github-actions", "id": CHECK_APPS[name]},
+    }
 
 
 def list_403(kind: str) -> str:
@@ -186,7 +200,15 @@ class FakeGitHub:
     rule without `type` (change manual-shared-read-helpers). The `Area` options and views
     mutations apply to a Project by node id (change init-replaces-project-areas). The
     `viewerPermission` read answers by the `GH_TOKEN` of its environment from `permissions`;
-    `tokened` logs every call whose environment carries one (change agent-identity-standard-commands)."""
+    `tokened` logs every call whose environment carries one (change agent-identity-standard-commands).
+    `calls` logs every call with its environment. `accounts` are the github.com accounts of
+    `gh auth status` and `tokens` their tokens by login; `rulesets` are served as the
+    `FakeGh` of `test_activate_protection.py` serves them, and the rules of the default branch
+    require their checks too; `check_runs` are the runs on the head of every PR, `callers`
+    whether both process callers are on the default branch; a collaborator `PUT` opens an
+    invitation the invitee's token lists and accepts, which makes its permission `WRITE`;
+    `project_writers` are the logins with the Project's `WRITER` role (change
+    init-runs-post-merge-steps)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process")
@@ -207,6 +229,14 @@ class FakeGitHub:
         self.required_checks: list[str] = []
         self.permissions = {"agent-token": "WRITE"}
         self.tokened: list[tuple[str, list[str]]] = []
+        self.calls: list[tuple[list[str], dict[str, str] | None]] = []
+        self.accounts = [{"login": OWNER, "active": True}]
+        self.tokens: dict[str, str] = {}
+        self.rulesets: dict[int, dict[str, Any]] = {}
+        self.check_runs = [check_run(name) for name in CHECK_APPS]
+        self.callers = True
+        self.invitations: list[dict[str, Any]] = []
+        self.project_writers: set[str] = set()
 
     def issue(self, title: str, state: str = "OPEN") -> dict[str, Any]:
         issue = {"number": self._item(), "title": title, "state": state, "body": ""}
@@ -246,6 +276,12 @@ class FakeGitHub:
         token = (env or {}).get("GH_TOKEN")
         if token:
             self.tokened.append((token, args))
+        self.calls.append((args, env))
+        return self._post_merge(args, token) or self._route(args, input, token)
+
+    def _route(
+        self, args: list[str], input: str | None, token: str | None
+    ) -> subprocess.CompletedProcess[str]:
         if args[:2] == ["api", "graphql"] and "viewerPermission" in args[-1]:
             return self._permission(args, token)
         if args[0] == "api" and args[1].startswith(f"repos/{OWNER}/{REPO_NAME}"):
@@ -259,12 +295,145 @@ class FakeGitHub:
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
 
     def _permission(self, args: list[str], token: str | None) -> subprocess.CompletedProcess[str]:
-        """The token's `viewerPermission` on the consumer, as GitHub answers it."""
+        """The token's `viewerPermission` on the consumer, as GitHub answers it, and with
+        `viewerCanUpdate` asked the token's `viewer` id and its Project role."""
         assert f"owner={OWNER}" in args and f"name={REPO_NAME}" in args, args
         if token not in self.permissions:
             return _done(args, None, code=1, err="HTTP 401: Bad credentials\n")
-        permission = self.permissions[token]
-        return _done(args, {"data": {"repository": {"viewerPermission": permission}}})
+        data: dict[str, Any] = {"repository": {"viewerPermission": self.permissions[token]}}
+        if "viewerCanUpdate" in args[-1]:
+            (login,) = [name for name, value in self.tokens.items() if value == token]
+            data["viewer"] = {"id": f"U_{login}"}
+            data["repositoryOwner"] = {
+                "projectV2": {"viewerCanUpdate": login in self.project_writers}
+            }
+        return _done(args, {"data": data})
+
+    def _post_merge(
+        self, args: list[str], token: str | None
+    ) -> subprocess.CompletedProcess[str] | None:
+        """The calls of the post-merge steps (change init-runs-post-merge-steps), else None."""
+        graphql = args[:2] == ["api", "graphql"]
+        if args[0] == "auth":
+            handler = self._auth
+        elif args[:2] == ["repo", "edit"]:
+            handler = self._auto_merge
+        elif args[:2] in (["pr", "view"], ["pr", "edit"]):
+            handler = self._pull
+        elif graphql and "nameWithOwner" in args[-1]:
+            handler = self._callers
+        elif graphql and "updateProjectV2Collaborators" in args[-1]:
+            handler = self._project_role
+        elif args[0] == "api" and not graphql and not self._legacy_read(args):
+            return self._rest(args, token)
+        else:
+            return None
+        return handler(args)
+
+    def _auto_merge(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        assert args[2:] == [f"{OWNER}/{REPO_NAME}", "--enable-auto-merge"], args
+        self.allow_auto_merge = True
+        return _done(args)
+
+    def _pull(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """`gh pr view <N> --json headRefOid,baseRefName` and `gh pr edit <N> --repo R --body B`."""
+        (pull,) = [p for p in self.pulls if p["number"] == int(args[2])]
+        if args[1] == "view":
+            assert args[3:] == ["--json", "headRefOid,baseRefName"], args
+            return _done(args, {"headRefOid": HEAD_SHA, "baseRefName": pull["base"]})
+        assert args[3:6] == ["--repo", f"{OWNER}/{REPO_NAME}", "--body"] and len(args) == 7, args
+        pull["body"] = args[6]
+        return _done(args, out=pull["url"] + "\n")
+
+    def _callers(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """The preflight read of `activate_protection`: both process callers on the default branch."""
+        blob = {"__typename": "Blob"} if self.callers else None
+        read = {
+            "nameWithOwner": f"{OWNER}/{REPO_NAME}",
+            "defaultBranchRef": {"name": self.default_branch},
+        }
+        return _done(args, {"data": {"repository": {**read, "object": blob, "review": blob}}})
+
+    def _project_role(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        fields = dict(part.split("=", 1) for part in args[3:-1:2])
+        assert "role:WRITER" in args[-1] and fields["user"].startswith("U_"), args
+        self.project_writers.add(fields["user"].removeprefix("U_"))
+        return _done(args, {"data": {"updateProjectV2Collaborators": {"clientMutationId": None}}})
+
+    def _auth(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        """`gh auth status --json hosts` and `gh auth token --user <login>`."""
+        if args[1] == "status":
+            assert args[2:] == ["--json", "hosts"], args
+            hosts = [
+                {**account, "host": "github.com", "state": "success"} for account in self.accounts
+            ]
+            return _done(args, {"hosts": {"github.com": hosts}})
+        assert args[1:3] == ["token", "--user"] and len(args) == 4, args
+        if args[3] not in self.tokens:
+            return _done(args, code=1, err=f"no oauth token found for {args[3]}\n")
+        return _done(args, out=self.tokens[args[3]] + "\n")
+
+    def _legacy_read(self, args: list[str]) -> bool:
+        """`repos/<owner>/<name>` and its default branch's rules, which `_repo_read` serves."""
+        repo = f"repos/{OWNER}/{REPO_NAME}"
+        return args in (["api", repo], ["api", f"{repo}/rules/branches/{self.default_branch}"])
+
+    def _rest(self, args: list[str], token: str | None) -> subprocess.CompletedProcess[str]:
+        """The rulesets, check runs, collaborator and invitation endpoints."""
+        repo = f"repos/{OWNER}/{REPO_NAME}"
+        method, endpoint = "GET", next(arg for arg in args[1:] if not arg.startswith("-"))
+        if "-X" in args:
+            method, endpoint = args[args.index("-X") + 1 : args.index("-X") + 3]
+        if (method, endpoint) == ("GET", f"{repo}/rulesets"):
+            assert "--paginate" in args and "--slurp" in args, args
+            keys = ("id", "name", "source_type")
+            return _done(args, [[{key: r[key] for key in keys} for r in self.rulesets.values()]])
+        if method in {"POST", "PUT"} and endpoint.startswith(f"{repo}/rulesets"):
+            body = json.loads(Path(args[args.index("--input") + 1]).read_text(encoding="utf-8"))
+            ruleset_id = (
+                int(endpoint.rsplit("/", 1)[1]) if method == "PUT" else 1000 + len(self.rulesets)
+            )
+            self.rulesets[ruleset_id] = {**body, "id": ruleset_id, "source_type": "Repository"}
+            return _done(args, self.rulesets[ruleset_id])
+        if method == "GET" and endpoint.startswith(f"{repo}/rulesets/"):
+            return _done(args, self.rulesets[int(endpoint.rsplit("/", 1)[1])])
+        prefix = f"{repo}/commits/{HEAD_SHA}/check-runs?check_name="
+        if method == "GET" and endpoint.startswith(prefix):
+            runs = [
+                run
+                for run in self.check_runs
+                if run["name"] == unquote(endpoint.removeprefix(prefix))
+            ]
+            return _done(args, {"total_count": len(runs), "check_runs": runs})
+        return self._invitations(args, token, method, endpoint)
+
+    def _invitations(
+        self, args: list[str], token: str | None, method: str, endpoint: str
+    ) -> subprocess.CompletedProcess[str]:
+        """A collaborator `PUT` and the invitee's `user/repository_invitations`."""
+        if method == "PUT" and endpoint.startswith(f"repos/{OWNER}/{REPO_NAME}/collaborators/"):
+            assert args[-2:] == ["-f", "permission=push"], args
+            invitation = {"id": 500 + len(self.invitations), "login": endpoint.rsplit("/", 1)[1]}
+            self.invitations.append(invitation)
+            return _done(args, {"id": invitation["id"]})
+        login = next((name for name, value in self.tokens.items() if value == token), None)
+        if (method, endpoint) == ("GET", "user/repository_invitations"):
+            full_name = {"full_name": f"{OWNER}/{REPO_NAME}"}
+            mine = [
+                {"id": i["id"], "repository": full_name}
+                for i in self.invitations
+                if i["login"] == login
+            ]
+            return _done(args, mine)
+        if method == "PATCH" and endpoint.startswith("user/repository_invitations/"):
+            (accepted,) = [
+                i for i in self.invitations if i["id"] == int(endpoint.rsplit("/", 1)[1])
+            ]
+            assert accepted["login"] == login, (args, login)
+            self.invitations.remove(accepted)
+            self.permissions[str(token)] = "WRITE"
+            return _done(args)
+        raise AssertionError(f"unexpected gh api call: {args}")
 
     def _repo_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         """`gh api repos/<owner>/<name>` and `.../rules/branches/<default>`."""
@@ -278,7 +447,14 @@ class FakeGitHub:
         if not rules:
             read = {"name": REPO_NAME, "default_branch": self.default_branch}
             return _done(args, {**read, "allow_auto_merge": self.allow_auto_merge})
-        checks = [{"context": context} for context in self.required_checks]
+        ruled = [
+            check["context"]
+            for ruleset in self.rulesets.values()
+            for rule in ruleset["rules"]
+            if rule["type"] == "required_status_checks"
+            for check in rule["parameters"]["required_status_checks"]
+        ]
+        checks = [{"context": context} for context in [*self.required_checks, *ruled]]
         rule = {"type": "required_status_checks", "parameters": {"required_status_checks": checks}}
         return _done(args, [rule] if checks else [])
 
@@ -325,8 +501,8 @@ class FakeGitHub:
             return _done(args, out=f"https://github.com/{OWNER}/{REPO_NAME}/issues/{number}\n")
         if args[:2] == ["pr", "list"]:
             fields, state = flags.pop("--json").split(","), flags.pop("--state")
-            assert set(flags) == {"--head"} and state in {"open", "all"}, args
-            assert set(fields) <= {"number", "state", "url"}, args
+            assert set(flags) == {"--head"} and state in {"open", "all", "merged"}, args
+            assert set(fields) <= {"number", "state", "url", "body"}, args
             listed = [
                 {name: p[name] for name in fields}
                 for p in self.pulls
@@ -559,6 +735,14 @@ def local_settings(sb: Sandbox, token: str = "agent-token", *, text: str | None 
     with (sb.root / ".git" / "info" / "exclude").open("a", encoding="utf-8") as exclude:
         exclude.write("\n/.claude/settings.local.json\n")
     path.write_text(text or json.dumps({"env": {"GH_TOKEN": token}}), encoding="utf-8")
+
+
+def agent_account(sb: Sandbox, login: str = AGENT, token: str = AGENT_TOKEN) -> None:
+    """A github.com account besides the person in `gh auth status`, with `token`, which reads
+    the consumer as an outside collaborator does until it accepts an invitation."""
+    sb.github.accounts.append({"login": login, "active": False})
+    sb.github.tokens[login] = token
+    sb.github.permissions.setdefault(token, "READ")
 
 
 def which(name: str) -> str | None:
