@@ -17,8 +17,8 @@
 
 ## 3. Procedure and records
 
-- [ ] 3.1 In `skills/agent-process/SKILL.md` Install: step 2 names `--agent` only for `conflict agent`; step 3 confirms every dry-run that exits 0 unasked, the merge being the consent, runs `gh pr merge --auto` only when `approval-ruleset` and `auto-merge` read `unchanged`, and drops "Ask once"; step 4 drops the `protection`, `agent-identity` and `auto-merge` rows from the person's list and runs step 5 unasked on `MERGED`; steps 5–6 become step 5 (`init --confirm` with the same arguments, `gh auth setup-git`, the person restarts when `agent-token` was written); verify `grep -n "step 6\|activate_protection --pr" skills/agent-process/SKILL.md` prints nothing and `python -m pytest tests/publisher/test_planning_workflow.py -q` is green
-- [ ] 3.2 Amend ADR 0040 D1, D6, D7, its deletion condition and its Confirmation per design D1–D7; verify `grep -n "step 6" .agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md` prints nothing, then commit the group with its ticks
+- [x] 3.1 In `skills/agent-process/SKILL.md` Install: step 2 names `--agent` only for `conflict agent`; step 3 confirms every dry-run that exits 0 unasked, the merge being the consent, runs `gh pr merge --auto` only when `approval-ruleset` and `auto-merge` read `unchanged`, and drops "Ask once"; step 4 drops the `protection`, `agent-identity` and `auto-merge` rows from the person's list and runs step 5 unasked on `MERGED`; steps 5–6 become step 5 (`init --confirm` with the same arguments, `gh auth setup-git`, the person restarts when `agent-token` was written); verify `grep -n "step 6\|activate_protection --pr" skills/agent-process/SKILL.md` prints nothing and `python -m pytest tests/publisher/test_planning_workflow.py -q` is green
+- [x] 3.2 Amend ADR 0040 D1, D6, D7, its deletion condition and its Confirmation per design D1–D7; verify `grep -n "step 6" .agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md` prints nothing, then commit the group with its ticks
 
 ## 4. Verify
 

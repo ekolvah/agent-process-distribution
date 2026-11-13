@@ -29,14 +29,15 @@ standard gate, which GitHub's own coding agent relies on.
 
 * **D1 — the bot.** The person creates a machine account and adds it to `gh`
   (`gh auth login -s project,workflow`, then `gh auth switch --user <person>`).
-  Install step 6 is a runbook of standard commands: the person invites the bot as a write
-  collaborator, adds it as Writer of the linked Project and creates the ruleset of D2. The one
-  observed failure is checked by `init`'s `manual agent-identity` row: it reads the
-  `viewerPermission` of the clone's token, with that token, and stays outstanding unless it is
-  `WRITE` or `MAINTAIN` — the person's token, which created the ruleset, is `ADMIN`; a
-  non-collaborator's is `READ`. The other steps fail visibly: a missing Project role at the
-  agent's first `set_status`; a missing ruleset is caught by nothing in a consumer, and a PR
-  there auto-merges on green checks.
+  `init` finds the bot as the one `gh auth status` account that is not active (`--agent`
+  chooses among several) and, once the installation PR is merged, writes its steps, each
+  classified from a read: the bot invited as a write collaborator and its invitation accepted
+  with its token, the bot made Writer of the linked Project, the ruleset of D2, auto-merge,
+  and its token in the clone (D3). Before the merge they print `after-merge` and the PR's
+  body lists them, so the merge is the person's consent. The collaborator step is done when
+  the `viewerPermission` read with the bot's token is `WRITE` or `MAINTAIN` — the person's
+  token is `ADMIN`; a non-collaborator's is `READ`. Without a bot account `init`'s
+  `manual agent-identity` row names Prepare's login.
 * **D2 — the gate.** The ruleset `agent-process person approves` on the default branch requires
   one approving review and dismisses stale reviews on push; its bypass list is empty. GitHub
   does not count the author's approval, so the bot cannot approve its own PR, and a bot push
@@ -48,8 +49,9 @@ standard gate, which GitHub's own coding agent relies on.
 * **D3 — the token in the clone.** `GH_TOKEN` goes into the clone's git-ignored
   `.claude/settings.local.json`, which Claude Code applies to the session's `Bash` calls; at
   user scope it would replace the person's token in every repository; Claude Code git-ignores
-  the file when it creates it. The person copies the token from `gh auth token --user <bot>`,
-  so it never passes through the chat. Git reaches it through `gh auth setup-git`, run once
+  the file when it creates it. `init` writes the token from `gh auth token --user <bot>` into
+  it, keeping its other keys, and prints only the path, so the token never passes through the
+  chat; a file git does not ignore is a `conflict`. Git reaches it through `gh auth setup-git`, run once
   per machine: the global `credential.https://github.com.helper` reset to the empty value,
   then `gh auth git-credential`, which answers with the session's `GH_TOKEN` and outside a
   session with `gh`'s active account, the person. A session started inside a worktree under `.claude/worktrees/`
@@ -69,14 +71,15 @@ standard gate, which GitHub's own coding agent relies on.
   which the bot cannot see: GitHub returns `bypass_actors: null` to a non-admin. Its `gh` calls
   drop `GH_TOKEN` and `GITHUB_TOKEN` and run as `gh`'s stored active account, the fallback the
   Consequences below accept, used on purpose behind `--dry-run` and the person's yes to
-  `--confirm`. The per-repository commands of Install step 6 run as the person because step 6
-  runs before the restart that gives the session the bot's token; run later, they fail with
-  403. In this repository the launcher runs the checkout's own scripts, so
+  `--confirm`. `init`'s post-merge steps reuse it, and run their other person-side calls the
+  same way, so they succeed from a session already holding the bot's token; the bot's own
+  calls, the invitation's acceptance and the reads that check it, carry its token. In this repository the launcher runs the checkout's own scripts, so
   `.claude/settings.json` makes each `--confirm` run ask the person, auto mode included.
 * **D7 — the approval merges.** Right after `gh pr create` the agent runs
   `gh pr merge <PR> --auto --squash`; the approval ruleset holds the PR, so the person's
-  approval merges it. Install has the person run `gh repo edit --enable-auto-merge`, off by
-  default on GitHub. No check of the agent's own guards auto-merge: in a repository without
+  approval merges it. `init` runs `gh repo edit --enable-auto-merge`, off by default on
+  GitHub, only after the approval ruleset, and Install runs `gh pr merge --auto` on the
+  installation PR only when both read `unchanged`. No check of the agent's own guards auto-merge: in a repository without
   the ruleset it would merge on checks alone, and the ruleset is the barrier. An approval during the review loop
   merges the PR; `wait_for_pr` reads the PR's state with its head and exits 4 on a PR no longer
   open. A merge during the wait stops the loop before the fix; a push already made after the
@@ -96,19 +99,22 @@ standard gate, which GitHub's own coding agent relies on.
 
 ### Deletion condition
 
-Remove the bot, its token and Install step 6 when local Claude Code gets a session-scoped
-GitHub credential, as cloud sessions do; the ruleset stays.
+Remove the bot, its token and `init`'s `agent-*` post-merge steps when local Claude Code gets
+a session-scoped GitHub credential, as cloud sessions do; the ruleset stays.
 
 ### Confirmation
 
-`tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual` and
-`::test_agent_identity_holds` hold the check of D1,
+`tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual`,
+`::test_agent_identity_holds`, `::test_agent_account`, `::test_agent_account_ambiguous` and
+`::test_post_merge_steps_are_written` hold D1, the last also D3 and D6,
 `tests/publisher/test_activate_protection.py::test_approval_ruleset_body` D2,
 `tests/publisher/test_activate_protection.py::test_a_clone_with_the_agent_identity` D6,
 `tests/publisher/test_skill_check.py::test_identity_missing` the marker of D5, and
 `tests/publisher/test_reusable_workflows.py::test_release_workflow_approves_and_enables_auto_merge`
 D4, `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` and
-`tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` D7. Live: after Install step 6, the
+`tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` and
+`tests/publisher/test_planning_workflow.py::test_upgrade_approval_is_its_consent` D7. Live:
+after Install step 5, the
 agent's green PR reads `REVIEW_REQUIRED`, and the merge API
 called with the bot's token is refused.
 
