@@ -855,6 +855,40 @@ CHECK_COMMAND = (
     f"https://github.com/ekolvah/agent-process-distribution/blob/v{CURRENT}/skills/agent-process/SKILL.md#install"
 )
 CHECK_GROUP = {"hooks": [{"type": "command", "command": CHECK_COMMAND}]}
+ATTRIBUTION = f"vcs.repository.name={OWNER}/{REPO_NAME},vcs.repository.url.full=https://github.com/{OWNER}/{REPO_NAME}"
+
+
+def fresh_settings() -> dict[str, Any]:
+    """The owned keys a fresh install writes into `.claude/settings.json`."""
+    return {
+        "extraKnownMarketplaces": {
+            MARKETPLACE: {
+                "source": {
+                    "source": "github",
+                    "repo": "ekolvah/agent-process-distribution",
+                    "ref": "stable",
+                },
+                "autoUpdate": True,
+            }
+        },
+        "hooks": {"SessionStart": [CHECK_GROUP]},
+    }
+
+
+def project_settings(sb: Sandbox, data: Any, text: str | None = None) -> Path:
+    """The consumer's `.claude/settings.json`, `data` in the form `init` writes unless `text`
+    is given, committed and pushed."""
+    path = sb.root / ".claude" / "settings.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(text or json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    commit_seed(sb)
+    return path
+
+
+def user_settings(sb: Sandbox, text: str) -> None:
+    """This machine's `~/.claude/settings.json`."""
+    (sb.home / ".claude").mkdir(exist_ok=True)
+    (sb.home / ".claude" / "settings.json").write_text(text, encoding="utf-8")
 
 
 def pins() -> dict[str, str]:

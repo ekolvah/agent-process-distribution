@@ -511,13 +511,7 @@ def _json_object(path: Path) -> tuple[str | None, dict[str, Any]]:
     return text, data
 
 
-def _json_text(data: dict[str, Any]) -> str:
-    """The form JSON settings are written in. Re-serialising is lossless only from this form; any
-    other form (spacing, key order, escapes, repeated keys) is the person's to edit."""
-    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-
-
-def _settings_text(ctx: Context) -> tuple[str | None, str]:
+def _settings_text(ctx: Context, repo: str) -> tuple[str | None, str]:
     text, data = _json_object(ctx.root / SETTINGS)
     wanted = _render_settings(ctx.version)
     for key in ("extraKnownMarketplaces", "enabledPlugins"):
@@ -530,15 +524,16 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     market = marketplaces.get(MARKETPLACE)
     if MARKETPLACE in marketplaces:
         source = market.get("source") if isinstance(market, dict) else None
-        repo = source.get("repo") if isinstance(source, dict) else None
-        if repo != GITHUB_REPO:
-            raise Conflict(f"`{MARKETPLACE}` names {repo!r}, not {GITHUB_REPO}")
+        named = source.get("repo") if isinstance(source, dict) else None
+        if named != GITHUB_REPO:
+            raise Conflict(f"`{MARKETPLACE}` names {named!r}, not {GITHUB_REPO}")
     if plugins.get(PLUGIN, True) is not True:
         raise Conflict(f"`{PLUGIN}` is set to {json.dumps(plugins[PLUGIN])}")
     entry = wanted["extraKnownMarketplaces"][MARKETPLACE]
-    if market == entry and PLUGIN not in plugins and starts == new_starts:
+    attribution = manual.pending_attribution(_target(ctx, repo))
+    if market == entry and PLUGIN not in plugins and starts == new_starts and not attribution:
         return text, text or ""
-    if text is not None and text != _json_text(data):
+    if text is not None and text != manual.json_text(data):
         raise Conflict(
             f'is not in the form init writes; add `"extraKnownMarketplaces": {{"{MARKETPLACE}":'
             f" {json.dumps(entry)}}}` and the `hooks.SessionStart` group {json.dumps(group)},"
@@ -547,7 +542,9 @@ def _settings_text(ctx: Context) -> tuple[str | None, str]:
     updated = _without_plugin(data)
     updated["extraKnownMarketplaces"] = {**marketplaces, MARKETPLACE: entry}
     updated["hooks"] = {**hooks, "SessionStart": new_starts}
-    return text, _json_text(updated)
+    if attribution:
+        updated["env"] = {**data.get("env", {}), manual.ATTRIBUTION: attribution}
+    return text, manual.json_text(updated)
 
 
 def _without_plugin(data: dict[str, Any]) -> dict[str, Any]:
@@ -640,7 +637,7 @@ def _seeds_quality(root: Path) -> bool:
     return text is None or not text.strip()
 
 
-def _consumer_steps(ctx: Context) -> list[Step]:
+def _consumer_steps(ctx: Context, repo: str) -> list[Step]:
     seed = _seeds_quality(ctx.root)
     return [
         _openspec(ctx),
@@ -651,7 +648,7 @@ def _consumer_steps(ctx: Context) -> list[Step]:
         _file_step(ctx, "dependabot", DEPENDABOT, _dependabot_text),
         *([_file_step(ctx, "quality", quality.DECLARATION, _quality_text)] if seed else []),
         _file_step(ctx, "pre-commit", PRE_COMMIT, _pre_commit_text),
-        _file_step(ctx, "settings", SETTINGS, _settings_text),
+        _file_step(ctx, "settings", SETTINGS, lambda c: _settings_text(c, repo)),
         _file_step(ctx, "check", CHECK, _copied_text(CHECK, TEMPLATES / "skill_check.py")),
         _file_step(ctx, "rules", RULES, _copied_text(RULES, ALWAYS_ON, f"{MANAGED}\n\n")),
     ]
@@ -929,8 +926,8 @@ def _run(
                 str(tree),
             )
             return _hand_off(ctx, argv, tree)
-    consumer = _consumer_steps(ctx)
     owner, name, default, linked = _repository(ctx)
+    consumer = _consumer_steps(ctx, f"{owner}/{name}")
     empty = not default
     if empty:
         default = _settings_default(ctx, owner, name)

@@ -23,9 +23,9 @@ from typing import Any, Callable
 import pytest
 
 from tests.publisher.init_harness import (
+    ATTRIBUTION,
     BASE_VIEWS,
     BRANCH,
-    CHECK_GROUP,
     CONSUMER_FILES,
     CURRENT,
     HOST,
@@ -44,12 +44,15 @@ from tests.publisher.init_harness import (
     area_filter,
     empty_origin,
     empty_repository,
+    fresh_settings,
     git,
     install,
     load_init,
     local_settings,
+    project_settings,
     snapshot,
     transitions,
+    user_settings,
     view,
     which,
 )
@@ -81,19 +84,7 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
     changed = git("diff", "--name-only", "main..HEAD", cwd=sandbox.root)
     assert set(changed.splitlines()) == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
     settings = json.loads((sandbox.root / ".claude" / "settings.json").read_text(encoding="utf-8"))
-    assert settings == {
-        "extraKnownMarketplaces": {
-            MARKETPLACE: {
-                "source": {
-                    "source": "github",
-                    "repo": "ekolvah/agent-process-distribution",
-                    "ref": "stable",
-                },
-                "autoUpdate": True,
-            }
-        },
-        "hooks": {"SessionStart": [CHECK_GROUP]},
-    }
+    assert settings == {**fresh_settings(), "env": {"OTEL_RESOURCE_ATTRIBUTES": ATTRIBUTION}}
 
 
 AREA_WRITES = (
@@ -609,6 +600,8 @@ def test_observed_manual_rows_are_omitted(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
 ) -> None:
     """Scenario: Observed done."""
+    attribution = f"service.version=1, vcs.repository.name={CONSUMER}"
+    project_settings(sandbox, {"env": {"OTEL_RESOURCE_ATTRIBUTES": attribution}})
     sandbox.github.secrets.update({"CLAUDE_CODE_OAUTH_TOKEN", "GRAFANA_SERVICE_ACCOUNT_TOKEN"})
     sandbox.github.variables["GRAFANA_URL"] = "https://stack.grafana.net"
     project = sandbox.github.add(linked=CONSUMER)
@@ -633,14 +626,10 @@ def test_observed_manual_rows_are_omitted(
     assert transitions(out)["pre-push"] == "unchanged", out
 
 
-def _user_settings(sb: Sandbox, text: str) -> None:
-    (sb.home / ".claude" / "settings.json").write_text(text, encoding="utf-8")
-
-
 @pytest.mark.parametrize(
     ("settings", "known", "row"), [(True, None, False), (False, True, True), (None, True, False)]
 )
-def test_plugin_channel_reads_user_settings(
+def test_plugin_channel_readsuser_settings(
     sandbox: Sandbox,
     capfd: pytest.CaptureFixture[str],
     settings: bool | None,
@@ -651,7 +640,7 @@ def test_plugin_channel_reads_user_settings(
     `marketplace add` leaves."""
     _plugin_files(sandbox, auto_update=known)
     entry = {} if settings is None else {"autoUpdate": settings}
-    _user_settings(sandbox, json.dumps({"extraKnownMarketplaces": {MARKETPLACE: entry}}))
+    user_settings(sandbox, json.dumps({"extraKnownMarketplaces": {MARKETPLACE: entry}}))
     init = load_init()
     assert install(init, sandbox, "--dry-run") == 0
     manual = _manual_rows(capfd.readouterr().out)
@@ -662,7 +651,7 @@ def test_plugin_channel_reads_user_settings(
 
 def _user_settings_malformed(sb: Sandbox) -> None:
     _plugin_files(sb)
-    _user_settings(sb, "not json")
+    user_settings(sb, "not json")
 
 
 # --- the areas transition ---------------------------------------------------------------
@@ -780,11 +769,15 @@ def _malformed_plugin(sb: Sandbox) -> None:
     (_plugin_files(sb) / "known_marketplaces.json").write_text("not json", encoding="utf-8")
 
 
-UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], None], list[str]]] = {
+UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], object], list[str]]] = {
     "secret-403": ("--dry-run", _fault("secret-list"), ["review-secret", "task-readings"]),
     "variable-403": ("--dry-run", _fault("variable-list"), ["task-readings"]),
     "plugin-malformed": ("--dry-run", _malformed_plugin, ["plugin-channel"]),
-    "user-settings-malformed": ("--dry-run", _user_settings_malformed, ["plugin-channel"]),
+    "user-settings-malformed": (
+        "--dry-run",
+        _user_settings_malformed,
+        ["plugin-channel", "telemetry-attribution"],
+    ),
     "project-read": ("--confirm", _fault("project-read"), list(PROJECT_ROWS)),
     "repo-read": ("--dry-run", _fault("repo-read"), ["protection", "auto-merge"]),
     "rules-read": ("--dry-run", _fault("rules-read"), ["protection"]),
@@ -797,6 +790,16 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], None], list[str]]] = {
         "--dry-run",
         lambda sb: local_settings(sb, text='{"env": []}'),
         ["agent-identity"],
+    ),
+    "project-settings-shape": (
+        "--dry-run",
+        lambda sb: project_settings(sb, {"env": []}),
+        ["telemetry-attribution"],
+    ),
+    "project-settings-value": (
+        "--dry-run",
+        lambda sb: project_settings(sb, {"env": {"OTEL_RESOURCE_ATTRIBUTES": 1}}),
+        ["telemetry-attribution"],
     ),
 }
 

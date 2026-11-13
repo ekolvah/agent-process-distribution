@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 4,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All five round-3 findings are answered. check_red now gets only tests that fail before the change, and the guards run green. The vcs-only exemption is dropped on an observation. D5 names the repository data flow and contains Unreadable. D4 reads done first, with a guard test. The spec condition is unambiguous, and Observed done changes only its settings clause.",
+  "classes": {
+    "simpler": {
+      "evidence": "Designs rejected: (a) the row alone, by D1 (the person chose the write; a row adds a step while sessions run unlabelled); (b) always writing, by the observed precedence (telemetry-measurement-setup.md:373-380); (c) adding the key to a hand-formatted file, by D4, because _settings_text (init.py:539-546) would turn today's `unchanged` into a conflict; (d) merging the machine's pairs into the committed value, which would commit one person's pairs to a shared file. Round 3's speculative vcs-only exemption is gone (D3), so D3 is now the simplest guard: any machine value blocks.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Attribution written -> test_attribution_is_written (1.2), test_installed_footprint_is_closed (1.8). Machine attribution kept -> test_machine_attribution_is_kept (1.3, environment and user-settings cases). Another repository's attribution -> test_other_repository_attribution_is_manual (1.4). Settings in another form -> test_hand_formatted_settings_is_manual (1.5), plus the done-first guard in test_update_keeps_consumer_bytes (1.6). Observed done -> test_observed_manual_rows_are_omitted, marked as a guard (1.6). Unreadable state -> the UNREADABLE cases user-settings-malformed, project-settings-shape and project-settings-value plus test_malformed_project_settings_is_printed (1.7). Every scenario has a test.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "1.9 gives check_red only tests that fail before the change. 1.2: no env is written today. 1.3, both cases: no row today. 1.4 and 1.5: no row (1.5's file takes today's early return, so `unchanged` holds and the row assert fails). test_malformed_project_settings_is_printed: it exits 2 today, but the row is absent. test_installed_footprint_is_closed: the expected dict gains env. The three parametrized UNREADABLE ids: no telemetry-attribution row. The guards of 1.6 run green and stay outside check_red, as check_red.py:36 requires. 1.1 moves the delenv into the autouse `_no_session` (conftest.py:91-95), so test_init.py's own sandboxes are hermetic too. 2.2's verify runs test_init.py, which carries the interrupt/resume test (:209-232) and is the suite that would expose the step reorder. Existing tests checked against the write: test_init_config's merge test checks keys (:139-151); the hand-formatted and conflict re-runs follow `_installed`, so the pair is done there; every CONFLICTS case fails in `_json_object`/`_read` or on the repository/plugin checks (init.py:521-537) before the attribution matters.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Why: the adopter's Prometheus series lack `vcs_repository_name` (issue 475 observation). Standard approach: the OTel `key1=value1,key2=value2` format behind D2, and the Claude Code settings precedence page (project settings above user settings) behind D1. Settings env over process env: telemetry-measurement-setup.md:373-380 and ADR 0026:80-83. D3 now records the observation (2026-11-12, a main session of this repository: Bash prints OTEL_RESOURCE_ATTRIBUTES unset although .claude/settings.json sets it). This review saw the same in its own session: every OTEL_* key of ~/.claude/settings.json was missing from the Bash environment while the CLAUDE_CODE_* keys were present. The `.claude/settings.local.json` precedence is now an accepted Risk. Every behaviour the design rests on is observed or cited.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "The settings render gains the consumer repository, os.environ and ~/.claude/settings.json as inputs. D5 and 2.2 name the repository's source: `_repository(ctx)` moves from after `_consumer_steps` (init.py:932-933) to before it, and `<owner>/<name>` is passed to the render, which reads `attribution` through `_target(ctx, repo)` (init.py:808-822). `manual.Unreadable` is treated as left, so nothing but `Conflict` reaches `_file_step` (init.py:611, :620). The early-return guard (init.py:539-540) is kept, with the added condition 'attribution done or left', so a hand-formatted file that needs nothing else stays `unchanged`. `_identity_pending` (manual.py:233) is named correctly, and its None/{}/Unreadable contract moves into `_settings_env` intact. The existing settings-malformed and settings-shape UNREADABLE cases still guard it.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The catcher is the `manual telemetry-attribution` row. `_manual` (init.py:962-964) prints it after the writes on every dry-run and confirmed run, conflicting runs included, while the attribution is blocked or unreadable; 1.3-1.5 and 1.7 test it. The false-positive path, a done file in another form getting a row, is closed by D4's order ('the file is done → nothing else is read and nothing is blocked'), and the 1.6 assertion in test_update_keeps_consumer_bytes guards it. The remaining losses, pairs set only in a later session's environment and a value in a clone's local settings, are accepted risks with no catcher claimed for them.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The ADDED requirement is now 85 words (91 before). Tests assert the target value (1.2, 1.8), the absent file and the in-form file (1.2), the environment and user-settings values (1.3), another repository's value (1.4), the form reason (1.5), `replaces` (1.3) and the pair parse (1.6). The condition now reads 'absent, or is in the form `init` writes and sets no such variable', with no three-way reading. Scenarios: Attribution written 24+26 words, Machine kept 15+27, Another repository 15+15, Another form 24+21, all asserted. The MODIFIED Observed done differs from openspec/specs/distribution/spec.md:674 only by its settings clause (14 words, asserted by 1.6), and 'private' is kept. The Unreadable state edit (about 20 words) is asserted by 1.7. D6's 51-word row text is printed output; its value, `replaces`, `team=media` and the form reason are asserted.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "## Standard approach cites the OTel Resource SDK format (D2 follows it), the Claude Code settings precedence (D1 rests on it), and this repository's set-up-or-print pattern (ADR 0048, `manual.pre_push`), which D1/D6 follow. That is convincing: no standard tool sets a per-repository settings env value. The plan adds no script or check. `manual.attribution` is one more guarded read beside the existing ones, and `_json_text` moves to `manual.json_text` because manual cannot import init and the form test must share init's definition (init.py:514, 541 and 550 are its only users). D7's 'no new ADR' holds: ADR 0026's decision already had the process render the value, and ADR 0029 only scoped telemetry out of v2.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
