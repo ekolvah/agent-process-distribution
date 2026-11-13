@@ -196,8 +196,9 @@ Then run from the consumer's root:
    branch. Its output ends with the `manual` rows still outstanding; a row with
    `(cannot read: <reason>)` is one `init` could not check. Tell the person to do those rows —
    the `project-*` rows in the Project's UI, the `task-readings` row, printed only when `init`
-   could not set it up from the machine's `grafana` MCP server and naming why, the `pre-push` row, printed only when `init` could
-   not install the hook in this clone and naming why, and the `auto-merge` row; the
+   could not set it up from the machine's `grafana` MCP server and naming why, the `pre-push`
+   row, printed only when `init` could not install the hook in this clone and naming why, and
+   the `auto-merge` row; the
    `protection` row is done in step 5 and the `agent-identity` row in step 6.
    In another clone, each Claude session start reports the missing pre-push hook until its
    person runs the two commands it names. After a run without asking, run
@@ -233,7 +234,8 @@ Then run from the consumer's root:
    Until then each session start prints `agent-process agent identity not set`.
 
 The plugin is installed at user scope, once per machine, by Prepare, and applies in every
-project with no project setting: a project that enables it gets a project-scope install per spelling of its path.
+project with no project setting: a project that enables it gets a project-scope install per
+spelling of its path.
 Claude runs the release the machine last fetched for the marketplace name: the `ref` in
 `.claude/settings.json` does not re-point a marketplace the machine already knows. The
 marketplace follows the branch `stable`, which each release fast-forwards, with auto-update on,
