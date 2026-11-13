@@ -1,6 +1,6 @@
 ## Why
 
-Install's Prepare (`skills/agent-process/SKILL.md#install`) lists the person-only steps before the
+Install's Prepare (Install in `skills/agent-process/SKILL.md`) lists the person-only steps before the
 first `init` — the `gh` logins and the review secret — but not the plugin channel. The person
 meets it only as the `manual plugin-channel` row `init` prints after the installation PR opens
 (`skills/agent-process/scripts/manual.py`, `_plugin_channel`), one more hand-off on the first
