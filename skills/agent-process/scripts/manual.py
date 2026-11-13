@@ -151,7 +151,7 @@ def rows(t: Target) -> list[str]:
         ),
         *_pre_push_row(t),
         *_outstanding(
-            lambda: _protected(t, repo),
+            lambda: _protected(t, _ok(repo)),
             "manual protection: once the installation PR has merged with both process checks "
             "green -- agent-process activate_protection --pr <N> --dry-run with its number, then "
             "with --confirm instead of --dry-run, so the default branch requires "
@@ -214,9 +214,9 @@ def _repository(t: Target) -> dict[str, Any]:
     raise Unreadable(f"`gh api repos/{t.repo}` printed an unexpected shape: {data}")
 
 
-def _protected(t: Target, repo: dict[str, Any] | Unreadable) -> bool:
+def _protected(t: Target, repo: dict[str, Any]) -> bool:
     """The default branch's rules require both process checks."""
-    branch = _ok(repo)["default_branch"]
+    branch = repo["default_branch"]
     rules = _gh_read(t, "api", f"repos/{t.repo}/rules/branches/{branch}")
     try:
         if not isinstance(rules, list):

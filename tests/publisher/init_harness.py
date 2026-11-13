@@ -184,9 +184,9 @@ class FakeGitHub:
     `faults["rules-read"]` make those reads print GitHub's error body and exit 1 (change
     install-reports-post-merge-steps); `faults["rules-shape"]` makes the rules read answer a
     rule without `type` (change manual-shared-read-helpers). The `Area` options and views
-    mutations apply to a Project by node id (change init-replaces-project-areas). The `viewerPermission` read answers
-    by the `GH_TOKEN` of its environment from `permissions`; `tokened` logs every call whose
-    environment carries one (change agent-identity-standard-commands)."""
+    mutations apply to a Project by node id (change init-replaces-project-areas). The
+    `viewerPermission` read answers by the `GH_TOKEN` of its environment from `permissions`;
+    `tokened` logs every call whose environment carries one (change agent-identity-standard-commands)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process")

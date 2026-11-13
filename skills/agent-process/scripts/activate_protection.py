@@ -65,13 +65,14 @@ def contexts() -> list[str]:
 def required_contexts(rules: Any) -> list[str]:
     """The contexts a `rules/branches/<b>` response requires, in rule order without
     duplicates; a malformed shape raises `KeyError` or `TypeError`."""
-    required: list[str] = []
-    for rule in rules:
-        if rule["type"] == "required_status_checks":
-            for check in rule["parameters"]["required_status_checks"]:
-                if str(check["context"]) not in required:
-                    required.append(str(check["context"]))
-    return required
+    return list(
+        dict.fromkeys(
+            str(check["context"])
+            for rule in rules
+            if rule["type"] == "required_status_checks"
+            for check in rule["parameters"]["required_status_checks"]
+        )
+    )
 
 
 def _observed(gh: Gh, repo: str, pr: int, head: str, context: str) -> Check:
