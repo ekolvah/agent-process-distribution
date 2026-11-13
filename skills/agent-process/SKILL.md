@@ -163,6 +163,10 @@ Prepare: in one sitting before the first `init`, the person does what only they 
   (`project`), and the installation push carries `.github/workflows/*` (`workflow`).
 - Run `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and
   paste the token at its prompt, which keeps the token out of the chat.
+- Once per machine, outside any project: `claude plugin marketplace add
+  "ekolvah/agent-process-distribution#stable"`, `claude plugin install
+  agent-process@agent-process-marketplace`, then set `"autoUpdate": true` on that
+  marketplace's entry in `~/.claude/settings.json`.
 
 Then run from the consumer's root:
 
@@ -192,9 +196,7 @@ Then run from the consumer's root:
    branch. Its output ends with the `manual` rows still outstanding; a row with
    `(cannot read: <reason>)` is one `init` could not check. Tell the person to do those rows —
    the `project-*` rows in the Project's UI, the `task-readings` row, printed only when `init`
-   could not set it up from the machine's `grafana` MCP server and naming why, the
-   `plugin-channel` row, once
-   per machine and outside any project, the `pre-push` row, printed only when `init` could
+   could not set it up from the machine's `grafana` MCP server and naming why, the `pre-push` row, printed only when `init` could
    not install the hook in this clone and naming why, and the `auto-merge` row; the
    `protection` row is done in step 5 and the `agent-identity` row in step 6.
    In another clone, each Claude session start reports the missing pre-push hook until its
@@ -230,13 +232,12 @@ Then run from the consumer's root:
 
    Until then each session start prints `agent-process agent identity not set`.
 
-The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude
-plugin install agent-process@agent-process-marketplace`), and applies in every project with no
-project setting: a project that enables it gets a project-scope install per spelling of its path.
+The plugin is installed at user scope, once per machine, by Prepare, and applies in every
+project with no project setting: a project that enables it gets a project-scope install per spelling of its path.
 Claude runs the release the machine last fetched for the marketplace name: the `ref` in
 `.claude/settings.json` does not re-point a marketplace the machine already knows. The
 marketplace follows the branch `stable`, which each release fast-forwards, with auto-update on,
-so a machine that did the `plugin-channel` row gets a release within a session. The plugin's
+so a machine that followed Prepare gets a release within a session. The plugin's
 tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session
 start it installs its own Python dependencies, once per machine and pin set; a failure prints
 `agent-process plugin environment not installed` with the cause, and, in a repository whose
@@ -258,7 +259,5 @@ release, and a restart. It prints `agent-process project-scope install applies` 
 plugin uninstall` command per project-level install of the project, each run from that
 install's path spelling; the person runs them once. A machine still on a
 release tag migrates once, outside any project: set the `ref` of `agent-process-marketplace`
-in `~/.claude/settings.json` to `stable`, run `claude plugin marketplace add
-"ekolvah/agent-process-distribution#stable"`, run `claude plugin install
-agent-process@agent-process-marketplace`, then set `"autoUpdate": true` on its entry in
-`~/.claude/settings.json`, then re-run Install in each repository.
+in `~/.claude/settings.json` to `stable`, do Prepare's plugin step, then re-run Install in each
+repository.

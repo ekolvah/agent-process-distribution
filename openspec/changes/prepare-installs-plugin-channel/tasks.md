@@ -8,7 +8,7 @@
 
 ## 2. Install text
 
-- [ ] 2.1 Per design D1, in `skills/agent-process/SKILL.md` Install add the Prepare bullet, drop the `plugin-channel` item from step 4, make the plugin paragraph say "by Prepare" without its `claude plugin install` copy and "a machine that followed Prepare" for "a machine that did the `plugin-channel` row", and shorten the release-tag migration sentence to Prepare's plugin step; verify `grep -n "plugin-channel" skills/agent-process/SKILL.md` is empty and `python -m pytest tests/publisher/test_planning_workflow.py -q` is green, then commit the group with its ticks
+- [x] 2.1 Per design D1, in `skills/agent-process/SKILL.md` Install add the Prepare bullet, drop the `plugin-channel` item from step 4, make the plugin paragraph say "by Prepare" without its `claude plugin install` copy and "a machine that followed Prepare" for "a machine that did the `plugin-channel` row", and shorten the release-tag migration sentence to Prepare's plugin step; verify `grep -n "plugin-channel" skills/agent-process/SKILL.md` is empty and `python -m pytest tests/publisher/test_planning_workflow.py -q` is green, then commit the group with its ticks
 
 ## 3. Verify
 
