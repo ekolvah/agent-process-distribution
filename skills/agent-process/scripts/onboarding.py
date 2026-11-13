@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from steps import InstallError, Step
@@ -20,7 +20,8 @@ ONBOARDING = ("onboarding-commit", "onboarding-issue", "onboarding-push", "onboa
 class Target:
     """Where the installation PR goes, the process boundary `init` passes — `git` runs in the
     consumer's root, `gh` checks its exit code, `gh_json` parses its output — the issue the
-    PR closes once that is known, and whether `origin` has no commits yet."""
+    PR closes once that is known, whether `origin` has no commits yet, and the `after-merge`
+    lines its body lists as what the merge authorizes."""
 
     version: str
     repo: str
@@ -30,6 +31,15 @@ class Target:
     gh_json: Callable[..., Any]
     issue: int | None = None
     empty: bool = False
+    after_merge: list[str] = field(default_factory=list)
+
+    @property
+    def body(self) -> str:
+        body = f"Closes #{self.issue}\n\nInstalls agent-process {self.version} with its `init.py`."
+        if not self.after_merge:
+            return body
+        listed = "\n".join(f"- {line}" for line in self.after_merge)
+        return f"{body}\n\nIts merge authorizes the next `init --confirm` to write:\n\n{listed}"
 
     @property
     def branch(self) -> str:
@@ -165,7 +175,7 @@ def _branch_exists(to: Target) -> str | None:
 
 def _on_branch(to: Target, planned: bool) -> tuple[list[Step], list[Step]]:
     """On the branch, its PRs decide: a merged one ends the onboarding, a closed one blocks."""
-    fields = ("--head", to.branch, "--state", "all", "--json", "number,state,url")
+    fields = ("--head", to.branch, "--state", "all", "--json", "number,state,url,body")
     pulls = to.listed("pr", "list", *fields)
     if not any(pull.get("state") == "OPEN" for pull in pulls):
         merged = [pull.get("url") for pull in pulls if pull.get("state") == "MERGED"]
@@ -250,15 +260,14 @@ def _push_step(to: Target, committing: Step) -> Step:
 def _pr_step(to: Target, pulls: list[dict[str, Any]]) -> Step:
     opened = [pull for pull in pulls if pull.get("state") == "OPEN"]
     if opened:
-        return Step("onboarding-pr", "unchanged", str(opened[0].get("url")))
+        return _body_step(to, opened[0])
     step = Step("onboarding-pr", "planned", f"{to.branch} -> {to.default}, closing the issue")
 
     def open_pr() -> bool:
         if to.issue is None:
             raise InstallError("the installation PR has no issue to close")
-        body = f"Closes #{to.issue}\n\nInstalls agent-process {to.version} with its `init.py`."
         refs = ("--base", to.default, "--head", to.branch)
-        create = ("create", "--repo", to.repo, *refs, "--title", to.title, "--body", body)
+        create = ("create", "--repo", to.repo, *refs, "--title", to.title, "--body", to.body)
         to.gh("pr", *create)
         listed = to.listed(
             "pr", "list", "--head", to.branch, "--state", "open", "--json", "number,url"
@@ -270,6 +279,20 @@ def _pr_step(to: Target, pulls: list[dict[str, Any]]) -> Step:
 
     step.apply = open_pr
     return step
+
+
+def _body_step(to: Target, pull: dict[str, Any]) -> Step:
+    """The open PR, its body rewritten while it lists other `after-merge` lines."""
+    url = str(pull.get("url"))
+    if to.issue is None or pull.get("body") == to.body:
+        return Step("onboarding-pr", "unchanged", url)
+
+    def edit() -> bool:
+        to.gh("pr", "edit", str(pull.get("number")), "--repo", to.repo, "--body", to.body)
+        return True
+
+    detail = f"{url}: its body to list the {len(to.after_merge)} writes its merge authorizes"
+    return Step("onboarding-pr", "planned", detail, edit)
 
 
 if __name__ == "__main__":

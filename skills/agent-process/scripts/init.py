@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Install the agent process into the consumer repository at the current directory.
 
-Usage: python init.py [--version <x.y.z>] [--area <name>]... (--dry-run | --confirm)
+Usage: python init.py [--version <x.y.z>] [--area <name>]... [--agent <login>]
+                      (--dry-run | --confirm)
 
 The requested release owns its run. With `--version` equal to `VERSION` this file runs
 itself; otherwise it clones the requested tag into a temporary directory, removed afterwards,
@@ -10,8 +11,9 @@ and runs that tree's `init.py`, forwarding its output and exit code; `--confirm`
 `VERSION` differs from the requested version exits 1 instead of recursing. Nothing is written
 in the user profile.
 
-A run first classifies every transition from observed state — `planned`, `unchanged`, or
-`conflict` — and prints one line per transition. Any conflict exits 2 before the first
+A run first classifies every transition from observed state — `planned`, `unchanged`,
+`after-merge` (steps 23-28 before the installation PR is merged), or `conflict` — and prints
+one line per transition; `after-merge` steps are never written in that run. Any conflict exits 2 before the first
 write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order and print
 `written` or `unchanged`:
 
@@ -39,8 +41,9 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 16. onboarding-commit  `git add -A` and `git commit` on the installation branch
 17. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
 18. onboarding-push    `git push -u origin` of the installation branch
-19. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>`; the
-                       written line names the PR's URL
+19. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>` and
+                       the `after-merge` lines its merge authorizes; an open PR whose body
+                       lists others gets `gh pr edit --body`. The written line names its URL
 20. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
@@ -48,6 +51,18 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
                    each name's view and filter, then the options; other template views deleted
 22. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
     the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
+23. protection  once the installation PR is merged, the ruleset requiring the checks observed
+                on it, read back (`activate_protection`)
+24. agent-collaborator  the agent account invited with push permission, the invitation
+                        accepted with its token
+25. agent-project  the agent account made a writer of the linked Project
+26. approval-ruleset  the person-approves ruleset of `activate_protection`, read back
+27. auto-merge  `gh repo edit --enable-auto-merge`
+28. agent-token  the agent's token as `env.GH_TOKEN` of `.claude/settings.local.json`, which
+                 git must ignore; the token is never printed
+Steps 24-28 exist only with an agent account: the one `gh auth status` login that is not
+active, or the one `--agent` names; several without `--agent` are a `conflict agent`. Person
+writes run without `GH_TOKEN`/`GITHUB_TOKEN`, the agent's with its token.
 
 Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
@@ -70,8 +85,8 @@ cannot read keeps its row with `(cannot read: <reason>)` and never changes the e
 status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
 installation branch is otherwise the only push, and the Project copy and link, step 21's
-`Area` options and views, the issue, the PR and step 22's variable and secret the only other
-GitHub writes.
+`Area` options and views, the issue, the PR, step 22's variable and secret and steps 23-27
+the only other GitHub writes.
 `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -93,6 +108,7 @@ from typing import Any, Callable
 
 import manual
 import onboarding
+import post_merge
 import project_areas
 import quality
 import readings_setup
@@ -796,10 +812,10 @@ def _project_steps(
     )
 
 
-def _manual(ctx: Context, repo: str) -> list[str]:
+def _manual(ctx: Context, repo: str, agent: bool) -> list[str]:
     """What only the Project's UI, the repository's settings, the machine or the clone can do,
     while its state is not observed done (`manual.py`); `init` prints it and never performs it."""
-    return manual.rows(_target(ctx, repo))
+    return manual.rows(_target(ctx, repo), agent)
 
 
 def _target(ctx: Context, repo: str) -> manual.Target:
@@ -871,6 +887,7 @@ def _parser() -> argparse.ArgumentParser:
     mode.add_argument("--dry-run", action="store_true", help="print the plan and write nothing")
     mode.add_argument("--confirm", action="store_true", help="perform the plan")
     parser.add_argument("--area", action=project_areas.Names, default=[], help="a repo area")
+    parser.add_argument("--agent", help="the agent's account among several in `gh auth status`")
     parser.add_argument("--selected-release", action="store_true", help=argparse.SUPPRESS)
     return parser
 
@@ -942,10 +959,15 @@ def _run(
         gh_json=lambda *args: _gh_json(ctx, *args),
         empty=empty,
     )
+    post, agent = post_merge.steps(_target(ctx, repo), to.branch, args.agent)
+    to.after_merge = [
+        f"{s.status} {s.label}: {s.detail}" for s in post if s.status == "after-merge"
+    ]
     before, after = onboarding.plan(to, planned)
     areas = project_areas.steps(_target(ctx, repo), linked, args.area)
     readings = readings_setup.steps(_target(ctx, repo))
-    steps = [*before, *consumer, *project, *after, *_pre_push_step(ctx, repo), *areas, *readings]
+    pre_push = _pre_push_step(ctx, repo)
+    steps = [*before, *consumer, *project, *after, *pre_push, *areas, *readings, *post]
     for step in steps:
         print(f"{step.status} {step.label}: {step.detail}")
     conflict = any(step.status == "conflict" for step in steps)
@@ -957,7 +979,7 @@ def _run(
             'change that adds the first tests declares {"test": "<command>"}'
         )
     # Read after the writes, so a Project this run copied and linked is read too.
-    for line in _manual(ctx, repo):
+    for line in _manual(ctx, repo, agent is not None):
         print(line)
     if conflict:
         print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
@@ -967,6 +989,8 @@ def _run(
 
 def _perform(steps: list[Step], on_write: Callable[[str], None]) -> int:
     for step in steps:
+        if step.status == "after-merge":
+            continue  # its line was printed; nothing is written before the merge
         written = step.status == "planned" and step.apply is not None and step.apply()
         print(f"{'written' if written else 'unchanged'} {step.label}: {step.detail}")
         if written:

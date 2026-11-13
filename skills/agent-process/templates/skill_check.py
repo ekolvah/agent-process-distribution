@@ -10,7 +10,7 @@ When the project's `.pre-commit-config.yaml` carries the agent-process block and
 not run pre-commit's pre-push hook, or the check cannot tell, it is `pre-push hook not
 installed` with the two commands that install it. Unless the session's `GH_TOKEN` is the
 `env.GH_TOKEN` of the project's `.claude/settings.local.json`, or when the check cannot read it,
-it is `agent identity not set` with its fix: Install step 6 of the agent-process skill and the
+it is `agent identity not set` with its fix: Install step 5 of the agent-process skill and the
 restart. Any marker is printed in one
 hook JSON:
 a `systemMessage` for the person, one line per marker, and an `additionalContext` for the agent.
@@ -41,7 +41,7 @@ PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 BEGIN = "# agent-process:begin"
 IDENTITY_MARKER = "agent-process agent identity not set"
 # The installer's `manual.IDENTITY_FIX`, asserted equal by a publisher test.
-IDENTITY_FIX = "Install step 6 of the agent-process skill, then restart Claude Code"
+IDENTITY_FIX = "Install step 5 of the agent-process skill, then restart Claude Code"
 LOCAL_SETTINGS = ".claude/settings.local.json"
 
 

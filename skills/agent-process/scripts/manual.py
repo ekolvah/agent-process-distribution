@@ -49,7 +49,7 @@ MCP = "grafana MCP server in ~/.claude.json"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 # The fix the session-start identity marker names; the template's copy is asserted equal.
-IDENTITY_FIX = "Install step 6 of the agent-process skill, then restart Claude Code"
+IDENTITY_FIX = "Install step 5 of the agent-process skill, then restart Claude Code"
 # The agent's permission: it writes and merges through the ruleset, but cannot change it.
 AGENT_PERMISSIONS = {"WRITE", "MAINTAIN"}
 PERMISSION_QUERY = (
@@ -99,8 +99,9 @@ class Target:
     pre_commit: str | None
 
 
-def rows(t: Target) -> list[str]:
-    """The outstanding rows, read after the run's writes."""
+def rows(t: Target, agent: bool = False) -> list[str]:
+    """The outstanding rows, read after the run's writes; `agent` drops the identity row, whose
+    state the post-merge transitions write."""
     found: list[str] = []
     url, why = None, ""
     try:
@@ -122,7 +123,6 @@ def rows(t: Target) -> list[str]:
     elif state == "none":
         found.append(f"manual project-areas: {where}/settings -- {replace}")
     secrets = _kept(lambda: _names(t, "secret"))
-    repo = _kept(lambda: _repository(t))
     return [
         *found,
         *_outstanding(
@@ -150,19 +150,7 @@ def rows(t: Target) -> list[str]:
             f'"autoUpdate": true on its {t.marketplace} entry in ~/.claude/settings.json',
         ),
         *_pre_push_row(t),
-        *_outstanding(
-            lambda: _protected(t, _ok(repo)),
-            "manual protection: once the installation PR has merged with both process checks "
-            "green -- agent-process activate_protection --pr <N> --dry-run with its number, then "
-            "with --confirm instead of --dry-run, so the default branch requires "
-            f"{' and '.join(activate_protection.contexts())}",
-        ),
-        *_identity_row(t),
-        *_outstanding(
-            lambda: _ok(repo)["allow_auto_merge"] is True,
-            f"manual auto-merge: https://github.com/{t.repo}/settings -- "
-            "gh repo edit --enable-auto-merge, so gh pr merge --auto merges an approved PR",
-        ),
+        *([] if agent else _identity_row(t)),
     ]
 
 
@@ -202,7 +190,7 @@ def _ok(kept: T | Unreadable) -> T:
 
 
 def _repository(t: Target) -> dict[str, Any]:
-    """`repos/<owner>/<name>`, one read for the `protection` and `auto-merge` rows; `gh api`
+    """`repos/<owner>/<name>`, one read for `protection` and `auto-merge`; `gh api`
     prints GitHub's error object on a 4xx, which names neither field."""
     data = _gh_read(t, "api", f"repos/{t.repo}")
     if (
@@ -228,19 +216,22 @@ def _protected(t: Target, repo: dict[str, Any]) -> bool:
 
 
 def _identity_row(t: Target) -> list[str]:
-    row = "manual agent-identity: in this clone, once the installation PR has merged"
+    row = "manual agent-identity: in this clone"
+    fix = (
+        "log the agent's bot account into gh as Install's Prepare says (gh auth login -s "
+        f"project,workflow), then agent-process init again: {IDENTITY_FIX}"
+    )
     try:
-        pending = _identity_pending(t)
+        pending = _identity_pending(t, (_settings_env(t.root / SETTINGS) or {}).get("GH_TOKEN"))
     except Unreadable as exc:
-        return [f"{row} -- {IDENTITY_FIX} (cannot read: {exc})"]
-    return [] if pending is None else [f"{row}, {pending} -- {IDENTITY_FIX}"]
+        return [f"{row} -- {fix} (cannot read: {exc})"]
+    return [] if pending is None else [f"{row}, {pending} -- {fix}"]
 
 
-def _identity_pending(t: Target) -> str | None:
-    """Why this clone's `env.GH_TOKEN` is not the agent's, or `None` when its permission on the
-    repository, read with that token whatever the session's, is write or maintain. A missing
-    `env` is `{}`."""
-    token = (_settings_env(t.root / SETTINGS) or {}).get("GH_TOKEN")
+def _identity_pending(t: Target, token: Any) -> str | None:
+    """Why `token`, this clone's `env.GH_TOKEN`, is not the agent's, or `None` when its
+    permission on the repository, read with that token whatever the session's, is write or
+    maintain."""
     if not token:
         return f"{SETTINGS.as_posix()} sets no env.GH_TOKEN"
     owner, name = t.repo.split("/")

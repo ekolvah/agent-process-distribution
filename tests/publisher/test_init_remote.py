@@ -736,7 +736,8 @@ def test_post_merge_steps_are_written(
     runner.log.clear()
     assert install(init, sandbox, "--confirm", runner=runner) == 0
     out = capfd.readouterr().out
-    assert _post_merge(out) == [("unchanged", label) for label in POST_MERGE], out
+    # A confirmed run prints each step when classified and again when performed.
+    assert _post_merge(out) == [("unchanged", label) for label in POST_MERGE] * 2, out
     assert _non_reads(runner) == []
 
 
