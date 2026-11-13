@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 2,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Round 1's findings are applied: Prepare is Install's one copy of the channel commands, every `plugin-channel` mention leaves SKILL.md under a grep check, and Deliver carries the auto-merge step.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 keeps init's row (manual.py:147, _plugin_channel at manual.py:477) as the only observation of an off-stable or no-auto-update machine, rejecting its removal under §IV. D1 now makes Prepare the single Install copy: the plugin paragraph says 'by Prepare' and 'a machine that followed Prepare', and the migration sentence points at Prepare's plugin step (SKILL.md:233-239, 259-264), so the plan removes copies instead of adding one. Risks names the remaining README copy.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "skip_specs: true with no spec deltas; no requirement in openspec/specs covers Prepare, step 4 or the plugin paragraph (distribution/spec.md:447-451 pin the unchanged row). The map's n/a row names the pinning test.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "1.1 replaces test_planning_workflow.py:629 with assertions on the Prepare part (text before ' 1. ', the first step marker in _section's one-line join) and no 'plugin-channel' in step 4; both fail today, and check_red runs before the RED commit.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "No new platform claim: the commands are those of manual.py:148-150 and README.md:51-53; 'printed only while outstanding' is observed in _outstanding (manual.py:169-173) and pinned by distribution/spec.md:447-451 and test_init_remote.py:463, 647.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Dropped: step 4's named row, the plugin paragraph's command copy and row references, the migration sentence's command copy. D1 lists each and its replacement (generic 'do those rows'; Prepare). No test pins the migration wording (grep of tests/ for it is empty); the Install assertions at test_planning_workflow.py:620 and 625 still hold through Prepare. 4.1 now ends with `gh pr merge <PR> --auto --squash` per SKILL.md:125.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "test_install_names_the_skill_marker catches Prepare's commands and step 4's absence of the row, running in 2.1, 3.3 and the PR's agent-process / quality check; 2.1's `grep -n \"plugin-channel\" skills/agent-process/SKILL.md` being empty catches the line-239 and line-233 references at the implementation step. The README copy has no catcher, which Risks accepts.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Prepare bullet about 30 words, about 12 asserted (the three command phrases). Step 4 loses about 10 words, asserted by the negative check. The plugin paragraph loses its command parenthetical and the migration sentence shrinks from about 40 to about 20 words; both unasserted, net reduction of prose.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "Standard approach 'none found' is convincing: this reorders the repository's own install prose, following the README's once-per-machine block before /agent-process:init. The plan adds no script or check beyond a one-off grep verification in 2.1.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
