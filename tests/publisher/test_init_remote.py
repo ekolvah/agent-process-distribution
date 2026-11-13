@@ -781,6 +781,7 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], object], list[str]]] = {
     "project-read": ("--confirm", _fault("project-read"), list(PROJECT_ROWS)),
     "repo-read": ("--dry-run", _fault("repo-read"), ["protection", "auto-merge"]),
     "rules-read": ("--dry-run", _fault("rules-read"), ["protection"]),
+    "rules-shape": ("--dry-run", _fault("rules-shape"), ["protection"]),
     "settings-malformed": (
         "--dry-run",
         lambda sb: local_settings(sb, text="not json"),

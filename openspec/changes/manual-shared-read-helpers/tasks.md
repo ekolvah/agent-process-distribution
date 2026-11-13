@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 no RED: pure refactor (`skip_specs: true`); no scenario changes, §I exempts it
-- [ ] 1.2 Per design D2, add the `rules-shape` fault to `tests/publisher/init_harness.py` (`_repo_read` returns `[{"parameters": {}}]`) and the `rules-shape` case (`--dry-run`, `["protection"]`) to `UNREADABLE` in `tests/publisher/test_init_remote.py`; verify `python -m pytest tests/publisher/test_init_remote.py -q -k rules-shape` is green on the unchanged scripts, then commit it with the group 1 ticks
+- [x] 1.1 no RED: pure refactor (`skip_specs: true`); no scenario changes, §I exempts it
+- [x] 1.2 Per design D2, add the `rules-shape` fault to `tests/publisher/init_harness.py` (`_repo_read` returns `[{"parameters": {}}]`) and the `rules-shape` case (`--dry-run`, `["protection"]`) to `UNREADABLE` in `tests/publisher/test_init_remote.py`; verify `python -m pytest tests/publisher/test_init_remote.py -q -k rules-shape` is green on the unchanged scripts, then commit it with the group 1 ticks
 
 ## 2. Shared helpers
 
