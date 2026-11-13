@@ -11,10 +11,12 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Callable, Protocol, TypeVar
 
 import activate_protection
 import dashboard
+
+T = TypeVar("T")
 
 # The built-in workflows of the template by API name, with their targets (the `state` spec's
 # template requirement); the API exposes only a workflow's name and whether it is enabled.
@@ -119,12 +121,12 @@ def rows(t: Target) -> list[str]:
         )
     elif state == "none":
         found.append(f"manual project-areas: {where}/settings -- {replace}")
-    secrets = _names_or_unreadable(t, "secret")
-    repo = _repository(t)
+    secrets = _kept(lambda: _names(t, "secret"))
+    repo = _kept(lambda: _repository(t))
     return [
         *found,
         *_outstanding(
-            lambda: _has(secrets, REVIEW_TOKEN),
+            lambda: REVIEW_TOKEN in _ok(secrets),
             f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- "
             f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
             "token at its prompt; the review caller passes it to the review",
@@ -149,7 +151,7 @@ def rows(t: Target) -> list[str]:
         ),
         *_pre_push_row(t),
         *_outstanding(
-            lambda: _protected(t, repo),
+            lambda: _protected(t, _ok(repo)),
             "manual protection: once the installation PR has merged with both process checks "
             "green -- agent-process activate_protection --pr <N> --dry-run with its number, then "
             "with --confirm instead of --dry-run, so the default branch requires "
@@ -157,7 +159,7 @@ def rows(t: Target) -> list[str]:
         ),
         *_identity_row(t),
         *_outstanding(
-            lambda: _field(repo, "allow_auto_merge") is True,
+            lambda: _ok(repo)["allow_auto_merge"] is True,
             f"manual auto-merge: https://github.com/{t.repo}/settings -- "
             "gh repo edit --enable-auto-merge, so gh pr merge --auto merges an approved PR",
         ),
@@ -184,41 +186,42 @@ def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
         ) from None
 
 
-def _repository(t: Target) -> dict[str, Any] | Unreadable:
-    """`repos/<owner>/<name>`, one read for the `protection` and `auto-merge` rows; `gh api`
-    prints GitHub's error object on a 4xx, which names neither field."""
+def _kept(read: Callable[[], T]) -> T | Unreadable:
+    """One read shared by several rows: its value, or the `Unreadable` it raised, which `_ok`
+    raises again in each row."""
     try:
-        data = _gh_read(t, "api", f"repos/{t.repo}")
+        return read()
     except Unreadable as exc:
         return exc
+
+
+def _ok(kept: T | Unreadable) -> T:
+    if isinstance(kept, Unreadable):
+        raise kept
+    return kept
+
+
+def _repository(t: Target) -> dict[str, Any]:
+    """`repos/<owner>/<name>`, one read for the `protection` and `auto-merge` rows; `gh api`
+    prints GitHub's error object on a 4xx, which names neither field."""
+    data = _gh_read(t, "api", f"repos/{t.repo}")
     if (
         isinstance(data, dict)
         and isinstance(data.get("default_branch"), str)
         and "allow_auto_merge" in data
     ):
         return data
-    return Unreadable(f"`gh api repos/{t.repo}` printed an unexpected shape: {data}")
+    raise Unreadable(f"`gh api repos/{t.repo}` printed an unexpected shape: {data}")
 
 
-def _field(repo: dict[str, Any] | Unreadable, name: str) -> Any:
-    if isinstance(repo, Unreadable):
-        raise repo
-    return repo[name]
-
-
-def _protected(t: Target, repo: dict[str, Any] | Unreadable) -> bool:
+def _protected(t: Target, repo: dict[str, Any]) -> bool:
     """The default branch's rules require both process checks."""
-    branch = _field(repo, "default_branch")
+    branch = repo["default_branch"]
     rules = _gh_read(t, "api", f"repos/{t.repo}/rules/branches/{branch}")
     try:
         if not isinstance(rules, list):
             raise TypeError
-        required = {
-            str(check["context"])
-            for rule in rules
-            if rule["type"] == "required_status_checks"
-            for check in rule["parameters"]["required_status_checks"]
-        }
+        required = set(activate_protection.required_contexts(rules))
     except (KeyError, TypeError):
         raise Unreadable(f"the rules of {branch} read as {rules}") from None
     return set(activate_protection.contexts()) <= required
@@ -264,7 +267,7 @@ def _identity_pending(t: Target) -> str | None:
 
 def _settings_env(path: Path) -> dict[str, Any] | None:
     """The `env` object of a settings file, `{}` without one, `None` when the file is absent."""
-    data = _plugin_file(path)
+    data = _json_file(path)
     if data is None:
         return None
     env = data.get("env", {}) if isinstance(data, dict) else None
@@ -450,20 +453,6 @@ def _project_state(t: Target, owner: str, number: int, url: str | None) -> tuple
     return missing, found
 
 
-def _names_or_unreadable(t: Target, kind: str) -> dict[str, str] | Unreadable:
-    """One read shared by several rows, each of which `_has` marks when it failed."""
-    try:
-        return _names(t, kind)
-    except Unreadable as exc:
-        return exc
-
-
-def _has(names: dict[str, str] | Unreadable, name: str) -> bool:
-    if isinstance(names, Unreadable):
-        raise names
-    return name in names
-
-
 def _names(t: Target, kind: str) -> dict[str, str]:
     """The repository's Actions `secret` names, or `variable` names with their values."""
     fields = "name,value" if kind == "variable" else "name"
@@ -474,7 +463,7 @@ def _names(t: Target, kind: str) -> dict[str, str]:
         raise Unreadable(f"`gh {kind} list` printed an unexpected shape: {data}") from None
 
 
-def _plugin_file(path: Path) -> Any:
+def _json_file(path: Path) -> Any:
     """A plugin or settings file's JSON; `None` when it is absent (no plugin was ever
     installed, no setting was ever written)."""
     try:
@@ -492,8 +481,8 @@ def _plugin_channel(t: Target) -> bool:
     entry's, the precedence Claude Code applies."""
     claude = t.home / ".claude"
     plugins = claude / "plugins"
-    known = _plugin_file(plugins / "known_marketplaces.json")
-    installed = _plugin_file(plugins / "installed_plugins.json")
+    known = _json_file(plugins / "known_marketplaces.json")
+    installed = _json_file(plugins / "installed_plugins.json")
     try:
         entry: Any = (known or {}).get(t.marketplace)
         channel = (
@@ -508,7 +497,7 @@ def _plugin_channel(t: Target) -> bool:
     if not (channel and user):
         return False
     path = claude / "settings.json"
-    settings = _plugin_file(path)
+    settings = _json_file(path)
     try:
         declared = (settings or {}).get("extraKnownMarketplaces") or {}
         auto = (declared.get(t.marketplace) or {}).get("autoUpdate", entry.get("autoUpdate"))
@@ -543,9 +532,7 @@ def readings(t: Target, secrets: dict[str, str] | Unreadable | None = None) -> R
     r = Readings(dashboard.render([t.repo])["title"])
     try:
         r.variable = _names(t, "variable").get(GRAFANA_URL)
-        r.secret = _has(
-            _names_or_unreadable(t, "secret") if secrets is None else secrets, GRAFANA_TOKEN
-        )
+        r.secret = GRAFANA_TOKEN in (_names(t, "secret") if secrets is None else _ok(secrets))
         config = _mcp_grafana(t.home)
     except Unreadable as exc:
         r.blocked = f"cannot read: {exc}"
@@ -573,7 +560,7 @@ def readings(t: Target, secrets: dict[str, str] | Unreadable | None = None) -> R
 def _mcp_grafana(home: Path) -> tuple[str, str, str] | str:
     """The `grafana` MCP server's URL, token and the token's source, or what is missing."""
     path = home / ".claude.json"
-    config = _plugin_file(path)
+    config = _json_file(path)
     try:
         server = None if config is None else (config.get("mcpServers") or {}).get("grafana")
         env = None if server is None else server.get("env") or {}

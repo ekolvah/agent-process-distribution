@@ -182,10 +182,11 @@ class FakeGitHub:
     task-readings-auto-setup). The `repos/<owner>/<name>` read carries `allow_auto_merge`, and
     the default branch's rules require `required_checks`; `faults["repo-read"]` and
     `faults["rules-read"]` make those reads print GitHub's error body and exit 1 (change
-    install-reports-post-merge-steps). The `Area` options and views mutations apply to a
-    Project by node id (change init-replaces-project-areas). The `viewerPermission` read answers
-    by the `GH_TOKEN` of its environment from `permissions`; `tokened` logs every call whose
-    environment carries one (change agent-identity-standard-commands)."""
+    install-reports-post-merge-steps); `faults["rules-shape"]` makes the rules read answer a
+    rule without `type` (change manual-shared-read-helpers). The `Area` options and views
+    mutations apply to a Project by node id (change init-replaces-project-areas). The
+    `viewerPermission` read answers by the `GH_TOKEN` of its environment from `permissions`;
+    `tokened` logs every call whose environment carries one (change agent-identity-standard-commands)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process")
@@ -272,6 +273,8 @@ class FakeGitHub:
         assert rules or args == ["api", repo], args
         if ("rules-read" if rules else "repo-read") in self.faults:
             return _done(args, NOT_FOUND, code=1, err="gh: Not Found (HTTP 404)\n")
+        if rules and "rules-shape" in self.faults:
+            return _done(args, [{"parameters": {}}])
         if not rules:
             read = {"name": REPO_NAME, "default_branch": self.default_branch}
             return _done(args, {**read, "allow_auto_merge": self.allow_auto_merge})
