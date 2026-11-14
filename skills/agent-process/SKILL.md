@@ -182,7 +182,8 @@ Then run from the consumer's root:
    whole output. Pick the repository's areas from its content, as for an issue's area, and
    pass one `--area <name>` per area to both runs. A
    `conflict` line names a path or Project the installer does not own: the person resolves
-   it, then the dry-run runs again.
+   it, then the dry-run runs again. When it prints the `manual agent-identity` row, show step
+   6's commands with it: they run without asking once the installation PR has merged.
 3. When the dry-run still prints the `review-secret` row, have the person set Prepare's
    secret before `--confirm`, so the first pushed head's `agent-review` runs with it.
    A dry-run that plans no
@@ -219,17 +220,22 @@ Then run from the consumer's root:
    instead of `--dry-run`. It makes the check required through one ruleset and never
    writes classic branch protection.
 6. Give the agent Prepare's bot as its own GitHub identity, so the person's approval merges
-   the agent's PRs. Show the person these commands, ask once, and on yes run the ones the
-   agent can, as the person, before the restart:
-   - per machine, after Prepare's logins: `gh auth setup-git`;
+   the agent's PRs. The merge of the installation PR is the consent: run these commands
+   without asking, as the person, before the restart:
+   - per machine, after Prepare's logins: `gh auth setup-git` and, unless
+     `git config --global agent-process.bot` prints a login,
+     `git config --global agent-process.bot <bot>`, where `<bot>` is the one github.com
+     account `gh auth status` does not show active; with none or several, ask the person for
+     the login;
    - per repository, once: `gh api -X PUT repos/{owner}/{repo}/collaborators/<bot> -f permission=push`,
      then the bot accepts the invitation and the person adds it as Writer in the Project's
      access settings; then
      `gh api -X POST repos/{owner}/{repo}/rulesets --input <skill base directory>/templates/approval_ruleset.json`
-     and `gh repo edit --enable-auto-merge`;
-   - per clone: the person sets `env.GH_TOKEN` of `.claude/settings.local.json` to the output
-     of `gh auth token --user <bot>`, then `agent-process init --dry-run` prints no
-     `manual agent-identity` row, and the person restarts Claude Code.
+     and `gh repo edit --enable-auto-merge`.
+
+   Interrupt the person only for a failed command, shown with its output and the line to run
+   in their own terminal, and for the person's steps. Then `agent-process init --dry-run`
+   prints no `manual agent-identity` row, and the person restarts Claude Code.
 
    Until then each session start prints `agent-process agent identity not set`.
 
@@ -244,7 +250,10 @@ tool hooks act only in a repository carrying `.github/workflows/agent-process.ym
 start it installs its own Python dependencies, once per machine and pin set; a failure prints
 `agent-process plugin environment not installed` with the cause, and, in a repository whose
 `openspec/config.yaml` records another release than the plugin's, `agent-process release drift`
-with both releases and the fix, `/agent-process:init` for a repository behind. Install's
+with both releases and the fix, `/agent-process:init` for a repository behind. In a repository
+with the block it exports as `GH_TOKEN` the token `gh` holds for `git config agent-process.bot`
+when that token can write there, and otherwise prints `agent-process agent identity not set`
+with the reason and the fix. Install's
 `.claude/rules/agent-process.md` puts the goal function and the Claude harness into every
 session of the repository, compaction included. The plugin's read-budget
 hook denies an over-budget whole-file `Read`, naming the cheaper call; a `permissions.deny`
