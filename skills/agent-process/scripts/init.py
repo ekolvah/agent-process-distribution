@@ -12,7 +12,7 @@ and runs that tree's `init.py`, forwarding its output and exit code; `--confirm`
 in the user profile.
 
 A run first classifies every transition from observed state — `planned`, `unchanged`,
-`after-merge` (steps 23-28 before the installation PR is merged; not written) or `conflict` —
+`after-merge` (steps 23-27 before the installation PR is merged; not written) or `conflict` —
 and prints one line per transition. Any conflict exits 2 before the first write; `--dry-run`
 stops after the plan. Confirmed writes run in a fixed order and print `written` or `unchanged`:
 
