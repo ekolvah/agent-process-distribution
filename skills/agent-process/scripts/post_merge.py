@@ -1,9 +1,9 @@
 """The post-merge steps of `init.py` (design D1-D6 of init-runs-post-merge-steps); not a
 command. Once the installation PR reads `MERGED`, a confirmed run writes `protection`, then,
-with an agent account, `agent-collaborator`, `agent-project`, `approval-ruleset`, `auto-merge`
-and `agent-token`; before the merge each one not `unchanged` reads `after-merge`. The person's
+with an agent account, `agent-collaborator`, `agent-project`, `approval-ruleset` and
+`auto-merge`; before the merge each one not `unchanged` reads `after-merge`. The person's
 calls run without `GH_TOKEN` and `GITHUB_TOKEN`; the agent's token goes only into the
-`GH_TOKEN` of its own calls and into `.claude/settings.local.json`, never into a line. The
+`GH_TOKEN` of its own calls, never into a line or a file. The
 agent account is the one github.com login of `gh auth status` that is not active, or the one
 `--agent` names among several."""
 
@@ -117,7 +117,7 @@ def steps(
     t: manual.Target, branch: str, choice: str | None, linked: list[dict[str, Any]]
 ) -> list[Step]:
     """The post-merge steps in order, over `linked`, the Projects linked to the repository;
-    `agent-token` among them only with an agent account, and a run whose agent account is
+    the agent's among them only with an agent account, and a run whose agent account is
     not one is a single `conflict agent`."""
     pt = replace(
         t, gh=lambda *args, env=None: t.gh(*args, env=env if env is not None else person_env())
@@ -144,7 +144,6 @@ def steps(
             ("agent-project", _project),
             ("approval-ruleset", _approval),
             ("auto-merge", _auto_merge),
-            ("agent-token", _agent_token),
         ]
     return [_classified(label, run, classify) for label, classify in classifiers]
 
@@ -352,41 +351,6 @@ def _auto_merge(run: _Run) -> Step:
         return True
 
     return Step("auto-merge", "planned", f"allow auto-merge on {repo}", apply)
-
-
-def _settings(t: manual.Target) -> dict[str, Any] | str:
-    """`.claude/settings.local.json` as an object, or why the token must not go into it."""
-    rel = manual.SETTINGS.as_posix()
-    if t.git("check-ignore", "-q", rel).returncode != 0:
-        return f"{rel} is not ignored by git; add /{rel} to .git/info/exclude, then rerun"
-    data = manual._json_file(t.root / manual.SETTINGS)
-    data = {} if data is None else data
-    if not isinstance(data, dict) or not isinstance(data.get("env", {}), dict):
-        return f"{rel} is not a JSON object whose `env` is an object"
-    return data
-
-
-def _agent_token(run: _Run) -> Step:
-    data, rel = _settings(run.t), manual.SETTINGS.as_posix()
-    if isinstance(data, str):
-        return Step("agent-token", "conflict", data)
-    token, held = manual._ok(run.token), data.get("env", {}).get("GH_TOKEN")
-    if held == token and manual._ok(run.read).permission in manual.AGENT_PERMISSIONS:
-        return Step("agent-token", "unchanged", f"{rel} sets env.GH_TOKEN to {run.login}'s")
-    if held and held != token and manual._identity_pending(run.t, held) is None:
-        return Step("agent-token", "unchanged", f"{rel} sets an env.GH_TOKEN that can write")
-
-    def apply() -> bool:
-        current = _settings(run.t)
-        if isinstance(current, str):
-            raise InstallError(f"agent-token: {current}")
-        env = {**current.get("env", {}), "GH_TOKEN": token}
-        path = run.t.root / manual.SETTINGS
-        path.parent.mkdir(exist_ok=True)
-        path.write_bytes(manual.json_text({**current, "env": env}).encode("utf-8"))
-        return True
-
-    return Step("agent-token", "planned", f"{rel} env.GH_TOKEN: {run.login}'s token", apply)
 
 
 if __name__ == "__main__":

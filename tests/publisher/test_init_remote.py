@@ -41,6 +41,7 @@ from tests.publisher.init_harness import (
     Runner,
     Sandbox,
     _installed,
+    agent_identity,
     area_filter,
     empty_origin,
     empty_repository,
@@ -48,7 +49,6 @@ from tests.publisher.init_harness import (
     git,
     install,
     load_init,
-    local_settings,
     project_settings,
     snapshot,
     transitions,
@@ -483,7 +483,7 @@ def test_observed_manual_rows_are_omitted(
     project.areas = ["Alpha"]
     project.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
     _plugin_files(sandbox)
-    local_settings(sandbox, "agent-token")
+    agent_identity(sandbox)
     hook = sandbox.root / ".git" / "hooks" / "pre-push"
     hook.parent.mkdir(exist_ok=True)
     hook.write_text(
@@ -652,14 +652,9 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], object], list[str]]] = {
         ["plugin-channel", "telemetry-attribution"],
     ),
     "project-read": ("--confirm", _fault("project-read"), list(PROJECT_ROWS)),
-    "settings-malformed": (
+    "permission-read": (
         "--dry-run",
-        lambda sb: local_settings(sb, text="not json"),
-        ["agent-identity"],
-    ),
-    "settings-shape": (
-        "--dry-run",
-        lambda sb: local_settings(sb, text='{"env": []}'),
+        lambda sb: agent_identity(sb, token="unknown-token"),
         ["agent-identity"],
     ),
     "project-settings-shape": (

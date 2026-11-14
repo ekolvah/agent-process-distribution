@@ -91,7 +91,9 @@ class PostMergeGitHub:
             return h._done(args, {"hosts": {"github.com": hosts}})
         assert args[1:3] == ["token", "--user"] and len(args) == 4, args
         if args[3] not in self.tokens:
-            return h._done(args, code=1, err=f"no oauth token found for {args[3]}\n")
+            return h._done(
+                args, code=1, err=f"no oauth token found for github.com account {args[3]}\n"
+            )
         return h._done(args, out=self.tokens[args[3]] + "\n")
 
     def _legacy_read(self, args: list[str]) -> bool:

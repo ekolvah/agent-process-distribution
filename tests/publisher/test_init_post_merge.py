@@ -5,9 +5,8 @@ the confirmed run after it, against the `FakeGitHub` of `init_harness.py`."""
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable
+from typing import Callable
 
 import pytest
 
@@ -21,10 +20,10 @@ from tests.publisher.init_harness import (
     Sandbox,
     _installed,
     agent_account,
+    agent_identity,
     check_run,
     install,
     load_init,
-    local_settings,
 )
 from tests.publisher.init_reads import (
     PROCESS_CHECKS,
@@ -37,45 +36,50 @@ from tests.publisher.init_reads import (
 
 
 @pytest.mark.parametrize(
-    ("mode", "settings", "named"),
+    ("arrange", "named"),
     [
-        *[
-            pytest.param(mode, settings, "GH_TOKEN", id=f"{mode}-{name}")
-            for mode in ("--dry-run", "--confirm")
-            for name, settings in (("absent", None), ("no-env", {"permissions": {}}))
-        ],
-        pytest.param("--dry-run", {"env": {"GH_TOKEN": "person-token"}}, "ADMIN", id="admin"),
-        pytest.param("--dry-run", {"env": {"GH_TOKEN": "stranger-token"}}, "READ", id="read"),
+        pytest.param(lambda sb: None, "git config agent-process.bot is not set", id="no-bot"),
+        pytest.param(
+            lambda sb: agent_identity(sb, token=None), "gh holds no token for agent", id="no-token"
+        ),
+        pytest.param(lambda sb: agent_identity(sb, token="person-token"), "ADMIN", id="admin"),
+        pytest.param(lambda sb: agent_identity(sb, token="stranger-token"), "READ", id="read"),
     ],
 )
 def test_agent_identity_pending_is_manual(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str, settings: Any, named: str
+    sandbox: Sandbox,
+    capfd: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    arrange: Callable[[Sandbox], None],
+    named: str,
 ) -> None:
-    """Scenario: Identity pending — without an agent account in `gh auth status`."""
+    """Scenario: Identity pending."""
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.delenv("GIT_CONFIG_GLOBAL", raising=False)  # the sandbox's HOME holds it
+    sandbox.github.allow_auto_merge = True
     sandbox.github.permissions.update({"person-token": "ADMIN", "stranger-token": "READ"})
-    if settings is not None:
-        local_settings(sandbox, text=json.dumps(settings))
+    arrange(sandbox)
     init = load_init()
-    assert install(init, sandbox, mode) == 0
+    assert install(init, sandbox, "--dry-run") == 0
     row = _row(_manual_rows(capfd.readouterr().out), "agent-identity")
     assert "(cannot read: " not in row, row
     assert named in row and init.manual.IDENTITY_FIX in row, row
-    assert "gh auth login -s project,workflow" in row and "agent-process init" in row, row
+    assert "-token" not in row, row
 
 
 def test_agent_identity_holds(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Scenario: Identity holds — read with the settings' token, not the session's."""
+    """Scenario: Identity holds — read with the bot's token, not the session's."""
     monkeypatch.setenv("GH_TOKEN", "person-token")
-    local_settings(sandbox, "agent-token")
+    agent_identity(sandbox)
     init = load_init()
     assert install(init, sandbox, "--dry-run") == 0
     manual = _manual_rows(capfd.readouterr().out)
     assert not [ln for ln in manual if ln.startswith("manual agent-identity: ")], manual
     tokened = [args for token, args in sandbox.github.tokened if token == "agent-token"]
-    assert len(tokened) == 1 and tokened[0][:2] == ["api", "graphql"], tokened
-    assert "viewerPermission" in tokened[0][-1] and "mutation" not in tokened[0][-1], tokened
+    assert tokened == [["repo", "view", "--json", "viewerPermission"]], tokened
+    assert "agent-token" not in " ".join(manual)
 
 
 # --- the post-merge steps (change init-runs-post-merge-steps) ----------------------------
@@ -86,12 +90,10 @@ POST_MERGE = [
     "agent-project",
     "approval-ruleset",
     "auto-merge",
-    "agent-token",
 ]
 TEMPLATES = ROOT / "skills" / "agent-process" / "templates"
 APPROVAL = json.loads((TEMPLATES / "approval_ruleset.json").read_text(encoding="utf-8"))
 PROCESS_RULESET = json.loads((TEMPLATES / "ruleset.json").read_text(encoding="utf-8"))
-SETTINGS_LOCAL = Path(".claude") / "settings.local.json"
 # Words only a post-merge transition's `gh` call carries.
 POST_MERGE_CALLS = (
     "rulesets",
@@ -129,7 +131,6 @@ def _done_states(sb: Sandbox) -> None:
     sb.github.project_writers.add(AGENT)
     sb.github.rulesets[1000] = {**APPROVAL, "id": 1000, "source_type": "Repository"}
     sb.github.allow_auto_merge = True
-    local_settings(sb, AGENT_TOKEN)
 
 
 def _non_reads(runner: Runner) -> list[str]:
@@ -188,7 +189,6 @@ def test_post_merge_steps_are_written(
     init = load_init()
     agent_account(sandbox)
     _merged(init, sandbox)
-    local_settings(sandbox, text='{\n    "permissions": {"allow": ["Bash(ls)"]}\n}\n')
     monkeypatch.setenv("GH_TOKEN", "person-session-token")
     monkeypatch.setenv("GITHUB_TOKEN", "person-session-token")
     runner = Runner(init, HOST, sandbox.github)
@@ -209,8 +209,6 @@ def test_post_merge_steps_are_written(
     assert names == {APPROVAL["name"], PROCESS_RULESET["name"]}, github.rulesets
     assert github.allow_auto_merge and github.permissions[AGENT_TOKEN] == "WRITE"
     assert AGENT in github.project_writers
-    settings = json.loads((sandbox.root / SETTINGS_LOCAL).read_text(encoding="utf-8"))
-    assert settings == {"permissions": {"allow": ["Bash(ls)"]}, "env": {"GH_TOKEN": AGENT_TOKEN}}
     as_agent = []
     for args, env in github.calls[calls:]:
         if _post_merge_call(args):
@@ -248,41 +246,6 @@ def test_post_merge_protection_not_observed(
     assert "agent-review / agent-review" in line, line
     assert _non_reads(runner) == []
     assert sandbox.github.rulesets == {} and not sandbox.github.allow_auto_merge
-
-
-def _settings_not_ignored(sb: Sandbox) -> None:
-    path = sb.root / SETTINGS_LOCAL
-    path.parent.mkdir(exist_ok=True)
-    path.write_text('{"permissions": {}}\n', encoding="utf-8")
-
-
-@pytest.mark.parametrize(
-    ("arrange", "reason"),
-    [
-        pytest.param(_settings_not_ignored, "not ignored", id="not-ignored"),
-        pytest.param(lambda sb: local_settings(sb, text="[]"), "JSON object", id="not-object"),
-    ],
-)
-def test_post_merge_agent_token_conflict(
-    sandbox: Sandbox,
-    capfd: pytest.CaptureFixture[str],
-    arrange: Callable[[Sandbox], None],
-    reason: str,
-) -> None:
-    """Scenario: Token file not ignored — or not a JSON object; the file stays as it was."""
-    init = load_init()
-    agent_account(sandbox)
-    _merged(init, sandbox)
-    arrange(sandbox)
-    before = (sandbox.root / SETTINGS_LOCAL).read_bytes()
-    runner = Runner(init, HOST, sandbox.github)
-    capfd.readouterr()
-    assert install(init, sandbox, "--confirm", runner=runner) == 2
-    out = capfd.readouterr().out
-    (line,) = [ln for ln in out.splitlines() if ln.startswith("conflict agent-token: ")]
-    assert reason in line and AGENT_TOKEN not in out, line
-    assert (sandbox.root / SETTINGS_LOCAL).read_bytes() == before
-    assert _non_reads(runner) == []
 
 
 @pytest.mark.parametrize("others", [[], ["second-bot"]], ids=["one", "chosen"])

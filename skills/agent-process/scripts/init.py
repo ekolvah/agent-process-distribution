@@ -49,7 +49,7 @@ stops after the plan. Confirmed writes run in a fixed order and print `written` 
                    each name's view and filter, then the options; other template views deleted
 22. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
     the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
-23-28. protection, agent-collaborator, -project, approval-ruleset, auto-merge, agent-token:
+23-27. protection, agent-collaborator, -project, approval-ruleset, auto-merge:
         once the installation PR is merged, the steps of `post_merge.py`
 
 Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
@@ -102,7 +102,7 @@ import quality
 import readings_setup
 from steps import InstallError, Step, run
 
-VERSION = "3.32.0"  # x-release-please-version
+VERSION = "3.32.1"  # x-release-please-version
 REPOSITORY = "https://github.com/ekolvah/agent-process-distribution.git"
 REPOSITORY_ENV = "AGENT_PROCESS_REPOSITORY"
 GITHUB_REPO = "ekolvah/agent-process-distribution"
@@ -942,7 +942,6 @@ def _run(
         empty=empty,
     )
     post = post_merge.steps(_target(ctx, repo), to.branch, args.agent, linked)
-    agent = any(step.label == "agent-token" for step in post)
     to.after_merge = [step.line for step in post if step.status == "after-merge"]
     before, after = onboarding.plan(to, planned)
     areas = project_areas.steps(_target(ctx, repo), linked, args.area)
@@ -961,7 +960,7 @@ def _run(
         )
     # What only a UI, the settings, the machine or the clone can do (`manual.py`), read
     # after the writes, so a Project this run copied and linked is read too.
-    for line in manual.rows(_target(ctx, repo), agent):
+    for line in manual.rows(_target(ctx, repo)):
         print(line)
     if conflict:
         print("error: resolve the conflicts above; nothing was written", file=sys.stderr)

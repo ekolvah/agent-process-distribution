@@ -32,12 +32,13 @@ standard gate, which GitHub's own coding agent relies on.
   `init` finds the bot as the one `gh auth status` account that is not active (`--agent`
   chooses among several) and, once the installation PR is merged, writes its steps, each
   classified from a read: the bot invited as a write collaborator and its invitation accepted
-  with its token, the bot made Writer of the linked Project, the ruleset of D2, auto-merge,
-  and its token in the clone (D3). Before the merge they print `after-merge` and the PR's
-  body lists them, so the merge is the person's consent. The collaborator step is done when
-  the `viewerPermission` read with the bot's token is `WRITE` or `MAINTAIN` — the person's
-  token is `ADMIN`; a non-collaborator's is `READ`. Without a bot account `init`'s
-  `manual agent-identity` row names Prepare's login.
+  with its token, the bot made Writer of the linked Project, the ruleset of D2 and auto-merge.
+  Before the merge they print `after-merge` and the PR's body lists them, so the merge is the
+  person's consent. The collaborator step is done when the `viewerPermission` read with the
+  bot's token is `WRITE` or `MAINTAIN` — the person's token is `ADMIN`; a non-collaborator's
+  is `READ`. `init`'s `manual agent-identity` row reads the token `gh` holds for
+  `agent-process.bot`, with that token, as the session-start hook of D3 reads it, and stays
+  outstanding until it is `WRITE` or `MAINTAIN`.
 * **D2 — the gate.** The ruleset `agent-process person approves` on the default branch requires
   one approving review and dismisses stale reviews on push; its bypass list is empty. GitHub
   does not count the author's approval, so the bot cannot approve its own PR, and a bot push
@@ -46,17 +47,20 @@ standard gate, which GitHub's own coding agent relies on.
   author, it adds nothing, and it would block a PR whose branch the person updated, since then
   no one may approve. Updating dismisses an approval, so the person updates first and approves
   last. Auto-merge may carry out the person's approval.
-* **D3 — the token in the clone.** `GH_TOKEN` goes into the clone's git-ignored
-  `.claude/settings.local.json`, which Claude Code applies to the session's `Bash` calls; at
-  user scope it would replace the person's token in every repository; Claude Code git-ignores
-  the file when it creates it. `init` writes the token from `gh auth token --user <bot>` into
-  it, keeping its other keys, and prints only the path, so the token never passes through the
-  chat; a file git does not ignore is a `conflict`. Git reaches it through `gh auth setup-git`, run once
+* **D3 — the token at session start.** In a project whose `openspec/config.yaml` holds the
+  agent-process block, the plugin's session-start hook takes `gh auth token --user <bot>` for
+  the login `git config agent-process.bot` names (set once per machine; a clone may override
+  it) and appends `export GH_TOKEN=<token>` to `CLAUDE_ENV_FILE`, which Claude Code applies to
+  the session's `Bash` calls, only when that token's `viewerPermission` is `WRITE` or
+  `MAINTAIN`; otherwise the session runs as `gh`'s active account, the person. The token passes
+  through no chat and no output. Git reaches it through `gh auth setup-git`, run once
   per machine: the global `credential.https://github.com.helper` reset to the empty value,
   then `gh auth git-credential`, which answers with the session's `GH_TOKEN` and outside a
-  session with `gh`'s active account, the person. A session started inside a worktree under `.claude/worktrees/`
-  does not read the clone's file and runs as the person; a session started in the clone keeps
-  its environment when it enters a worktree.
+  session with `gh`'s active account, the person. A session started in a worktree under
+  `.claude/worktrees/` runs the same hook and also takes the token. Alternatives: a per-clone
+  copy in the clone's git-ignored `.claude/settings.local.json` (a step per clone, stale
+  copies, a worktree session running as the person); `env.GH_TOKEN` at user scope, which would
+  replace the person's token in every repository.
 * **D4 — the release PR.** The release workflow approves the PR with `GITHUB_TOKEN` before it
   enables auto-merge ([ADR 0031](0031-release-prs-merge-without-the-person.md) D4). The PR's
   author is the person's release token, so the approval of `github-actions` counts. The
@@ -65,8 +69,8 @@ standard gate, which GitHub's own coding agent relies on.
   ruleset refuses a push to `main` and a force push to it; the bot has no admin to delete the
   repository; `quality` runs on the head a `--no-verify` push skipped. A force push to the
   agent's own branch, `git reset --hard` and `git branch -D` are no longer caught; the last was
-  stopped by Claude Code's permission layer each time it was tried. Each session start whose
-  `GH_TOKEN` is not the clone's prints `agent-process agent identity not set`.
+  stopped by Claude Code's permission layer each time it was tried. Each session start where
+  the hook takes no token prints `agent-process agent identity not set`.
 * **D6 — the admin steps run as the person.** `activate_protection` reads and writes rulesets,
   which the bot cannot see: GitHub returns `bypass_actors: null` to a non-admin. Its `gh` calls
   drop `GH_TOKEN` and `GITHUB_TOKEN` and run as `gh`'s stored active account, the fallback the
@@ -95,7 +99,8 @@ standard gate, which GitHub's own coding agent relies on.
   approves as `github-actions`; the guard did not hold there either.
 * Bad, because a PR the person authors needs another approver, and other auto-merging PRs,
   such as Dependabot's, wait for the person's approval.
-* Bad, because the bot's token lies in plaintext in a git-ignored file.
+* Bad, because each session leaves the bot's token in plaintext in Claude Code's session-env
+  directory, `~/.claude/session-env/<session>/`, kept after the session.
 
 ### Deletion condition
 
@@ -106,10 +111,12 @@ a session-scoped GitHub credential, as cloud sessions do; the ruleset stays.
 
 `tests/publisher/test_init_post_merge.py::test_agent_identity_pending_is_manual`,
 `::test_agent_identity_holds`, `::test_agent_account`, `::test_agent_account_ambiguous` and
-`::test_post_merge_steps_are_written` hold D1, the last also D3 and D6,
+`::test_post_merge_steps_are_written` hold D1, the last also D6,
 `tests/publisher/test_activate_protection.py::test_approval_ruleset_body` D2,
 `tests/publisher/test_activate_protection.py::test_a_clone_with_the_agent_identity` D6,
-`tests/publisher/test_skill_check.py::test_identity_missing` the marker of D5, and
+`tests/publisher/test_session_start.py::test_session_start_takes_the_agent_token`,
+`::test_session_start_reports_a_missing_identity` and `::test_session_start_reports_the_marker`
+D3 and the marker of D5, and
 `tests/publisher/test_reusable_workflows.py::test_release_workflow_approves_and_enables_auto_merge`
 D4, `tests/publisher/test_planning_workflow.py::test_tasks_of_a_new_change` and
 `tests/publisher/test_pr_delivery.py::test_pr_no_longer_open` and

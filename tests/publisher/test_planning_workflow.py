@@ -617,16 +617,18 @@ def test_install_names_the_skill_marker() -> None:
     assert "agent-process skill not loaded" in install
     assert "agent-process project-scope install applies" in install
     assert "agent-process release drift" in install and "/agent-process:init" in install
-    assert "claude plugin install agent-process@agent-process-marketplace" in install
     assert "claude plugin uninstall" in install
     assert "trusts the folder" not in install
     assert "claude plugin update agent-process@agent-process-marketplace" in install
     assert "stable" in install
-    assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in install
     assert "/plugin marketplace update" not in install
     assert "pinned per repository" not in install
+    prepare = install.split(" 1. ", 1)[0]
+    assert 'claude plugin marketplace add "ekolvah/agent-process-distribution#stable"' in prepare
+    assert "claude plugin install agent-process@agent-process-marketplace" in prepare
+    assert '"autoUpdate": true' in prepare
     manual_step = install.split(" 4. ", 1)[1].split(" 5. ", 1)[0]
-    assert "plugin-channel" in manual_step
+    assert "plugin-channel" not in manual_step
 
 
 def test_install_continues_past_the_installation_pr() -> None:
@@ -652,7 +654,7 @@ def test_install_continues_past_the_installation_pr() -> None:
         "init --confirm",
         "same arguments",
         "gh auth setup-git",
-        "written agent-token",
+        "`manual agent-identity` row",
         "restart",
     ):
         assert phrase in after, phrase
@@ -679,3 +681,19 @@ def test_upgrade_approval_is_its_consent() -> None:
         assert phrase in confirm, phrase
     for row in ("manual protection", "manual auto-merge"):
         assert row not in install, row
+
+
+def test_install_identity_step_asks_nothing() -> None:
+    """Scenario: Identity step after the merge."""
+    install = _section("Install")
+    step = install.rsplit(" 5. ", 1)[1]
+    for phrase in (
+        "without asking",
+        "gh auth status",
+        "git config --global agent-process.bot <bot>",
+    ):
+        assert phrase in step, phrase
+    for phrase in ("ask once", "Ask once", "settings.local.json"):
+        assert phrase not in step, phrase
+    dry_run = install.split("2. Run `agent-process init --dry-run` ", 1)[1].split(" 3. ", 1)[0]
+    assert "step 5" in dry_run, dry_run

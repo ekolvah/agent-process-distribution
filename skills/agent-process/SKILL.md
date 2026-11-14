@@ -163,6 +163,10 @@ Prepare: in one sitting before the first `init`, the person does what only they 
   (`project`), and the installation push carries `.github/workflows/*` (`workflow`).
 - Run `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and
   paste the token at its prompt, which keeps the token out of the chat.
+- Once per machine, outside any project: `claude plugin marketplace add
+  "ekolvah/agent-process-distribution#stable"`, `claude plugin install
+  agent-process@agent-process-marketplace`, then set `"autoUpdate": true` on that
+  marketplace's entry in `~/.claude/settings.json`.
 
 Then run from the consumer's root:
 
@@ -179,7 +183,9 @@ Then run from the consumer's root:
    pass one `--area <name>` per area to both runs. A
    `conflict` line names a path or Project the installer does not own: the person resolves
    it, then the dry-run runs again. On `conflict agent` pass the bot's login as
-   `--agent <login>` to both runs.
+   `--agent <login>` to both runs. When it prints the `manual agent-identity` row, show
+   the per-machine commands of step 5 with it: they run without asking once the installation
+   PR has merged.
 3. When the dry-run still prints the `review-secret` row, have the person set Prepare's
    secret before `--confirm`, so the first pushed head's `agent-review` runs with it.
    A dry-run that exits 0 writes outside the installation PR only what the PR's merge
@@ -194,10 +200,9 @@ Then run from the consumer's root:
    the `manual` rows still outstanding; a row with
    `(cannot read: <reason>)` is one `init` could not check. Tell the person to do those rows —
    the `project-*` rows in the Project's UI, the `task-readings` row, printed only when `init`
-   could not set it up from the machine's `grafana` MCP server and naming why, the
-   `plugin-channel` row, once
-   per machine and outside any project, and the `pre-push` row, printed only when `init` could
-   not install the hook in this clone and naming why.
+   could not set it up from the machine's `grafana` MCP server and naming why, and the
+   `pre-push` row, printed only when `init` could not install the hook in this clone and naming
+   why; the `agent-identity` row is left to the next step.
    In another clone, each Claude session start reports the missing pre-push hook until its
    person runs the two commands it names. Then run `agent-process wait_for_pr <PR>`. On exit 3
    rerun once; fix a failing `agent-process / quality` by a commit on the PR and wait again;
@@ -210,26 +215,34 @@ Then run from the consumer's root:
    and stop.
 5. Run `agent-process init --confirm` with the same arguments: it writes the `after-merge`
    steps — the ruleset requiring the checks observed on the merged PR, the bot as a
-   collaborator and Project writer, the approval ruleset, auto-merge, and the bot's token
-   in `.claude/settings.local.json` — and prints each `written`; a `conflict` line is shown
-   to the person. Then run `gh auth setup-git` once per machine. After a written agent-token
-   ask the person to restart Claude Code, so the agent's PRs are the bot's and the person's
-   approval merges them.
+   collaborator and Project writer, the approval ruleset and auto-merge — and prints each
+   `written`; a `conflict` line is shown to the person. Then run `gh auth setup-git` once per
+   machine. When that run printed the `manual agent-identity` row, run as the person and
+   without asking, unless `git config --global agent-process.bot` prints a login,
+   `git config --global agent-process.bot <bot>`, `<bot>` being the agent account `init`
+   used: the github.com login `gh auth status` does not show active, or `--agent`'s.
+   Interrupt the person only for a failed command, shown with its output and the line to run
+   in their own terminal. Once `agent-process init --dry-run` prints no `manual
+   agent-identity` row, ask the person to restart Claude Code, so the agent's PRs are the
+   bot's and the person's approval merges them.
 
    Until then each session start prints `agent-process agent identity not set`.
 
-The plugin is installed at user scope, once per machine, by the `plugin-channel` row (`claude
-plugin install agent-process@agent-process-marketplace`), and applies in every project with no
-project setting: a project that enables it gets a project-scope install per spelling of its path.
+The plugin is installed at user scope, once per machine, by Prepare, and applies in every
+project with no project setting: a project that enables it gets a project-scope install per
+spelling of its path.
 Claude runs the release the machine last fetched for the marketplace name: the `ref` in
 `.claude/settings.json` does not re-point a marketplace the machine already knows. The
 marketplace follows the branch `stable`, which each release fast-forwards, with auto-update on,
-so a machine that did the `plugin-channel` row gets a release within a session. The plugin's
+so a machine that followed Prepare gets a release within a session. The plugin's
 tool hooks act only in a repository carrying `.github/workflows/agent-process.yml`. At session
 start it installs its own Python dependencies, once per machine and pin set; a failure prints
 `agent-process plugin environment not installed` with the cause, and, in a repository whose
 `openspec/config.yaml` records another release than the plugin's, `agent-process release drift`
-with both releases and the fix, `/agent-process:init` for a repository behind. Install's
+with both releases and the fix, `/agent-process:init` for a repository behind. In a repository
+with the block it exports as `GH_TOKEN` the token `gh` holds for `git config agent-process.bot`
+when that token can write there, and otherwise prints `agent-process agent identity not set`
+with the reason and the fix. Install's
 `.claude/rules/agent-process.md` puts the goal function and the Claude harness into every
 session of the repository, compaction included. The plugin's read-budget
 hook denies an over-budget whole-file `Read`, naming the cheaper call; a `permissions.deny`
@@ -246,7 +259,5 @@ release, and a restart. It prints `agent-process project-scope install applies` 
 plugin uninstall` command per project-level install of the project, each run from that
 install's path spelling; the person runs them once. A machine still on a
 release tag migrates once, outside any project: set the `ref` of `agent-process-marketplace`
-in `~/.claude/settings.json` to `stable`, run `claude plugin marketplace add
-"ekolvah/agent-process-distribution#stable"`, run `claude plugin install
-agent-process@agent-process-marketplace`, then set `"autoUpdate": true` on its entry in
-`~/.claude/settings.json`, then re-run Install in each repository.
+in `~/.claude/settings.json` to `stable`, do Prepare's plugin step, then re-run Install in each
+repository.
