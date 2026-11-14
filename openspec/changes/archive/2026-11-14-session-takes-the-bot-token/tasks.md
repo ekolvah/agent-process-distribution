@@ -26,7 +26,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change session-takes-the-bot-token`, then `gh pr create --title "feat: session-takes-the-bot-token" --body-file <report>`. The report names tracking issue 510 as a plain reference, carries the scenario-to-test map, states the migration of design **Migration Plan** and the session-env and auto-mode risks of design **Risks**, and names the principles it interacts with (goal 1, goal 3, §II, §IV, §VII)
+- [x] 4.1 Run `agent-process archive_change session-takes-the-bot-token`, then `gh pr create --title "feat: session-takes-the-bot-token" --body-file <report>`. The report names tracking issue 510 as a plain reference, carries the scenario-to-test map, states the migration of design **Migration Plan** and the session-env and auto-mode risks of design **Risks**, and names the principles it interacts with (goal 1, goal 3, §II, §IV, §VII)
 - [ ] 4.2 Run `gh pr merge <PR> --auto --squash`, then `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
