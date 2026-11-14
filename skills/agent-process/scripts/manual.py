@@ -48,14 +48,11 @@ INFINITY = "yesoreyeram-infinity-datasource"
 MCP = "grafana MCP server in ~/.claude.json"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
-# The fix the session-start identity marker names; the template's copy is asserted equal.
+# The fix the `agent-identity` row and the plugin's session-start identity marker name.
 IDENTITY_FIX = "Install step 6 of the agent-process skill, then restart Claude Code"
 # The agent's permission: it writes and merges through the ruleset, but cannot change it.
 AGENT_PERMISSIONS = {"WRITE", "MAINTAIN"}
-PERMISSION_QUERY = (
-    "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){viewerPermission}}"
-)
-SETTINGS = Path(".claude") / "settings.local.json"
+BOT_KEY = "agent-process.bot"  # the git config key naming the agent's login
 PROJECT_SETTINGS = Path(".claude") / "settings.json"
 ATTRIBUTION = "OTEL_RESOURCE_ATTRIBUTES"
 
@@ -64,6 +61,19 @@ Read = Callable[..., "subprocess.CompletedProcess[str]"]
 
 class Unreadable(Exception):
     """A row's state `init` cannot read; the row is printed with this reason."""
+
+
+class NoAgentToken(Exception):
+    """Why a session takes no agent token; the message is the reason."""
+
+
+class Run(Protocol):
+    """`git` or `gh` run in the project: its completion whatever its exit code; `env` replaces
+    the environment of that call."""
+
+    def __call__(
+        self, program: str, *args: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]: ...
 
 
 class Grafana(Protocol):
@@ -173,16 +183,15 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
         return [f"{row} (cannot read: {exc})"]
 
 
-def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
+def _gh_read(t: Target, *args: str) -> Any:
     """A `gh` read's JSON whatever its exit code (a GraphQL error beside `data` exits 1), or
-    `Unreadable` with its stderr; `env` replaces the environment of that call."""
-    done = t.gh(*args, env=env)
+    `Unreadable` with its stderr."""
+    done = t.gh(*args)
     try:
         return json.loads(done.stdout)
     except (TypeError, json.JSONDecodeError):
-        lines = (done.stderr or "").strip().splitlines()
         raise Unreadable(
-            lines[0] if lines else f"`gh {args[0]} {args[1]}` printed no JSON"
+            _stderr(done).removeprefix(": ") or f"`gh {args[0]} {args[1]}` printed no JSON"
         ) from None
 
 
@@ -228,7 +237,7 @@ def _protected(t: Target, repo: dict[str, Any]) -> bool:
 
 
 def _identity_row(t: Target) -> list[str]:
-    row = "manual agent-identity: in this clone, once the installation PR has merged"
+    row = "manual agent-identity: once the installation PR has merged"
     try:
         pending = _identity_pending(t)
     except Unreadable as exc:
@@ -237,32 +246,50 @@ def _identity_row(t: Target) -> list[str]:
 
 
 def _identity_pending(t: Target) -> str | None:
-    """Why this clone's `env.GH_TOKEN` is not the agent's, or `None` when its permission on the
-    repository, read with that token whatever the session's, is write or maintain. A missing
-    `env` is `{}`."""
-    token = (_settings_env(t.root / SETTINGS) or {}).get("GH_TOKEN")
-    if not token:
-        return f"{SETTINGS.as_posix()} sets no env.GH_TOKEN"
-    owner, name = t.repo.split("/")
-    read = _gh_read(
-        t,
-        "api",
-        "graphql",
-        "-f",
-        f"owner={owner}",
-        "-f",
-        f"name={name}",
-        "-f",
-        f"query={PERMISSION_QUERY}",
-        env={**os.environ, "GH_TOKEN": str(token)},
-    )
+    """Why a session start in this clone would take no agent token (`agent_token`), or `None`
+    when it would, whatever the session's `GH_TOKEN`."""
+
+    def run(
+        program: str, *args: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        return t.git(*args) if program == "git" else t.gh(*args, env=env)
+
     try:
-        permission = read["data"]["repository"]["viewerPermission"]
-    except (KeyError, TypeError):
-        raise Unreadable(f"the permission of env.GH_TOKEN read as {read}") from None
-    if permission in AGENT_PERMISSIONS:
-        return None
-    return f"env.GH_TOKEN has {permission} permission on {t.repo}, not WRITE or MAINTAIN"
+        agent_token(run)
+    except NoAgentToken as exc:
+        return str(exc)
+    return None
+
+
+def agent_token(run: Run) -> str:
+    """The token `gh` holds for the login `git config agent-process.bot` names, when its
+    permission on the project's repository, read with it, is write or maintain. Otherwise raises
+    `NoAgentToken` with the reason, or `Unreadable` when that permission cannot be read."""
+    bot = (run("git", "config", "--get", BOT_KEY).stdout or "").strip()
+    if not bot:
+        raise NoAgentToken(f"git config {BOT_KEY} is not set")
+    stored = run("gh", "auth", "token", "--user", bot)
+    token = (stored.stdout or "").strip()
+    if stored.returncode != 0 or not token:
+        raise NoAgentToken(f"gh holds no token for {bot}{_stderr(stored)}")
+    read = run(
+        "gh", "repo", "view", "--json", "viewerPermission", env={**os.environ, "GH_TOKEN": token}
+    )
+    try:  # a failed `gh repo view` prints no JSON
+        permission = json.loads(read.stdout)["viewerPermission"]
+    except (TypeError, KeyError, json.JSONDecodeError):
+        raise Unreadable(f"{bot}'s permission{_stderr(read)}") from None
+    if permission not in AGENT_PERMISSIONS:
+        raise NoAgentToken(
+            f"{bot} has {permission} permission on the repository, not WRITE or MAINTAIN"
+        )
+    return token
+
+
+def _stderr(done: subprocess.CompletedProcess[str]) -> str:
+    """`: ` and the first line `done` printed to stderr, or nothing."""
+    lines = (done.stderr or "").strip().splitlines()
+    return f": {lines[0]}" if lines else ""
 
 
 def _settings_env(path: Path) -> dict[str, Any] | None:

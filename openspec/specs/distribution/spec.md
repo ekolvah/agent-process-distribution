@@ -904,21 +904,6 @@ other than `bin/openspec` SHALL write an OpenSpec version after `@fission-ai/ope
 - **WHEN** the publisher tests read the tracked files outside `openspec/changes/`
 - **THEN** `bin/openspec` names `@fission-ai/openspec@<pin>`, and any other file that writes a version after `@fission-ai/openspec@` fails naming the file
 
-### Requirement: A Claude session start reports a missing agent identity
-The installed skill check SHALL stay silent on the identity only when the session's `GH_TOKEN`
-equals `env.GH_TOKEN` of the project's `.claude/settings.local.json`. Otherwise, including when
-it cannot read that file, it SHALL exit 0 and add a `systemMessage` for the person and an
-`additionalContext` for the agent. Each SHALL name `agent-process agent identity not set`, the
-reason, and the fix: Install step 6 of the agent-process skill, then the restart of Claude Code.
-
-#### Scenario: Identity missing
-- **WHEN** a Claude session starts without `GH_TOKEN`, or with a `GH_TOKEN` that the project's settings do not hold
-- **THEN** the check exits 0 and its output names `agent-process agent identity not set` and the fix, to the person and to the agent
-
-#### Scenario: Identity set
-- **WHEN** a Claude session starts with the `GH_TOKEN` of the project's settings
-- **THEN** the check adds nothing for the identity
-
 ### Requirement: Install's admin steps run as the person
 `activate_protection` SHALL run each of its `gh` calls without `GH_TOKEN` and `GITHUB_TOKEN`
 in its environment.
@@ -1013,18 +998,17 @@ dashboard import, ending with the reason: `(not found: <what>)`, `(another stack
 - **THEN** its output carries one `manual protection` row naming both commands
 
 ### Requirement: Install reports a pending agent identity
-`init` SHALL print a `manual agent-identity` row unless this clone's
-`.claude/settings.local.json` carries an `env.GH_TOKEN` whose permission on the repository,
-read with that token in one `gh` call whatever the session's `GH_TOKEN`, is write or maintain.
-The row SHALL name the permission read, or that no token is set, and the fix the
-session-start identity marker names.
+`init` SHALL print a `manual agent-identity` row unless the session-start hook's conditions for
+taking the agent's token hold in the clone, whatever the session's `GH_TOKEN`. The row SHALL
+name the reason the hook's marker would name, and the fix that marker names, and SHALL not
+carry the token.
 
 #### Scenario: Identity pending
-- **WHEN** a run meets a clone whose settings carry no `env.GH_TOKEN`, or a token whose permission on the repository is admin or read
-- **THEN** its output carries one `manual agent-identity` row naming the permission or the missing token, and the fix
+- **WHEN** a run meets a clone where `agent-process.bot` is unset, `gh` holds no token for it, or the token's permission on the repository is admin or read
+- **THEN** its output carries one `manual agent-identity` row naming the missing bot, the missing token or the permission, and the fix
 
 #### Scenario: Identity holds
-- **WHEN** a run meets a clone whose settings carry a token with write permission on the repository
+- **WHEN** a run meets a clone where `agent-process.bot` names a login whose token in `gh` has write permission on the repository
 - **THEN** its output carries no `manual agent-identity` row, and the one `gh` call that carried that token as `GH_TOKEN` was a read
 
 ### Requirement: Install reports disallowed auto-merge
@@ -1147,3 +1131,35 @@ value of that variable, and the reason `init` did not write it.
 #### Scenario: Settings in another form
 - **WHEN** a run completes on a consumer whose `.claude/settings.json` needs no other change from `init` and is not in the form `init` writes
 - **THEN** its `settings` step is unchanged, and its output carries the `manual telemetry-attribution` row naming that form as the reason
+
+### Requirement: A Claude session start takes the agent's token
+In a project whose `openspec/config.yaml` holds the agent-process block, the plugin's
+session-start hook SHALL append `export GH_TOKEN=<token>` to `CLAUDE_ENV_FILE` when
+`git config --get agent-process.bot` in the project names a login, `gh auth token --user <login>`
+prints a token, and that token's permission on the repository, read with it, is write or
+maintain. Otherwise it SHALL export no `GH_TOKEN`, exit 0, and add to its `systemMessage` and
+`additionalContext` `agent-process agent identity not set`, the reason, and the fix: Install
+step 6 of the agent-process skill, then the restart of Claude Code. Its output SHALL not carry
+the token. In a project without the block it SHALL do neither.
+
+#### Scenario: Token taken
+- **WHEN** a session starts in a project with the block, `agent-process.bot` set, and `gh` holding a token for that login with write permission on the repository
+- **THEN** the env file exports `GH_TOKEN` as that token, and the hook's output carries neither the token nor `agent-process agent identity not set`
+
+#### Scenario: Identity missing
+- **WHEN** a session starts in a project with the block, and `agent-process.bot` is unset, `gh` holds no token for it, or the token's permission is not write or maintain or cannot be read
+- **THEN** the env file exports no `GH_TOKEN`, the hook exits 0, and its output names `agent-process agent identity not set`, the reason and the fix
+
+#### Scenario: Project without the block
+- **WHEN** a session starts in a project whose `openspec/config.yaml` lacks the block
+- **THEN** the env file exports no `GH_TOKEN` and the output does not name `agent-process agent identity not set`
+
+### Requirement: Install's identity step asks nothing
+While the dry-run prints the `manual agent-identity` row, Install SHALL show the person the
+commands of its agent-identity step with the dry-run's output. After the merge of the
+installation PR it SHALL run them without asking, and interrupt the person only for a command
+that fails and for the steps only the person can do.
+
+#### Scenario: Identity step after the merge
+- **WHEN** the agent reaches the agent-identity step of Install after the installation PR merged
+- **THEN** the person saw its commands with the dry-run, the agent runs them without a question to the person, and names to the person a failed command and the person's own steps

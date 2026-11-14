@@ -17,8 +17,12 @@ writes nothing, so the launcher falls back to `python` and the next session retr
 In a project whose `openspec/config.yaml` holds the agent-process block (`CLAUDE_PROJECT_DIR`,
 else the current directory), the hook also runs `init.release_drift`, the check of
 `start_change`, and prints `agent-process release drift` with its message, or with `cannot
-check` and the reason. `init` imports only the standard library, so it runs before the
-environment exists. Both markers share one JSON, a `systemMessage` line each.
+check` and the reason. There it also exports `GH_TOKEN` through `CLAUDE_ENV_FILE`: the token
+`gh` holds for the login `git config agent-process.bot` names, when that token can write to the
+repository (`manual.agent_token`); otherwise it prints `agent-process agent identity not set`
+with the reason and the fix, and the session runs as `gh`'s active account. `init` and `manual`
+import only the standard library, so they run before the environment exists. All markers share
+one JSON, a `systemMessage` line each.
 
 The plugin's `hooks/hooks.json` runs it as `python <plugin>/.../plugin_env.py session-start`.
 """
@@ -29,12 +33,14 @@ import hashlib
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import sys
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 if sys.platform == "win32":
     import msvcrt
@@ -45,10 +51,14 @@ else:
 
     HELD = BlockingIOError
 
+if TYPE_CHECKING:
+    import manual
+
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST = PLUGIN_ROOT / ".agent-process" / "requirements.txt"
 MARKER = "agent-process plugin environment not installed"
 DRIFT_MARKER = "agent-process release drift"
+IDENTITY_MARKER = "agent-process agent identity not set"
 BEGIN = "# agent-process:begin"  # the first line of the installer's config block
 LOCK_WAIT = 240  # seconds; below the hook's timeout of 300, so the marker reaches the session
 
@@ -143,13 +153,17 @@ def session_start() -> str | None:
     return None
 
 
-def release_drift() -> str | None:
+def _has_block(project: Path) -> bool:
+    """The project's `openspec/config.yaml` holds the agent-process block; a read error raises."""
+    text = (project / "openspec" / "config.yaml").read_text(encoding="utf-8")
+    return BEGIN in (line.strip() for line in text.splitlines())
+
+
+def release_drift(project: Path) -> str | None:
     """The drift marker of the project's recorded release, or None when the project has no
     agent-process block or records this plugin's release."""
-    project = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
     try:
-        text = (project / "openspec" / "config.yaml").read_text(encoding="utf-8")
-        if BEGIN not in (line.strip() for line in text.splitlines()):
+        if not _has_block(project):
             return None
         import init  # after the gate: a project without the block never pays for the import
 
@@ -161,6 +175,63 @@ def release_drift() -> str | None:
     return None if drift is None else f"agent-process {drift}"
 
 
+def _commands_in(project: Path) -> manual.Run:
+    """`manual.Run` in `project`; a program that cannot start raises `OSError` naming it."""
+
+    def run(
+        program: str, *args: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        try:
+            return subprocess.run(
+                [shutil.which(program) or program, *args],
+                cwd=project,
+                env=env,
+                capture_output=True,
+                encoding="utf-8",
+                check=False,
+            )
+        except OSError as error:
+            raise OSError(f"{program} cannot run: {error}") from error
+
+    return run
+
+
+def export_identity(run: manual.Run, env_file: str | None) -> str | None:
+    """Append the agent's `GH_TOKEN` to `env_file`; the identity marker, or None. The token is
+    in no output."""
+    import manual  # after the block gate, as `init`
+
+    try:
+        if not env_file:
+            raise manual.NoAgentToken("the hook received no CLAUDE_ENV_FILE")
+        token = manual.agent_token(run)
+        with open(env_file, "a", encoding="utf-8") as exports:
+            exports.write(f"export GH_TOKEN={shlex.quote(token)}\n")
+    except manual.NoAgentToken as error:
+        reason = str(error)
+    except manual.Unreadable as error:
+        reason = f"cannot read {error}"
+    except OSError as error:
+        reason = str(error)
+    else:
+        return None
+    return f"{IDENTITY_MARKER} ({reason}) — fix: {manual.IDENTITY_FIX}"
+
+
+def agent_identity(project: Path) -> str | None:
+    """The identity marker of a project with the block, or None; `release_drift` reports a
+    config it cannot read."""
+    try:
+        if not _has_block(project):
+            return None
+    except (OSError, UnicodeError):
+        return None
+    try:
+        return export_identity(_commands_in(project), os.environ.get("CLAUDE_ENV_FILE"))
+    except ImportError as error:
+        return f"{IDENTITY_MARKER} (cannot import manual: {error})"
+
+
 def main() -> int:
     if sys.argv[1:] != ["session-start"]:
         print("usage: plugin_env.py session-start", file=sys.stderr)
@@ -169,9 +240,8 @@ def main() -> int:
     cause = session_start()
     if cause is not None:
         texts.append(f"{MARKER}: {cause}. Scripts run under `python` until a session installs it.")
-    drift = release_drift()
-    if drift is not None:
-        texts.append(drift)
+    project = Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+    texts += [text for text in (release_drift(project), agent_identity(project)) if text]
     if texts:
         output = {
             "systemMessage": "\n".join(texts),

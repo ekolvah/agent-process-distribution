@@ -664,3 +664,19 @@ def test_upgrade_approval_is_its_consent() -> None:
     pr = install.split(" 4. ", 1)[1].split(" 5. ", 1)[0]
     for phrase in ("gh pr merge <PR> --auto --squash", "approve", "manual protection"):
         assert phrase in pr, phrase
+
+
+def test_install_identity_step_asks_nothing() -> None:
+    """Scenario: Identity step after the merge."""
+    install = _section("Install")
+    step = install.rsplit(" 6. ", 1)[1]
+    for phrase in (
+        "without asking",
+        "gh auth status",
+        "git config --global agent-process.bot <bot>",
+    ):
+        assert phrase in step, phrase
+    for phrase in ("ask once", "Ask once", "settings.local.json"):
+        assert phrase not in step, phrase
+    dry_run = install.split("2. Run `agent-process init --dry-run` ", 1)[1].split(" 3. ", 1)[0]
+    assert "step 6" in dry_run, dry_run

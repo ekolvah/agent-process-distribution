@@ -2,25 +2,20 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import os
 import re
-import shlex
 import shutil
 import subprocess
-import sys
-import threading
 import tomllib
 from pathlib import Path
-from types import ModuleType
-from typing import Callable
 
 import pytest
 import yaml
 
-from tests.publisher.init_harness import CURRENT, load_init
+from tests.publisher.init_harness import load_init
 from tests.publisher.lint_harness import ADOPTION_MARKER, FINDING, edit_payload, lint_repo
+from tests.publisher.plugin_harness import plugin_hooks, run_plugin_hook
 
 ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / ".claude-plugin" / "plugin.json"
@@ -380,43 +375,15 @@ def test_launcher_runs_the_session_interpreter(tmp_path: Path) -> None:
     assert script.endswith("skills/agent-process/scripts/probe.py"), result.stdout
 
 
-PLUGIN_HOOKS = ROOT / "hooks" / "hooks.json"
-
-
 def _plugin_hooks() -> list[tuple[str, str, str]]:
     """The `(event, matcher, command)` of every hook the plugin declares, read through the
     `"hooks"` envelope the platform requires of `hooks/hooks.json`."""
     return [
         (event, group.get("matcher", ""), hook["command"])
-        for event, groups in _json(PLUGIN_HOOKS)["hooks"].items()
+        for event, groups in plugin_hooks()["hooks"].items()
         for group in groups
         for hook in group["hooks"]
     ]
-
-
-def _run_plugin_hook(
-    project: Path, command: str, payload: dict, extra: dict[str, str | None] | None = None
-) -> subprocess.CompletedProcess:
-    """Run a hook command as the platform does: `sh -c`, the plugin root and project exported;
-    `extra` sets variables, or removes the ones it maps to None."""
-    sh = shutil.which("sh")
-    assert sh, "sh is not on PATH"
-    merged: dict[str, str | None] = {
-        **os.environ,
-        "CLAUDE_PROJECT_DIR": project.as_posix(),
-        "CLAUDE_PLUGIN_ROOT": ROOT.as_posix(),
-        **(extra or {}),
-    }
-    env = {name: value for name, value in merged.items() if value is not None}
-    return subprocess.run(
-        [sh, "-c", command],
-        cwd=project,
-        env=env,
-        input=json.dumps(payload),
-        capture_output=True,
-        encoding="utf-8",
-        check=False,
-    )
 
 
 def _denied_payloads(project: Path) -> dict[str, dict]:
@@ -452,7 +419,7 @@ def test_plugin_hooks_remind_on_memory_write_in_an_adopted_repository(tmp_path: 
     assert len(hooks) == 1, _plugin_hooks()
     for separator in ("/", "\\"):
         payload = _memory_write(tmp_path, separator)
-        result = _run_plugin_hook(tmp_path, hooks[0], payload)
+        result = run_plugin_hook(tmp_path, hooks[0], payload)
         assert result.returncode == 2, (separator, result.stderr)
         assert payload["tool_input"]["file_path"] in result.stderr
         assert "repository" in result.stderr
@@ -462,7 +429,7 @@ def test_plugin_hooks_lint_the_edited_file_in_an_adopted_repository(tmp_path: Pa
     """Scenarios: Commit-stage finding, Lint error — the plugin's PostToolUse hook runs the
     project's `pre-commit`-stage hooks on the edited file and shows the finding."""
     repo = lint_repo(tmp_path / "repo", FINDING)
-    groups = _json(PLUGIN_HOOKS)["hooks"]["PostToolUse"]
+    groups = plugin_hooks()["hooks"]["PostToolUse"]
     lint = [
         (group, hook)
         for group in groups
@@ -474,7 +441,7 @@ def test_plugin_hooks_lint_the_edited_file_in_an_adopted_repository(tmp_path: Pa
     assert group["matcher"] == "Edit|Write"
     assert any("memory_checkpoint" in other["command"] for other in group["hooks"])
     assert hook["timeout"] == 120
-    result = _run_plugin_hook(repo, hook["command"], edit_payload(repo / "a.py"))
+    result = run_plugin_hook(repo, hook["command"], edit_payload(repo / "a.py"))
     assert result.returncode == 2, result.stderr
     assert "finding:" in result.stderr
 
@@ -490,7 +457,7 @@ def test_plugin_hooks_deny_navigation_in_an_adopted_repository(tmp_path: Path) -
         if "navigation_policy" in command
     ]
     assert [matcher for matcher, _ in hooks] == ["Read"], hooks
-    result = _run_plugin_hook(tmp_path, hooks[0][1], payloads["Read"])
+    result = run_plugin_hook(tmp_path, hooks[0][1], payloads["Read"])
     assert result.returncode == 0, result.stderr
     output = json.loads(result.stdout)["hookSpecificOutput"]
     assert output["permissionDecision"] == "deny"
@@ -511,323 +478,8 @@ def test_plugin_hooks_are_silent_outside_an_adopted_repository(tmp_path: Path) -
     pre_tool_use = sorted(m for event, m, _ in hooks if event == "PreToolUse")
     assert "Read" in pre_tool_use, pre_tool_use
     for event, matcher, command in hooks:
-        result = _run_plugin_hook(tmp_path, command, payloads[matcher])
+        result = run_plugin_hook(tmp_path, command, payloads[matcher])
         assert (result.returncode, result.stdout) == (0, ""), (event, matcher, result.stderr)
-
-
-ENV_MARKER = "agent-process plugin environment not installed"
-
-
-def _session_start(
-    tmp_path: Path, manifest: str, **extra: str | None
-) -> tuple[subprocess.CompletedProcess, Path | None]:
-    """Run the plugin's one `SessionStart` command with a plugin root whose runtime manifest is
-    `manifest`, the data directory `tmp_path/data` and a fresh env file; return the result and
-    the interpreter the env file exports, if any."""
-    hooks = [
-        hook
-        for group in _json(PLUGIN_HOOKS)["hooks"].get("SessionStart", [])
-        for hook in group["hooks"]
-    ]
-    assert len(hooks) == 1, hooks
-    assert hooks[0]["timeout"] == 300
-    plugin = tmp_path / "plugin"
-    scripts = plugin / "skills" / "agent-process" / "scripts"
-    scripts.mkdir(parents=True, exist_ok=True)
-    shutil.copy(SCRIPTS / "plugin_env.py", scripts / "plugin_env.py")
-    (plugin / ".agent-process").mkdir(exist_ok=True)
-    (plugin / ".agent-process" / "requirements.txt").write_text(manifest, encoding="utf-8")
-    env_file = tmp_path / "session-env.sh"
-    env_file.unlink(missing_ok=True)
-    variables: dict[str, str | None] = {
-        "CLAUDE_PLUGIN_ROOT": plugin.as_posix(),
-        "CLAUDE_PLUGIN_DATA": (tmp_path / "data").as_posix(),
-        "CLAUDE_ENV_FILE": env_file.as_posix(),
-        **extra,
-    }
-    project = tmp_path / "project"
-    project.mkdir(exist_ok=True)
-    payload = {"hook_event_name": "SessionStart", "source": "startup"}
-    result = _run_plugin_hook(project, hooks[0]["command"], payload, variables)
-    lines = env_file.read_text(encoding="utf-8").splitlines() if env_file.exists() else []
-    exports = [
-        shlex.split(line.removeprefix("export AGENT_PROCESS_PYTHON="))[0]
-        for line in lines
-        if line.startswith("export AGENT_PROCESS_PYTHON=")
-    ]
-    assert len(exports) <= 1, lines
-    return result, Path(exports[0]) if exports else None
-
-
-def _environment(tmp_path: Path, interpreter: Path | None) -> Path:
-    """The completed `venv-*` directory of the data directory that `interpreter` belongs to."""
-    assert interpreter is not None and interpreter.is_file(), interpreter
-    venv = tmp_path / "data" / interpreter.relative_to(tmp_path / "data").parts[0]
-    assert venv.name.startswith("venv-"), venv
-    assert (venv / ".complete").is_file(), venv
-    return venv
-
-
-def test_session_start_installs_the_plugin_environment(tmp_path: Path) -> None:
-    """Scenarios: First session, Manifest unchanged, Broken environment."""
-    result, interpreter = _session_start(tmp_path, "# nothing to download\n")
-    assert (result.returncode, result.stdout) == (0, ""), result.stderr
-    venv = _environment(tmp_path, interpreter)
-    built = (venv / "pyvenv.cfg").stat().st_mtime_ns
-
-    result, again = _session_start(tmp_path, "# nothing to download\n")
-    assert (result.returncode, result.stdout) == (0, ""), result.stderr
-    assert again == interpreter
-    assert (venv / "pyvenv.cfg").stat().st_mtime_ns == built
-
-    assert interpreter is not None
-    interpreter.unlink()
-    result, rebuilt = _session_start(tmp_path, "# nothing to download\n")
-    assert (result.returncode, result.stdout) == (0, ""), result.stderr
-    assert rebuilt == interpreter
-    assert _environment(tmp_path, rebuilt) == venv
-
-
-def test_session_start_keeps_the_previous_environment(tmp_path: Path) -> None:
-    """Scenario: Manifest changed."""
-    _, first = _session_start(tmp_path, "# first\n")
-    old = _environment(tmp_path, first)
-    built = (old / "pyvenv.cfg").stat().st_mtime_ns
-    completed = (old / ".complete").stat().st_mtime_ns
-    result, second = _session_start(tmp_path, "# second\n")
-    assert (result.returncode, result.stdout) == (0, ""), result.stderr
-    assert _environment(tmp_path, second) != old
-    assert (old / "pyvenv.cfg").stat().st_mtime_ns == built
-    assert (old / ".complete").stat().st_mtime_ns == completed
-
-
-@pytest.mark.parametrize(
-    ("manifest", "extra", "named", "runs"),
-    [
-        pytest.param(
-            "agent-process-no-such-package==0\n",
-            {"PIP_NO_INDEX": "1"},
-            "agent-process-no-such-package",
-            2,
-            id="pip",
-        ),
-        pytest.param("# none\n", {"CLAUDE_PLUGIN_DATA": None}, "CLAUDE_PLUGIN_DATA", 1, id="data"),
-        pytest.param("# none\n", {"CLAUDE_ENV_FILE": None}, "CLAUDE_ENV_FILE", 1, id="env-file"),
-    ],
-)
-def test_session_start_reports_a_missing_environment(
-    tmp_path: Path, manifest: str, extra: dict[str, str | None], named: str, runs: int
-) -> None:
-    """Scenarios: Install fails, Hook variables absent; a failed install is retried."""
-    for _ in range(runs):
-        result, interpreter = _session_start(tmp_path, manifest, **extra)
-        assert result.returncode == 0, result.stderr
-        output = json.loads(result.stdout)
-        context = output["hookSpecificOutput"]["additionalContext"]
-        for text in (output["systemMessage"], context):
-            assert ENV_MARKER in text and named in text, text
-        assert interpreter is None
-        assert not list((tmp_path / "data").glob("venv-*/.complete"))
-
-
-DRIFT_MARKER = "agent-process release drift"
-
-
-def _config_block(recorded: str) -> str:
-    """The installer's config block with the release line `recorded`."""
-    init = load_init()
-    block, line = init.render_config_block(), init.RELEASE + CURRENT
-    assert line in block, "the rendered block records no release"
-    return block.replace(line, init.RELEASE + recorded)
-
-
-def _start_in_project(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    via_cwd: bool = False,
-) -> str:
-    """`plugin_env.main` for `session-start` in-process at the project `tmp_path/project`, named
-    by `CLAUDE_PROJECT_DIR` or, `via_cwd`, by the current directory; without
-    `CLAUDE_PLUGIN_DATA`, so nothing installs. Returns its stdout."""
-    module, _ = _plugin_env(tmp_path, lambda *_: None)
-    project = tmp_path / "project"
-    project.mkdir(exist_ok=True)
-    monkeypatch.syspath_prepend(str(SCRIPTS))  # as `python plugin_env.py` puts its directory first
-    monkeypatch.delenv("CLAUDE_PLUGIN_DATA", raising=False)
-    monkeypatch.setattr(sys, "argv", ["plugin_env.py", "session-start"])
-    if via_cwd:
-        monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
-        monkeypatch.chdir(project)
-    else:
-        monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(project))
-    assert module.main() == 0
-    return capsys.readouterr().out
-
-
-def _texts(stdout: str) -> tuple[str, str]:
-    output = json.loads(stdout)
-    return output["systemMessage"], output["hookSpecificOutput"]["additionalContext"]
-
-
-@pytest.mark.parametrize("via_cwd", [False, True], ids=["project-dir", "cwd"])
-def test_session_start_reports_release_drift(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    via_cwd: bool,
-) -> None:
-    """Scenario: Repository behind the plugin."""
-    config = tmp_path / "project" / "openspec" / "config.yaml"
-    config.parent.mkdir(parents=True)
-    config.write_text(_config_block("3.29.0"), encoding="utf-8")
-    stdout = _start_in_project(tmp_path, monkeypatch, capsys, via_cwd)
-    for text in _texts(stdout):
-        for named in (DRIFT_MARKER, "3.29.0", CURRENT, "/agent-process:init"):
-            assert named in text, text
-
-
-@pytest.mark.parametrize("config", ["current", "no-block", "no-config"])
-def test_session_start_silent_on_release(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    config: str,
-) -> None:
-    """Scenario: Release current or not installed."""
-    path = tmp_path / "project" / "openspec" / "config.yaml"
-    if config != "no-config":
-        path.parent.mkdir(parents=True)
-        text = _config_block(CURRENT) if config == "current" else "schema: x\n"
-        path.write_text(text, encoding="utf-8")
-    stdout = _start_in_project(tmp_path, monkeypatch, capsys)
-    for text in _texts(stdout):
-        assert ENV_MARKER in text and DRIFT_MARKER not in text, text
-
-
-def test_session_start_release_undecidable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """Scenario: Release undecidable."""
-    (tmp_path / "project" / "openspec" / "config.yaml").mkdir(parents=True)
-    stdout = _start_in_project(tmp_path, monkeypatch, capsys)
-    for text in _texts(stdout):
-        assert DRIFT_MARKER in text and "cannot check" in text, text
-
-
-def test_init_imports_without_site_packages() -> None:
-    """Design D2: `init` imports with the standard library alone, as the session-start hook
-    imports it before the plugin environment exists."""
-    code = f"import sys; sys.path.insert(0, {str(SCRIPTS)!r}); import init"
-    result = subprocess.run(
-        [sys.executable, "-I", "-S", "-c", code], capture_output=True, encoding="utf-8", check=False
-    )
-    assert result.returncode == 0, result.stderr
-
-
-Command = tuple[str, ...]
-
-
-def _plugin_env(
-    tmp_path: Path, before: Callable[[str, Command], None]
-) -> tuple[ModuleType, list[tuple[str, Command]]]:
-    """`plugin_env` loaded in-process with the manifest `tmp_path/requirements.txt`; its `_run`
-    records each command under the calling thread's name, calls `before` and runs it."""
-    spec = importlib.util.spec_from_file_location(
-        "agent_process_plugin_env_under_test", SCRIPTS / "plugin_env.py"
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    manifest = tmp_path / "requirements.txt"
-    manifest.write_text("# none\n", encoding="utf-8")
-    log: list[tuple[str, Command]] = []
-    run = module._run
-
-    def recorded(*args: str | Path) -> None:
-        thread, command = threading.current_thread().name, tuple(str(arg) for arg in args)
-        log.append((thread, command))
-        before(thread, command)
-        run(*args)
-
-    vars(module).update(MANIFEST=manifest, _run=recorded)
-    return module, log
-
-
-def _step(command: Command) -> str:
-    """`venv`, `pip install` or `pip check`: the words after `-m`."""
-    words = command[command.index("-m") + 1 :]
-    return " ".join(words[:2] if words[0] == "pip" else words[:1])
-
-
-def test_parallel_install_waits_and_reuses_the_environment(tmp_path: Path) -> None:
-    """Scenario: Parallel install."""
-    data = tmp_path / "data"
-    results: dict[str, object] = {}
-    b_ran = threading.Event()
-
-    def session(name: str) -> None:
-        try:
-            python = results[name] = module.install(data)
-        except module.InstallError as error:  # reported by the assertions below
-            results[name] = error
-        else:
-            if name == "A":
-                results["built"] = (python.parents[1] / "pyvenv.cfg").stat().st_mtime_ns
-
-    a = threading.Thread(target=session, args=("A",), name="A")
-    b = threading.Thread(target=session, args=("B",), name="B")
-
-    def before(thread: str, command: Command) -> None:
-        if thread == "B":
-            b_ran.set()
-        elif _step(command) == "pip install" and b.ident is None:
-            b.start()
-            b_ran.wait(5)
-
-    module, log = _plugin_env(tmp_path, before)
-    a.start()
-    a.join()
-    if b.ident is not None:
-        b.join()
-    b_steps = [(i, _step(command)) for i, (thread, command) in enumerate(log) if thread == "B"]
-    a_last = max(i for i, (thread, _) in enumerate(log) if thread == "A")
-    assert [step for _, step in b_steps] == ["pip check"], log
-    assert b_steps[0][0] > a_last, log
-    assert isinstance(results["A"], Path), results
-    assert results["B"] == results["A"], results
-    venv = results["A"].parents[1]
-    assert (venv / "pyvenv.cfg").stat().st_mtime_ns == results["built"]
-
-
-def test_install_reports_a_lock_held_too_long(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Scenario: Install waits too long."""
-    data = tmp_path / "data"
-    reached, release = threading.Event(), threading.Event()
-
-    def before(thread: str, command: Command) -> None:
-        if thread == "A" and _step(command) == "pip install" and not reached.is_set():
-            reached.set()
-            release.wait(10)
-
-    module, log = _plugin_env(tmp_path, before)
-    wait = getattr(module, "LOCK_WAIT", None)
-    monkeypatch.setattr(module, "LOCK_WAIT", 1, raising=False)
-    a = threading.Thread(target=lambda: module.install(data), name="A")
-    a.start()
-    try:
-        reached.wait(5)
-        me = threading.current_thread().name
-        with pytest.raises(module.InstallError) as caught:
-            module.install(data)
-        assert ".lock" in str(caught.value) and "1 s" in str(caught.value), caught.value
-        assert [command for thread, command in log if thread == me] == [], log
-        assert wait == 240
-    finally:
-        release.set()
-        a.join(60)
 
 
 def test_publisher_settings_declare_no_navigation_hook() -> None:
