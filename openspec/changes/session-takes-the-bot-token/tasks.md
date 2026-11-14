@@ -22,7 +22,7 @@
 
 - [x] 3.1 Run `/simplify` without an argument and commit its edits
 - [x] 3.2 Run `openspec validate --strict --all`
-- [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 4. Deliver
 
@@ -33,9 +33,9 @@
 
 | Scenario | Test |
 | --- | --- |
-| distribution / Token taken | `tests/publisher/test_plugin.py::test_session_start_takes_the_agent_token` |
-| distribution / Identity missing | `tests/publisher/test_plugin.py::test_session_start_reports_a_missing_identity`, `::test_session_start_reports_the_marker` |
-| distribution / Project without the block | `tests/publisher/test_plugin.py::test_session_start_skips_identity_outside_the_block` |
+| distribution / Token taken | `tests/publisher/test_session_start.py::test_session_start_takes_the_agent_token` |
+| distribution / Identity missing | `tests/publisher/test_session_start.py::test_session_start_reports_a_missing_identity`, `::test_session_start_reports_the_marker` |
+| distribution / Project without the block | `tests/publisher/test_session_start.py::test_session_start_skips_identity_outside_the_block` |
 | distribution / Identity step after the merge | `tests/publisher/test_planning_workflow.py::test_install_identity_step_asks_nothing` |
 | distribution / Identity pending | `tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual` |
 | distribution / Identity holds | `tests/publisher/test_init_remote.py::test_agent_identity_holds` |

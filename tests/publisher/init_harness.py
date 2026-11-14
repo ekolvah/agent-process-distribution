@@ -559,10 +559,11 @@ def grafana_config(
     (home / ".claude.json").write_text(json.dumps(config), encoding="utf-8")
 
 
-def agent_identity(sb: Sandbox, bot: str = "agent", token: str = "agent-token") -> None:
-    """The clone's `agent-process.bot` is `bot`, and `gh` holds `token` for it."""
+def agent_identity(sb: Sandbox, bot: str = "agent", token: str | None = "agent-token") -> None:
+    """The clone's `agent-process.bot` is `bot`, and `gh` holds `token` for it, if any."""
     git("config", "agent-process.bot", bot, cwd=sb.root)
-    sb.github.tokens[bot] = token
+    if token is not None:
+        sb.github.tokens[bot] = token
 
 
 def which(name: str) -> str | None:

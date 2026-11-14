@@ -56,9 +56,11 @@ Observed on 2026-11-13/14 (gh 2.87.3, Claude Code 2.1.296, Git for Windows):
   `skills/agent-process/templates/skill_check.py`, `skills/agent-process/SKILL.md` (Install steps
   2 and 6), `.agent-process/docs/adr/0040-the-agent-runs-under-its-own-identity.md` (D1, D3, D5,
   D6, Consequences, Confirmation).
-- Tests edited: `tests/publisher/test_plugin.py`, `tests/publisher/test_init_remote.py`,
-  `tests/publisher/init_harness.py`, `tests/publisher/test_skill_check.py`,
-  `tests/publisher/test_planning_workflow.py`.
+- Tests edited: `tests/publisher/test_plugin.py`, whose session-start tests move with the new
+  ones into `tests/publisher/test_session_start.py` and its hook runner into
+  `tests/publisher/plugin_harness.py` to stay under the module-size limit,
+  `tests/publisher/test_init_remote.py`, `tests/publisher/init_harness.py`,
+  `tests/publisher/test_skill_check.py`, `tests/publisher/test_planning_workflow.py`.
 - Specs: `openspec/specs/distribution/spec.md`. No dependency.
 - Consumers: the plugin part reaches them with the release; the skill check's part with their
   next `init` upgrade. A clone that keeps `env.GH_TOKEN` in its local settings still works; the

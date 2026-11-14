@@ -524,19 +524,13 @@ def test_protection_inactive_is_manual(
     assert "--dry-run" in row and "--confirm" in row, row
 
 
-def _no_bot(sb: Sandbox) -> None:
-    """No git config but the clone's names `agent-process.bot`."""
-
-
-def _no_token(sb: Sandbox) -> None:
-    git("config", "agent-process.bot", "agent", cwd=sb.root)
-
-
 @pytest.mark.parametrize(
     ("arrange", "named"),
     [
-        pytest.param(_no_bot, "git config agent-process.bot is not set", id="no-bot"),
-        pytest.param(_no_token, "gh holds no token for agent", id="no-token"),
+        pytest.param(lambda sb: None, "git config agent-process.bot is not set", id="no-bot"),
+        pytest.param(
+            lambda sb: agent_identity(sb, token=None), "gh holds no token for agent", id="no-token"
+        ),
         pytest.param(lambda sb: agent_identity(sb, token="person-token"), "ADMIN", id="admin"),
         pytest.param(lambda sb: agent_identity(sb, token="stranger-token"), "READ", id="read"),
     ],

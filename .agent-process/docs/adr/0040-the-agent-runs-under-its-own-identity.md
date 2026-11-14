@@ -112,7 +112,7 @@ GitHub credential, as cloud sessions do; the ruleset stays.
 `::test_agent_identity_holds` hold the check of D1,
 `tests/publisher/test_activate_protection.py::test_approval_ruleset_body` D2,
 `tests/publisher/test_activate_protection.py::test_a_clone_with_the_agent_identity` D6,
-`tests/publisher/test_plugin.py::test_session_start_takes_the_agent_token`,
+`tests/publisher/test_session_start.py::test_session_start_takes_the_agent_token`,
 `::test_session_start_reports_a_missing_identity` and `::test_session_start_reports_the_marker`
 D3 and the marker of D5, and
 `tests/publisher/test_reusable_workflows.py::test_release_workflow_approves_and_enables_auto_merge`
