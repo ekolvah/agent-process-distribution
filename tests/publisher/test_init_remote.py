@@ -41,6 +41,7 @@ from tests.publisher.init_harness import (
     Runner,
     Sandbox,
     _installed,
+    agent_identity,
     area_filter,
     empty_origin,
     empty_repository,
@@ -48,7 +49,6 @@ from tests.publisher.init_harness import (
     git,
     install,
     load_init,
-    local_settings,
     project_settings,
     snapshot,
     transitions,
@@ -524,46 +524,57 @@ def test_protection_inactive_is_manual(
     assert "--dry-run" in row and "--confirm" in row, row
 
 
+def _no_bot(sb: Sandbox) -> None:
+    """No git config but the clone's names `agent-process.bot`."""
+
+
+def _no_token(sb: Sandbox) -> None:
+    git("config", "agent-process.bot", "agent", cwd=sb.root)
+
+
 @pytest.mark.parametrize(
-    ("mode", "settings", "named"),
+    ("arrange", "named"),
     [
-        *[
-            pytest.param(mode, settings, "GH_TOKEN", id=f"{mode}-{name}")
-            for mode in ("--dry-run", "--confirm")
-            for name, settings in (("absent", None), ("no-env", {"permissions": {}}))
-        ],
-        pytest.param("--dry-run", {"env": {"GH_TOKEN": "person-token"}}, "ADMIN", id="admin"),
-        pytest.param("--dry-run", {"env": {"GH_TOKEN": "stranger-token"}}, "READ", id="read"),
+        pytest.param(_no_bot, "git config agent-process.bot is not set", id="no-bot"),
+        pytest.param(_no_token, "gh holds no token for agent", id="no-token"),
+        pytest.param(lambda sb: agent_identity(sb, token="person-token"), "ADMIN", id="admin"),
+        pytest.param(lambda sb: agent_identity(sb, token="stranger-token"), "READ", id="read"),
     ],
 )
 def test_agent_identity_pending_is_manual(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str, settings: Any, named: str
+    sandbox: Sandbox,
+    capfd: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    arrange: Callable[[Sandbox], None],
+    named: str,
 ) -> None:
     """Scenario: Identity pending."""
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.delenv("GIT_CONFIG_GLOBAL", raising=False)  # the sandbox's HOME holds it
     sandbox.github.allow_auto_merge = True
     sandbox.github.permissions.update({"person-token": "ADMIN", "stranger-token": "READ"})
-    if settings is not None:
-        local_settings(sandbox, text=json.dumps(settings))
+    arrange(sandbox)
     init = load_init()
-    assert install(init, sandbox, mode) == 0
+    assert install(init, sandbox, "--dry-run") == 0
     row = _row(_manual_rows(capfd.readouterr().out), "agent-identity")
     assert "(cannot read: " not in row, row
     assert named in row and init.manual.IDENTITY_FIX in row, row
+    assert "-token" not in row, row
 
 
 def test_agent_identity_holds(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Scenario: Identity holds — read with the settings' token, not the session's."""
+    """Scenario: Identity holds — read with the bot's token, not the session's."""
     monkeypatch.setenv("GH_TOKEN", "person-token")
-    local_settings(sandbox, "agent-token")
+    agent_identity(sandbox)
     init = load_init()
     assert install(init, sandbox, "--dry-run") == 0
     manual = _manual_rows(capfd.readouterr().out)
     assert not [ln for ln in manual if ln.startswith("manual agent-identity: ")], manual
     tokened = [args for token, args in sandbox.github.tokened if token == "agent-token"]
-    assert len(tokened) == 1 and tokened[0][:2] == ["api", "graphql"], tokened
-    assert "viewerPermission" in tokened[0][-1] and "mutation" not in tokened[0][-1], tokened
+    assert tokened == [["repo", "view", "--json", "viewerPermission"]], tokened
+    assert "agent-token" not in " ".join(manual)
 
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
@@ -571,7 +582,7 @@ def test_auto_merge_disallowed_is_manual(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
 ) -> None:
     """Scenario: Auto-merge disallowed."""
-    local_settings(sandbox, "agent-token")
+    agent_identity(sandbox)
     init = load_init()
     assert install(init, sandbox, mode) == 0
     manual = _manual_rows(capfd.readouterr().out)
@@ -608,7 +619,7 @@ def test_observed_manual_rows_are_omitted(
     project.areas = ["Alpha"]
     project.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
     _plugin_files(sandbox)
-    local_settings(sandbox, "agent-token")
+    agent_identity(sandbox)
     sandbox.github.allow_auto_merge = True
     sandbox.github.required_checks = list(PROCESS_CHECKS)
     hook = sandbox.root / ".git" / "hooks" / "pre-push"
@@ -782,14 +793,9 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], object], list[str]]] = {
     "repo-read": ("--dry-run", _fault("repo-read"), ["protection", "auto-merge"]),
     "rules-read": ("--dry-run", _fault("rules-read"), ["protection"]),
     "rules-shape": ("--dry-run", _fault("rules-shape"), ["protection"]),
-    "settings-malformed": (
+    "permission-read": (
         "--dry-run",
-        lambda sb: local_settings(sb, text="not json"),
-        ["agent-identity"],
-    ),
-    "settings-shape": (
-        "--dry-run",
-        lambda sb: local_settings(sb, text='{"env": []}'),
+        lambda sb: agent_identity(sb, token="unknown-token"),
         ["agent-identity"],
     ),
     "project-settings-shape": (

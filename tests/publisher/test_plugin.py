@@ -649,10 +649,17 @@ def _start_in_project(
 ) -> str:
     """`plugin_env.main` for `session-start` in-process at the project `tmp_path/project`, named
     by `CLAUDE_PROJECT_DIR` or, `via_cwd`, by the current directory; without
-    `CLAUDE_PLUGIN_DATA`, so nothing installs. Returns its stdout."""
+    `CLAUDE_PLUGIN_DATA`, so nothing installs. No git config of the machine applies, so the
+    identity export finds no bot and never calls `gh`; its env file is `tmp_path/env.sh`.
+    Returns its stdout."""
     module, _ = _plugin_env(tmp_path, lambda *_: None)
     project = tmp_path / "project"
     project.mkdir(exist_ok=True)
+    empty = tmp_path / "gitconfig"
+    empty.write_text("", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(empty))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("CLAUDE_ENV_FILE", str(tmp_path / "env.sh"))
     monkeypatch.syspath_prepend(str(SCRIPTS))  # as `python plugin_env.py` puts its directory first
     monkeypatch.delenv("CLAUDE_PLUGIN_DATA", raising=False)
     monkeypatch.setattr(sys, "argv", ["plugin_env.py", "session-start"])
@@ -713,6 +720,123 @@ def test_session_start_release_undecidable(
     stdout = _start_in_project(tmp_path, monkeypatch, capsys)
     for text in _texts(stdout):
         assert DRIFT_MARKER in text and "cannot check" in text, text
+
+
+IDENTITY_MARKER = "agent-process agent identity not set"
+IDENTITY_FIX = "Install step 6 of the agent-process skill"
+AGENT_TOKEN = "fake-token-123"
+Done = subprocess.CompletedProcess
+
+
+class FakeCommands:
+    """`git` and `gh` as the session-start identity export runs them in the project: the key
+    `agent-process.bot` is `bot`, `gh` holds `AGENT_TOKEN` for it, and the permission read
+    answers `permission` for a call carrying that token. `faults` replaces the answer of the
+    command it names (`bot`, `token`, `view`)."""
+
+    def __init__(self, permission: str = "WRITE", **faults: Done) -> None:
+        self.permission = permission
+        self.faults = faults
+
+    def __call__(self, program: str, *args: str, env: dict[str, str] | None = None) -> Done:
+        command = (program, *args)
+        if command == ("git", "config", "--get", "agent-process.bot"):
+            return self.faults.get("bot") or Done(command, 0, "bot\n", "")
+        if command == ("gh", "auth", "token", "--user", "bot"):
+            return self.faults.get("token") or Done(command, 0, f"{AGENT_TOKEN}\n", "")
+        assert command == ("gh", "repo", "view", "--json", "viewerPermission"), command
+        if "view" in self.faults:
+            return self.faults["view"]
+        if (env or {}).get("GH_TOKEN") != AGENT_TOKEN:
+            return Done(command, 1, "", "HTTP 401: Bad credentials\n")
+        return Done(command, 0, json.dumps({"viewerPermission": self.permission}), "")
+
+
+def _export_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, commands: FakeCommands, env_file: bool = True
+) -> tuple[str | None, list[str]]:
+    """`plugin_env`'s identity export over `commands`; its marker and the env file's lines."""
+    module, _ = _plugin_env(tmp_path, lambda *_: None)
+    monkeypatch.syspath_prepend(str(SCRIPTS))
+    path = tmp_path / "env.sh"
+    marker = module.export_identity(commands, str(path) if env_file else None)
+    return marker, path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
+
+def test_session_start_takes_the_agent_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Scenario: Token taken."""
+    marker, lines = _export_identity(tmp_path, monkeypatch, FakeCommands())
+    assert marker is None, marker
+    assert lines == [f"export GH_TOKEN={AGENT_TOKEN}"], lines
+
+
+@pytest.mark.parametrize(
+    ("commands", "env_file", "reason"),
+    [
+        pytest.param(
+            FakeCommands(bot=Done((), 1, "", "")),
+            True,
+            "git config agent-process.bot is not set",
+            id="no-bot",
+        ),
+        pytest.param(
+            FakeCommands(
+                token=Done((), 1, "", "no oauth token found for github.com account bot\n")
+            ),
+            True,
+            "gh holds no token for bot",
+            id="no-token",
+        ),
+        pytest.param(FakeCommands("READ"), True, "bot has READ permission", id="read"),
+        pytest.param(FakeCommands("ADMIN"), True, "bot has ADMIN permission", id="admin"),
+        pytest.param(
+            FakeCommands(view=Done((), 1, "", "HTTP 502: Bad Gateway\n")),
+            True,
+            "cannot read bot's permission",
+            id="unreadable",
+        ),
+        pytest.param(FakeCommands(), False, "CLAUDE_ENV_FILE", id="no-env-file"),
+    ],
+)
+def test_session_start_reports_a_missing_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    commands: FakeCommands,
+    env_file: bool,
+    reason: str,
+) -> None:
+    """Scenario: Identity missing — the reason and the fix, never the token."""
+    marker, lines = _export_identity(tmp_path, monkeypatch, commands, env_file)
+    assert not [line for line in lines if "GH_TOKEN" in line], lines
+    assert marker is not None
+    for named in (IDENTITY_MARKER, reason, IDENTITY_FIX):
+        assert named in marker, marker
+    assert AGENT_TOKEN not in marker
+
+
+def test_session_start_reports_the_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Scenario: Identity missing — in the hook's output, to the person and to the agent."""
+    config = tmp_path / "project" / "openspec" / "config.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text(_config_block(CURRENT), encoding="utf-8")
+    stdout = _start_in_project(tmp_path, monkeypatch, capsys)
+    for text in _texts(stdout):
+        for named in (IDENTITY_MARKER, "git config agent-process.bot is not set", IDENTITY_FIX):
+            assert named in text, text
+
+
+def test_session_start_skips_identity_outside_the_block(tmp_path: Path) -> None:
+    """Scenario: Project without the block."""
+    result, _ = _session_start(tmp_path, "# none\n", CLAUDE_PLUGIN_DATA=None)
+    assert result.returncode == 0, result.stderr
+    assert IDENTITY_MARKER not in result.stdout, result.stdout
+    env_file = tmp_path / "session-env.sh"
+    lines = env_file.read_text(encoding="utf-8").splitlines() if env_file.exists() else []
+    assert not [line for line in lines if "GH_TOKEN" in line], lines
 
 
 def test_init_imports_without_site_packages() -> None:

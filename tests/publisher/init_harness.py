@@ -185,8 +185,10 @@ class FakeGitHub:
     install-reports-post-merge-steps); `faults["rules-shape"]` makes the rules read answer a
     rule without `type` (change manual-shared-read-helpers). The `Area` options and views
     mutations apply to a Project by node id (change init-replaces-project-areas). The
-    `viewerPermission` read answers by the `GH_TOKEN` of its environment from `permissions`;
-    `tokened` logs every call whose environment carries one (change agent-identity-standard-commands)."""
+    `gh auth token --user <login>` prints `tokens[login]`, and `gh repo view --json
+    viewerPermission` answers by the `GH_TOKEN` of its environment from `permissions` (change
+    session-takes-the-bot-token); `tokened` logs every call whose environment carries one
+    (change agent-identity-standard-commands)."""
 
     def __init__(self) -> None:
         template = Project(OWNER, 4, "agent-process-distribution agent process")
@@ -206,6 +208,7 @@ class FakeGitHub:
         self.allow_auto_merge = False
         self.required_checks: list[str] = []
         self.permissions = {"agent-token": "WRITE"}
+        self.tokens: dict[str, str] = {}
         self.tokened: list[tuple[str, list[str]]] = []
 
     def issue(self, title: str, state: str = "OPEN") -> dict[str, Any]:
@@ -246,8 +249,8 @@ class FakeGitHub:
         token = (env or {}).get("GH_TOKEN")
         if token:
             self.tokened.append((token, args))
-        if args[:2] == ["api", "graphql"] and "viewerPermission" in args[-1]:
-            return self._permission(args, token)
+        if args[:3] == ["auth", "token", "--user"] or args[-1] == "viewerPermission":
+            return self._identity(args, token)
         if args[0] == "api" and args[1].startswith(f"repos/{OWNER}/{REPO_NAME}"):
             return self._repo_read(args)
         if args[0] in {"secret", "variable"}:
@@ -258,13 +261,18 @@ class FakeGitHub:
             return self._areas_write(args)
         return self._items(args) if args[0] in {"issue", "pr"} else self._projects(args)
 
-    def _permission(self, args: list[str], token: str | None) -> subprocess.CompletedProcess[str]:
-        """The token's `viewerPermission` on the consumer, as GitHub answers it."""
-        assert f"owner={OWNER}" in args and f"name={REPO_NAME}" in args, args
+    def _identity(self, args: list[str], token: str | None) -> subprocess.CompletedProcess[str]:
+        """The stored token of a login, or the token's `viewerPermission` on the consumer, as
+        `gh` answers them."""
+        if args[0] == "auth":
+            if args[3] not in self.tokens:
+                err = f"no oauth token found for github.com account {args[3]}\n"
+                return _done(args, code=1, err=err)
+            return _done(args, out=f"{self.tokens[args[3]]}\n")
+        assert args == ["repo", "view", "--json", "viewerPermission"], args
         if token not in self.permissions:
             return _done(args, None, code=1, err="HTTP 401: Bad credentials\n")
-        permission = self.permissions[token]
-        return _done(args, {"data": {"repository": {"viewerPermission": permission}}})
+        return _done(args, {"viewerPermission": self.permissions[token]})
 
     def _repo_read(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         """`gh api repos/<owner>/<name>` and `.../rules/branches/<default>`."""
@@ -551,14 +559,10 @@ def grafana_config(
     (home / ".claude.json").write_text(json.dumps(config), encoding="utf-8")
 
 
-def local_settings(sb: Sandbox, token: str = "agent-token", *, text: str | None = None) -> None:
-    """This clone's `.claude/settings.local.json`, ignored by git as Claude Code ignores it:
-    `text`, or by default the agent's `env.GH_TOKEN`."""
-    path = sb.root / ".claude" / "settings.local.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with (sb.root / ".git" / "info" / "exclude").open("a", encoding="utf-8") as exclude:
-        exclude.write("\n/.claude/settings.local.json\n")
-    path.write_text(text or json.dumps({"env": {"GH_TOKEN": token}}), encoding="utf-8")
+def agent_identity(sb: Sandbox, bot: str = "agent", token: str = "agent-token") -> None:
+    """The clone's `agent-process.bot` is `bot`, and `gh` holds `token` for it."""
+    git("config", "agent-process.bot", bot, cwd=sb.root)
+    sb.github.tokens[bot] = token
 
 
 def which(name: str) -> str | None:

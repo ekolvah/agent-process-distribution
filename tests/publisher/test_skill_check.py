@@ -348,38 +348,12 @@ def test_pre_push_id_matches_installer() -> None:
     assert _check().PRE_COMMIT_ID == load_script("manual").PRE_COMMIT_ID
 
 
-def test_identity_fix_is_one_text() -> None:
-    """Scenario: Identity missing — the marker names the fix the `agent-identity` row names."""
-    assert _check().IDENTITY_FIX == load_script("manual").IDENTITY_FIX
-
-
 IDENTITY_MARKER = "agent-process agent identity not set"
-IDENTITY_FIX = "Install step 6 of the agent-process skill"
 
 
-@pytest.mark.parametrize(
-    ("session_token", "settings"),
-    [
-        (None, HELD),
-        (TOKEN, json.dumps({"env": {"GH_TOKEN": "person-token"}})),
-        (TOKEN, "{not json"),
-    ],
-    ids=["no-token", "not-held", "unreadable"],
-)
-def test_identity_missing(tmp_path: Path, session_token: str | None, settings: str) -> None:
-    """Scenario: Identity missing — to the person and to the agent, never the token."""
-    done = _run(
-        tmp_path, _loaded(tmp_path), given=Project(session_token=session_token, settings=settings)
-    )
-    for text in _texts(done):
-        assert IDENTITY_MARKER in text
-        assert IDENTITY_FIX in text
-        assert "agent_identity" not in text, text
-        assert MARKER not in text
-        assert TOKEN not in text and "person-token" not in text
-
-
-def test_identity_set(tmp_path: Path) -> None:
-    """Scenario: Identity set."""
-    done = _run(tmp_path, _loaded(tmp_path))
-    assert (done.returncode, done.stdout) == (0, ""), done.stderr
+def test_check_leaves_the_identity_to_the_plugin(tmp_path: Path) -> None:
+    """Removed requirement: the plugin's session-start hook, not this check, reports the agent
+    identity (change session-takes-the-bot-token, design D3)."""
+    done = _run(tmp_path, _loaded(tmp_path), given=Project(session_token=None, settings=None))
+    assert done.returncode == 0, done.stderr
+    assert IDENTITY_MARKER not in done.stdout, done.stdout
