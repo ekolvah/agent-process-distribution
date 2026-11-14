@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.32.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.32.0...v3.32.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* init-asks-for-telemetry-attribution ([#507](https://github.com/ekolvah/agent-process-distribution/issues/507)) ([9aa4090](https://github.com/ekolvah/agent-process-distribution/commit/9aa4090c148a9826c2c7947e939fbfa64a6e545a))
+
 ## [3.32.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.31.0...v3.32.0) (2026-11-12)
 
 
