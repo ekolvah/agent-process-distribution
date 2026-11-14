@@ -46,3 +46,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 508,manual-shared-read-helpers,issue-491,2026-11-12T05:33:59Z,2026-11-13T15:42:36Z,34.14,0.75,329,2,1,7.1775,152,1,0,0,
 511,prepare-installs-plugin-channel,issue-509,2026-11-13T17:00:05Z,2026-11-14T11:06:55Z,18.11,0.46,182,2,2,3.1992,75,1,0,0,
 513,session-takes-the-bot-token,issue-510,2026-11-13T17:00:18Z,2026-11-14T15:11:08Z,22.18,1.24,1712,3,1,23.5630,364,8,2,3,
+514,init-runs-post-merge-steps,issue-502,2026-11-13T15:44:41Z,2026-11-14T19:57:32Z,28.21,4.33,2124,5,5,34.3576,532,13,10,7,
