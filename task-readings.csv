@@ -44,3 +44,4 @@ pr,change,task_id,start,merged_at,hours,agent_hours,lines,plan_rounds,code_round
 505,agent-identity-standard-commands,issue-412,2026-11-11T07:15:57Z,2026-11-12T05:22:51Z,22.11,1.01,1220,2,1,11.9420,202,2,0,1,
 507,init-asks-for-telemetry-attribution,issue-475,2026-11-11T07:14:58Z,2026-11-13T06:50:59Z,47.60,1.29,692,4,1,14.9029,263,3,1,2,
 508,manual-shared-read-helpers,issue-491,2026-11-12T05:33:59Z,2026-11-13T15:42:36Z,34.14,0.75,329,2,1,7.1775,152,1,0,0,
+511,prepare-installs-plugin-channel,issue-509,2026-11-13T17:00:05Z,2026-11-14T11:06:55Z,18.11,0.46,182,2,2,3.1992,75,1,0,0,
