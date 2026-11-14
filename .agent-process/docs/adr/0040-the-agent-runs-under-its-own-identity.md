@@ -104,7 +104,7 @@ a session-scoped GitHub credential, as cloud sessions do; the ruleset stays.
 
 ### Confirmation
 
-`tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual`,
+`tests/publisher/test_init_post_merge.py::test_agent_identity_pending_is_manual`,
 `::test_agent_identity_holds`, `::test_agent_account`, `::test_agent_account_ambiguous` and
 `::test_post_merge_steps_are_written` hold D1, the last also D3 and D6,
 `tests/publisher/test_activate_protection.py::test_approval_ruleset_body` D2,

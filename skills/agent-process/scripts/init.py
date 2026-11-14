@@ -12,10 +12,9 @@ and runs that tree's `init.py`, forwarding its output and exit code; `--confirm`
 in the user profile.
 
 A run first classifies every transition from observed state — `planned`, `unchanged`,
-`after-merge` (steps 23-28 before the installation PR is merged), or `conflict` — and prints
-one line per transition; `after-merge` steps are never written in that run. Any conflict exits 2 before the first
-write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order and print
-`written` or `unchanged`:
+`after-merge` (steps 23-28 before the installation PR is merged; not written) or `conflict` —
+and prints one line per transition. Any conflict exits 2 before the first write; `--dry-run`
+stops after the plan. Confirmed writes run in a fixed order and print `written` or `unchanged`:
 
 1. onboarding-root    in a repository with no commits only: one commit with no files pushed to
                        the default branch the repository's settings name, and fetched
@@ -41,9 +40,8 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
 16. onboarding-commit  `git add -A` and `git commit` on the installation branch
 17. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
 18. onboarding-push    `git push -u origin` of the installation branch
-19. onboarding-pr      `gh pr create` into the default branch, its body `Closes #<issue>` and
-                       the `after-merge` lines its merge authorizes; an open PR whose body
-                       lists others gets `gh pr edit --body`. The written line names its URL
+19. onboarding-pr      `gh pr create`, its body `Closes #<issue>` and the `after-merge` lines,
+                       or `gh pr edit --body` while they differ; the line names the PR's URL
 20. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
@@ -51,18 +49,8 @@ write; `--dry-run` stops after the plan. Confirmed writes run in a fixed order a
                    each name's view and filter, then the options; other template views deleted
 22. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
     the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
-23. protection  once the installation PR is merged, the ruleset requiring the checks observed
-                on it, read back (`activate_protection`)
-24. agent-collaborator  the agent account invited with push permission, the invitation
-                        accepted with its token
-25. agent-project  the agent account made a writer of the linked Project
-26. approval-ruleset  the person-approves ruleset of `activate_protection`, read back
-27. auto-merge  `gh repo edit --enable-auto-merge`
-28. agent-token  the agent's token as `env.GH_TOKEN` of `.claude/settings.local.json`, which
-                 git must ignore; the token is never printed
-Steps 24-28 exist only with an agent account: the one `gh auth status` login that is not
-active, or the one `--agent` names; several without `--agent` are a `conflict agent`. Person
-writes run without `GH_TOKEN`/`GITHUB_TOKEN`, the agent's with its token.
+23-28. protection, agent-collaborator, -project, approval-ruleset, auto-merge, agent-token:
+        once the installation PR is merged, the steps of `post_merge.py`
 
 Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
 owner's Projects, never from a previous run's output, so a retry reuses a copy that exists.
@@ -812,12 +800,6 @@ def _project_steps(
     )
 
 
-def _manual(ctx: Context, repo: str, agent: bool) -> list[str]:
-    """What only the Project's UI, the repository's settings, the machine or the clone can do,
-    while its state is not observed done (`manual.py`); `init` prints it and never performs it."""
-    return manual.rows(_target(ctx, repo), agent)
-
-
 def _target(ctx: Context, repo: str) -> manual.Target:
     return manual.Target(
         repo=repo,
@@ -961,16 +943,14 @@ def _run(
     )
     post = post_merge.steps(_target(ctx, repo), to.branch, args.agent, linked)
     agent = any(step.label == "agent-token" for step in post)
-    to.after_merge = [
-        f"{s.status} {s.label}: {s.detail}" for s in post if s.status == "after-merge"
-    ]
+    to.after_merge = [step.line for step in post if step.status == "after-merge"]
     before, after = onboarding.plan(to, planned)
     areas = project_areas.steps(_target(ctx, repo), linked, args.area)
     readings = readings_setup.steps(_target(ctx, repo))
     pre_push = _pre_push_step(ctx, repo)
     steps = [*before, *consumer, *project, *after, *pre_push, *areas, *readings, *post]
     for step in steps:
-        print(f"{step.status} {step.label}: {step.detail}")
+        print(step.line)
     conflict = any(step.status == "conflict" for step in steps)
     code = 0 if conflict or args.dry_run else _perform(steps, on_write)
     seeding = any(step.label == "quality" and step.status == "planned" for step in steps)
@@ -979,8 +959,9 @@ def _run(
             f"quality: {quality.DECLARATION} declares no test -- CI runs no tests until the "
             'change that adds the first tests declares {"test": "<command>"}'
         )
-    # Read after the writes, so a Project this run copied and linked is read too.
-    for line in _manual(ctx, repo, agent):
+    # What only a UI, the settings, the machine or the clone can do (`manual.py`), read
+    # after the writes, so a Project this run copied and linked is read too.
+    for line in manual.rows(_target(ctx, repo), agent):
         print(line)
     if conflict:
         print("error: resolve the conflicts above; nothing was written", file=sys.stderr)

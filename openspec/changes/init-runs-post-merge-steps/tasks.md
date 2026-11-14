@@ -23,7 +23,7 @@
 ## 4. Verify
 
 - [x] 4.1 Run `/simplify` without an argument and commit its edits
-- [ ] 4.2 Run `openspec validate --strict --all` and the `test` that `.github/agent-process-quality.json` declares
+- [x] 4.2 Run `openspec validate --strict --all` and the `test` that `.github/agent-process-quality.json` declares
 
 ## 5. Deliver
 
@@ -34,20 +34,20 @@
 
 | Scenario | Test |
 | --- | --- |
-| distribution / Before the merge | `tests/publisher/test_init_remote.py::test_post_merge_waits_for_the_merge` |
-| distribution / Upgrade with the steps done | `tests/publisher/test_init_remote.py::test_post_merge_upgrade_done_is_unchanged` |
-| distribution / After the merge | `tests/publisher/test_init_remote.py::test_post_merge_steps_are_written` |
-| distribution / Quality not observed | `tests/publisher/test_init_remote.py::test_post_merge_protection_not_observed` |
-| distribution / Token file not ignored | `tests/publisher/test_init_remote.py::test_post_merge_agent_token_conflict` |
+| distribution / Before the merge | `tests/publisher/test_init_post_merge.py::test_post_merge_waits_for_the_merge` |
+| distribution / Upgrade with the steps done | `tests/publisher/test_init_post_merge.py::test_post_merge_upgrade_done_is_unchanged` |
+| distribution / After the merge | `tests/publisher/test_init_post_merge.py::test_post_merge_steps_are_written` |
+| distribution / Quality not observed | `tests/publisher/test_init_post_merge.py::test_post_merge_protection_not_observed` |
+| distribution / Token file not ignored | `tests/publisher/test_init_post_merge.py::test_post_merge_agent_token_conflict` |
 | distribution / Dry-run conflict | `tests/publisher/test_planning_workflow.py::test_upgrade_approval_is_its_consent` |
-| distribution / Agent account | `tests/publisher/test_init_remote.py::test_agent_account` |
-| distribution / Several accounts | `tests/publisher/test_init_remote.py::test_agent_account_ambiguous` |
+| distribution / Agent account | `tests/publisher/test_init_post_merge.py::test_agent_account` |
+| distribution / Several accounts | `tests/publisher/test_init_post_merge.py::test_agent_account_ambiguous` |
 | distribution / Confirmed run | `tests/publisher/test_init_remote.py::test_remote_writes_are_project_and_pr` (unchanged) |
-| distribution / Post-merge run | `tests/publisher/test_init_remote.py::test_post_merge_steps_are_written` |
-| distribution / Dry-run | `tests/publisher/test_init_remote.py::test_dry_run_writes_nothing_remote` (unchanged), `::test_post_merge_waits_for_the_merge` |
-| distribution / A clone with the agent's identity | `tests/publisher/test_activate_protection.py::test_a_clone_with_the_agent_identity` (unchanged), `tests/publisher/test_init_remote.py::test_post_merge_steps_are_written` |
-| distribution / Identity pending | `tests/publisher/test_init_remote.py::test_agent_identity_pending_is_manual` |
-| distribution / Identity holds | `tests/publisher/test_init_remote.py::test_agent_identity_holds` (unchanged) |
+| distribution / Post-merge run | `tests/publisher/test_init_post_merge.py::test_post_merge_steps_are_written` |
+| distribution / Dry-run | `tests/publisher/test_init_remote.py::test_dry_run_writes_nothing_remote` (unchanged), `tests/publisher/test_init_post_merge.py::test_post_merge_waits_for_the_merge` |
+| distribution / A clone with the agent's identity | `tests/publisher/test_activate_protection.py::test_a_clone_with_the_agent_identity` (unchanged), `tests/publisher/test_init_post_merge.py::test_post_merge_steps_are_written` |
+| distribution / Identity pending | `tests/publisher/test_init_post_merge.py::test_agent_identity_pending_is_manual` |
+| distribution / Identity holds | `tests/publisher/test_init_post_merge.py::test_agent_identity_holds` (moved) |
 | distribution / Identity missing | `tests/publisher/test_skill_check.py::test_identity_missing` |
 | distribution / Identity set | `tests/publisher/test_skill_check.py::test_identity_set` (unchanged) |
 | distribution / Installation PR merged | `tests/publisher/test_planning_workflow.py::test_install_continues_past_the_installation_pr` |

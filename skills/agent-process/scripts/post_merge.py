@@ -3,7 +3,9 @@ command. Once the installation PR reads `MERGED`, a confirmed run writes `protec
 with an agent account, `agent-collaborator`, `agent-project`, `approval-ruleset`, `auto-merge`
 and `agent-token`; before the merge each one not `unchanged` reads `after-merge`. The person's
 calls run without `GH_TOKEN` and `GITHUB_TOKEN`; the agent's token goes only into the
-`GH_TOKEN` of its own calls and into `.claude/settings.local.json`, never into a line."""
+`GH_TOKEN` of its own calls and into `.claude/settings.local.json`, never into a line. The
+agent account is the one github.com login of `gh auth status` that is not active, or the one
+`--agent` names among several."""
 
 from __future__ import annotations
 
