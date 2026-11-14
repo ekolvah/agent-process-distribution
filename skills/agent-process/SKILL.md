@@ -182,60 +182,49 @@ Then run from the consumer's root:
    whole output. Pick the repository's areas from its content, as for an issue's area, and
    pass one `--area <name>` per area to both runs. A
    `conflict` line names a path or Project the installer does not own: the person resolves
-   it, then the dry-run runs again. When it prints the `manual agent-identity` row, show step
-   6's commands with it: they run without asking once the installation PR has merged.
+   it, then the dry-run runs again. On `conflict agent` pass the bot's login as
+   `--agent <login>` to both runs. When it prints the `manual agent-identity` row, show
+   the per-machine commands of step 5 with it: they run without asking once the installation
+   PR has merged.
 3. When the dry-run still prints the `review-secret` row, have the person set Prepare's
    secret before `--confirm`, so the first pushed head's `agent-review` runs with it.
-   A dry-run that plans no
-   `project-copy`, `project-link`, `pre-push`, `project-areas`, `task-readings-url`,
-   `task-readings-token` or `task-readings-dashboard` and prints no `manual agent-identity` row
-   writes only through a PR the agent opens: run the same command with `--confirm` instead of
-   `--dry-run` without asking, since the person's approval of that PR is the consent. Ask once
-   otherwise; on yes run it with `--confirm`.
+   A dry-run that exits 0 writes outside the installation PR only what the PR's merge
+   authorizes: run the same command with `--confirm` instead of `--dry-run` without asking,
+   whatever it plans, since the merge is the consent. When its `approval-ruleset` and
+   `auto-merge` lines read `unchanged`, run `gh pr merge <PR> --auto --squash` after it, so
+   the person's approve merges the PR. A dry-run that exits non-zero is shown to the person;
+   do not confirm it.
 4. The confirmed run commits the files on the installation branch, pushes it, and opens the
-   installation PR, linked to its issue; it prints the PR and leaves the checkout on that
-   branch. Its output ends with the `manual` rows still outstanding; a row with
+   installation PR, linked to its issue, its body listing the `after-merge` lines its merge
+   authorizes; it prints the PR and leaves the checkout on that branch. Its output ends with
+   the `manual` rows still outstanding; a row with
    `(cannot read: <reason>)` is one `init` could not check. Tell the person to do those rows —
    the `project-*` rows in the Project's UI, the `task-readings` row, printed only when `init`
-   could not set it up from the machine's `grafana` MCP server and naming why, the `pre-push`
-   row, printed only when `init` could not install the hook in this clone and naming why, and
-   the `auto-merge` row; the
-   `protection` row is done in step 5 and the `agent-identity` row in step 6.
+   could not set it up from the machine's `grafana` MCP server and naming why, and the
+   `pre-push` row, printed only when `init` could not install the hook in this clone and naming
+   why; the `agent-identity` row is left to the next step.
    In another clone, each Claude session start reports the missing pre-push hook until its
-   person runs the two commands it names. After a run without asking, run
-   `gh pr merge <PR> --auto --squash`. Then run `agent-process wait_for_pr <PR>`. On exit 3
+   person runs the two commands it names. Then run `agent-process wait_for_pr <PR>`. On exit 3
    rerun once; fix a failing `agent-process / quality` by a commit on the PR and wait again;
    show the person review threads, any other failure and a second exit 3. A P0/P1 thread on
    an installer-managed file is proposed as an issue in `ekolvah/agent-process-distribution`.
-   Once the checks are green, ask the person to review and merge the PR — after a run without
-   asking, to approve it for auto-merge; then, or on exit 4, read
+   Once the checks are green, ask the person to review and merge the PR, or to approve it
+   when auto-merge is on; then, or on exit 4, read
    `gh pr view <PR> --json state`. On `MERGED` switch to the default branch, pull, and run
-   steps 5 and 6 in the same session — after a run without asking, only step 5 and only when
-   that run printed the `manual protection` row; on another state show the person the state
+   step 5 in the same session without asking; on another state show the person the state
    and stop.
-5. Once that PR shows `agent-process / quality` and `agent-review / agent-review` green and
-   the person has merged it, run `agent-process activate_protection --pr <N> --dry-run` with
-   its number (admin rights on
-   the repository) and show its whole output. Ask once; on yes run it with `--confirm`
-   instead of `--dry-run`. It makes the check required through one ruleset and never
-   writes classic branch protection.
-6. Give the agent Prepare's bot as its own GitHub identity, so the person's approval merges
-   the agent's PRs. The merge of the installation PR is the consent: run these commands
-   without asking, as the person, before the restart:
-   - per machine, after Prepare's logins: `gh auth setup-git` and, unless
-     `git config --global agent-process.bot` prints a login,
-     `git config --global agent-process.bot <bot>`, where `<bot>` is the one github.com
-     account `gh auth status` does not show active; with none or several, ask the person for
-     the login;
-   - per repository, once: `gh api -X PUT repos/{owner}/{repo}/collaborators/<bot> -f permission=push`,
-     then the bot accepts the invitation and the person adds it as Writer in the Project's
-     access settings; then
-     `gh api -X POST repos/{owner}/{repo}/rulesets --input <skill base directory>/templates/approval_ruleset.json`
-     and `gh repo edit --enable-auto-merge`.
-
+5. Run `agent-process init --confirm` with the same arguments: it writes the `after-merge`
+   steps — the ruleset requiring the checks observed on the merged PR, the bot as a
+   collaborator and Project writer, the approval ruleset and auto-merge — and prints each
+   `written`; a `conflict` line is shown to the person. Then run `gh auth setup-git` once per
+   machine. When that run printed the `manual agent-identity` row, run as the person and
+   without asking, unless `git config --global agent-process.bot` prints a login,
+   `git config --global agent-process.bot <bot>`, `<bot>` being the agent account `init`
+   used: the github.com login `gh auth status` does not show active, or `--agent`'s.
    Interrupt the person only for a failed command, shown with its output and the line to run
-   in their own terminal, and for the person's steps. Then `agent-process init --dry-run`
-   prints no `manual agent-identity` row, and the person restarts Claude Code.
+   in their own terminal. Once `agent-process init --dry-run` prints no `manual
+   agent-identity` row, ask the person to restart Claude Code, so the agent's PRs are the
+   bot's and the person's approval merges them.
 
    Until then each session start prints `agent-process agent identity not set`.
 

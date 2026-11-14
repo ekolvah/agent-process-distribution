@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 5,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Both round-4 findings are answered: the unasked auto-merge needs the approval ruleset unchanged too, and the PR body that carries the consent is written by a planned task, kept current on reruns, and asserted by a test.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 rejects standard commands in SKILL step 5 (non-idempotent ruleset POST, invitation id lookup, token kept out of output); D3 rejects a caller-passed --agent; Standard approach rejects settings-as-code. Reusing activate_protection.plan/write/read_back (D4) and manual's reads is the smallest module that holds the six transitions; D6 now rewrites a settings file in another JSON form instead of handing the person a conflict. Round 4's D2 drops both questions per the person's decision; no simpler consent carrier than the PR body the run already writes.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md Scenario → test map: all distribution scenarios (Before the merge → test_post_merge_waits_for_the_merge as a confirmed first run checking the PR body; Dry-run conflict → test_upgrade_approval_is_its_consent) and both review-and-merge scenarios have an entry; every '(unchanged)' test exists in tests/publisher; new tests are named in 1.2/1.3; Approval merges is n/a with its reason.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1 tasks 1.1-1.3 write the fake GitHub extensions (merged PR by head, both rulesets served back) and the named tests; 1.4 runs check_red on their node ids and commits RED before Group 2.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "design.md Standard approach records by command (gh 2.87.3, 2026-11-13) the updateProjectV2Collaborators input and roles, gh auth status --json hosts fields, the autoMergeAllowed unknown field, and live the bot's own-token read of viewerCanUpdate true and viewerPermission WRITE after the Writer role; reference pages cover rulesets, allow_auto_merge, collaborators, invitations, Project access and gh auth token. The approval read-back by re-planning rests on the server keeping the owned fields: this review's read of this repository's live 'agent-process person approves' ruleset (gh api repos/{owner}/{repo}/rulesets/<id>, person's token) returned include ['~DEFAULT_BRANCH'], bypass_actors [], enforcement active and the template's pull_request parameters, plus server-added keys (allowed_merge_methods, require_extra_approval_for_unattributed_changes, required_reviewers) that owned_fields ignores (activate_protection.py:157-176), so plan reads it unchanged.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "D2 lists the two dropped yeses and what now covers each. The writes outside the PR are consented to by starting install, each reversible and printed; the spec now says so instead of claiming the merge covers them. The post-merge writes are covered by the PR body at the merge. The unasked `gh pr merge --auto` now needs both `approval-ruleset` and `auto-merge` `unchanged` (spec, both scenarios, D2 citing ADR 0040 D7, tasks 1.3/3.1), so an earlier install with auto-merge allowed and no approval ruleset is asked only to merge. D3 (agent-account input), D4 (PR read by head, both read-backs) and D5 (auto-merge after approval-ruleset, agent only) hold.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The PR body is the consent carrier. D2 and task 2.2 classify post_merge before onboarding and pass its `after-merge` lines to onboarding._pr_step, and onboarding.py is in Impact. A confirmed run that meets the open PR with another list rewrites the body with `gh pr edit --body`; that write falls under *Init runs the post-merge steps*, which the remote-writes requirement admits. test_post_merge_waits_for_the_merge asserts both the body and the rerun edit. Writes that appear only after the merge (a bot added later) follow the person's own act on the `manual agent-identity` row's fix. Other catchers trace: a conflict exits 2 before any write; a read-back mismatch exits non-zero; step 5's rerun prints unchanged; an organisation refusal raises InstallError and exits 1; agent-token conflicts unless git ignores the file.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Added or edited requirement bodies (words): Init runs the post-merge steps ~270, Init finds the agent account 68, Init's remote writes 145, Install's admin steps 41, Install reports a pending agent identity 63, A Claude session start reports a missing agent identity 72, Install continues past the installation PR 163, An upgrade's PR approval ~75, The person's approval merges 41. Every clause has an asserting test in 1.2/1.3: order, after-merge and unchanged conditions, both read-backs (fake serves both rulesets back), the kept keys of a settings file in another form, the check-ignore and non-object conflicts, token absence, call identities, agent account choice, and the SKILL phrases. The untested form clause is gone. The PR-body clause, including the rerun edit, is asserted by test_post_merge_waits_for_the_merge; the confirm-unasked, approval-ruleset-and-auto-merge gate and non-zero-dry-run clauses by test_upgrade_approval_is_its_consent.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design.md '## Standard approach' cites the platform's own APIs with observations and rejects settings-as-code (repository-settings app, Terraform) for named reasons (per-repository admin app; new toolchain with state, §VII; neither accepts the invitation as the bot nor writes the clone's token). post_merge.py has D1 (issue 502's two questions and three person-only actions; prose commands not retry-safe); agent-account detection has D3; the ignore check is the standard `git check-ignore` (D6); the read-backs reuse activate_protection.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "review-and-merge",
+      "scenario": "Approval merges",
+      "reason": "n/a: platform behaviour, live confirmation in ADR 0040"
+    }
+  ]
+}

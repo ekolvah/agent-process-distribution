@@ -228,7 +228,7 @@ def test_session_start_release_undecidable(
 
 
 IDENTITY_MARKER = "agent-process agent identity not set"
-IDENTITY_FIX = "Install step 6 of the agent-process skill"
+IDENTITY_FIX = "Install step 5 of the agent-process skill"
 AGENT_TOKEN = "fake-token-123"
 Done = subprocess.CompletedProcess
 

@@ -97,20 +97,25 @@ any consumer file.
 ### Requirement: Init's remote writes are the Project and the installation PR
 A confirmed run's only GitHub writes SHALL be one copy of the template Project, one link of a
 Project to the repository, with `--area` the linked Project's `Area` options and area views as
-*Init replaces the template's areas* states, and the writes of *Init opens the installation
+*Init replaces the template's areas* states, the writes of *Init opens the installation
 PR*: one issue, one push of the installation branch, one PR, and, in a repository with no
-commits, one push of a commit with no files to the default branch. The installer SHALL NOT
-create, update, or delete a ruleset, branch protection, required check, secret, any other
-Project field or option, Status, or a workflow on the default branch, and SHALL NOT otherwise
+commits, one push of a commit with no files to the default branch, and the writes of *Init runs
+the post-merge steps*. The installer SHALL NOT otherwise create, update, or delete a ruleset,
+branch protection, required check, secret, collaborator, any other Project field, option or
+role, Status, repository setting, or a workflow on the default branch, and SHALL NOT otherwise
 commit to or push the default branch. A dry-run SHALL issue no GitHub write and SHALL make no
 branch, commit, or push.
 
 #### Scenario: Confirmed run
-- **WHEN** a confirmed run without `--area` completes in a repository with commits
+- **WHEN** a confirmed run without `--area` completes in a repository with commits, before the installation PR merges
 - **THEN** every GitHub command it issued is a read, the Project copy, the Project link, the issue creation, or the PR creation, its only push is of the installation branch, and the default branch is unchanged locally and on `origin`
 
+#### Scenario: Post-merge run
+- **WHEN** a confirmed run with an agent account completes after the installation PR merged
+- **THEN** every GitHub command it issued is a read or a write of *Init runs the post-merge steps*, and it made no push
+
 #### Scenario: Dry-run
-- **WHEN** a dry-run completes, with or without `--area`
+- **WHEN** a dry-run completes, with or without `--area` or an agent account
 - **THEN** every GitHub command it issued is a read, and the consumer repository has no new branch, commit, or push
 
 ### Requirement: Init provisions one linked Project
@@ -905,12 +910,13 @@ other than `bin/openspec` SHALL write an OpenSpec version after `@fission-ai/ope
 - **THEN** `bin/openspec` names `@fission-ai/openspec@<pin>`, and any other file that writes a version after `@fission-ai/openspec@` fails naming the file
 
 ### Requirement: Install's admin steps run as the person
-`activate_protection` SHALL run each of its `gh` calls without `GH_TOKEN` and `GITHUB_TOKEN`
-in its environment.
+`activate_protection` and the post-merge transitions of `init` SHALL run each of their `gh`
+calls without `GH_TOKEN` and `GITHUB_TOKEN` in its environment, except the calls that read
+with or act as the agent account, which SHALL carry the agent's token as `GH_TOKEN`.
 
 #### Scenario: A clone with the agent's identity
-- **WHEN** `activate_protection` runs with a `GH_TOKEN` in its environment
-- **THEN** every `gh` call it issues runs without `GH_TOKEN` and `GITHUB_TOKEN`
+- **WHEN** `activate_protection`, or a confirmed post-merge run of `init`, runs with a `GH_TOKEN` in its environment
+- **THEN** every `gh` call it issues runs without `GH_TOKEN` and `GITHUB_TOKEN`, except the acceptance of the invitation and the reads of the agent's permission and Project role, which carry the agent's token
 
 ### Requirement: The task-readings caller runs at the release tag
 The installer SHALL render a managed `.github/workflows/task-readings.yml` whose one job
@@ -987,16 +993,6 @@ dashboard import, ending with the reason: `(not found: <what>)`, `(another stack
 - **WHEN** the repository's `GRAFANA_URL` names another URL and its secret `GRAFANA_SERVICE_ACCOUNT_TOKEN` is set
 - **THEN** the run prints no task-readings transition and no `manual task-readings` row
 
-### Requirement: Install reports inactive protection
-`init` SHALL print a `manual protection` row naming
-`agent-process activate_protection --pr <N> --dry-run`, then `--confirm`, unless the
-`required_status_checks` rules on the repository's default branch require both
-`agent-process / quality` and `agent-review / agent-review`.
-
-#### Scenario: Protection inactive
-- **WHEN** a run meets a default branch whose rules do not require both process checks
-- **THEN** its output carries one `manual protection` row naming both commands
-
 ### Requirement: Install reports a pending agent identity
 `init` SHALL print a `manual agent-identity` row unless the session-start hook's conditions for
 taking the agent's token hold in the clone, whatever the session's `GH_TOKEN`. The row SHALL
@@ -1010,14 +1006,6 @@ carry the token.
 #### Scenario: Identity holds
 - **WHEN** a run meets a clone where `agent-process.bot` names a login whose token in `gh` has write permission on the repository
 - **THEN** its output carries no `manual agent-identity` row, and the one `gh` call that carried that token as `GH_TOKEN` was a read
-
-### Requirement: Install reports disallowed auto-merge
-`init` SHALL print a `manual auto-merge` row naming `gh repo edit --enable-auto-merge` unless
-the repository's `allow_auto_merge` is true.
-
-#### Scenario: Auto-merge disallowed
-- **WHEN** a run meets a repository whose `allow_auto_merge` is false
-- **THEN** its output carries one `manual auto-merge` row naming `gh repo edit --enable-auto-merge`
 
 ### Requirement: A Claude session start reports release drift
 When the project's `openspec/config.yaml` holds the line `# agent-process:begin`, the plugin's
@@ -1047,17 +1035,19 @@ PR, run `agent-process wait_for_pr <PR>`. On a first exit 3 it SHALL rerun once;
 any other failure, a second exit 3 included, it SHALL show the person, proposing a P0/P1 thread on
 an installer-managed file as an issue in `ekolvah/agent-process-distribution`. Once the checks are
 green it SHALL ask the person to merge; then, or on exit 4, it SHALL read
-`gh pr view <PR> --json state`, on `MERGED` run steps 5 and 6 in the same session — after a
-confirm run without asking, only step 5 and only when that run printed the `manual protection`
-row — and on any other state show the person the state and stop install.
+`gh pr view <PR> --json state`. On `MERGED` it SHALL, in the same session and without asking,
+run step 5: `init --confirm` with the same arguments, then `gh auth setup-git`, then, when that
+run printed the `manual agent-identity` row, the commands of *Install's identity step asks
+nothing* and the request to restart Claude Code; the merge is the consent. On any other state it SHALL show the person the state and stop
+install.
 
 #### Scenario: Installation PR merged
 - **WHEN** the agent follows the skill's Install procedure and the installation PR it opened is merged
-- **THEN** `activate_protection` runs and step 6 begins in the same session, without a new request from the person
+- **THEN** it runs `init --confirm` again without a new question, then `gh auth setup-git`, and asks the person at most to restart Claude Code
 
 #### Scenario: Unasked upgrade PR merged
-- **WHEN** the PR of a confirm run without asking is merged and that run printed no `manual protection` row
-- **THEN** install stops without running `activate_protection` or step 6
+- **WHEN** the PR of a confirm run without asking is merged
+- **THEN** the agent runs step 5, whose `init --confirm` prints each post-merge transition `unchanged`, and asks the person nothing
 
 ### Requirement: Init replaces the template's areas
 `init` SHALL take a repeatable `--area <name>`; an empty name, a name holding `"`, or a repeated
@@ -1092,19 +1082,23 @@ unchanged.
 - **THEN** the run exits 2 and issues no command
 
 ### Requirement: An upgrade's PR approval is its consent
-The Install procedure of the shared skill SHALL, after showing the dry-run, run `--confirm`
-without asking when the dry-run plans no `project-copy`, `project-link`, `pre-push`,
-`project-areas`, `task-readings-url`, `task-readings-token` or `task-readings-dashboard` transition and prints no
-`manual agent-identity` row; it SHALL then run `gh pr merge <PR> --auto --squash` on the PR the
-run opened and ask the person to approve it. Otherwise it SHALL ask once before `--confirm`.
+The Install procedure of the shared skill SHALL, after showing a dry-run that exits 0, run
+`--confirm` without asking: starting install is the consent to the run's writes outside the
+PR, and the person's merge of the PR is the consent to its changes and to the post-merge run.
+When that dry-run prints `approval-ruleset` and `auto-merge` `unchanged`, it SHALL then run `gh pr merge <PR> --auto --squash` on the PR the run opened and ask the person to
+approve it. A dry-run that exits non-zero it SHALL show the person and SHALL NOT confirm.
 
 #### Scenario: Upgrade with the agent's identity
-- **WHEN** the dry-run plans only consumer-file and PR transitions and prints no `manual agent-identity` row
+- **WHEN** the dry-run exits 0 and prints `approval-ruleset` and `auto-merge` `unchanged`
 - **THEN** the agent runs `--confirm` unasked, runs `gh pr merge <PR> --auto --squash` on the PR it opened, and asks the person to approve it
 
 #### Scenario: Write outside the PR or no agent identity
-- **WHEN** the dry-run plans a `project-copy`, `project-link`, `pre-push`, `project-areas` or `task-readings-*` transition, or prints a `manual agent-identity` row
-- **THEN** the agent asks once before `--confirm`
+- **WHEN** the dry-run exits 0 and plans a `project-copy`, `project-link`, `pre-push`, `project-areas` or `task-readings-*` transition, prints `approval-ruleset` or `auto-merge` other than `unchanged`, or prints a `manual agent-identity` row
+- **THEN** the agent runs `--confirm` without asking and asks the person only to merge the PR it opened
+
+#### Scenario: Dry-run conflict
+- **WHEN** the dry-run exits non-zero
+- **THEN** the agent shows its output to the person and does not run `--confirm`
 
 ### Requirement: Init writes the telemetry attribution
 `init` SHALL set `env.OTEL_RESOURCE_ATTRIBUTES` of the consumer's `.claude/settings.json` to
@@ -1132,6 +1126,57 @@ value of that variable, and the reason `init` did not write it.
 - **WHEN** a run completes on a consumer whose `.claude/settings.json` needs no other change from `init` and is not in the form `init` writes
 - **THEN** its `settings` step is unchanged, and its output carries the `manual telemetry-attribution` row naming that form as the reason
 
+### Requirement: Init runs the post-merge steps
+A run SHALL read the PR whose head is the installation branch of its release, and, once that PR
+reads `MERGED`, SHALL classify these transitions after the onboarding steps and a confirmed run
+SHALL write them in this order: `protection`, `unchanged` when the default branch's rules
+require both process checks, otherwise the ruleset *Protection activation observes quality
+first* allows from that PR's head, and `conflict` naming the observation where it refuses;
+and, with an agent account, `agent-collaborator`, the `push` invitation of the agent and its
+acceptance with the agent's token, `unchanged` when that token's permission on the repository
+is write or maintain; `agent-project`, the `WRITER` role of the agent on the linked Project,
+`unchanged` when that token reads the Project's `viewerCanUpdate` true; `approval-ruleset`, the
+shipped approval ruleset, converged as the process ruleset is; and `auto-merge`, `unchanged`
+when the repository's `allow_auto_merge` is true. After a ruleset write the run
+SHALL read the ruleset back and exit non-zero unless it is the one planned: `protection` as
+`activate_protection` reads it back, `approval-ruleset` by planning it again as `unchanged`. Before that PR reads `MERGED`, each `planned`
+transition SHALL print `after-merge` and SHALL NOT be written, a `conflict` staying one, and the body of the installation
+PR SHALL list them as what its merge authorizes: the confirmed run that opens the PR writes them
+into it, and a confirmed run that meets the PR open with another list rewrites its body with
+`gh pr edit --body`. No line a run prints SHALL
+carry the agent's token.
+
+#### Scenario: Before the merge
+- **WHEN** a confirmed run with an agent account opens the installation PR, in a repository with none of these states done
+- **THEN** it prints `after-merge` for the five transitions, the PR's body lists them, and it issues none of their writes; a later confirmed run that meets the PR open with a changed list rewrites the body to it
+
+#### Scenario: Upgrade with the steps done
+- **WHEN** a dry-run meets an open upgrade PR in a repository whose post-merge states are all done
+- **THEN** it prints each post-merge transition `unchanged` and no `after-merge` line
+
+#### Scenario: After the merge
+- **WHEN** a confirmed run with an agent account meets the merged installation PR whose head has both process checks green
+- **THEN** it writes the five transitions in order, no output line carries the agent's token, and a rerun prints each `unchanged`
+
+#### Scenario: Quality not observed
+- **WHEN** a confirmed run meets the merged installation PR whose head has no successful `agent-review / agent-review` run
+- **THEN** it prints `conflict protection` naming that observation, exits non-zero, and issues no post-merge write
+
+### Requirement: Init finds the agent account
+The agent account SHALL be the github.com account `gh auth status`, run without `GH_TOKEN` and
+`GITHUB_TOKEN`, lists besides its active one, the person. With several such accounts
+`--agent <login>` SHALL choose one; without `--agent`, or with a login not among them, a
+dry-run and a confirmed run SHALL print `conflict agent` naming them and exit non-zero before
+any write. With none, the run SHALL have no agent account.
+
+#### Scenario: Agent account
+- **WHEN** `gh auth status` lists the person, active, and one other github.com account
+- **THEN** the run's agent transitions name that account
+
+#### Scenario: Several accounts
+- **WHEN** `gh auth status` lists two github.com accounts besides the person and no `--agent` names one of them
+- **THEN** the run prints `conflict agent` naming both, exits non-zero, and writes nothing
+
 ### Requirement: A Claude session start takes the agent's token
 In a project whose `openspec/config.yaml` holds the agent-process block, the plugin's
 session-start hook SHALL append `export GH_TOKEN=<token>` to `CLAUDE_ENV_FILE` when
@@ -1139,7 +1184,7 @@ session-start hook SHALL append `export GH_TOKEN=<token>` to `CLAUDE_ENV_FILE` w
 prints a token, and that token's permission on the repository, read with it, is write or
 maintain. Otherwise it SHALL export no `GH_TOKEN`, exit 0, and add to its `systemMessage` and
 `additionalContext` `agent-process agent identity not set`, the reason, and the fix: Install
-step 6 of the agent-process skill, then the restart of Claude Code. Its output SHALL not carry
+step 5 of the agent-process skill, then the restart of Claude Code. Its output SHALL not carry
 the token. In a project without the block it SHALL do neither.
 
 #### Scenario: Token taken

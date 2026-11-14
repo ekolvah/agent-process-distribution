@@ -56,22 +56,19 @@ from tests.publisher.init_harness import (
     view,
     which,
 )
+from tests.publisher.init_reads import (
+    PROCESS_CHECKS,
+    _gh_kind,
+    _git_state,
+    _manual_rows,
+    _pushes,
+    _row,
+)
 
 # --- footprint and remote writes --------------------------------------------------------
 
 ISSUE_TITLE = f"Install agent-process {CURRENT}"
 ONBOARDING = [label for label in LABELS if label.startswith("onboarding-")]
-
-
-def _refs(path: Path) -> str:
-    return git("for-each-ref", "--format=%(refname) %(objectname)", cwd=path)
-
-
-def _git_state(sb: Sandbox) -> tuple[str, str, str]:
-    """The consumer's refs and HEAD, and `origin`'s refs. HEAD is read as written, so that an
-    unborn one is a state too."""
-    head = (sb.root / ".git" / "HEAD").read_text(encoding="utf-8")
-    return _refs(sb.root), head, _refs(sb.origin)
 
 
 def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
@@ -85,48 +82,6 @@ def test_installed_footprint_is_closed(sandbox: Sandbox) -> None:
     assert set(changed.splitlines()) == set(init.OPENSPEC_OUTPUT) | CONSUMER_FILES
     settings = json.loads((sandbox.root / ".claude" / "settings.json").read_text(encoding="utf-8"))
     assert settings == {**fresh_settings(), "env": {"OTEL_RESOURCE_ATTRIBUTES": ATTRIBUTION}}
-
-
-AREA_WRITES = (
-    "updateProjectV2Field(",
-    "createProjectV2View(",
-    "updateProjectV2View(",
-    "deleteProjectV2View(",
-)
-
-
-def _gh_kind(args: list[str]) -> str:
-    """`read`, `copy`, `link`, `issue`, `pr` or `areas`; any other `gh` command fails the
-    test."""
-    reads = (
-        ["repo", "view"],
-        ["issue", "list"],
-        ["pr", "list"],
-        ["secret", "list"],
-        ["variable", "list"],
-    )
-    if args[:2] in reads:
-        return "read"
-    if args[0] == "api" and len(args) == 2:
-        assert args[1].startswith(f"repos/{OWNER}/{REPO_NAME}"), args
-        return "read"
-    if args[:2] == ["api", "graphql"] and not any("mutation" in part for part in args):
-        return "read"
-    kinds = {
-        ("project", "copy"): "copy",
-        ("project", "link"): "link",
-        ("issue", "create"): "issue",
-        ("pr", "create"): "pr",
-    }
-    if tuple(args[:2]) in kinds:
-        return kinds[args[0], args[1]]
-    if args[:2] == ["api", "graphql"] and any(write in args[3] for write in AREA_WRITES):
-        return "areas"
-    raise AssertionError(f"gh command that is not a read or an allowed write: {args}")
-
-
-def _pushes(runner: Runner) -> list[list[str]]:
-    return [cmd for cmd in runner.log if Path(cmd[0]).stem.lower() == "git" and "push" in cmd]
 
 
 def test_remote_writes_are_project_and_pr(sandbox: Sandbox) -> None:
@@ -246,9 +201,11 @@ def test_nothing_to_install(sandbox: Sandbox, capfd: pytest.CaptureFixture[str])
 
 
 def test_rerun_after_merge(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
-    """Scenario: Rerun after the merge — still on the installation branch."""
+    """Scenario: Rerun after the merge — still on the installation branch, with protection
+    active and no agent account, so no post-merge transition writes."""
     init = load_init()
     _installed(init, sandbox)
+    sandbox.github.required_checks = list(PROCESS_CHECKS)
     (pull,) = sandbox.github.pulls
     pull["state"] = "MERGED"
     runner = Runner(init, HOST, sandbox.github)
@@ -389,7 +346,7 @@ def test_project_states(
             a for a in runner.gh("api", "graphql") if a[3] == f"query={init.PROJECTS_QUERY}"
         ]
     if mode == "--confirm":
-        assert seen == dict.fromkeys(LABELS, "written") | {
+        assert seen == dict.fromkeys(LABELS, "written") | {"protection": "after-merge"} | {
             label: "written" if status == "planned" else status for label, status in plan.items()
         }, out
         linked = [p for p in sandbox.github.projects if CONSUMER in p.repositories]
@@ -426,20 +383,6 @@ def test_project_command_faults(
 # The required workflows a copy keeps enabled (the fake's copy lacks only `Auto-add to project`).
 KEPT = ["Item added", "Item reopened", "Item closed", "Pull request merged"]
 PROJECT_ROWS = ("project-workflows", "project-areas")
-PROCESS_CHECKS = ("agent-process / quality", "agent-review / agent-review")
-
-
-def _manual_rows(out: str) -> list[str]:
-    """The `manual` rows, asserted to end the output."""
-    lines = out.splitlines()
-    manual = [ln for ln in lines if ln.startswith("manual ")]
-    assert lines[len(lines) - len(manual) :] == manual, lines
-    return manual
-
-
-def _row(manual: list[str], label: str) -> str:
-    (row,) = [ln for ln in manual if ln.startswith(f"manual {label}: ")]
-    return row
 
 
 @pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
@@ -511,79 +454,6 @@ def test_readings_prerequisites_are_printed(
         _gh_kind(args)
 
 
-@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
-def test_protection_inactive_is_manual(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
-) -> None:
-    """Scenario: Protection inactive."""
-    sandbox.github.required_checks = ["agent-process / quality"]
-    init = load_init()
-    assert install(init, sandbox, mode) == 0
-    row = _row(_manual_rows(capfd.readouterr().out), "protection")
-    assert "activate_protection --pr" in row and "(cannot read: " not in row, row
-    assert "--dry-run" in row and "--confirm" in row, row
-
-
-@pytest.mark.parametrize(
-    ("arrange", "named"),
-    [
-        pytest.param(lambda sb: None, "git config agent-process.bot is not set", id="no-bot"),
-        pytest.param(
-            lambda sb: agent_identity(sb, token=None), "gh holds no token for agent", id="no-token"
-        ),
-        pytest.param(lambda sb: agent_identity(sb, token="person-token"), "ADMIN", id="admin"),
-        pytest.param(lambda sb: agent_identity(sb, token="stranger-token"), "READ", id="read"),
-    ],
-)
-def test_agent_identity_pending_is_manual(
-    sandbox: Sandbox,
-    capfd: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-    arrange: Callable[[Sandbox], None],
-    named: str,
-) -> None:
-    """Scenario: Identity pending."""
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    monkeypatch.delenv("GIT_CONFIG_GLOBAL", raising=False)  # the sandbox's HOME holds it
-    sandbox.github.allow_auto_merge = True
-    sandbox.github.permissions.update({"person-token": "ADMIN", "stranger-token": "READ"})
-    arrange(sandbox)
-    init = load_init()
-    assert install(init, sandbox, "--dry-run") == 0
-    row = _row(_manual_rows(capfd.readouterr().out), "agent-identity")
-    assert "(cannot read: " not in row, row
-    assert named in row and init.manual.IDENTITY_FIX in row, row
-    assert "-token" not in row, row
-
-
-def test_agent_identity_holds(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Scenario: Identity holds — read with the bot's token, not the session's."""
-    monkeypatch.setenv("GH_TOKEN", "person-token")
-    agent_identity(sandbox)
-    init = load_init()
-    assert install(init, sandbox, "--dry-run") == 0
-    manual = _manual_rows(capfd.readouterr().out)
-    assert not [ln for ln in manual if ln.startswith("manual agent-identity: ")], manual
-    tokened = [args for token, args in sandbox.github.tokened if token == "agent-token"]
-    assert tokened == [["repo", "view", "--json", "viewerPermission"]], tokened
-    assert "agent-token" not in " ".join(manual)
-
-
-@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
-def test_auto_merge_disallowed_is_manual(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
-) -> None:
-    """Scenario: Auto-merge disallowed."""
-    agent_identity(sandbox)
-    init = load_init()
-    assert install(init, sandbox, mode) == 0
-    manual = _manual_rows(capfd.readouterr().out)
-    assert "gh repo edit --enable-auto-merge" in _row(manual, "auto-merge"), manual
-    assert not [ln for ln in manual if ln.startswith("manual agent-identity: ")], manual
-
-
 def _plugin_files(sb: Sandbox, auto_update: bool | None = True) -> Path:
     """The machine's plugin files in the observed shapes: the marketplace at `stable` with
     `auto_update` (`None` leaves the key out), the plugin installed at user scope."""
@@ -614,8 +484,6 @@ def test_observed_manual_rows_are_omitted(
     project.workflows = {name: True for name in TEMPLATE_WORKFLOWS}
     _plugin_files(sandbox)
     agent_identity(sandbox)
-    sandbox.github.allow_auto_merge = True
-    sandbox.github.required_checks = list(PROCESS_CHECKS)
     hook = sandbox.root / ".git" / "hooks" / "pre-push"
     hook.parent.mkdir(exist_ok=True)
     hook.write_text(
@@ -784,9 +652,6 @@ UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], object], list[str]]] = {
         ["plugin-channel", "telemetry-attribution"],
     ),
     "project-read": ("--confirm", _fault("project-read"), list(PROJECT_ROWS)),
-    "repo-read": ("--dry-run", _fault("repo-read"), ["protection", "auto-merge"]),
-    "rules-read": ("--dry-run", _fault("rules-read"), ["protection"]),
-    "rules-shape": ("--dry-run", _fault("rules-shape"), ["protection"]),
     "permission-read": (
         "--dry-run",
         lambda sb: agent_identity(sb, token="unknown-token"),

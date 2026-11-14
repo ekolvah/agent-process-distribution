@@ -21,6 +21,10 @@ class Step:
     detail: str
     apply: Callable[[], bool] | None = None
 
+    @property
+    def line(self) -> str:
+        return f"{self.status} {self.label}: {self.detail}"
+
 
 def run(
     cmd: list[str],

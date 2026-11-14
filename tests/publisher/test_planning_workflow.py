@@ -632,7 +632,10 @@ def test_install_names_the_skill_marker() -> None:
 
 
 def test_install_continues_past_the_installation_pr() -> None:
-    step = _section("Install").split(" 4. ", 1)[1].split(" 5. ", 1)[0]
+    """Scenarios: Installation PR merged; Unasked upgrade PR merged — on `MERGED` step 5 runs
+    in the same session unasked, and asks the person at most to restart Claude Code."""
+    install = _section("Install")
+    step = install.split(" 4. ", 1)[1].split(" 5. ", 1)[0]
     for phrase in (
         "agent-process wait_for_pr <PR>",
         "exit 3",
@@ -642,34 +645,48 @@ def test_install_continues_past_the_installation_pr() -> None:
         "gh pr view <PR> --json state",
         "MERGED",
         "same session",
+        "without asking",
+        "step 5",
     ):
         assert phrase in step, phrase
+    after = install.split(" 5. ", 1)[1]
+    for phrase in (
+        "init --confirm",
+        "same arguments",
+        "gh auth setup-git",
+        "`manual agent-identity` row",
+        "restart",
+    ):
+        assert phrase in after, phrase
+    assert " 6. " not in install and "activate_protection --pr" not in install
 
 
 def test_upgrade_approval_is_its_consent() -> None:
+    """Scenarios: Upgrade with the agent's identity; Write outside the PR or no agent identity;
+    Dry-run conflict — a dry-run that exits 0 is confirmed unasked whatever it plans."""
     install = _section("Install")
-    ask = install.split(" 3. ", 1)[1].split(" 4. ", 1)[0]
+    assert "Ask once" not in install
+    confirm = install.split(" 3. ", 1)[1].split(" 4. ", 1)[0]
     for phrase in (
-        "Ask once",
-        "manual agent-identity",
-        "project-copy",
-        "project-link",
-        "pre-push",
-        "project-areas",
-        "task-readings-url",
-        "task-readings-token",
-        "task-readings-dashboard",
+        "exits 0",
+        "without asking",
+        "the merge is the consent",
+        "`approval-ruleset` and `auto-merge`",
+        "`unchanged`",
+        "gh pr merge <PR> --auto --squash",
+        "approve",
+        "exits non-zero",
+        "do not confirm",
     ):
-        assert phrase in ask, phrase
-    pr = install.split(" 4. ", 1)[1].split(" 5. ", 1)[0]
-    for phrase in ("gh pr merge <PR> --auto --squash", "approve", "manual protection"):
-        assert phrase in pr, phrase
+        assert phrase in confirm, phrase
+    for row in ("manual protection", "manual auto-merge"):
+        assert row not in install, row
 
 
 def test_install_identity_step_asks_nothing() -> None:
     """Scenario: Identity step after the merge."""
     install = _section("Install")
-    step = install.rsplit(" 6. ", 1)[1]
+    step = install.rsplit(" 5. ", 1)[1]
     for phrase in (
         "without asking",
         "gh auth status",
@@ -679,4 +696,4 @@ def test_install_identity_step_asks_nothing() -> None:
     for phrase in ("ask once", "Ask once", "settings.local.json"):
         assert phrase not in step, phrase
     dry_run = install.split("2. Run `agent-process init --dry-run` ", 1)[1].split(" 3. ", 1)[0]
-    assert "step 6" in dry_run, dry_run
+    assert "step 5" in dry_run, dry_run

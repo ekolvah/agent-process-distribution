@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Protocol, TypeVar
 
-import activate_protection
 import dashboard
 
 T = TypeVar("T")
@@ -49,7 +48,7 @@ MCP = "grafana MCP server in ~/.claude.json"
 # The line pre-commit writes into every hook it installs (observed 2026-09-30).
 PRE_COMMIT_ID = "# ID: 138fd403232d2ddd5efb44317e38bf03"
 # The fix the `agent-identity` row and the plugin's session-start identity marker name.
-IDENTITY_FIX = "Install step 6 of the agent-process skill, then restart Claude Code"
+IDENTITY_FIX = "Install step 5 of the agent-process skill, then restart Claude Code"
 # The agent's permission: it writes and merges through the ruleset, but cannot change it.
 AGENT_PERMISSIONS = {"WRITE", "MAINTAIN"}
 BOT_KEY = "agent-process.bot"  # the git config key naming the agent's login
@@ -132,7 +131,6 @@ def rows(t: Target) -> list[str]:
     elif state == "none":
         found.append(f"manual project-areas: {where}/settings -- {replace}")
     secrets = _kept(lambda: _names(t, "secret"))
-    repo = _kept(lambda: _repository(t))
     return [
         *found,
         *_outstanding(
@@ -160,19 +158,7 @@ def rows(t: Target) -> list[str]:
             f'"autoUpdate": true on its {t.marketplace} entry in ~/.claude/settings.json',
         ),
         *_pre_push_row(t),
-        *_outstanding(
-            lambda: _protected(t, _ok(repo)),
-            "manual protection: once the installation PR has merged with both process checks "
-            "green -- agent-process activate_protection --pr <N> --dry-run with its number, then "
-            "with --confirm instead of --dry-run, so the default branch requires "
-            f"{' and '.join(activate_protection.contexts())}",
-        ),
         *_identity_row(t),
-        *_outstanding(
-            lambda: _ok(repo)["allow_auto_merge"] is True,
-            f"manual auto-merge: https://github.com/{t.repo}/settings -- "
-            "gh repo edit --enable-auto-merge, so gh pr merge --auto merges an approved PR",
-        ),
     ]
 
 
@@ -183,10 +169,10 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
         return [f"{row} (cannot read: {exc})"]
 
 
-def _gh_read(t: Target, *args: str) -> Any:
+def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
     """A `gh` read's JSON whatever its exit code (a GraphQL error beside `data` exits 1), or
-    `Unreadable` with its stderr."""
-    done = t.gh(*args)
+    `Unreadable` with its stderr; `env` replaces the environment of that call."""
+    done = t.gh(*args, env=env)
     try:
         return json.loads(done.stdout)
     except (TypeError, json.JSONDecodeError):
@@ -208,32 +194,6 @@ def _ok(kept: T | Unreadable) -> T:
     if isinstance(kept, Unreadable):
         raise kept
     return kept
-
-
-def _repository(t: Target) -> dict[str, Any]:
-    """`repos/<owner>/<name>`, one read for the `protection` and `auto-merge` rows; `gh api`
-    prints GitHub's error object on a 4xx, which names neither field."""
-    data = _gh_read(t, "api", f"repos/{t.repo}")
-    if (
-        isinstance(data, dict)
-        and isinstance(data.get("default_branch"), str)
-        and "allow_auto_merge" in data
-    ):
-        return data
-    raise Unreadable(f"`gh api repos/{t.repo}` printed an unexpected shape: {data}")
-
-
-def _protected(t: Target, repo: dict[str, Any]) -> bool:
-    """The default branch's rules require both process checks."""
-    branch = repo["default_branch"]
-    rules = _gh_read(t, "api", f"repos/{t.repo}/rules/branches/{branch}")
-    try:
-        if not isinstance(rules, list):
-            raise TypeError
-        required = set(activate_protection.required_contexts(rules))
-    except (KeyError, TypeError):
-        raise Unreadable(f"the rules of {branch} read as {rules}") from None
-    return set(activate_protection.contexts()) <= required
 
 
 def _identity_row(t: Target) -> list[str]:
