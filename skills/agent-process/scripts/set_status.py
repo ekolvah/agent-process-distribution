@@ -35,11 +35,15 @@ def run_gh(cmd: list[str], env: dict[str, str] | None = None) -> str:
     return result.stdout
 
 
+def person_env() -> dict[str, str]:
+    """This environment without `GH_TOKEN` and `GITHUB_TOKEN`, which take precedence over
+    stored credentials, so `gh` runs as its stored active account."""
+    return {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
+
+
 def person_gh(cmd: list[str]) -> str:
-    """Run `gh` as its stored active account: without `GH_TOKEN` and `GITHUB_TOKEN`, which
-    take precedence over stored credentials."""
-    env = {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
-    return run_gh(cmd, env)
+    """Run `gh` as its stored active account."""
+    return run_gh(cmd, person_env())
 
 
 def _json(gh: Gh, cmd: list[str]) -> Any:

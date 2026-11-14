@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Protocol, TypeVar
 
-import activate_protection
 import dashboard
 
 T = TypeVar("T")
@@ -187,32 +186,6 @@ def _ok(kept: T | Unreadable) -> T:
     if isinstance(kept, Unreadable):
         raise kept
     return kept
-
-
-def _repository(t: Target) -> dict[str, Any]:
-    """`repos/<owner>/<name>`, one read for `protection` and `auto-merge`; `gh api`
-    prints GitHub's error object on a 4xx, which names neither field."""
-    data = _gh_read(t, "api", f"repos/{t.repo}")
-    if (
-        isinstance(data, dict)
-        and isinstance(data.get("default_branch"), str)
-        and "allow_auto_merge" in data
-    ):
-        return data
-    raise Unreadable(f"`gh api repos/{t.repo}` printed an unexpected shape: {data}")
-
-
-def _protected(t: Target, repo: dict[str, Any]) -> bool:
-    """The default branch's rules require both process checks."""
-    branch = repo["default_branch"]
-    rules = _gh_read(t, "api", f"repos/{t.repo}/rules/branches/{branch}")
-    try:
-        if not isinstance(rules, list):
-            raise TypeError
-        required = set(activate_protection.required_contexts(rules))
-    except (KeyError, TypeError):
-        raise Unreadable(f"the rules of {branch} read as {rules}") from None
-    return set(activate_protection.contexts()) <= required
 
 
 def _identity_row(t: Target) -> list[str]:

@@ -8,15 +8,14 @@ calls run without `GH_TOKEN` and `GITHUB_TOKEN`; the agent's token goes only int
 from __future__ import annotations
 
 import json
-import os
 import sys
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable
 
 import activate_protection
 import manual
-from set_status import _json
+from set_status import _json, person_env
 from steps import InstallError, Step
 
 APPROVAL = Path(__file__).resolve().parent.parent / "templates" / "approval_ruleset.json"
@@ -29,11 +28,6 @@ PROJECT_ROLE = (
     "mutation($project:ID!,$user:ID!){updateProjectV2Collaborators(input:{projectId:$project,"
     "collaborators:[{userId:$user,role:WRITER}]}){clientMutationId}}"
 )
-
-
-def person_env() -> dict[str, str]:
-    """This environment without the session's tokens, so `gh` runs as its active account."""
-    return {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
 
 
 class _Gh:
@@ -68,6 +62,10 @@ class _Read:
     viewer: str | None
 
 
+def _no_agent() -> manual.Unreadable:
+    return manual.Unreadable("no agent account")
+
+
 @dataclass
 class _Run:
     t: manual.Target  # the person's
@@ -76,11 +74,14 @@ class _Run:
     repository: dict[str, Any] | manual.Unreadable
     login: str = ""
     token: str | manual.Unreadable = ""
-    linked: tuple[str, int, str | None] | manual.Unreadable | None = None
-    read: _Read | manual.Unreadable | None = None
+    linked: tuple[str, int, str | None] | manual.Unreadable = field(default_factory=_no_agent)
+    read: _Read | manual.Unreadable = field(default_factory=_no_agent)
+
+    def agent_env(self) -> dict[str, str]:
+        return {**person_env(), "GH_TOKEN": manual._ok(self.token)}
 
     def agent_gh(self) -> _Gh:
-        return _Gh(self.t, {**person_env(), "GH_TOKEN": manual._ok(self.token)})
+        return _Gh(self.t, self.agent_env())
 
     def reread(self) -> _Read:
         """One GraphQL read with the agent's token, the Project's role only while one is linked."""
@@ -92,9 +93,8 @@ class _Run:
             if project
             else f"query($owner:String!,$name:String!){{{AGENT_READ}}}"
         )
-        env = {**person_env(), "GH_TOKEN": manual._ok(self.token)}
         owned = ("-f", f"owner={owner}", "-f", f"name={name}", *number, "-f", f"query={query}")
-        read = manual._gh_read(self.t, "api", "graphql", *owned, env=env)
+        read = manual._gh_read(self.t, "api", "graphql", *owned, env=self.agent_env())
         # A repository the token cannot see is `null` beside `errors`, exit 1 (observed).
         data = read.get("data") if isinstance(read, dict) else None
         if not isinstance(data, dict):
@@ -111,28 +111,31 @@ class _Ambiguous(Exception):
     """No one agent account: a `conflict agent`."""
 
 
-def steps(t: manual.Target, branch: str, choice: str | None) -> tuple[list[Step], str | None]:
-    """The post-merge steps in order and the agent account (`None` without one); a run whose
-    agent account is not one is a single `conflict agent`."""
+def steps(
+    t: manual.Target, branch: str, choice: str | None, linked: list[dict[str, Any]]
+) -> list[Step]:
+    """The post-merge steps in order, over `linked`, the Projects linked to the repository;
+    `agent-token` among them only with an agent account, and a run whose agent account is
+    not one is a single `conflict agent`."""
     pt = replace(
         t, gh=lambda *args, env=None: t.gh(*args, env=env if env is not None else person_env())
     )
     try:
         login = _agent_login(pt, choice)
     except _Ambiguous as exc:
-        return [Step("agent", "conflict", str(exc))], None
+        return [Step("agent", "conflict", str(exc))]
     except manual.Unreadable as exc:
-        return [Step("agent", "conflict", f"cannot read: {exc}")], None
+        return [Step("agent", "conflict", f"cannot read: {exc}")]
     try:
         pr = _merged(pt, branch)
     except manual.Unreadable as exc:
         raise InstallError(f"the merged installation PR: {exc}") from None
-    run = _Run(pt, _Gh(pt), pr, manual._kept(lambda: manual._repository(pt)))
+    run = _Run(pt, _Gh(pt), pr, manual._kept(lambda: _repository(pt)))
     classifiers: list[tuple[str, Callable[[_Run], Step]]] = [("protection", _protection)]
     if login is not None:
         run.login = login
         run.token = manual._kept(lambda: _token(pt, login))
-        run.linked = manual._kept(lambda: manual._linked(pt))
+        run.linked = manual._kept(lambda: _one_linked(pt, linked))
         run.read = manual._kept(run.reread)
         classifiers += [
             ("agent-collaborator", _collaborator),
@@ -141,7 +144,40 @@ def steps(t: manual.Target, branch: str, choice: str | None) -> tuple[list[Step]
             ("auto-merge", _auto_merge),
             ("agent-token", _agent_token),
         ]
-    return [_classified(label, run, classify) for label, classify in classifiers], login
+    return [_classified(label, run, classify) for label, classify in classifiers]
+
+
+def _one_linked(t: manual.Target, linked: list[dict[str, Any]]) -> tuple[str, int, str | None]:
+    """The owner, number and URL of the one Project linked to the repository."""
+    if len(linked) != 1:
+        raise manual.Unreadable(f"{len(linked)} Projects linked to {t.repo}")
+    return t.repo.split("/")[0], int(linked[0]["number"]), linked[0].get("url")
+
+
+def _repository(t: manual.Target) -> dict[str, Any]:
+    """`repos/<owner>/<name>`, one read for `protection` and `auto-merge`; `gh api`
+    prints GitHub's error object on a 4xx, which names neither field."""
+    data = manual._gh_read(t, "api", f"repos/{t.repo}")
+    if (
+        isinstance(data, dict)
+        and isinstance(data.get("default_branch"), str)
+        and "allow_auto_merge" in data
+    ):
+        return data
+    raise manual.Unreadable(f"`gh api repos/{t.repo}` printed an unexpected shape: {data}")
+
+
+def _protected(t: manual.Target, repo: dict[str, Any]) -> bool:
+    """The default branch's rules require both process checks."""
+    branch = repo["default_branch"]
+    rules = manual._gh_read(t, "api", f"repos/{t.repo}/rules/branches/{branch}")
+    try:
+        if not isinstance(rules, list):
+            raise TypeError
+        required = set(activate_protection.required_contexts(rules))
+    except (KeyError, TypeError):
+        raise manual.Unreadable(f"the rules of {branch} read as {rules}") from None
+    return set(activate_protection.contexts()) <= required
 
 
 def _agent_login(t: manual.Target, choice: str | None) -> str | None:
@@ -214,7 +250,7 @@ def _checks() -> str:
 def _protection(run: _Run) -> Step:
     repository = manual._ok(run.repository)
     branch = repository["default_branch"]
-    if manual._protected(run.t, repository):
+    if _protected(run.t, repository):
         return Step("protection", "unchanged", f"the rules of {branch} require {_checks()}")
     if run.pr is None:
         detail = f"a ruleset requiring {_checks()} on {branch}, as observed on the merged PR"
@@ -309,7 +345,7 @@ def _auto_merge(run: _Run) -> Step:
 
     def apply() -> bool:
         run.gh(["gh", "repo", "edit", repo, "--enable-auto-merge"])
-        if manual._repository(run.t)["allow_auto_merge"] is not True:
+        if _repository(run.t)["allow_auto_merge"] is not True:
             raise InstallError(f"auto-merge: {repo} reads allow_auto_merge false")
         return True
 

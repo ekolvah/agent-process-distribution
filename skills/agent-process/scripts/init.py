@@ -959,7 +959,8 @@ def _run(
         gh_json=lambda *args: _gh_json(ctx, *args),
         empty=empty,
     )
-    post, agent = post_merge.steps(_target(ctx, repo), to.branch, args.agent)
+    post = post_merge.steps(_target(ctx, repo), to.branch, args.agent, linked)
+    agent = any(step.label == "agent-token" for step in post)
     to.after_merge = [
         f"{s.status} {s.label}: {s.detail}" for s in post if s.status == "after-merge"
     ]
@@ -979,7 +980,7 @@ def _run(
             'change that adds the first tests declares {"test": "<command>"}'
         )
     # Read after the writes, so a Project this run copied and linked is read too.
-    for line in _manual(ctx, repo, agent is not None):
+    for line in _manual(ctx, repo, agent):
         print(line)
     if conflict:
         print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
