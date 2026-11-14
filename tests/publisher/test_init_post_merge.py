@@ -281,3 +281,18 @@ def test_agent_account_ambiguous(
     assert AGENT in line and "second-bot" in line, line
     assert _non_reads(runner) == []
     assert (sandbox.github.state(), _git_state(sandbox)) == before
+
+
+def test_post_merge_unreadable_before_the_merge_is_a_conflict(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """A failed read before the merge stays `conflict` and exits 2, never `after-merge`."""
+    init = load_init()
+    agent_account(sandbox)
+    del sandbox.github.tokens[AGENT]
+    runner = Runner(init, HOST, sandbox.github)
+    assert install(init, sandbox, "--dry-run", runner=runner) == 2
+    out = capfd.readouterr().out
+    (line,) = [ln for ln in out.splitlines() if ln.startswith("conflict agent-collaborator: ")]
+    assert "cannot read:" in line, line
+    assert "after-merge agent-collaborator" not in out, out
