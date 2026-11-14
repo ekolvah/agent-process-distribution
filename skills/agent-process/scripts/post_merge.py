@@ -1,7 +1,7 @@
 """The post-merge steps of `init.py` (design D1-D6 of init-runs-post-merge-steps); not a
 command. Once the installation PR reads `MERGED`, a confirmed run writes `protection`, then,
 with an agent account, `agent-collaborator`, `agent-project`, `approval-ruleset` and
-`auto-merge`; before the merge each one not `unchanged` reads `after-merge`. The person's
+`auto-merge`; before the merge each `planned` one reads `after-merge`. The person's
 calls run without `GH_TOKEN` and `GITHUB_TOKEN`; the agent's token goes only into the
 `GH_TOKEN` of its own calls, never into a line or a file. The
 agent account is the one github.com login of `gh auth status` that is not active, or the one
