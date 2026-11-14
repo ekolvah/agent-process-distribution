@@ -183,16 +183,15 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
         return [f"{row} (cannot read: {exc})"]
 
 
-def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
+def _gh_read(t: Target, *args: str) -> Any:
     """A `gh` read's JSON whatever its exit code (a GraphQL error beside `data` exits 1), or
-    `Unreadable` with its stderr; `env` replaces the environment of that call."""
-    done = t.gh(*args, env=env)
+    `Unreadable` with its stderr."""
+    done = t.gh(*args)
     try:
         return json.loads(done.stdout)
     except (TypeError, json.JSONDecodeError):
-        lines = (done.stderr or "").strip().splitlines()
         raise Unreadable(
-            lines[0] if lines else f"`gh {args[0]} {args[1]}` printed no JSON"
+            _stderr(done).removeprefix(": ") or f"`gh {args[0]} {args[1]}` printed no JSON"
         ) from None
 
 
@@ -276,9 +275,7 @@ def agent_token(run: Run) -> str:
     read = run(
         "gh", "repo", "view", "--json", "viewerPermission", env={**os.environ, "GH_TOKEN": token}
     )
-    try:
-        if read.returncode != 0:
-            raise TypeError
+    try:  # a failed `gh repo view` prints no JSON
         permission = json.loads(read.stdout)["viewerPermission"]
     except (TypeError, KeyError, json.JSONDecodeError):
         raise Unreadable(f"{bot}'s permission{_stderr(read)}") from None
