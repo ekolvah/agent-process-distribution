@@ -27,7 +27,7 @@
 
 ## 5. Deliver
 
-- [ ] 5.1 Run `agent-process archive_change init-runs-post-merge-steps`, then `gh pr create --title "feat: init-runs-post-merge-steps" --body-file <report>`. The report names tracking issue 502 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, goal 3 for the single consent, §IV for the token never printed and the visible conflicts, §VII)
+- [x] 5.1 Run `agent-process archive_change init-runs-post-merge-steps`, then `gh pr create --title "feat: init-runs-post-merge-steps" --body-file <report>`. The report names tracking issue 502 as a plain reference, carries the scenario-to-test map, and states the principles it interacts with (goal 1, goal 3 for the single consent, §IV for the token never printed and the visible conflicts, §VII)
 - [ ] 5.2 Run `gh pr merge <PR> --auto --squash`, then `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
