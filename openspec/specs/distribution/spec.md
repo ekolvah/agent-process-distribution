@@ -1139,8 +1139,8 @@ is write or maintain; `agent-project`, the `WRITER` role of the agent on the lin
 shipped approval ruleset, converged as the process ruleset is; and `auto-merge`, `unchanged`
 when the repository's `allow_auto_merge` is true. After a ruleset write the run
 SHALL read the ruleset back and exit non-zero unless it is the one planned: `protection` as
-`activate_protection` reads it back, `approval-ruleset` by planning it again as `unchanged`. Before that PR reads `MERGED`, each transition not
-`unchanged` SHALL print `after-merge` and SHALL NOT be written, and the body of the installation
+`activate_protection` reads it back, `approval-ruleset` by planning it again as `unchanged`. Before that PR reads `MERGED`, each `planned`
+transition SHALL print `after-merge` and SHALL NOT be written, a `conflict` staying one, and the body of the installation
 PR SHALL list them as what its merge authorizes: the confirmed run that opens the PR writes them
 into it, and a confirmed run that meets the PR open with another list rewrites its body with
 `gh pr edit --body`. No line a run prints SHALL

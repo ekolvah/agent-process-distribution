@@ -76,7 +76,9 @@ class _Run:
     repository: dict[str, Any] | manual.Unreadable
     login: str = ""
     token: str | manual.Unreadable = ""
-    linked: tuple[str, int, str | None] | manual.Unreadable = field(default_factory=_no_agent)
+    linked: tuple[str, int, str | None] | None | manual.Unreadable = field(
+        default_factory=_no_agent
+    )
     read: _Read | manual.Unreadable = field(default_factory=_no_agent)
 
     def agent_env(self) -> dict[str, str]:
@@ -148,8 +150,13 @@ def steps(
     return [_classified(label, run, classify) for label, classify in classifiers]
 
 
-def _one_linked(t: manual.Target, linked: list[dict[str, Any]]) -> tuple[str, int, str | None]:
-    """The owner, number and URL of the one Project linked to the repository."""
+def _one_linked(
+    t: manual.Target, linked: list[dict[str, Any]]
+) -> tuple[str, int, str | None] | None:
+    """The owner, number and URL of the one Project linked to the repository, `None` while
+    none is."""
+    if not linked:
+        return None
     if len(linked) != 1:
         raise manual.Unreadable(f"{len(linked)} Projects linked to {t.repo}")
     return t.repo.split("/")[0], int(linked[0]["number"]), linked[0].get("url")
@@ -220,14 +227,14 @@ def _token(t: manual.Target, login: str) -> str:
 
 def _classified(label: str, run: _Run, classify: Callable[[_Run], Step]) -> Step:
     """`classify`'s step, a failed read or a refusal as its `conflict`, and before the merge
-    every step not `unchanged` as `after-merge`."""
+    every `planned` step as `after-merge`."""
     try:
         step = classify(run)
     except activate_protection.Refusal as exc:
         step = Step(label, "conflict", str(exc))
     except (manual.Unreadable, RuntimeError) as exc:
         step = Step(label, "conflict", f"cannot read: {exc}")
-    if run.pr is None and step.status != "unchanged":
+    if run.pr is None and step.status == "planned":
         return Step(label, "after-merge", step.detail)
     if step.apply is not None:
         step.apply = _guarded(label, step.apply)
@@ -305,7 +312,12 @@ def _collaborator(run: _Run) -> Step:
 
 
 def _project(run: _Run) -> Step:
-    owner, number, url = manual._ok(run.linked)
+    linked = manual._ok(run.linked)
+    if linked is None and run.pr is None:
+        return Step("agent-project", "planned", f"{run.login} gets the WRITER role on the Project")
+    if linked is None:
+        raise manual.Unreadable(f"0 Projects linked to {run.t.repo}")
+    owner, number, url = linked
     read, login, where = manual._ok(run.read), run.login, url or f"{owner}'s Project {number}"
     if read.can_update:
         return Step("agent-project", "unchanged", f"{login} can update {where}")
