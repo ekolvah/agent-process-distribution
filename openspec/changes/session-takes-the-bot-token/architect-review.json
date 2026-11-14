@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 3,
+  "reviewer": "architect-reviewer",
+  "reasoning": "Round 2's findings are closed: the marker test runs in-process where manual imports and asserts D1's reason, D1 defines one reason form per failure that D4 and tests 1.1-1.2 reuse, SKILL's plugin paragraph gains the export clause, and the Migration Plan orders the copy's removal after the init upgrade.",
+  "classes": {
+    "simpler": {
+      "evidence": "design D1 alternatives (agent-written per-clone copy, export from the skill check, user-scope env) and D2 alternatives (init --bot, guessing at each start). The per-clone copy is the person's rejected option; the skill-check export reaches consumers only at upgrade; user scope makes the bot every repository's identity. The added permission read is the simplest gate that keeps the global key from making the bot the identity where it cannot write.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md Scenario → test map: Token taken (1.1 takes_the_agent_token), Identity missing (1.1 reports_a_missing_identity, reports_the_marker), Project without the block (1.1 skips_identity_outside_the_block), Identity step after the merge (1.4), Identity pending and Identity holds (1.2), the REMOVED requirement (1.3). Every delta scenario has a named test.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Group 1: 1.1-1.4 name each test, 1.5 runs check_red. 1.1 isolates _start_in_project (empty GIT_CONFIG_GLOBAL, GIT_CONFIG_NOSYSTEM=1, tmp CLAUDE_ENV_FILE) and now runs test_session_start_reports_the_marker there, with SCRIPTS on sys.path so `manual` imports, asserting `git config agent-process.bot is not set` and the fix; the parametrized unit test asserts each of design D1's reason forms; 1.2 asserts `git config agent-process.bot is not set` and `gh holds no token for agent`, the forms D4 reuses from D1. The block-less case stays on _session_start, which needs no `manual`.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "proposal Why: `gh auth token --user` (token, same with a dummy GH_TOKEN, exit 1 with message for an unknown login), `git config --get` exit 1, `gh repo view --json viewerPermission` WRITE with the bot's token, headless claude -p probe of a SessionStart CLAUDE_ENV_FILE export overriding a stale env.GH_TOKEN in Bash, session-env retention; plugin_env.py already exports AGENT_PROCESS_PYTHON this way (hook timeout 300 covers the network read); auto-mode refusal observed (Risks). Round 1's `!` fallback is replaced by the person's own terminal outside Claude Code, which carries no session export. D2's claim that a session GH_TOKEN makes every keyring account inactive in `gh auth status` is asserted, but its only effect is that the agent asks, the safe direction; Prepare already relies on `gh auth status` showing the active account.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "Replaced input: the per-clone env.GH_TOKEN copy by the global `agent-process.bot` key plus gh's stored token, gated on WRITE/MAINTAIN (D1, D2). Dropped guard: the skill check's identity comparison (D3). Design lists stale settings copy, old consumers, session-env copy, auto-mode refusal, no network, the global key's reach (D1 permission paragraph) and the source of <bot> (D2); the 'Until then' sentence stays true. 2.4 now adds the export clause to SKILL's plugin session-start paragraph, and the Migration Plan lets a clone's copy go only after its next init upgrade, so the old skill check prints no false marker.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Named catchers: the hook's marker at each session start (D1), reached for unset key, no token, wrong or unreadable permission, no network; init's manual agent-identity row in the dry-runs of steps 2 and 6 (D4); D5's shown failed command and the person's own-terminal rerun (Risks); 2.5's grep `clone's|settings.local.json|git-ignored` over ADR 0040, which matches the stale wording at D1 (line 41 'clone's token'), D3 (line 49), D5 (line 67) and Consequences ('git-ignored file'), all now listed in 2.5. Each is traceable to the step that reaches it.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "ADDED 'A Claude session start takes the agent's token' 107 words (round 1: 121, replacing a requirement of about 50); 1.1 asserts the export line, the permission read with the token, the marker, reason, fix, exit 0, both output fields, the token's absence and silence without the block. ADDED 'Install's identity step asks nothing' 55 words; 1.4 asserts without asking, gh auth status, the git config line, no ask once, no settings.local.json, step 2 naming step 6; the interruption clause is prose a string test cannot hold. MODIFIED 'Install reports a pending agent identity' 48 words (from 50) by referencing the hook's conditions; 1.2 asserts each reason, ADMIN and READ, the token's absence and the one read. The GH_TOKEN scrub of round 1 is gone.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design ## Standard approach: Claude Code's SessionStart + CLAUDE_ENV_FILE (hooks reference), gh auth token --user (gh manual), git config scopes (git-scm), all observed in Why; the design follows them. The hook's identity export and marker (D1) close issue 510's per-clone copy and ADR 0040 D3's worktree gap on that standard; the skill check's comparison is removed (D3); init's row is rewritten onto the same function (D4). No new script or check.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
