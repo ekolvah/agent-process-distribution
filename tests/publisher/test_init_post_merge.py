@@ -15,6 +15,8 @@ from tests.publisher.init_harness import (
     AGENT_TOKEN,
     HOST,
     LINE,
+    OWNER,
+    REPO_NAME,
     ROOT,
     Runner,
     Sandbox,
@@ -296,3 +298,21 @@ def test_post_merge_unreadable_before_the_merge_is_a_conflict(
     (line,) = [ln for ln in out.splitlines() if ln.startswith("conflict agent-collaborator: ")]
     assert "cannot read:" in line, line
     assert "after-merge agent-collaborator" not in out, out
+
+
+def test_post_merge_no_linked_project_after_the_merge_is_a_conflict(
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str]
+) -> None:
+    """`agent-project` reads `after-merge` while no Project is linked before the merge (as
+    `test_agent_account` shows); after the merge no linked Project is a `conflict`."""
+    init = load_init()
+    agent_account(sandbox)
+    _merged(init, sandbox)
+    for project in sandbox.github.projects:
+        project.repositories.discard(f"{OWNER}/{REPO_NAME}")
+    runner = Runner(init, HOST, sandbox.github)
+    capfd.readouterr()
+    assert install(init, sandbox, "--dry-run", runner=runner) == 2
+    out = capfd.readouterr().out
+    (line,) = [ln for ln in out.splitlines() if ln.startswith("conflict agent-project: ")]
+    assert f"0 Projects linked to {OWNER}/{REPO_NAME}" in line, line
