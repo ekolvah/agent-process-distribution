@@ -41,6 +41,8 @@ QUERY = (
 )
 TEMPLATE_QUERY = f"query($template:String!,$source:Int!){{{TEMPLATE}}}"
 REVIEW_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
+# The machine's token `init` sets as `REVIEW_TOKEN` (ADR 0049).
+REVIEW_TOKEN_FILE = "~/.claude/agent-process-review-token"
 GRAFANA_URL = "GRAFANA_URL"
 GRAFANA_TOKEN = "GRAFANA_SERVICE_ACCOUNT_TOKEN"
 INFINITY = "yesoreyeram-infinity-datasource"
@@ -133,11 +135,13 @@ def rows(t: Target) -> list[str]:
     secrets = _kept(lambda: _names(t, "secret"))
     return [
         *found,
-        *_outstanding(
-            lambda: REVIEW_TOKEN in _ok(secrets),
+        *_review_row(
+            t,
+            secrets,
             f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- "
-            f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
-            "token at its prompt; the review caller passes it to the review",
+            "once per machine, run claude setup-token in your own terminal and save the printed "
+            f"token to {REVIEW_TOKEN_FILE}, then re-run init to set {REVIEW_TOKEN}; the review "
+            "caller passes it to the review",
         ),
         *_attribution_row(t),
         *_readings_row(
@@ -167,6 +171,32 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
         return [] if done() else [row]
     except Unreadable as exc:
         return [f"{row} (cannot read: {exc})"]
+
+
+def _review_row(t: Target, secrets: dict[str, str] | Unreadable, row: str) -> list[str]:
+    """The row while the secret is missing and no token file plans the step that sets it."""
+    try:
+        if REVIEW_TOKEN in _ok(secrets) or review_token(t):
+            return []
+    except Unreadable as exc:
+        return [f"{row} (cannot read: {exc})"]
+    return [f"{row} (not found: {REVIEW_TOKEN_FILE})"]
+
+
+def review_token(t: Target) -> str:
+    """The token of `REVIEW_TOKEN_FILE`; empty when there is none."""
+    return _token_file(t.home / REVIEW_TOKEN_FILE.removeprefix("~/"))
+
+
+def _token_file(file: Path) -> str:
+    """A token file's stripped content: missing or blank holds no token, an unreadable file
+    raises `Unreadable`."""
+    try:
+        return file.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return ""
+    except (OSError, UnicodeDecodeError) as exc:
+        raise Unreadable(f"{file}: {exc}") from None
 
 
 def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
@@ -566,12 +596,7 @@ def _mcp_grafana(home: Path) -> tuple[str, str, str] | str:
     if not name:
         return f"{GRAFANA_TOKEN} of the {MCP}"
     file = Path(str(name)).expanduser()
-    try:
-        token = file.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        token = ""
-    except (OSError, UnicodeDecodeError) as exc:
-        raise Unreadable(f"{file}: {exc}") from None
+    token = _token_file(file)
     # An empty file holds no token, as an empty inline value does.
     return (url, token, str(file)) if token else str(file)
 
