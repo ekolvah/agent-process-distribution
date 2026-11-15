@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_init_config.py` add `test_seeded_format_keeps_the_check`, parametrized `no-config` / `line-length-60`, per design D2
-- [ ] 1.2 Run `agent-process check_red` on both cases, verify both fail with the hook reformatting `.claude/agent-process-check.py`, and commit RED with the group 1 ticks
+- [x] 1.1 In `tests/publisher/test_init_config.py` add `test_seeded_format_keeps_the_check`, parametrized `no-config` / `line-length-60`, per design D2
+- [x] 1.2 Run `agent-process check_red` on both cases, verify both fail with the hook reformatting `.claude/agent-process-check.py`, and commit RED with the group 1 ticks
 
 ## 2. Implementation
 
