@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 3,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All findings of rounds 1-2 are answered: the row prints only while no step is planned, D3 names each token-file failure mode with its catcher, and RED gives check_red only tests that fail today, with the secret-403 case kept as a meaningful guard.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md D1 weighs an environment variable, a Console API key, workload identity federation, an organization secret and a launched terminal; D2 reuses `readings_setup.gh_step`, `gh secret set` on stdin and the `_mcp_grafana` file read, and now passes a callable to `manual._kept` and notes that `manual.readings` already takes the names. No simpler shape fills the secret without the person per repository.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Six delta scenarios, six map entries: Secret set from the token file, Secret planned (new; `test_secret_planned`, task 1.2), Secret already set and Secret write fails → `test_init_review_secret.py`; Review prerequisites → `test_review_prerequisites_are_printed` with missing, blank and directory cases (task 1.3); Readings prerequisites → the unchanged test, whose sandbox has no token file. The row clause (spec.md lines 17-22) now prints only while no `review-secret` transition was planned, and task 2.3 rewrites Install step 3 to ask for the token file.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "1.4 runs `check_red` on the four 1.2 tests and `test_review_prerequisites_are_printed`, and each fails on today's `init`. The 1.2 tests fail because there is no `review-secret` line and a run with `faults[\"secret-set\"]` exits 0. The prerequisites test fails because the row names `gh secret set` and ends with neither `(not found: …)` nor `(cannot read: …)`, in both modes and in the blank-file and directory cases. 1.3's `secret-403` case now writes a token file, so it proves that unreadable names plan no step even when a token exists and that the row still ends `(cannot read: …)`. It is named as a guard that already passes, kept out of `check_red`, and run green in 2.1's verification of test_init_remote.py.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Unchanged from round 1. design.md Standard approach records the `claude setup-token` hang (observed 2026-11-15 on 2.1.296, with `--help` output and a 4-minute silent run). It quotes the one-year token, 'does not save the token anywhere' and the environment precedence from code.claude.com/docs/en/authentication.md, records the `/login` `expiresAt` reading and cites cli.github.com/manual/gh_secret_set for stdin. The existing `task-readings-token` step already uses stdin (readings_setup.py:88-94).",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "design.md D3 lists the file's failure modes beside the decision that replaces the person's per-repository paste. Missing or blank → no step, `(not found: …)` row (`test_review_prerequisites_are_printed`). Unreadable → no step, `(cannot read: <file>: <reason>)` row (same test, directory case; spec line 22). Expired, revoked or mis-pasted → caught by the `agent-review / agent-review` check failing authentication on the installation PR's first head; recovery is the person's `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>`, since a rerun prints `unchanged review-secret`. Task 2.4 carries this into ADR 0049.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Write failure: `gh_step`'s write re-raises `InstallError` named `review-secret` (readings_setup.py:72-77), `install` prints `error:` and returns 1, and the step sits before `*after`, so there is no push (`test_secret_write_fails`). Token leak: the token is passed as `input`, never as an argument, and `ctx.call`'s error names only the arguments and gh's output (init.py:310-314); `no_token` checks this in `test_secret_set_from_token_file` and `test_secret_planned`. Bad token: the installation PR's first-head `agent-review` check (D3), a check every consumer's caller runs on `opened`.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec requirement: 85 + 72 words (75 before). Asserted: `written`/`planned`/`unchanged review-secret`, the order before `onboarding-push`, the stripped value, no token in commands or output, the error naming `review-secret` with exit 1 and no push, the row's secrets page, `claude setup-token`, the file path, both suffixes and the row's absence when a step is planned. The 'secret names can be read' clause is asserted by the `secret-403` case with its token file (task 1.3). Unasserted: 'run in the person's own terminal'. D3 (118 words) is design text, not a rule. SKILL.md Prepare and step 3 are prose no test asserts, as today.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design.md `## Standard approach` cites the Claude Code authentication and GitHub Actions pages, `gh secret set`, GitHub's secrets docs and claude-code-action's workload identity federation. D1 departs from federation and organization secrets for stated reasons. The plan adds no script or check: one `init` step built from `gh_step`, `gh secret set` on stdin and the extracted token-file helper. D2 names the problem it closes: the observed `setup-token` hang.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
