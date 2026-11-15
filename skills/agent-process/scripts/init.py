@@ -37,8 +37,7 @@ stops after the plan. Confirmed writes run in a fixed order and print `written` 
 14. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
 15. project-link `gh project link` of that one unlinked copy to the repository
-16. review-secret  `CLAUDE_CODE_OAUTH_TOKEN` on standard input from
-                  `~/.claude/agent-process-review-token`, while the secret is missing (ADR 0049)
+16. review-secret  `CLAUDE_CODE_OAUTH_TOKEN` from `~/.claude/agent-process-review-token`
 17. onboarding-commit  `git add -A` and `git commit` on the installation branch
 18. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
 19. onboarding-push    `git push -u origin` of the installation branch
@@ -948,9 +947,7 @@ def _run(
     to.after_merge = [step.line for step in post if step.status == "after-merge"]
     before, after = onboarding.plan(to, planned)
     areas = project_areas.steps(target, linked, args.area)
-    secrets = manual.secret_names(target)
-    review = _review_step(target, secrets)
-    readings = readings_setup.steps(target, secrets)
+    review, readings = readings_setup.secret_steps(target)
     pre_push = _pre_push_step(ctx, repo)
     steps = [*before, *consumer, *project, *review, *after, *pre_push, *areas, *readings, *post]
     for step in steps:
@@ -971,31 +968,6 @@ def _run(
         print("error: resolve the conflicts above; nothing was written", file=sys.stderr)
         return 2
     return code
-
-
-def _review_step(t: manual.Target, secrets: dict[str, str] | manual.Unreadable) -> list[Step]:
-    """`review-secret` from the machine's token file (ADR 0049); none while the names cannot
-    be read or the file holds no token, which the `manual review-secret` row reports."""
-    try:
-        done, token = manual.review(t, secrets)
-    except manual.Unreadable:
-        return []
-    if not (done or token):
-        return []
-    return [
-        readings_setup.gh_step(
-            t,
-            "review-secret",
-            done,
-            f"{manual.REVIEW_TOKEN} from {manual.REVIEW_TOKEN_FILE}",
-            "secret",
-            "set",
-            manual.REVIEW_TOKEN,
-            "--repo",
-            t.repo,
-            input=token,
-        )
-    ]
 
 
 def _perform(steps: list[Step], on_write: Callable[[str], None]) -> int:

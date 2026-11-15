@@ -1,6 +1,8 @@
-"""The task-readings steps of `init.py` (change task-readings-auto-setup); not a command. From
-the machine's `grafana` MCP server config they set the repository's `GRAFANA_URL` variable and
-token secret and import the per-task dashboard; `manual` prints the row for what they cannot."""
+"""The secret steps of `init.py`; not a command. `review-secret` sets the review caller's
+token from the machine's token file (ADR 0049). The task-readings steps (change
+task-readings-auto-setup), from the machine's `grafana` MCP server config, set the repository's
+`GRAFANA_URL` variable and token secret and import the per-task dashboard. `manual` prints the
+rows for what they cannot."""
 
 from __future__ import annotations
 
@@ -78,6 +80,37 @@ def gh_step(
         return True
 
     return Step(label, "unchanged" if done else "planned", detail, write)
+
+
+def secret_steps(t: manual.Target) -> tuple[list[Step], list[Step]]:
+    """The `review-secret` step and the task-readings steps, from one read of the names."""
+    secrets = manual.secret_names(t)
+    return review_step(t, secrets), steps(t, secrets)
+
+
+def review_step(t: manual.Target, secrets: dict[str, str] | manual.Unreadable) -> list[Step]:
+    """`review-secret` from the machine's token file (ADR 0049); none while the names cannot
+    be read or the file holds no token, which the `manual review-secret` row reports."""
+    try:
+        done, token = manual.review(t, secrets)
+    except manual.Unreadable:
+        return []
+    if not (done or token):
+        return []
+    return [
+        gh_step(
+            t,
+            "review-secret",
+            done,
+            f"{manual.REVIEW_TOKEN} from {manual.REVIEW_TOKEN_FILE}",
+            "secret",
+            "set",
+            manual.REVIEW_TOKEN,
+            "--repo",
+            t.repo,
+            input=token,
+        )
+    ]
 
 
 def steps(t: manual.Target, secrets: dict[str, str] | manual.Unreadable) -> list[Step]:
