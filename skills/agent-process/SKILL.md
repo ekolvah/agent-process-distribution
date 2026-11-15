@@ -161,8 +161,9 @@ Prepare: in one sitting before the first `init`, the person does what only they 
   bot, then as themselves, or `gh auth switch --user <person>` when already logged in;
   `gh auth status` shows the person active. Even the dry-run reads the repository's Projects
   (`project`), and the installation push carries `.github/workflows/*` (`workflow`).
-- Run `claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner/repo>` and
-  paste the token at its prompt, which keeps the token out of the chat.
+- Once per machine: run `claude setup-token` in their own terminal and save the printed token
+  to `~/.claude/agent-process-review-token`, which keeps it out of the chat; `init` sets the
+  repository's `CLAUDE_CODE_OAUTH_TOKEN` from it.
 - Once per machine, outside any project: `claude plugin marketplace add
   "ekolvah/agent-process-distribution#stable"`, `claude plugin install
   agent-process@agent-process-marketplace`, then set `"autoUpdate": true` on that
@@ -186,8 +187,9 @@ Then run from the consumer's root:
    `--agent <login>` to both runs. When it prints the `manual agent-identity` row, show
    the per-machine commands of step 5 with it: they run without asking once the installation
    PR has merged.
-3. When the dry-run still prints the `review-secret` row, have the person set Prepare's
-   secret before `--confirm`, so the first pushed head's `agent-review` runs with it.
+3. When the dry-run prints the `review-secret` row, have the person save Prepare's token
+   file and run the dry-run again before `--confirm`, so the first pushed head's
+   `agent-review` runs with the secret.
    A dry-run that exits 0 writes outside the installation PR only what the PR's merge
    authorizes: run the same command with `--confirm` instead of `--dry-run` without asking,
    whatever it plans, since the merge is the consent. When its `approval-ruleset` and
