@@ -871,6 +871,19 @@ def transitions(out: str) -> dict[str, str]:
     return {label: status for status, label in LINE.findall(out)}
 
 
+def line(out: str, label: str) -> str:
+    """The last transition line of `label`."""
+    return [ln for ln in out.splitlines() if re.match(rf"[a-z]+ {label}: ", ln)][-1]
+
+
+def no_token(runner: Runner, token: str, *streams: str) -> None:
+    """`token` is in none of `streams` and in no command line `runner` issued."""
+    for text in streams:
+        assert token not in text
+    for cmd in runner.log:
+        assert not [part for part in cmd if token in part], cmd
+
+
 def head_commit(path: Path) -> str:
     return git("rev-parse", "HEAD", cwd=path)
 
