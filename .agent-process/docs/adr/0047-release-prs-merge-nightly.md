@@ -28,8 +28,9 @@ release commit and 3 more a release commit with a feature.
 Chosen: **one workflow, release PR work at night only.**
 
 * `release-please.yml` triggers on `push` to `main`, on `workflow_dispatch` and on
-  `schedule: cron "17 0 * * *"` (03:17 at +03:00; the person's commits over 2026-09-17..10-17 span 06:00–23:59 local; minute
-  17 avoids the start-of-hour load). The action gets
+  `schedule: cron "17 0 * * *"` (03:17 at +03:00; the person's commits over
+  2026-09-17..10-17 span 06:00–23:59 local; minute 17 avoids the start-of-hour load). The
+  action gets
   `skip-github-pull-request: ${{ github.event_name == 'push' }}`, so a push run creates no PR,
   `prs_created` is false, and the approve and auto-merge steps skip.
 * `skip-github-release` stays unset: the nightly merge of the release PR starts a push run that
