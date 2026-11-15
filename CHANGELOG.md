@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.33.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.32.1...v3.33.0) (2026-11-15)
+
+
+### Features
+
+* init-runs-post-merge-steps ([#514](https://github.com/ekolvah/agent-process-distribution/issues/514)) ([0b0142e](https://github.com/ekolvah/agent-process-distribution/commit/0b0142ed8868a02504522350b84a8969ee21f142))
+* session-takes-the-bot-token ([#513](https://github.com/ekolvah/agent-process-distribution/issues/513)) ([6da4f24](https://github.com/ekolvah/agent-process-distribution/commit/6da4f247d959ca1daaf833abb68eaa1fbfa179d4))
+
 ## [3.32.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.32.0...v3.32.1) (2026-11-14)
 
 
