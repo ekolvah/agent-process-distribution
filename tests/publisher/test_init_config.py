@@ -335,29 +335,30 @@ def test_existing_config_keeps_its_hooks(sandbox: Sandbox) -> None:
 
 
 def _seeded_hook(
-    tmp_path: Path, hook_id: str
+    tmp_path: Path, hook_id: str, repo_url: str = "local"
 ) -> tuple[Path, Callable[..., subprocess.CompletedProcess[str]]]:
-    """Write the created config's `repo: local` hook `hook_id` alone into a fresh git
-    repository, run by the test interpreter from `PATH` (`language: unsupported`, no
-    `additional_dependencies`, so no network), and return that repository and a `run(**env)`
-    that commits and runs the manual stage. The created config is the template, as
-    `test_created_config_carries_the_baseline` asserts."""
+    """Write the created config's hook `hook_id` of repository `repo_url` alone into a fresh
+    git repository and return that repository and a `run(**env)` that commits and runs the
+    manual stage. A `repo: local` hook is run by the test interpreter from `PATH`
+    (`language: unsupported`, no `additional_dependencies`, so no network). The created
+    config is the template, as `test_created_config_carries_the_baseline` asserts."""
     text = (PACKAGE / "templates" / "pre-commit-config.yaml").read_text(encoding="utf-8")
     config = yaml.safe_load(string.Template(text).substitute(version=CURRENT))
-    [hook] = [
-        hook
+    [(repo, hook)] = [
+        (repo, hook)
         for repo in config["repos"]
-        if repo["repo"] == "local"
+        if repo["repo"] == repo_url
         for hook in repo["hooks"]
         if hook["id"] == hook_id
     ]
-    hook = {**hook, "language": "unsupported"}
-    hook.pop("additional_dependencies", None)
+    if repo_url == "local":
+        hook = {**hook, "language": "unsupported"}
+        hook.pop("additional_dependencies", None)
     work = tmp_path / "work"
     work.mkdir()
     git("init", "-q", str(work))
     (work / ".pre-commit-config.yaml").write_text(
-        yaml.safe_dump({"repos": [{"repo": "local", "hooks": [hook]}]}), encoding="utf-8"
+        yaml.safe_dump({"repos": [{**repo, "hooks": [hook]}]}), encoding="utf-8"
     )
     base = {
         **os.environ,
@@ -418,28 +419,16 @@ def test_seeded_secret_scan_decodes_utf8(tmp_path: Path) -> None:
 def test_seeded_format_keeps_the_check(tmp_path: Path, ruff_toml: str | None) -> None:
     """Scenario: Any consumer ruff configuration — the created config's `ruff-format` hook
     at its pin passes on the installed check and leaves its bytes unchanged (design D2)."""
-    text = (PACKAGE / "templates" / "pre-commit-config.yaml").read_text(encoding="utf-8")
-    config = yaml.safe_load(string.Template(text).substitute(version=CURRENT))
-    [ruff] = [r for r in config["repos"] if r["repo"].endswith("/ruff-pre-commit")]
-    [hook] = [h for h in ruff["hooks"] if h["id"] == "ruff-format"]
-    git("init", "-q", str(tmp_path))
-    (tmp_path / ".pre-commit-config.yaml").write_text(
-        yaml.safe_dump({"repos": [{**ruff, "hooks": [hook]}]}), encoding="utf-8"
+    work, run = _seeded_hook(
+        tmp_path, "ruff-format", "https://github.com/astral-sh/ruff-pre-commit"
     )
     if ruff_toml is not None:
-        (tmp_path / "ruff.toml").write_text(ruff_toml, encoding="utf-8")
+        (work / "ruff.toml").write_text(ruff_toml, encoding="utf-8")
     shipped = (PACKAGE / "templates" / "skill_check.py").read_bytes()
-    check = tmp_path / ".claude" / "agent-process-check.py"
+    check = work / ".claude" / "agent-process-check.py"
     check.parent.mkdir()
     check.write_bytes(shipped)
-    git("add", "-A", cwd=tmp_path)
-    done = subprocess.run(
-        [sys.executable, "-m", "pre_commit", "run", "--hook-stage", "manual", "--all-files"],
-        cwd=tmp_path,
-        capture_output=True,
-        encoding="utf-8",
-        check=False,
-    )
+    done = run()
     assert done.returncode == 0, (done.stdout, done.stderr)
     assert check.read_bytes() == shipped
 
