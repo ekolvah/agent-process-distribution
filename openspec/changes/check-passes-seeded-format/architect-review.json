@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 4,
+  "reviewer": "architect-reviewer",
+  "reasoning": "The module-level `# fmt: off` is the minimal, standard fix. D2's seeded-hook test proves the scenario and catches a ruff bump, and the person's rejection of the line-length-88 option now records its observed cost.",
+  "classes": {
+    "simpler": {
+      "evidence": "D1 is the simplest design: one comment line in the template, no new file, no config. Every alternative's rejection is recorded. The repository-at-88 option, chosen against by the person, carries the cost I observed in round 3 on a clone of 7040c29: 70 of 79 files reformatted, +2619/-756, and four modules over 1000 lines, so `ci_check.py --only module-size` exits 1. The nested `templates/ruff.toml` matches only a consumer on ruff's defaults. The seeded `exclude` reaches only configs that init creates. The consumer-side exclusion has to be repeated by every consumer. Init installs one Python file (`init.py:657`, step `check`), which `_copied_text` copies raw, and line 1 `# agent-process:managed` stays first, which `init.py:448` checks.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "The one delta scenario, `distribution / Any consumer ruff configuration`, maps to `tests/publisher/test_init_config.py::test_seeded_format_keeps_the_check[no-config]` and `[line-length-60]`. Per D2, the test takes the `ruff-format` hook and its `rev` from `templates/pre-commit-config.yaml`, runs it alone in a fresh git repository on the template installed as `.claude/agent-process-check.py`, and asserts the hook passes with unchanged bytes. That covers the WHEN (seeded hook at the seeded pin, installed check, no config or another `line-length`) and the THEN. In round 1 I ran this setup with pre-commit: Failed ('1 file reformatted') before the change, Passed after it, and Passed with `line-length = 60`. The suite already installs this remote hook in pytest (`TestComplexityLimits`, tests/agent_process/test_ci_check.py:539-568).",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "1.1 adds the parametrized test and 1.2 runs `check_red` on both cases, expecting the hook to reformat `.claude/agent-process-check.py`. That matches what I observed: the unmodified template, formatted at line-length 100, is reformatted at the default 88, and its lines are rewrapped at 60. Both cases fail in their bodies for the stated reason, and RED is committed before 2.1.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "The fix rests on ruff's `# fmt: off` with no `# fmt: on` suppressing formatting to the end of the module, cited to https://docs.astral.sh/ruff/formatter/#format-suppression and observed at 0.15.12. I reproduced it: the unmodified template exits 1 at 88; with the comment as line 2 it exits 0 at line-length 60, 88, 100 and 120, at `--target-version py39`, and with single quotes plus tab indent; `ruff check` with the complexity rules plus RUF028 passes; the seeded pre-commit hook passes. D2's test repeats this observation on every head.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "One guard is dropped: this repository's own `ruff-format` stops formatting the template. D1 lists this under Cost. What stops being proved is the cosmetic formatting of one file; `ruff-check` still lints it at the pre-commit stage and in `ci_check` lint. No project-declared input is replaced: `line-length = 100` and `max-module-lines = 1000` stay.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "Risk 2 (a ruff release changes `# fmt: off` semantics) names D2's test failing in the PR that bumps the pin. That is traceable: the test reads the `rev` from `templates/pre-commit-config.yaml`, which `test_init_config.py:224` ties to this repository's pin, so a bump PR runs it in pytest within the declared `test` of `agent-process / quality` on its head. Risk 1 (consumer lint rules) is scoped out with an observation that the seeded `ruff-check` passes.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The plan adds one requirement sentence (22 words) and one scenario (WHEN 23, THEN 7). The parametrized test asserts all of them: the seeded hook and its pin taken from the template, the installed path, no ruff configuration and another `line-length` ('whatever the consumer's ruff configuration'), that the hook passes, and unchanged bytes.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "`## Standard approach` cites ruff's Black-compatible formatter suppression comments, with the docs URL and the observation, and D1 follows that standard rather than adding a config file or an exclude list. The plan adds no script or check: the new pytest runs the standard seeded hook, the same way `TestComplexityLimits` does.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
