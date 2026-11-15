@@ -9,8 +9,8 @@
 
 ## 2. Implementation
 
-- [ ] 2.1 Add `workflow_dispatch:` to `on:` of `.github/workflows/release-please.yml` and change its header comment "Only the nightly run opens or updates the release PR" to "Only the nightly or a manually dispatched run opens or updates the release PR"; verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` is green
-- [ ] 2.2 In `.agent-process/docs/adr/0047-release-prs-merge-nightly.md` add `workflow_dispatch` to the triggers its Decision Outcome bullet lists, and add under Consequences: "Neutral, because the person may dispatch the workflow by hand for a daytime release; that run opens, approves and auto-merges the release PR as the nightly run does." Commit 2.1–2.2 with their ticks
+- [x] 2.1 Add `workflow_dispatch:` to `on:` of `.github/workflows/release-please.yml` and change its header comment "Only the nightly run opens or updates the release PR" to "Only the nightly or a manually dispatched run opens or updates the release PR"; verify `python -m pytest tests/publisher/test_reusable_workflows.py -q` is green
+- [x] 2.2 In `.agent-process/docs/adr/0047-release-prs-merge-nightly.md` add `workflow_dispatch` to the triggers its Decision Outcome bullet lists, and add under Consequences: "Neutral, because the person may dispatch the workflow by hand for a daytime release; that run opens, approves and auto-merges the release PR as the nightly run does." Commit 2.1–2.2 with their ticks
 
 ## 3. Verify
 

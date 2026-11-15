@@ -6,13 +6,15 @@ name: Release Please
 # merges itself once its required contexts are green and `github-actions` approved it
 # (ADR 0031, ADR 0040).
 # A created release fast-forwards `stable`, the consumers' marketplace channel.
-# Only the nightly run opens or updates the release PR, so it merges once a day outside
-# the person's hours; a push run still creates the release of a merged PR (ADR 0047).
+# Only the nightly or a manually dispatched run opens or updates the release PR, so it
+# merges once a day outside the person's hours; a push run still creates the release of
+# a merged PR (ADR 0047).
 on:
   push:
     branches: [main]
   schedule:
     - cron: "17 0 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
