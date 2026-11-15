@@ -4,8 +4,8 @@
 
 ## 1. RED
 
-- [ ] 1.1 In `tests/publisher/test_reusable_workflows.py` extend `test_push_to_main`'s expected trigger with `"workflow_dispatch": None` and its docstring's "only the nightly run" to "only the nightly or a dispatched run"
-- [ ] 1.2 Run `agent-process check_red` on `test_push_to_main`, verify it fails because the trigger has no `workflow_dispatch`, and commit RED with the group 1 ticks
+- [x] 1.1 In `tests/publisher/test_reusable_workflows.py` extend `test_push_to_main`'s expected trigger with `"workflow_dispatch": None` and its docstring's "only the nightly run" to "only the nightly or a dispatched run"
+- [x] 1.2 Run `agent-process check_red` on `test_push_to_main`, verify it fails because the trigger has no `workflow_dispatch`, and commit RED with the group 1 ticks
 
 ## 2. Implementation
 
