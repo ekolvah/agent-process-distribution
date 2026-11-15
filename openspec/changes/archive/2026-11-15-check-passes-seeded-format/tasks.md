@@ -15,11 +15,11 @@
 
 - [x] 3.1 Run `/simplify` without an argument and commit its edits
 - [x] 3.2 Run `openspec validate --strict --all`
-- [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change check-passes-seeded-format`, then `gh pr create --title "fix: check-passes-seeded-format" --body-file <report>`. The report names the tracking issue as a plain reference, carries the scenario-to-test map, states design **Risks**, names the principles it interacts with (§I, §VII), and carries the consumer note from proposal Impact
+- [x] 4.1 Run `agent-process archive_change check-passes-seeded-format`, then `gh pr create --title "fix: check-passes-seeded-format" --body-file <report>`. The report names the tracking issue as a plain reference, carries the scenario-to-test map, states design **Risks**, names the principles it interacts with (§I, §VII), and carries the consumer note from proposal Impact
 - [ ] 4.2 Run `gh pr merge <PR> --auto --squash`, then `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
