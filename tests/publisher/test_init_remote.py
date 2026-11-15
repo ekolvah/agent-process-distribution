@@ -34,6 +34,7 @@ from tests.publisher.init_harness import (
     OWNER,
     PLUGIN,
     REPO_NAME,
+    REVIEW_TOKEN_FILE,
     TEMPLATE_AREAS,
     TEMPLATE_WORKFLOWS,
     TITLE,
@@ -50,6 +51,7 @@ from tests.publisher.init_harness import (
     install,
     load_init,
     project_settings,
+    review_token_file,
     snapshot,
     transitions,
     user_settings,
@@ -415,20 +417,33 @@ def test_manual_actions_are_printed(
         _gh_kind(args)
 
 
-@pytest.mark.parametrize("mode", ["--dry-run", "--confirm"])
+@pytest.mark.parametrize(
+    "mode, file",
+    [
+        ("--dry-run", "missing"),
+        ("--confirm", "missing"),
+        ("--dry-run", "blank"),
+        ("--dry-run", "directory"),
+    ],
+)
 def test_review_prerequisites_are_printed(
-    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str
+    sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str, file: str
 ) -> None:
+    """Scenario: Review prerequisites."""
+    review_token_file(sandbox.home, file)
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     assert install(init, sandbox, mode, runner=runner) == 0
-    lines = capfd.readouterr().out.splitlines()
-    rows = [ln for ln in lines if ln.startswith("manual review-")]
+    out = capfd.readouterr().out
+    assert "review-secret" not in transitions(out), out
+    rows = [ln for ln in out.splitlines() if ln.startswith("manual review-")]
     assert len(rows) == 1 and rows[0].startswith("manual review-secret: "), rows
-    assert "CLAUDE_CODE_OAUTH_TOKEN" in rows[0]
     assert f"https://github.com/{CONSUMER}/settings/secrets/actions" in rows[0]
-    assert "claude setup-token" in rows[0]
-    assert f"gh secret set CLAUDE_CODE_OAUTH_TOKEN -R {CONSUMER}" in rows[0]
+    assert "claude setup-token" in rows[0] and REVIEW_TOKEN_FILE in rows[0], rows
+    if file == "directory":
+        assert "(cannot read: " in rows[0] and rows[0].endswith(")"), rows
+    else:
+        assert rows[0].endswith(f"(not found: {REVIEW_TOKEN_FILE})"), rows
     # `_gh_kind` fails on any `gh` command but the reads, the copy and the link: no secret.
     for args in runner.gh():
         _gh_kind(args)
@@ -642,8 +657,14 @@ def _malformed_plugin(sb: Sandbox) -> None:
     (_plugin_files(sb) / "known_marketplaces.json").write_text("not json", encoding="utf-8")
 
 
+def _secret_403(sb: Sandbox) -> None:
+    """Unreadable secret names plan no `review-secret` step even with a token file."""
+    _fault("secret-list")(sb)
+    review_token_file(sb.home, "token")
+
+
 UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], object], list[str]]] = {
-    "secret-403": ("--dry-run", _fault("secret-list"), ["review-secret", "task-readings"]),
+    "secret-403": ("--dry-run", _secret_403, ["review-secret", "task-readings"]),
     "variable-403": ("--dry-run", _fault("variable-list"), ["task-readings"]),
     "plugin-malformed": ("--dry-run", _malformed_plugin, ["plugin-channel"]),
     "user-settings-malformed": (
@@ -681,9 +702,12 @@ def test_unreadable_manual_state_is_printed(
     arrange(sandbox)
     init = load_init()
     assert install(init, sandbox, mode) == 0
-    manual = _manual_rows(capfd.readouterr().out)
+    out = capfd.readouterr().out
+    manual = _manual_rows(out)
     for label in labels:
         assert "(cannot read: " in _row(manual, label), manual
+    if case == "secret-403":
+        assert "review-secret" not in transitions(out), out
     if case.endswith("-403"):
         for label in labels:
             assert "HTTP 403" in _row(manual, label)

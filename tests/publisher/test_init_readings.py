@@ -6,7 +6,6 @@ and prints the `manual task-readings` row only for what it could not set up, wit
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from types import ModuleType
 
@@ -23,7 +22,9 @@ from tests.publisher.init_harness import (
     Sandbox,
     grafana_config,
     install,
+    line,
     load_init,
+    no_token,
     transitions,
 )
 
@@ -46,20 +47,8 @@ def _rows(out: str) -> list[str]:
     return [ln for ln in out.splitlines() if ln.startswith(ROW)]
 
 
-def _line(out: str, label: str) -> str:
-    """The last transition line of `label`."""
-    return [ln for ln in out.splitlines() if re.match(rf"[a-z]+ {label}: ", ln)][-1]
-
-
 def _writes(runner: Runner) -> list[list[str]]:
     return [*runner.gh("variable", "set"), *runner.gh("secret", "set")]
-
-
-def _no_token(runner: Runner, *streams: str) -> None:
-    for text in streams:
-        assert TOKEN not in text
-    for cmd in runner.log:
-        assert not [part for part in cmd if TOKEN in part], cmd
 
 
 def test_setup_planned_from_mcp_config(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
@@ -71,11 +60,11 @@ def test_setup_planned_from_mcp_config(sandbox: Sandbox, capfd: pytest.CaptureFi
     assert {label: transitions(out).get(label) for label in STEPS} == dict.fromkeys(
         STEPS, "planned"
     ), out
-    assert GRAFANA in _line(out, "task-readings-url")
-    assert "infinity-uid" in _line(out, "task-readings-dashboard")
+    assert GRAFANA in line(out, "task-readings-url")
+    assert "infinity-uid" in line(out, "task-readings-dashboard")
     assert _writes(runner) == [] and grafana.posted == []
     assert _rows(out) == [], out
-    _no_token(runner, out, err)
+    no_token(runner, TOKEN, out, err)
 
 
 @pytest.mark.parametrize("form", ["inline", "file"])
@@ -104,7 +93,7 @@ def test_setup_performed(
     ), out
     assert f"{GRAFANA}/d/new/per-task-delivery" in out
     assert _rows(out) == [], out
-    _no_token(runner, out, err)
+    no_token(runner, TOKEN, out, err)
 
 
 def test_setup_observed(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
@@ -149,7 +138,7 @@ def test_setup_not_possible(sandbox: Sandbox, capfd: pytest.CaptureFixture[str],
     else:
         assert "(cannot read: " in row and "401" in row and row.endswith(")"), row
     assert _writes(runner) == []
-    _no_token(runner, out, err)
+    no_token(runner, TOKEN, out, err)
 
 
 def test_another_stack_already_set(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
@@ -179,7 +168,7 @@ def test_setup_write_fails(sandbox: Sandbox, capfd: pytest.CaptureFixture[str], 
     out, err = capfd.readouterr()
     (error,) = [ln for ln in err.splitlines() if ln.startswith("error: ")]
     assert step in error and failure in error, err
-    _no_token(runner, out, err)
+    no_token(runner, TOKEN, out, err)
 
 
 def test_empty_token_file_is_not_found(

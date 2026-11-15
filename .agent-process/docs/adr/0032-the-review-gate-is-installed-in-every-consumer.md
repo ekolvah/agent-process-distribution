@@ -39,6 +39,7 @@ Chosen: **install a managed review caller in every consumer and require its cont
 
 ### Consequences
 
+* Superseded by ADR 0049 on D2: `init` sets the secret from the machine's token file.
 * Good, because every installed consumer has the same review gate as this repository.
 * Good, because a missing secret is visible: the install PR's `agent-review` is red and
   activation refuses, instead of a repository that silently has no review.

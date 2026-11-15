@@ -41,6 +41,8 @@ QUERY = (
 )
 TEMPLATE_QUERY = f"query($template:String!,$source:Int!){{{TEMPLATE}}}"
 REVIEW_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
+# The machine's token `init` sets as `REVIEW_TOKEN` (ADR 0049).
+REVIEW_TOKEN_FILE = "~/.claude/agent-process-review-token"
 GRAFANA_URL = "GRAFANA_URL"
 GRAFANA_TOKEN = "GRAFANA_SERVICE_ACCOUNT_TOKEN"
 INFINITY = "yesoreyeram-infinity-datasource"
@@ -130,14 +132,16 @@ def rows(t: Target) -> list[str]:
         )
     elif state == "none":
         found.append(f"manual project-areas: {where}/settings -- {replace}")
-    secrets = _kept(lambda: _names(t, "secret"))
+    secrets = secret_names(t)
     return [
         *found,
-        *_outstanding(
-            lambda: REVIEW_TOKEN in _ok(secrets),
+        *_review_row(
+            t,
+            secrets,
             f"manual review-secret: https://github.com/{t.repo}/settings/secrets/actions -- "
-            f"claude setup-token, then gh secret set {REVIEW_TOKEN} -R {t.repo} and paste the "
-            "token at its prompt; the review caller passes it to the review",
+            "once per machine, run claude setup-token in your own terminal and save the printed "
+            f"token to {REVIEW_TOKEN_FILE}, then re-run init to set {REVIEW_TOKEN}; the review "
+            "caller passes it to the review",
         ),
         *_attribution_row(t),
         *_readings_row(
@@ -167,6 +171,40 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
         return [] if done() else [row]
     except Unreadable as exc:
         return [f"{row} (cannot read: {exc})"]
+
+
+def secret_names(t: Target) -> dict[str, str] | Unreadable:
+    """The repository's secret names, read once for the plan or the rows (`_kept`)."""
+    return _kept(lambda: _names(t, "secret"))
+
+
+def review(t: Target, secrets: dict[str, str] | Unreadable) -> tuple[bool, str]:
+    """Whether the review secret is set and, while it is not, the token of
+    `REVIEW_TOKEN_FILE` (empty when there is none); `Unreadable` when either cannot be read.
+    The `review-secret` step is planned, and its row printed, from this one answer."""
+    if REVIEW_TOKEN in _ok(secrets):
+        return True, ""
+    return False, _token_file(t.home / REVIEW_TOKEN_FILE.removeprefix("~/"))
+
+
+def _review_row(t: Target, secrets: dict[str, str] | Unreadable, row: str) -> list[str]:
+    """The row while the secret is missing and no token file plans the step that sets it."""
+    try:
+        done, token = review(t, secrets)
+    except Unreadable as exc:
+        return [f"{row} (cannot read: {exc})"]
+    return [] if done or token else [f"{row} (not found: {REVIEW_TOKEN_FILE})"]
+
+
+def _token_file(file: Path) -> str:
+    """A token file's stripped content: missing or blank holds no token, an unreadable file
+    raises `Unreadable`."""
+    try:
+        return file.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return ""
+    except (OSError, UnicodeDecodeError) as exc:
+        raise Unreadable(f"{file}: {exc}") from None
 
 
 def _gh_read(t: Target, *args: str, env: dict[str, str] | None = None) -> Any:
@@ -512,14 +550,14 @@ class Readings:
     blocked: str | None = None
 
 
-def readings(t: Target, secrets: dict[str, str] | Unreadable | None = None) -> Readings:
-    """The names (`secrets` when already read), then the MCP config, then — unless the
+def readings(t: Target, secrets: dict[str, str] | Unreadable) -> Readings:
+    """The names (`secrets` as `secret_names` read them), then the MCP config, then — unless the
     variable names another stack, which leaves `url` and `token` unset — the stack's dashboard
     and, when that is missing, its Infinity datasource."""
     r = Readings(dashboard.render([t.repo])["title"])
     try:
         r.variable = _names(t, "variable").get(GRAFANA_URL)
-        r.secret = GRAFANA_TOKEN in (_names(t, "secret") if secrets is None else _ok(secrets))
+        r.secret = GRAFANA_TOKEN in _ok(secrets)
         config = _mcp_grafana(t.home)
     except Unreadable as exc:
         r.blocked = f"cannot read: {exc}"
@@ -566,12 +604,7 @@ def _mcp_grafana(home: Path) -> tuple[str, str, str] | str:
     if not name:
         return f"{GRAFANA_TOKEN} of the {MCP}"
     file = Path(str(name)).expanduser()
-    try:
-        token = file.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        token = ""
-    except (OSError, UnicodeDecodeError) as exc:
-        raise Unreadable(f"{file}: {exc}") from None
+    token = _token_file(file)
     # An empty file holds no token, as an empty inline value does.
     return (url, token, str(file)) if token else str(file)
 

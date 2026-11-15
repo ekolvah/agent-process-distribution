@@ -12,7 +12,7 @@ and runs that tree's `init.py`, forwarding its output and exit code; `--confirm`
 in the user profile.
 
 A run first classifies every transition from observed state — `planned`, `unchanged`,
-`after-merge` (steps 23-27 before the installation PR is merged; not written) or `conflict` —
+`after-merge` (steps 24-28 before the installation PR is merged; not written) or `conflict` —
 and prints one line per transition. Any conflict exits 2 before the first write; `--dry-run`
 stops after the plan. Confirmed writes run in a fixed order and print `written` or `unchanged`:
 
@@ -37,19 +37,20 @@ stops after the plan. Confirmed writes run in a fixed order and print `written` 
 14. project-copy `gh project copy` of the template Project as `<repository> agent process`,
                 unless the repository has a linked Project or its owner an unlinked copy
 15. project-link `gh project link` of that one unlinked copy to the repository
-16. onboarding-commit  `git add -A` and `git commit` on the installation branch
-17. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
-18. onboarding-push    `git push -u origin` of the installation branch
-19. onboarding-pr      `gh pr create`, its body `Closes #<issue>` and the `after-merge` lines,
+16. review-secret  `CLAUDE_CODE_OAUTH_TOKEN` from `~/.claude/agent-process-review-token`
+17. onboarding-commit  `git add -A` and `git commit` on the installation branch
+18. onboarding-issue   `gh issue create` of `Install agent-process <version>`, unless one is open
+19. onboarding-push    `git push -u origin` of the installation branch
+20. onboarding-pr      `gh pr create`, its body `Closes #<issue>` and the `after-merge` lines,
                        or `gh pr edit --body` while they differ; the line names the PR's URL
-20. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
+21. pre-push  `pre-commit install --hook-type pre-push` in this clone, whatever else is planned;
               a hook pre-commit did not install moves to `pre-push.legacy`. Its cache
               goes to a temporary `PRE_COMMIT_HOME`, not the user profile
-21. project-areas  with `--area`, while the linked Project's `Area` options are the template's:
+22. project-areas  with `--area`, while the linked Project's `Area` options are the template's:
                    each name's view and filter, then the options; other template views deleted
-22. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
+23. task-readings-url, -token, -dashboard  from the `grafana` MCP server of `~/.claude.json`:
     the `GRAFANA_URL` variable, the token secret on standard input, the dashboard import
-23-27. protection, agent-collaborator, -project, approval-ruleset, auto-merge:
+24-28. protection, agent-collaborator, -project, approval-ruleset, auto-merge:
         once the installation PR is merged, the steps of `post_merge.py`
 
 Steps 14-15 are classified from `gh` reads of the repository's linked Projects and its
@@ -63,18 +64,18 @@ repository with none, a checkout with none of a repository with commits — is a
 The output ends with `manual` rows, read after the run's writes and printed only while their
 state is not observed done: the linked Project's built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
-secret, and the task-readings variable, secret and dashboard step 22 cannot set up, with
-the reason — that only a UI can change — the `plugin-channel`
-row, the once-per-machine step that points the marketplace at `stable` with auto-update and
-installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
+secret step 16 cannot set, and the task-readings variable, secret and dashboard step 23 cannot
+set up, with the reason — that only a UI can change — the `plugin-channel` row, the
+once-per-machine step that points the marketplace at `stable` with auto-update and installs
+the plugin at user scope, and the `pre-push` row naming why `init` cannot install
 this clone's hook (`core.hooksPath` is set, or `pre-commit` is not on PATH). A state `init`
 cannot read keeps its row with `(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
 status line before the `manual` rows says so, as a state, not an action: the installer
 asks for no quality command. The default branch is written only by `onboarding-root`: the
-installation branch is otherwise the only push, and the Project copy and link, step 21's
-`Area` options and views, the issue, the PR, step 22's variable and secret and steps 23-27
-the only other GitHub writes.
+installation branch is otherwise the only push, and the Project copy and link, step 16's
+secret, step 22's `Area` options and views, the issue, the PR, step 23's variable and secret and
+steps 24-28 the only other GitHub writes.
 `AGENT_PROCESS_REPOSITORY` overrides the process repository; the
 plan then prints it as its first line.
 """
@@ -941,13 +942,14 @@ def _run(
         gh_json=lambda *args: _gh_json(ctx, *args),
         empty=empty,
     )
-    post = post_merge.steps(_target(ctx, repo), to.branch, args.agent, linked)
+    target = _target(ctx, repo)
+    post = post_merge.steps(target, to.branch, args.agent, linked)
     to.after_merge = [step.line for step in post if step.status == "after-merge"]
     before, after = onboarding.plan(to, planned)
-    areas = project_areas.steps(_target(ctx, repo), linked, args.area)
-    readings = readings_setup.steps(_target(ctx, repo))
+    areas = project_areas.steps(target, linked, args.area)
+    review, readings = readings_setup.secret_steps(target)
     pre_push = _pre_push_step(ctx, repo)
-    steps = [*before, *consumer, *project, *after, *pre_push, *areas, *readings, *post]
+    steps = [*before, *consumer, *project, *review, *after, *pre_push, *areas, *readings, *post]
     for step in steps:
         print(step.line)
     conflict = any(step.status == "conflict" for step in steps)

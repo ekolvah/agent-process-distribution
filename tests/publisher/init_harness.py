@@ -595,6 +595,23 @@ class FakeGrafana:
         return f"{GRAFANA}/d/new/per-task-delivery"
 
 
+REVIEW_TOKEN = "sk-ant-oat01-review-token-0123"  # pragma: allowlist secret
+REVIEW_TOKEN_FILE = "~/.claude/agent-process-review-token"
+
+
+def review_token_file(home: Path, file: str) -> None:
+    """`REVIEW_TOKEN_FILE` under `home` as `file` names it: `missing`, `blank`, a `directory`
+    (unreadable) or holding `REVIEW_TOKEN` (`token`), with a trailing newline."""
+    path = home / REVIEW_TOKEN_FILE.removeprefix("~/")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if file == "blank":
+        path.write_text(" \n", encoding="utf-8")
+    elif file == "directory":
+        path.mkdir()
+    elif file == "token":
+        path.write_text(REVIEW_TOKEN + "\n", encoding="utf-8")
+
+
 def grafana_config(
     home: Path, url: str = GRAFANA, *, token: str | None = None, token_file: Path | None = None
 ) -> None:
@@ -869,6 +886,19 @@ def relative(state: dict[str, Any], base: Path) -> dict[str, Any]:
 def transitions(out: str) -> dict[str, str]:
     """The last status each label printed."""
     return {label: status for status, label in LINE.findall(out)}
+
+
+def line(out: str, label: str) -> str:
+    """The last transition line of `label`."""
+    return [ln for ln in out.splitlines() if re.match(rf"[a-z]+ {label}: ", ln)][-1]
+
+
+def no_token(runner: Runner, token: str, *streams: str) -> None:
+    """`token` is in none of `streams` and in no command line `runner` issued."""
+    for text in streams:
+        assert token not in text
+    for cmd in runner.log:
+        assert not [part for part in cmd if token in part], cmd
 
 
 def head_commit(path: Path) -> str:
