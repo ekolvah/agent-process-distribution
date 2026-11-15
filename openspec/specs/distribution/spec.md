@@ -1232,3 +1232,11 @@ that fails and for the steps only the person can do.
 #### Scenario: Identity step after the merge
 - **WHEN** the agent reaches the agent-identity step of Install after the installation PR merged
 - **THEN** the person saw its commands with the dry-run, the agent runs them without a question to the person, and names to the person a failed command and the person's own steps
+
+### Requirement: The skill check passes the seeded format
+The skill check `.claude/agent-process-check.py` that a run installs SHALL be left unchanged by
+the seeded `ruff-format` hook whatever the consumer's ruff configuration.
+
+#### Scenario: Any consumer ruff configuration
+- **WHEN** the seeded `ruff-format` hook runs at the seeded pin on the installed skill check, with no ruff configuration or with another `line-length`
+- **THEN** it passes and the file is unchanged
