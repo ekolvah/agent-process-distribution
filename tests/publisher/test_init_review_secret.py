@@ -21,7 +21,7 @@ from tests.publisher.init_harness import (
 )
 from tests.publisher.init_reads import _manual_rows, _pushes
 
-SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
+SECRET = "CLAUDE_CODE_OAUTH_TOKEN"  # pragma: allowlist secret
 ROW = "manual review-secret: "
 
 

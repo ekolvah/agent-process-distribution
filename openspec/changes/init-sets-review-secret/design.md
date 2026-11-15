@@ -1,6 +1,6 @@
 ## Context
 
-`init` already copies one credential into a repository secret: `readings_setup.steps` sets
+`init` already copies one credential into a repository secret; `readings_setup.steps` sets
 `GRAFANA_SERVICE_ACCOUNT_TOKEN` from the machine's MCP config on `gh`'s standard input
 (ADR 0048), through its local `gh_step`. Before the writes `manual.readings` reads
 `gh secret list`; after them `manual.rows` reads it again for the rows. The review caller needs
