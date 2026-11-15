@@ -24,7 +24,7 @@
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change init-sets-review-secret`, then `gh pr create --title "feat: init-sets-review-secret" --body-file <report>`. The report names tracking issue 516 as a plain reference, carries the scenario-to-test map, states design **Risks** and names the principles it interacts with (goal 1, goal 3, §II, §IV, §VII)
+- [x] 4.1 Run `agent-process archive_change init-sets-review-secret`, then `gh pr create --title "feat: init-sets-review-secret" --body-file <report>`. The report names tracking issue 516 as a plain reference, carries the scenario-to-test map, states design **Risks** and names the principles it interacts with (goal 1, goal 3, §II, §IV, §VII)
 - [ ] 4.2 Run `gh pr merge <PR> --auto --squash`, then `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
