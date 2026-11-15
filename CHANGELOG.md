@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.34.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.33.0...v3.34.0) (2026-11-15)
+
+
+### Features
+
+* init-sets-review-secret ([#517](https://github.com/ekolvah/agent-process-distribution/issues/517)) ([37be64a](https://github.com/ekolvah/agent-process-distribution/commit/37be64acc57aa40539530f5b03ad9aeab42a95a1))
+* manual-release-dispatch ([#519](https://github.com/ekolvah/agent-process-distribution/issues/519)) ([c0a3f52](https://github.com/ekolvah/agent-process-distribution/commit/c0a3f52d2510a5acb6554c734de1693480b77c9b))
+
 ## [3.33.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.32.1...v3.33.0) (2026-11-15)
 
 
