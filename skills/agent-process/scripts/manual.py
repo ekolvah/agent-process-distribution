@@ -132,7 +132,7 @@ def rows(t: Target) -> list[str]:
         )
     elif state == "none":
         found.append(f"manual project-areas: {where}/settings -- {replace}")
-    secrets = _kept(lambda: _names(t, "secret"))
+    secrets = secret_names(t)
     return [
         *found,
         *_review_row(
@@ -173,19 +173,27 @@ def _outstanding(done: Callable[[], bool], row: str) -> list[str]:
         return [f"{row} (cannot read: {exc})"]
 
 
+def secret_names(t: Target) -> dict[str, str] | Unreadable:
+    """The repository's secret names, read once for the plan or the rows (`_kept`)."""
+    return _kept(lambda: _names(t, "secret"))
+
+
+def review(t: Target, secrets: dict[str, str] | Unreadable) -> tuple[bool, str]:
+    """Whether the review secret is set and, while it is not, the token of
+    `REVIEW_TOKEN_FILE` (empty when there is none); `Unreadable` when either cannot be read.
+    The `review-secret` step is planned, and its row printed, from this one answer."""
+    if REVIEW_TOKEN in _ok(secrets):
+        return True, ""
+    return False, _token_file(t.home / REVIEW_TOKEN_FILE.removeprefix("~/"))
+
+
 def _review_row(t: Target, secrets: dict[str, str] | Unreadable, row: str) -> list[str]:
     """The row while the secret is missing and no token file plans the step that sets it."""
     try:
-        if REVIEW_TOKEN in _ok(secrets) or review_token(t):
-            return []
+        done, token = review(t, secrets)
     except Unreadable as exc:
         return [f"{row} (cannot read: {exc})"]
-    return [f"{row} (not found: {REVIEW_TOKEN_FILE})"]
-
-
-def review_token(t: Target) -> str:
-    """The token of `REVIEW_TOKEN_FILE`; empty when there is none."""
-    return _token_file(t.home / REVIEW_TOKEN_FILE.removeprefix("~/"))
+    return [] if done or token else [f"{row} (not found: {REVIEW_TOKEN_FILE})"]
 
 
 def _token_file(file: Path) -> str:
@@ -542,14 +550,14 @@ class Readings:
     blocked: str | None = None
 
 
-def readings(t: Target, secrets: dict[str, str] | Unreadable | None = None) -> Readings:
-    """The names (`secrets` when already read), then the MCP config, then — unless the
+def readings(t: Target, secrets: dict[str, str] | Unreadable) -> Readings:
+    """The names (`secrets` as `secret_names` read them), then the MCP config, then — unless the
     variable names another stack, which leaves `url` and `token` unset — the stack's dashboard
     and, when that is missing, its Infinity datasource."""
     r = Readings(dashboard.render([t.repo])["title"])
     try:
         r.variable = _names(t, "variable").get(GRAFANA_URL)
-        r.secret = GRAFANA_TOKEN in (_names(t, "secret") if secrets is None else _ok(secrets))
+        r.secret = GRAFANA_TOKEN in _ok(secrets)
         config = _mcp_grafana(t.home)
     except Unreadable as exc:
         r.blocked = f"cannot read: {exc}"

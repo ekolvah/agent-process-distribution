@@ -66,8 +66,9 @@ The output ends with `manual` rows, read after the run's writes and printed only
 state is not observed done: the linked Project's built-in workflows and the `Area`
 options and views copied from the template, the review caller's `CLAUDE_CODE_OAUTH_TOKEN`
 secret step 16 cannot set, and the task-readings variable, secret and dashboard step 23 cannot
-set up, with the reason — that only a UI can change — the `plugin-channel` row, the once-per-machine step that points the marketplace at `stable` with auto-update and
-installs the plugin at user scope, and the `pre-push` row naming why `init` cannot install
+set up, with the reason — that only a UI can change — the `plugin-channel` row, the
+once-per-machine step that points the marketplace at `stable` with auto-update and installs
+the plugin at user scope, and the `pre-push` row naming why `init` cannot install
 this clone's hook (`core.hooksPath` is set, or `pre-commit` is not on PATH). A state `init`
 cannot read keeps its row with `(cannot read: <reason>)` and never changes the exit code. While
 `.github/agent-process-quality.json` declares no `test` and the run seeds none, a `quality:`
@@ -942,12 +943,12 @@ def _run(
         gh_json=lambda *args: _gh_json(ctx, *args),
         empty=empty,
     )
-    post = post_merge.steps(_target(ctx, repo), to.branch, args.agent, linked)
+    target = _target(ctx, repo)
+    post = post_merge.steps(target, to.branch, args.agent, linked)
     to.after_merge = [step.line for step in post if step.status == "after-merge"]
     before, after = onboarding.plan(to, planned)
-    areas = project_areas.steps(_target(ctx, repo), linked, args.area)
-    target = _target(ctx, repo)
-    secrets = manual._kept(lambda: manual._names(target, "secret"))
+    areas = project_areas.steps(target, linked, args.area)
+    secrets = manual.secret_names(target)
     review = _review_step(target, secrets)
     readings = readings_setup.steps(target, secrets)
     pre_push = _pre_push_step(ctx, repo)
@@ -976,8 +977,7 @@ def _review_step(t: manual.Target, secrets: dict[str, str] | manual.Unreadable) 
     """`review-secret` from the machine's token file (ADR 0049); none while the names cannot
     be read or the file holds no token, which the `manual review-secret` row reports."""
     try:
-        done = manual.REVIEW_TOKEN in manual._ok(secrets)
-        token = None if done else manual.review_token(t)
+        done, token = manual.review(t, secrets)
     except manual.Unreadable:
         return []
     if not (done or token):

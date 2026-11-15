@@ -34,6 +34,7 @@ from tests.publisher.init_harness import (
     OWNER,
     PLUGIN,
     REPO_NAME,
+    REVIEW_TOKEN_FILE,
     TEMPLATE_AREAS,
     TEMPLATE_WORKFLOWS,
     TITLE,
@@ -50,6 +51,7 @@ from tests.publisher.init_harness import (
     install,
     load_init,
     project_settings,
+    review_token_file,
     snapshot,
     transitions,
     user_settings,
@@ -415,24 +417,6 @@ def test_manual_actions_are_printed(
         _gh_kind(args)
 
 
-REVIEW_TOKEN_FILE = "~/.claude/agent-process-review-token"
-
-
-def _review_token(sb: Sandbox, file: str) -> None:
-    """`~/.claude/agent-process-review-token` as `file` names it: absent, blank, a directory
-    (unreadable) or holding a token."""
-    path = sb.home / ".claude" / "agent-process-review-token"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if file == "blank":
-        path.write_text(" \n", encoding="utf-8")
-    elif file == "directory":
-        path.mkdir()
-    elif file == "token":
-        path.write_text(
-            "sk-ant-oat01-review-token-0123\n", encoding="utf-8"
-        )  # pragma: allowlist secret
-
-
 @pytest.mark.parametrize(
     "mode, file",
     [
@@ -446,7 +430,7 @@ def test_review_prerequisites_are_printed(
     sandbox: Sandbox, capfd: pytest.CaptureFixture[str], mode: str, file: str
 ) -> None:
     """Scenario: Review prerequisites."""
-    _review_token(sandbox, file)
+    review_token_file(sandbox.home, file)
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     assert install(init, sandbox, mode, runner=runner) == 0
@@ -676,7 +660,7 @@ def _malformed_plugin(sb: Sandbox) -> None:
 def _secret_403(sb: Sandbox) -> None:
     """Unreadable secret names plan no `review-secret` step even with a token file."""
     _fault("secret-list")(sb)
-    _review_token(sb, "token")
+    review_token_file(sb.home, "token")
 
 
 UNREADABLE: dict[str, tuple[str, Callable[[Sandbox], object], list[str]]] = {

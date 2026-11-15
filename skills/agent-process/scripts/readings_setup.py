@@ -82,7 +82,7 @@ def gh_step(
 
 def steps(t: manual.Target, secrets: dict[str, str] | manual.Unreadable) -> list[Step]:
     """The three steps while the config names a stack the repository does not contradict;
-    `secrets` are the repository's secret names as `manual._kept` read them."""
+    `secrets` are the repository's secret names as `manual.secret_names` read them."""
     r = manual.readings(t, secrets)
     if r.url is None or r.token is None:
         return []

@@ -595,6 +595,23 @@ class FakeGrafana:
         return f"{GRAFANA}/d/new/per-task-delivery"
 
 
+REVIEW_TOKEN = "sk-ant-oat01-review-token-0123"  # pragma: allowlist secret
+REVIEW_TOKEN_FILE = "~/.claude/agent-process-review-token"
+
+
+def review_token_file(home: Path, file: str) -> None:
+    """`REVIEW_TOKEN_FILE` under `home` as `file` names it: `missing`, `blank`, a `directory`
+    (unreadable) or holding `REVIEW_TOKEN` (`token`), with a trailing newline."""
+    path = home / REVIEW_TOKEN_FILE.removeprefix("~/")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if file == "blank":
+        path.write_text(" \n", encoding="utf-8")
+    elif file == "directory":
+        path.mkdir()
+    elif file == "token":
+        path.write_text(REVIEW_TOKEN + "\n", encoding="utf-8")
+
+
 def grafana_config(
     home: Path, url: str = GRAFANA, *, token: str | None = None, token_file: Path | None = None
 ) -> None:

@@ -9,52 +9,44 @@ import pytest
 
 from tests.publisher.init_harness import (
     HOST,
+    LINE,
+    REVIEW_TOKEN,
     Runner,
     Sandbox,
     install,
     load_init,
     no_token,
+    review_token_file,
     transitions,
 )
-from tests.publisher.init_reads import _pushes
+from tests.publisher.init_reads import _manual_rows, _pushes
 
-TOKEN = "sk-ant-oat01-review-token-0123"  # pragma: allowlist secret
 SECRET = "CLAUDE_CODE_OAUTH_TOKEN"
 ROW = "manual review-secret: "
 
 
-def _token_file(sb: Sandbox) -> None:
-    path = sb.home / ".claude" / "agent-process-review-token"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(TOKEN + "\n", encoding="utf-8")
-
-
 def _rows(out: str) -> list[str]:
-    return [ln for ln in out.splitlines() if ln.startswith(ROW)]
-
-
-def _labels(out: str) -> list[str]:
-    return [ln.split(":")[0].split(" ")[-1] for ln in out.splitlines() if ln.startswith("written ")]
+    return [row for row in _manual_rows(out) if row.startswith(ROW)]
 
 
 def test_secret_set_from_token_file(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
     """Scenario: Secret set from the token file."""
-    _token_file(sandbox)
+    review_token_file(sandbox.home, "token")
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     assert install(init, sandbox, "--confirm", runner=runner) == 0
     out, err = capfd.readouterr()
-    written = _labels(out)
+    written = [label for status, label in LINE.findall(out) if status == "written"]
     assert "review-secret" in written, out
     assert written.index("review-secret") < written.index("onboarding-push"), written
-    assert sandbox.github.secret_values == {SECRET: TOKEN}
+    assert sandbox.github.secret_values == {SECRET: REVIEW_TOKEN}
     assert _rows(out) == [], out
-    no_token(runner, TOKEN, out, err)
+    no_token(runner, REVIEW_TOKEN, out, err)
 
 
 def test_secret_planned(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
     """Scenario: Secret planned."""
-    _token_file(sandbox)
+    review_token_file(sandbox.home, "token")
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
     assert install(init, sandbox, "--dry-run", runner=runner) == 0
@@ -62,7 +54,7 @@ def test_secret_planned(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> 
     assert transitions(out).get("review-secret") == "planned", out
     assert runner.gh("secret", "set") == []
     assert _rows(out) == [], out
-    no_token(runner, TOKEN, out, err)
+    no_token(runner, REVIEW_TOKEN, out, err)
 
 
 def test_secret_already_set(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
@@ -79,7 +71,7 @@ def test_secret_already_set(sandbox: Sandbox, capfd: pytest.CaptureFixture[str])
 
 def test_secret_write_fails(sandbox: Sandbox, capfd: pytest.CaptureFixture[str]) -> None:
     """Scenario: Secret write fails."""
-    _token_file(sandbox)
+    review_token_file(sandbox.home, "token")
     sandbox.github.faults["secret-set"] = "fail"
     init = load_init()
     runner = Runner(init, HOST, sandbox.github)
@@ -88,4 +80,4 @@ def test_secret_write_fails(sandbox: Sandbox, capfd: pytest.CaptureFixture[str])
     (error,) = [ln for ln in err.splitlines() if ln.startswith("error: ")]
     assert "review-secret" in error, err
     assert _pushes(runner) == [], runner.log
-    no_token(runner, TOKEN, out, err)
+    no_token(runner, REVIEW_TOKEN, out, err)
