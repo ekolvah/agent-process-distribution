@@ -9,7 +9,7 @@
 
 ## 2. Implementation
 
-- [ ] 2.1 Insert `# fmt: off` as line 2 of `skills/agent-process/templates/skill_check.py` (D1); verify `python -m pytest tests/publisher/test_init_config.py tests/publisher/test_skill_check.py -q` is green. Commit with the tick
+- [x] 2.1 Insert `# fmt: off` as line 2 of `skills/agent-process/templates/skill_check.py` (D1); verify `python -m pytest tests/publisher/test_init_config.py tests/publisher/test_skill_check.py -q` is green. Commit with the tick
 
 ## 3. Verify
 
