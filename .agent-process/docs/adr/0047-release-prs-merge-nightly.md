@@ -27,9 +27,10 @@ release commit and 3 more a release commit with a feature.
 
 Chosen: **one workflow, release PR work at night only.**
 
-* `release-please.yml` triggers on `push` to `main` and on `schedule: cron "17 0 * * *"`
-  (03:17 at +03:00; the person's commits over 2026-09-17..10-17 span 06:00–23:59 local; minute
-  17 avoids the start-of-hour load). The action gets
+* `release-please.yml` triggers on `push` to `main`, on `workflow_dispatch` and on
+  `schedule: cron "17 0 * * *"` (03:17 at +03:00; the person's commits over
+  2026-09-17..10-17 span 06:00–23:59 local; minute 17 avoids the start-of-hour load). The
+  action gets
   `skip-github-pull-request: ${{ github.event_name == 'push' }}`, so a push run creates no PR,
   `prs_created` is false, and the approve and auto-merge steps skip.
 * `skip-github-release` stays unset: the nightly merge of the release PR starts a push run that
@@ -47,6 +48,8 @@ Chosen: **one workflow, release PR work at night only.**
 * Bad, because consumers on `stable` get a release once a day instead of after each merge.
 * Bad, because a scheduled run may be delayed or dropped by GitHub; the PR is then opened or
   merged the next night.
+* Neutral, because the person may dispatch the workflow by hand for a daytime release; that
+  run opens, approves and auto-merges the release PR as the nightly run does.
 * Bad, because it is unobserved whether an update of a PR whose auto-merge is already on sets
   `prs_created` and lets `gh pr merge --auto` succeed; if not, the run fails red and the PR
   waits for the person.

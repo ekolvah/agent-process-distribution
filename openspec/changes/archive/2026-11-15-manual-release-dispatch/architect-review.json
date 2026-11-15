@@ -1,0 +1,47 @@
+{
+  "verdict": "approve",
+  "round": 1,
+  "reviewer": "architect-reviewer",
+  "reasoning": "A one-line standard trigger reuses the existing event_name guard and approval path unchanged; the widened scenario is held by the extended trigger assertion with a real RED, and the weakened ADR 0047 default is recorded where it lives.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md Decision 1 is already the minimum: `workflow_dispatch:` with no inputs. The alternatives it rejects (local `release-please release-pr` with the person's token; a second workflow) are rejected on the scenario 'Release PR opened or updated': a head no run produced gets no `github-actions` approval, and a second workflow duplicates the approve/auto-merge steps. Dispatch inputs are a stated non-goal.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "tasks.md Scenario → test map has one row per scenario of specs/distribution/spec.md (6/6). Version places agree → test_plugin.py::test_version_drift; Release PR opened or updated → test_push_to_main (trigger now includes workflow_dispatch; skip expression asserted at test_reusable_workflows.py:913) plus test_release_workflow_approves_and_enables_auto_merge (:852); No release PR change → test_release_workflow_parses_no_unset_output (:873); Push to main → test_push_to_main (:903); Release PR behind main → test_release_pr_behind_main (:917, trigger-independent always-update); Release PR merged → live, unchanged from the current spec.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 extends test_push_to_main's exact-equality trigger assertion (test_reusable_workflows.py:907-910) with `\"workflow_dispatch\": None`; against the current release-please.yml:11-15 it fails, and task 1.2 runs check_red and commits RED before task 2.1.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "(a) The absence of a manual trigger is observed: proposal.md Why quotes the HTTP 422 of `gh workflow run release-please.yml --ref main`. (b) `workflow_dispatch` as the manual trigger is cited from the GitHub events reference in design.md Standard approach; the same page documents that a dispatched run's `github.event_name` is `workflow_dispatch`, so `skip-github-pull-request: ${{ github.event_name == 'push' }}` (release-please.yml:30) evaluates false, and that the trigger works only once the file is on the default branch, which design.md Migration Plan respects (dispatch after merge). (c) GITHUB_TOKEN approval, PAT auto-merge and the push run that creates the release and moves `stable` are the existing nightly path, observed by the v3.33.0 release (e306e07); event type does not change them.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "No input is replaced and no step guard is dropped: the push guard and the `prs_created` / `release_created` conditions stay. The one weakened guarantee, ADR 0047's 'at most one release commit on main a day, outside the person's hours', is listed in design.md Decision 2 and recorded by task 2.2 as a Consequences line; the default remains nightly.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "design.md Risks names the release PR's required checks as the catcher for a dispatch by any writer; they run on the release PR because it is opened with the PAT (release-please.yml:4-7) and gate its auto-merge through the approval ruleset, the same delivery step the nightly run reaches. A failed approve or auto-merge step fails the run (spec, unchanged).",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "Spec delta against openspec/specs/distribution/spec.md:368-407 adds ~20 words: 'and a run the person dispatches by hand' (8) in the requirement, 'or dispatched' (2) replacing 'The scheduled' with 'A scheduled or dispatched', 'or a run the person dispatches by hand' (8) in the Release PR opened or updated WHEN, 'or dispatched' (2) in the Push to main THEN. Tests assert the one fact they carry: the `workflow_dispatch` key in the trigger (1 asserted token) plus the existing skip expression; the rest is reused unchanged. Task 2.2 adds one ADR sentence (~27 words, doc, untested by design); task 2.1 edits one workflow comment.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "design.md `## Standard approach` names GitHub's `workflow_dispatch` event with its reference page and `gh workflow run`, which is the standard answer to 'start a workflow by hand'; the design follows it with no inputs. The plan adds no script or check.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": [
+    {
+      "capability": "distribution",
+      "scenario": "Release PR merged",
+      "reason": "n/a: live — the tag and Release follow the merge (unchanged), per tasks.md Scenario → test map."
+    }
+  ]
+}
