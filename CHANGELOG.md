@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.34.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.34.0...v3.34.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* check-passes-seeded-format ([#522](https://github.com/ekolvah/agent-process-distribution/issues/522)) ([e425a13](https://github.com/ekolvah/agent-process-distribution/commit/e425a13207f85ace785551f002eff26225b08e1a))
+
 ## [3.34.0](https://github.com/ekolvah/agent-process-distribution/compare/v3.33.0...v3.34.0) (2026-11-15)
 
 
