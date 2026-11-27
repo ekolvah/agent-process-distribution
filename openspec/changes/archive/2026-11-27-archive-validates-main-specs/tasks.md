@@ -16,11 +16,11 @@
 
 - [x] 3.1 Run `/simplify` without an argument and commit its edits
 - [x] 3.2 Run `openspec validate --strict --all`
-- [ ] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
+- [x] 3.3 Run the `test` that `.github/agent-process-quality.json` declares
 
 ## 4. Deliver
 
-- [ ] 4.1 Run `agent-process archive_change archive-validates-main-specs`, then `gh pr create --title "fix: archive-validates-main-specs" --body-file <report>`. The report names the tracking issue as a plain reference, carries the scenario-to-test map, states design **Risks** and names the principles it interacts with (§IV, §V, §VII)
+- [x] 4.1 Run `agent-process archive_change archive-validates-main-specs`, then `gh pr create --title "fix: archive-validates-main-specs" --body-file <report>`. The report names the tracking issue as a plain reference, carries the scenario-to-test map, states design **Risks** and names the principles it interacts with (§IV, §V, §VII)
 - [ ] 4.2 Run `gh pr merge <PR> --auto --squash`, then `agent-process wait_for_pr <PR>` and handle review threads per the delivery procedure
 
 ## Scenario → test map
