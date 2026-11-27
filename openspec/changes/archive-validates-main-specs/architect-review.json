@@ -1,0 +1,41 @@
+{
+  "verdict": "approve",
+  "round": 5,
+  "reviewer": "architect-reviewer",
+  "reasoning": "All three round-4 findings are closed in the artifacts: task 2.2 is dropped, nested capabilities are named by their path relative to specs/ with the observation quoted, and 1.1 tests the openspec/-only guard of the resume path. The design is the stock OpenSpec validate step, tested against the real CLI.",
+  "classes": {
+    "simpler": {
+      "evidence": "design.md Decision 1 follows the stock `openspec-sync-specs` step 5 and lists the rejected alternatives: the temp-copy preview, a restore from HEAD and a quality.yml step. Decision 2's resume is the least the refusal needs. The no-op stub task is gone. 2.1 now verifies that test_pr_delivery.py and test_session_binding.py stay green, because their fixtures have no spec deltas, and proposal Impact no longer lists test_session_binding.py.",
+      "result": "ok"
+    },
+    "map": {
+      "evidence": "Each of the five scenarios has a test in the tasks.md map. Archive commit and Stale archive lock map to test_archive_commit, and Ticks left to test_ticks_left_for_the_archive (existing tests; the first runs of these cases do not resume). The new placeholder scenario maps to the first run of test_archive_leaves_a_placeholder_purpose, and Re-run after the Purpose is written to its re-run. With real OpenSpec in that test, a second `openspec archive` would raise, so 'without archiving again' is proven implicitly. The stray-file step of the resume guard is in the same test, before the Purpose is written.",
+      "result": "ok"
+    },
+    "red": {
+      "evidence": "Task 1.1 drives the real `_runner` with the pinned OpenSpec, stubbing only `git push`. Before the change, the archive commits beta's placeholder and the script exits 0, so task 1.2's check_red fails on the exit-code assertion in the test body. Real `npx` in tests has a precedent: test_planning_workflow.py::test_review_archives_with_the_change.",
+      "result": "ok"
+    },
+    "platform": {
+      "evidence": "Each OpenSpec behaviour the design rests on is observed:\n- Non-strict `--specs` has rc=0; strict `validate beta --type spec` has rc=1 with findings on stderr (Decision 1).\n- The direct-edit guidance (Decision 3 quotes the validate warning and `openspec instructions specs`).\n- The nested name `grp/sub` passes and `sub` fails with ENOENT (Risks, from my scratch run on 1.13.0).\nDecision 1 and task 2.1 now name capabilities by each `spec.md`'s parent path relative to `specs/` with `as_posix()`. One inaccuracy that does not affect the design: the Risks phrase 'or a Windows path would refuse' is contradicted by the later npx 1.13.0 run on Windows, where `validate grp\\sub` reports the same placeholder warning, rc=1. `as_posix()` stays harmless, and those words can simply be dropped.",
+      "result": "ok"
+    },
+    "replaced": {
+      "evidence": "On the resume path, Decision 2 swaps the clean-worktree guard for 'uncommitted paths under openspec/ only'. It also skips the session binding, the tick and the archive, and says why: the archived `sessions` and `tasks.md` already carry them. The lock check stays first. Nothing else is replaced.",
+      "result": "ok"
+    },
+    "catcher": {
+      "evidence": "The validate step runs at Deliver 4.1 (`archive_change`), after the archive and lock removal and before `git add`, commit and push, so the case in the proposal stops before anything leaves the machine. A failing archive keeps exit 1 through main's RuntimeError handling. Pre-existing placeholders elsewhere are still caught by a consumer's Verify `validate --strict --all`. One note, not a finding: the Decision 1 hint is printed for any `validate` RuntimeError, including an `npx` download failure, but OpenSpec's text is printed with it, so nothing is hidden.",
+      "result": "ok"
+    },
+    "length": {
+      "evidence": "The spec delta adds about 47 words to the requirement and about 55 in its two new scenarios. Test 1.1 now asserts every claim:\n- exit 2, 'beta' and 'placeholder' in stderr, no push, HEAD unchanged;\n- the openspec/-only guard of the resume path (a stray file outside openspec/: exit 2, file named, HEAD unchanged);\n- scope (untouched `gamma` does not block);\n- the re-run's push, clean worktree and archive contents.\nSKILL.md 2.2 adds about 11 words, and its 4-word substance is asserted in test_tasks_of_a_new_change.",
+      "result": "ok"
+    },
+    "bespoke": {
+      "evidence": "`## Standard approach` names OpenSpec 1.13.0's stock `/opsx:archive` -> `openspec-sync-specs` step 5 ('Validate updated main specs'), so the design adopts the standard step rather than inventing one. It explains why it uses `--strict`: a placeholder is only a warning, observed rc=0 non-strict. It explains why the stock skill is not used whole: it merges deltas through an agent and has no lock, worktree or push steps. It explains why validation must follow the archive: `archive --help` shows no dry run. The only bespoke addition, the resume of Decision 2, follows from the refusal itself and carries the deletion condition of Decision 1.",
+      "result": "ok"
+    }
+  },
+  "scenario_coverage": []
+}
