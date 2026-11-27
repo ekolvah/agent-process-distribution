@@ -86,12 +86,17 @@ def mark_own_task(tasks: Path, script: str, change: str) -> None:
     print(f"note: no unchecked `agent-process {script} {change}` task in {tasks}; nothing marked")
 
 
-def _uncommitted_archive(change: str, status: list[str]) -> str | None:
-    """The `openspec/changes/archive/<date>-<change>` that `git status` lists, if any."""
-    archived = re.compile(rf"openspec/changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change)}/")
+def _uncommitted_archive(root: Path, change: str, status: list[str]) -> str | None:
+    """The `openspec/changes/archive/<date>-<change>` that `git status` lists, once the
+    change itself is gone, if any."""
+    if (root / "openspec" / "changes" / change).exists():
+        return None
+    archived = re.compile(
+        rf"(openspec/changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change)})/"
+    )
     for line in status:
         if match := archived.match(line[3:]):
-            return match.group().rstrip("/")
+            return match.group(1)
     return None
 
 
@@ -112,19 +117,13 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
         return 2
     status = run(["git", "status", "--porcelain", "--untracked-files=all"]).splitlines()
     change_dir = root / "openspec" / "changes" / change
-    archived = None if change_dir.exists() else _uncommitted_archive(change, status)
-    if archived is not None:
+    archived = _uncommitted_archive(root, change, status)
+    capabilities = _capabilities((root / archived if archived else change_dir) / "specs")
+    if archived:
         # A refused validation left the archive uncommitted: the archived `sessions` and
         # `tasks.md` already carry the binding and the tick, so resume at the validation.
         dirty = [line for line in status if not line[3:].startswith("openspec/")]
-        if dirty:
-            print(
-                f"error: {archived} is not committed yet; only openspec/ may change before "
-                "the re-run commits it — commit or drop these:\n" + "\n".join(dirty),
-                file=sys.stderr,
-            )
-            return 2
-        capabilities = _capabilities(root / archived / "specs")
+        why = f"{archived} is not committed yet; only openspec/ may change before the re-run"
     else:
         # The Verify ticks are the one change the archive commit carries: `openspec archive`
         # moves `tasks.md`, so no later commit could.
@@ -136,13 +135,15 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
             for line in status
             if not (line[:2] in (" M", "M ", "MM") and line[3:] == own) and line[3:] != exported
         ]
-        if dirty:
-            print(
-                "error: the worktree is not clean — commit or drop these before archiving, or "
-                "the pushed head would not carry them:\n" + "\n".join(dirty),
-                file=sys.stderr,
-            )
-            return 2
+        why = "the worktree is not clean"
+    if dirty:
+        print(
+            f"error: {why} — commit or drop these before archiving, or the pushed head would "
+            "not carry them:\n" + "\n".join(dirty),
+            file=sys.stderr,
+        )
+        return 2
+    if not archived:
         tasks = change_dir / "tasks.md"
         issue = tracking_issue(tasks)
         ledger = ledger_path(run, root)
@@ -150,7 +151,6 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
         ids = sessions(issue, ledger=ledger) if issue is not None else []
         (tasks.parent / "sessions").write_text("".join(f"{s}\n" for s in ids), encoding="utf-8")
         mark_own_task(tasks, "archive_change", change)
-        capabilities = _capabilities(change_dir / "specs")
         run([*OPENSPEC_CMD, "archive", change, "-y"])
         if lock.exists():
             lock.unlink()
@@ -158,10 +158,9 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
     # `openspec archive` writes a placeholder Purpose into a capability its delta creates
     # without one, and validates nothing it wrote: strict validation of each touched main
     # spec stops that placeholder before the commit (a retired capability has no main spec).
+    touched = [c for c in capabilities if (root / "openspec" / "specs" / c / "spec.md").exists()]
     failed = []
-    for capability in capabilities:
-        if not (root / "openspec" / "specs" / capability / "spec.md").exists():
-            continue
+    for capability in touched:
         try:
             run([*OPENSPEC_CMD, "validate", capability, "--type", "spec", "--strict"])
         except RuntimeError as exc:
