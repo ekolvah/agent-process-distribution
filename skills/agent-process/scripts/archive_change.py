@@ -14,9 +14,15 @@ change's own `tasks.md`, modified only, is the one uncommitted change it takes: 
 ticks ride in the archive commit. Once the worktree is clean, the session is bound to the
 tracking issue (`session_binding`) and every session bound to it is written, sorted, to the
 change's `sessions`, which the archive carries to the merged task's readings; a `sessions` left
-by a failed archive is rewritten. Exit codes: 0 done; 1 when a command fails; 2 when the
-worktree holds any other change (the archive commit must be the only thing left to push,
-and the offending paths are printed), when the session leads another issue, or when `openspec/changes/archive/.openspec-archive.lock` already exists — a previous
+by a failed archive is rewritten. After the archive, `openspec validate --strict` runs on each
+main spec the change has a delta for; a failure, such as the placeholder Purpose the archive
+writes for a new capability without one, stops before the commit. The fix is a direct edit
+of that main spec; the re-run finds the archive uncommitted and resumes at the validation,
+accepting uncommitted paths under `openspec/` only. Exit codes: 0 done; 1 when a command
+fails; 2 when the worktree holds any other change (the archive commit must be the only thing
+left to push, and the offending paths are printed), when the session leads another issue,
+when a touched main spec does not validate (OpenSpec's findings are printed), or when
+`openspec/changes/archive/.openspec-archive.lock` already exists — a previous
 archive aborted and its state must be inspected before anything is archived on top of it.
 """
 
@@ -36,6 +42,7 @@ from session_binding import bind, ledger_path, sessions, tracking_issue
 
 Run = Callable[[list[str]], str]
 LOCK = Path("openspec", "changes", "archive", ".openspec-archive.lock")
+OPENSPEC_CMD = ["npx", "-y", f"@fission-ai/openspec@{OPENSPEC}"]
 
 
 def _runner(root: Path) -> Run:
@@ -79,6 +86,20 @@ def mark_own_task(tasks: Path, script: str, change: str) -> None:
     print(f"note: no unchecked `agent-process {script} {change}` task in {tasks}; nothing marked")
 
 
+def _uncommitted_archive(change: str, status: list[str]) -> str | None:
+    """The `openspec/changes/archive/<date>-<change>` that `git status` lists, if any."""
+    archived = re.compile(rf"openspec/changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change)}/")
+    for line in status:
+        if match := archived.match(line[3:]):
+            return match.group().rstrip("/")
+    return None
+
+
+def _capabilities(deltas: Path) -> list[str]:
+    """The capability of each delta `spec.md` under `deltas`, named by its path."""
+    return sorted(p.parent.relative_to(deltas).as_posix() for p in deltas.rglob("spec.md"))
+
+
 def archive_change(change: str, *, root: Path = Path("."), run: Run | None = None) -> int:
     run = run or _runner(root)
     lock = root / LOCK
@@ -89,34 +110,71 @@ def archive_change(change: str, *, root: Path = Path("."), run: Run | None = Non
             file=sys.stderr,
         )
         return 2
-    # The Verify ticks are the one change the archive commit carries: `openspec archive`
-    # moves `tasks.md`, so no later commit could.
-    # A failed `openspec archive` leaves the exported `sessions`; the re-run rewrites it.
-    own = f"openspec/changes/{change}/tasks.md"
-    exported = f"openspec/changes/{change}/sessions"
-    dirty = [
-        line
-        for line in run(["git", "status", "--porcelain"]).splitlines()
-        if not (line[:2] in (" M", "M ", "MM") and line[3:] == own) and line[3:] != exported
-    ]
-    if dirty:
+    status = run(["git", "status", "--porcelain", "--untracked-files=all"]).splitlines()
+    change_dir = root / "openspec" / "changes" / change
+    archived = None if change_dir.exists() else _uncommitted_archive(change, status)
+    if archived is not None:
+        # A refused validation left the archive uncommitted: the archived `sessions` and
+        # `tasks.md` already carry the binding and the tick, so resume at the validation.
+        dirty = [line for line in status if not line[3:].startswith("openspec/")]
+        if dirty:
+            print(
+                f"error: {archived} is not committed yet; only openspec/ may change before "
+                "the re-run commits it — commit or drop these:\n" + "\n".join(dirty),
+                file=sys.stderr,
+            )
+            return 2
+        capabilities = _capabilities(root / archived / "specs")
+    else:
+        # The Verify ticks are the one change the archive commit carries: `openspec archive`
+        # moves `tasks.md`, so no later commit could.
+        # A failed `openspec archive` leaves the exported `sessions`; the re-run rewrites it.
+        own = f"openspec/changes/{change}/tasks.md"
+        exported = f"openspec/changes/{change}/sessions"
+        dirty = [
+            line
+            for line in status
+            if not (line[:2] in (" M", "M ", "MM") and line[3:] == own) and line[3:] != exported
+        ]
+        if dirty:
+            print(
+                "error: the worktree is not clean — commit or drop these before archiving, or "
+                "the pushed head would not carry them:\n" + "\n".join(dirty),
+                file=sys.stderr,
+            )
+            return 2
+        tasks = change_dir / "tasks.md"
+        issue = tracking_issue(tasks)
+        ledger = ledger_path(run, root)
+        bind(issue, environ=os.environ, ledger=lambda: ledger)
+        ids = sessions(issue, ledger=ledger) if issue is not None else []
+        (tasks.parent / "sessions").write_text("".join(f"{s}\n" for s in ids), encoding="utf-8")
+        mark_own_task(tasks, "archive_change", change)
+        capabilities = _capabilities(change_dir / "specs")
+        run([*OPENSPEC_CMD, "archive", change, "-y"])
+        if lock.exists():
+            lock.unlink()
+            print(f"removed {LOCK} left by a successful archive")
+    # `openspec archive` writes a placeholder Purpose into a capability its delta creates
+    # without one, and validates nothing it wrote: strict validation of each touched main
+    # spec stops that placeholder before the commit (a retired capability has no main spec).
+    failed = []
+    for capability in capabilities:
+        if not (root / "openspec" / "specs" / capability / "spec.md").exists():
+            continue
+        try:
+            run([*OPENSPEC_CMD, "validate", capability, "--type", "spec", "--strict"])
+        except RuntimeError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            failed.append(capability)
+    if failed:
+        specs = ", ".join(f"openspec/specs/{c}/spec.md" for c in failed)
         print(
-            "error: the worktree is not clean — commit or drop these before archiving, or "
-            "the pushed head would not carry them:\n" + "\n".join(dirty),
+            f"error: nothing was committed; replace the placeholder Purpose in {specs} by a "
+            f"direct edit, then re-run `agent-process archive_change {change}`",
             file=sys.stderr,
         )
         return 2
-    tasks = root / "openspec" / "changes" / change / "tasks.md"
-    issue = tracking_issue(tasks)
-    ledger = ledger_path(run, root)
-    bind(issue, environ=os.environ, ledger=lambda: ledger)
-    ids = sessions(issue, ledger=ledger) if issue is not None else []
-    (tasks.parent / "sessions").write_text("".join(f"{s}\n" for s in ids), encoding="utf-8")
-    mark_own_task(tasks, "archive_change", change)
-    run(["npx", "-y", f"@fission-ai/openspec@{OPENSPEC}", "archive", change, "-y"])
-    if lock.exists():
-        lock.unlink()
-        print(f"removed {LOCK} left by a successful archive")
     run(["git", "add", "-A", "openspec"])
     run(["git", "commit", "-m", f"chore: archive {change}"])
     run(["git", "push"])

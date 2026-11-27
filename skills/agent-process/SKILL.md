@@ -142,7 +142,8 @@ still running, then resolves, re-runs that check and replies last. A P2/P3 threa
 answered, never resolved by the process. A spec correction goes through a change of its own on
 the PR branch — `openspec new change <name>`, the delta under its
 `specs/`, `validate --strict`, then `agent-process archive_change
-<name>` — never a direct edit of `openspec/specs/`. A changed design decision amends the archived
+<name>` — never a direct edit of `openspec/specs/`, except a placeholder `## Purpose`, which only
+a direct edit replaces. A changed design decision amends the archived
 `design.md` and scenario map in the same push. A finding on script behavior must be closed by its class:
 test the violated invariant, the other inputs that violate it from the tool's own
 documentation, and what each switch takes away; test the class, not the reviewer's example.
