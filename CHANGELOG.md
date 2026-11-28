@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.34.2](https://github.com/ekolvah/agent-process-distribution/compare/v3.34.1...v3.34.2) (2026-11-28)
+
+
+### Bug Fixes
+
+* archive-validates-main-specs ([#526](https://github.com/ekolvah/agent-process-distribution/issues/526)) ([a2d3f89](https://github.com/ekolvah/agent-process-distribution/commit/a2d3f89ef07a163903fc3416eed6dba71e5ccc2d))
+
 ## [3.34.1](https://github.com/ekolvah/agent-process-distribution/compare/v3.34.0...v3.34.1) (2026-11-16)
 
 
