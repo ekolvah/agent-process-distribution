@@ -10,8 +10,10 @@ collection (``check_red`` counts a collection error as "not RED").
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -424,16 +426,36 @@ def test_archive_commit(tmp_path: Path, own_task: str) -> None:
     assert order == []
 
 
+def _git_repo(
+    root: Path, branch: str
+) -> tuple[Callable[..., str], Callable[[list[str]], str], list[list[str]]]:
+    """A git repository at `root` driven by `archive_change`'s real runner: `git`, a `run`
+    that stubs only `git push`, and the pushes it recorded."""
+    real = load_script("archive_change")._runner(root)
+    pushes: list[list[str]] = []
+
+    def git(*args: str) -> str:
+        return real(["git", *args])
+
+    def run(cmd: list[str]) -> str:
+        if cmd[:2] == ["git", "push"]:
+            pushes.append(cmd)
+            return ""
+        return real(cmd)
+
+    git("init", "-q", "-b", branch)
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
+    return git, run, pushes
+
+
 def test_ticks_left_for_the_archive(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Scenario: Ticks left for the archive — a modified own `tasks.md` rides in the archive
     commit; another changed file, or that `tasks.md` deleted, still stops it."""
     archive_change = load_script("archive_change")
     change = "v2-9-example"
     rel = f"openspec/changes/{change}/tasks.md"
-    real = archive_change._runner(tmp_path)
-
-    def git(*args: str) -> str:
-        return real(["git", *args])
+    git, push_stubbed, _ = _git_repo(tmp_path, change)
 
     def run(cmd: list[str]) -> str:
         if cmd[0] == "npx":  # `openspec archive` moves the change under the archive
@@ -441,13 +463,8 @@ def test_ticks_left_for_the_archive(tmp_path: Path, capsys: pytest.CaptureFixtur
                 tmp_path / "openspec" / "changes" / "archive" / f"2026-01-01-{change}"
             )
             return ""
-        if cmd[:2] == ["git", "push"]:
-            return ""
-        return real(cmd)
+        return push_stubbed(cmd)
 
-    git("init", "-q", "-b", change)
-    git("config", "user.name", "t")
-    git("config", "user.email", "t@t")
     tasks = tmp_path / rel
     tasks.parent.mkdir(parents=True)
     (tmp_path / "openspec" / "changes" / "archive").mkdir()
@@ -488,3 +505,75 @@ def test_ticks_left_for_the_archive(tmp_path: Path, capsys: pytest.CaptureFixtur
         "- [x] 4.1 verify",
         "- [x] 5.1 `archive_change.py v2-9-example`",
     ]
+
+
+def _main_spec(name: str, purpose: str) -> str:
+    return (
+        f"# {name} Specification\n\n## Purpose\n{purpose}\n\n## Requirements\n\n"
+        f"### Requirement: {name.capitalize()}\nThe {name} SHALL exist.\n\n"
+        "#### Scenario: Exists\n- **WHEN** read\n- **THEN** it exists\n"
+    )
+
+
+def test_archive_leaves_a_placeholder_purpose(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Scenarios: Archive leaves a placeholder Purpose (first run), Re-run after the Purpose
+    is written (re-run) — the pinned OpenSpec archives and validates for real."""
+    monkeypatch.setenv("OPENSPEC_TELEMETRY", "0")
+    archive_change = load_script("archive_change")
+    change = "placeholder"
+    git, run, pushes = _git_repo(tmp_path, change)
+    specs = tmp_path / "openspec" / "specs"
+    for name, purpose in (
+        ("alpha", "Alpha is the capability this fixture extends with one requirement."),
+        ("gamma", "TBD - created by archiving change old. Update Purpose after archive."),
+    ):
+        (specs / name).mkdir(parents=True)
+        (specs / name / "spec.md").write_text(_main_spec(name, purpose), encoding="utf-8")
+    change_dir = tmp_path / "openspec" / "changes" / change
+    (tmp_path / "openspec" / "changes" / "archive").mkdir(parents=True)
+    files = {
+        ".openspec.yaml": "schema: spec-driven\n",
+        "proposal.md": "## Why\n\nA fixture.\n",
+        "specs/alpha/spec.md": (
+            "## ADDED Requirements\n\n### Requirement: Alpha two\nThe alpha SHALL grow.\n\n"
+            "#### Scenario: Grows\n- **WHEN** archived\n- **THEN** it grows\n"
+        ),
+        "specs/beta/spec.md": (
+            "## ADDED Requirements\n\n### Requirement: Beta\nThe beta SHALL exist.\n\n"
+            "#### Scenario: Exists\n- **WHEN** archived\n- **THEN** it exists\n"
+        ),
+        "tasks.md": _GROUP0 + f"- [ ] 4.1 `agent-process archive_change {change}`\n",
+    }
+    for name, text in files.items():
+        (change_dir / name).parent.mkdir(parents=True, exist_ok=True)
+        (change_dir / name).write_text(text, encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-qm", "plan")
+    base = git("rev-parse", "HEAD")
+
+    # The archive writes beta's placeholder Purpose: exit 2 naming beta, nothing committed.
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
+    err = capsys.readouterr().err
+    assert "'beta'" in err and "placeholder" in err
+    assert pushes == []
+    assert git("rev-parse", "HEAD") == base
+
+    # A re-run accepts uncommitted paths under openspec/ only.
+    (tmp_path / "other.txt").write_text("a\n", encoding="utf-8")
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 2
+    assert "other.txt" in capsys.readouterr().err
+    assert git("rev-parse", "HEAD") == base
+    (tmp_path / "other.txt").unlink()
+
+    # The Purpose written by a direct edit: the re-run validates, commits and pushes.
+    beta = specs / "beta" / "spec.md"
+    purpose = "Beta is the capability this fixture creates without a delta Purpose."
+    text = beta.read_text(encoding="utf-8")
+    beta.write_text(re.sub(r"(?m)^TBD - .*$", purpose, text), encoding="utf-8")
+    assert archive_change.archive_change(change, root=tmp_path, run=run) == 0
+    assert len(pushes) == 1
+    assert git("status", "--porcelain") == ""
+    assert "Requirement: Alpha two" in git("show", "HEAD:openspec/specs/alpha/spec.md")
+    assert purpose in git("show", "HEAD:openspec/specs/beta/spec.md")

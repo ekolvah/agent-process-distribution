@@ -319,6 +319,7 @@ def test_tasks_of_a_new_change() -> None:
         "three rounds",
         "no tick",
         "never a direct edit of `openspec/specs/`",
+        "except a placeholder `## Purpose`",
         "A P2/P3 thread is answered, never resolved by the process",
         "EnterWorktree",
         ".claude/worktrees/",
